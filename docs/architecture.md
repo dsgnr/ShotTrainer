@@ -45,7 +45,7 @@ nothing blocks the event loop.
 - `ui/` PySide6 widgets and dialogs. Thin layer.
 - `app/` Wiring, settings, logging, entry point.
 
-## Why this split
+## Module boundaries
 
 The original sketch had everything inside the camera loop. Pulling
 calibration and coordinate conversion out of the capture loop makes them
@@ -53,12 +53,11 @@ testable without OpenCV or a real camera, and means the same conversion
 logic is used at record time, replay time, and when re-analysing past
 sessions after a calibration tweak.
 
-## Future flexibility
+## Replaceable parts
 
-- Swap OpenCV-based detection for a different algorithm by implementing the
-  same `TargetDetector` interface.
-- Replace SQLite with another backend by reusing the SQLAlchemy models, or
-  swap the repository implementation entirely if a different storage shape
-  is needed.
-- Audio backend is hidden behind a thin interface so PortAudio can be
-  replaced where it's not available.
+- The detector is one class with a small surface, so a different
+  algorithm can be slotted in without touching the tracker or UI.
+- The repository hides SQLAlchemy from the rest of the code, so a different
+  storage backend can be substituted by reimplementing the same methods.
+- The audio backend is hidden behind a thin interface so PortAudio can be
+  swapped where it isn't available.

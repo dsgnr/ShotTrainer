@@ -5,45 +5,46 @@ development so the reasoning isn't lost.
 
 ## Target detection
 
-First implementation uses contour detection on a thresholded frame. The
-target is assumed to be the largest dark, roughly circular blob on a light
-background. We compute circularity (4π·area / perimeter²) to reject
-rectangles like the A4 sheet itself.
+The detector runs an adaptive threshold over the grayscale frame and then
+walks the resulting contours, scoring each by circularity (4π·area /
+perimeter²) and how well it fills its enclosing circle. The highest-scoring
+blob within the radius range wins. This rejects long rectangles like the
+edge of the A4 sheet.
 
 Alternatives considered:
 
 - **Hough circle transform.** Works well when parameters match the target,
-  but is sensitive to radius range, blur, and contrast. We may add it as a
-  fallback. The OpenCV implementation also gives sub-pixel centres which is
-  attractive for high-resolution frames.
+  but is sensitive to radius range, blur, and contrast. The OpenCV
+  implementation gives sub-pixel centres which is attractive for
+  high-resolution frames. We kept it in mind as a drop-in replacement.
 - **Template matching.** Fast and simple, but does not generalise across
   distances or zoom levels without a pyramid.
 - **Fiducial markers (ArUco).** Probably the most robust if you can stick
   one near the target, but defeats the point of using a plain printed sheet.
-- **Manual selection.** Will be supported as a fallback when automatic
-  detection fails.
+- **Manual selection.** Available as a fallback when automatic detection
+  fails. The user clicks the centre of the target.
 
 ## Calibration
 
-The first implementation uses a known-size A4 sheet. The user shows the sheet
-to the camera, the app finds its corners, and the resulting homography gives
-both pixels per millimetre and a perspective correction. Without perspective
+Calibration uses a known-size A4 sheet. The user shows the sheet to the
+camera, the app finds its corners, and the resulting homography gives both
+pixels per millimetre and perspective correction. Without perspective
 correction the mm-per-pixel ratio is only valid at the centre of the frame
 when the camera is square-on to the target.
 
 Alternatives:
 
-- **Known-size circle.** Simpler, but only gives a scale, not perspective.
+- **Known-size circle.** Simpler, gives a scale but not perspective.
 - **Manual point selection.** Always available as a fallback.
-- **Camera intrinsics.** A separate problem (lens distortion) that can be
-  layered on top later.
+- **Camera intrinsics.** Lens distortion is a separate problem. Not
+  attempted here. The homography handles linear perspective only.
 
 ## Audio shot detection
 
-First implementation: short-term RMS energy with an adaptive baseline and a
-refractory window to avoid double-triggering on echoes. This is good enough
-for a noticeable shot in a quiet room. Live fire on a range will probably
-need more work.
+The detector watches short-term RMS energy with an adaptive baseline and a
+refractory window to avoid double-triggering on echoes and ringing. This is
+adequate for a clearly audible shot in a quiet room. Live fire on a range
+needs noise-rejection tuning, exposed via the sensitivity controls.
 
 Alternatives:
 
@@ -55,33 +56,33 @@ Alternatives:
 
 The shot timestamp is the time at which the audio block crossed the
 threshold, captured from the same monotonic clock as tracking samples. There
-is a known offset of a few milliseconds due to audio buffering and OS
-latency. We document it but do not currently try to compensate.
+is a known offset of a few milliseconds from audio buffering and OS latency.
+It is documented rather than compensated for.
 
 ## Storage
 
 SQLite via SQLAlchemy. One file per installation, schema kept simple, an
-index on `(session_id, timestamp)` so trace lookups are cheap.
+index on `(session_id, timestamp)` so trace lookups are cheap. Trace inserts
+are batched so each sample does not pay the cost of its own transaction.
 
 Alternatives:
 
 - **Parquet for trace data, SQLite for metadata.** Better for very large
-  sessions, more code complexity. Will revisit if real sessions get big.
+  sessions, more code complexity. Worth reconsidering if session sizes grow
+  large enough to make SQLite trace queries slow.
 - **Plain JSON files.** Easier to inspect, slower to query.
-
-We batch trace inserts to avoid one transaction per sample.
 
 ## Threading
 
-Camera and audio each on their own thread. Communication via Qt signals
-(queued) and a small ring buffer for the latest tracking samples. The UI
-thread does drawing only.
+Camera and audio each run on their own thread. Communication is via Qt
+signals (queued) and a small ring buffer for the latest tracking samples.
+The UI thread does drawing only.
 
 ## Packaging
 
-PyInstaller first, because it has the broadest platform coverage and least
-new tooling. Briefcase and Nuitka are interesting alternatives but PyInstaller
-will get us a working build sooner.
+PyInstaller is the chosen packager. It has the broadest platform coverage
+and the least new tooling. Briefcase and Nuitka are interesting
+alternatives that were not pursued.
 
 ## Accuracy
 
