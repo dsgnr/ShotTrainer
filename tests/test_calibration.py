@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 
-import numpy as np
 import pytest
 
 from shottrainer.tracking.calibration import (
@@ -45,7 +44,7 @@ def test_homography_maps_a4_corners_correctly():
     target_pts = a4_target_corners("centre")
     cal = fit_homography(image_pts, target_pts)
 
-    for img, tgt in zip(image_pts, target_pts):
+    for img, tgt in zip(image_pts, target_pts, strict=True):
         mm = cal.to_mm(*img)
         assert mm[0] == pytest.approx(tgt[0], abs=1e-6)
         assert mm[1] == pytest.approx(tgt[1], abs=1e-6)
