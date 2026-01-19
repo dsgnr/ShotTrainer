@@ -82,9 +82,9 @@ class AppController(QObject):
         self._audio.shot_detected.connect(self._on_shot_detected)
         self._audio.error.connect(self._on_audio_error)
 
-        # Hook menu callbacks into the controller. Keeps the window dumb.
-        self._window.open_session_browser = self._open_session_browser  # type: ignore[attr-defined]
-        self._window.preferences_changed = self._apply_preferences  # type: ignore[attr-defined]
+        self._window.session_browser_requested.connect(self._open_session_browser)
+        self._window.preferences_changed.connect(self._apply_preferences)
+        self._window.calibration_points_accepted.connect(self._on_calibration_points)
 
     def _start_camera(self, device_index: int) -> None:
         self._stop_camera()
@@ -248,6 +248,17 @@ class AppController(QObject):
 
     def _on_replay_point(self, x_mm: float, y_mm: float) -> None:
         self._window.target_view.append_trace_point(x_mm, y_mm)
+
+    def _on_calibration_points(self, image_points: list) -> None:
+        from shottrainer.tracking.calibration import a4_target_corners, fit_homography
+
+        try:
+            cal = fit_homography(image_points, a4_target_corners("centre"))
+        except Exception as exc:
+            self._window.statusBar().showMessage(f"Calibration failed: {exc}", 5000)
+            return
+        self._tracker.set_calibration(cal)
+        self._window.statusBar().showMessage("Calibration applied", 4000)
 
     def _serialise_calibration(self) -> dict | None:
         cal = self._tracker.calibration
