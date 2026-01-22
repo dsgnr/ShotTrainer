@@ -31,6 +31,8 @@ from shottrainer.ui.session_browser import SessionBrowserDialog
 from shottrainer.ui.shot_list import ShotListEntry
 from shottrainer.ui.target_view import ShotMarker
 
+from .settings import load_preferences, save_preferences
+
 log = logging.getLogger(__name__)
 
 
@@ -59,7 +61,7 @@ class AppController(QObject):
         self._connect_signals()
         self._window.set_device_options_provider(self._device_options)
         self._window.set_calibration_corner_detector(detect_sheet_corners)
-        self._apply_preferences(Preferences())
+        self._apply_preferences(load_preferences())
 
     def start(self) -> None:
         """Begin live preview. The camera runs whenever the app is open."""
@@ -209,6 +211,14 @@ class AppController(QObject):
 
         if previous is not None and previous.camera_id != prefs.camera_id and self._camera is not None:
             self._start_camera(prefs.camera_id)
+
+        # Only persist when the change came from the user. The initial load
+        # of saved preferences should not rewrite the file.
+        if previous is not None and previous != prefs:
+            try:
+                save_preferences(prefs)
+            except OSError as exc:
+                log.warning("Could not save preferences: %s", exc)
 
     def _open_session_browser(self) -> None:
         dialog = SessionBrowserDialog(self._repo, parent=self._window)
