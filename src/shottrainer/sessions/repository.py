@@ -1,7 +1,7 @@
 """Repository for sessions, traces and shots.
 
 Hides SQLAlchemy from the rest of the app. Anything that wants
-to read or write persistence goes through here.
+to read or to read or write persistence goes through here.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session as SAS
+from sqlalchemy.orm import Session as OrmSession
 
 from shottrainer.tracking.models import TrackingSample
 
@@ -23,7 +23,7 @@ from .models import Session, Shot, TraceSample
 class SessionSummary:
     """A read-only view of a session for list rendering. Cheap to build."""
 
-    __slots__ = ("id", "name", "started_at", "ended_at", "shot_count")
+    __slots__ = ("ended_at", "id", "name", "shot_count", "started_at")
 
     def __init__(
         self,
@@ -53,7 +53,7 @@ class SessionRepository:
         target_profile: str = "default",
         app_version: str = "",
     ) -> int:
-        with SAS(self._engine, future=True) as session:
+        with OrmSession(self._engine, future=True) as session:
             row = Session(
                 name=name,
                 notes=notes,
@@ -66,7 +66,7 @@ class SessionRepository:
             return int(row.id)
 
     def end_session(self, session_id: int, ended_at: datetime | None = None) -> None:
-        with SAS(self._engine, future=True) as session:
+        with OrmSession(self._engine, future=True) as session:
             row = session.get(Session, session_id)
             if row is None:
                 return
@@ -74,7 +74,7 @@ class SessionRepository:
             session.commit()
 
     def list_sessions(self) -> list[SessionSummary]:
-        with SAS(self._engine, future=True) as session:
+        with OrmSession(self._engine, future=True) as session:
             rows = session.execute(
                 select(Session).order_by(Session.started_at.desc())
             ).scalars().all()
@@ -93,11 +93,11 @@ class SessionRepository:
             return summaries
 
     def get_session(self, session_id: int) -> Session | None:
-        with SAS(self._engine, future=True) as session:
+        with OrmSession(self._engine, future=True) as session:
             return session.get(Session, session_id)
 
     def delete_session(self, session_id: int) -> None:
-        with SAS(self._engine, future=True) as session:
+        with OrmSession(self._engine, future=True) as session:
             row = session.get(Session, session_id)
             if row is None:
                 return
@@ -120,7 +120,7 @@ class SessionRepository:
         ]
         if not rows:
             return 0
-        with SAS(self._engine, future=True) as session:
+        with OrmSession(self._engine, future=True) as session:
             session.execute(TraceSample.__table__.insert(), rows)
             session.commit()
         return len(rows)
@@ -132,7 +132,7 @@ class SessionRepository:
         start_ts: float | None = None,
         end_ts: float | None = None,
     ) -> list[TrackingSample]:
-        with SAS(self._engine, future=True) as session:
+        with OrmSession(self._engine, future=True) as session:
             stmt = select(TraceSample).where(TraceSample.session_id == session_id)
             if start_ts is not None:
                 stmt = stmt.where(TraceSample.ts >= start_ts)
@@ -143,7 +143,7 @@ class SessionRepository:
             return [_row_to_sample(r) for r in rows]
 
     def trace_count(self, session_id: int) -> int:
-        with SAS(self._engine, future=True) as session:
+        with OrmSession(self._engine, future=True) as session:
             return session.query(TraceSample).filter_by(session_id=session_id).count()
 
     def add_shot(
@@ -157,7 +157,7 @@ class SessionRepository:
         confidence: float,
         score: str = "",
     ) -> int:
-        with SAS(self._engine, future=True) as session:
+        with OrmSession(self._engine, future=True) as session:
             shot = Shot(
                 session_id=session_id,
                 ts=ts,
@@ -172,7 +172,7 @@ class SessionRepository:
             return int(shot.id)
 
     def list_shots(self, session_id: int) -> Sequence[Shot]:
-        with SAS(self._engine, future=True) as session:
+        with OrmSession(self._engine, future=True) as session:
             return list(
                 session.execute(
                     select(Shot).where(Shot.session_id == session_id).order_by(Shot.ts)

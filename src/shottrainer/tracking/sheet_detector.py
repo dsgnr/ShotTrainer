@@ -13,10 +13,7 @@ import numpy as np
 
 
 def detect_sheet_corners(frame_bgr: np.ndarray) -> list[tuple[float, float]] | None:
-    if frame_bgr.ndim == 3:
-        gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
-    else:
-        gray = frame_bgr
+    gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY) if frame_bgr.ndim == 3 else frame_bgr
 
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
