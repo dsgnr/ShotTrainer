@@ -20,9 +20,11 @@ isn't achievable with a webcam.
 
 ## Status
 
-Early stages. The architecture is in place, the live tracking and shot
-detection prototypes work, but expect rough edges. See
-[`docs/engineering-notes.md`](docs/engineering-notes.md) for trade-offs.
+The app boots, runs the live preview, detects shots, records sessions, and
+replays the trace around each shot. Calibration uses an A4 sheet. The audio
+threshold is exposed in preferences. See [`docs/troubleshooting.md`](docs/troubleshooting.md)
+for the rough edges and [`docs/engineering-notes.md`](docs/engineering-notes.md)
+for trade-offs.
 
 ## Requirements
 
@@ -78,14 +80,15 @@ ruff format .
 
 ```
 src/shottrainer/
-    app/         entry point and wiring
+    app/         entry point, controller, settings, paths
     ui/          PySide6 widgets and dialogs
     tracking/    camera capture, target detection, calibration
     audio/       microphone input and shot detection
     sessions/    database, models, repository
     replay/      trace replay logic
     services/    coordination between subsystems
-docs/            engineering notes, accuracy notes
+docs/            engineering notes, accuracy notes, troubleshooting
+packaging/       PyInstaller spec and platform notes
 tests/           pytest suite
 ```
 
@@ -105,6 +108,11 @@ Calibration must be redone if the camera or target moves. See
 
 PyInstaller specs live under `packaging/`. The README in that directory
 covers platform-specific notes (PySide6 plugins, OpenCV bundling, signing).
+
+## Troubleshooting
+
+See [`docs/troubleshooting.md`](docs/troubleshooting.md) for the common
+issues with cameras, microphones, calibration, and replay.
 
 ## Licence
 
