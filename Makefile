@@ -1,23 +1,26 @@
-.PHONY: install test lint format run package clean
+.PHONY: install sync test lint format run package clean
 
 install:
-	pip install -e ".[dev]"
+	uv sync
+
+sync:
+	uv sync
 
 test:
-	pytest
+	uv run pytest
 
 lint:
-	ruff check .
+	uv run ruff check .
 
 format:
-	ruff format .
-	ruff check --fix .
+	uv run ruff format .
+	uv run ruff check --fix .
 
 run:
-	python -m shottrainer.app.main
+	uv run shottrainer
 
 package:
-	pyinstaller packaging/shottrainer.spec --noconfirm
+	uv run pyinstaller packaging/shottrainer.spec --noconfirm
 
 clean:
 	rm -rf build dist .pytest_cache .ruff_cache .mypy_cache
