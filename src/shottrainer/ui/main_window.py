@@ -21,6 +21,7 @@ from .preferences_dialog import Preferences, PreferencesDialog
 from .replay_controls import ReplayControls
 from .session_controls import SessionControls
 from .shot_list import ShotList
+from .stats_panel import StatsPanel
 from .target_view import TargetView
 
 
@@ -45,6 +46,7 @@ class MainWindow(QMainWindow):
         self.camera_view = CameraView()
         self.target_view = TargetView()
         self.shot_list = ShotList()
+        self.stats_panel = StatsPanel()
 
         # Layout: target view dominates the main area. The camera preview
         # and shot list sit in a slimmer side column. The camera preview is
@@ -57,6 +59,7 @@ class MainWindow(QMainWindow):
         self.camera_view.setMaximumHeight(260)
         side_layout.addWidget(self.camera_view, 1)
         side_layout.addWidget(self.shot_list, 2)
+        side_layout.addWidget(self.stats_panel)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(self.target_view)

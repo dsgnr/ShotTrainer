@@ -10,6 +10,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from shottrainer import __version__
+from shottrainer.ui.assets import asset_path
 
 from .controller import AppController
 from .paths import database_path
@@ -20,7 +21,6 @@ from .ui_state import (
     load_ui_state,
     save_ui_state,
 )
-from shottrainer.ui.assets import asset_path
 
 
 def main(argv: list[str] | None = None) -> int:
