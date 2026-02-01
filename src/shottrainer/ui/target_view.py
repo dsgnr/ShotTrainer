@@ -56,6 +56,7 @@ class TargetView(QWidget):
         self._live_aim: tuple[float, float] | None = None
         self._live_aim_manual: bool = False
         self._split_index: int | None = None  # trace index where pre/post divides
+        self._hold_zone: tuple[float, float, float] | None = None  # (cx, cy, r) in mm
 
     def set_rings(self, rings: Iterable[TargetRing]) -> None:
         self._rings = tuple(rings)
@@ -91,6 +92,17 @@ class TargetView(QWidget):
             self._live_aim_manual = manual
             self.update()
 
+    def set_hold_zone(self, centre: tuple[float, float] | None, radius_mm: float = 0.0) -> None:
+        """Overlay the steady-hold zone (centre and radius in mm).
+
+        Pass ``None`` to clear the overlay.
+        """
+        if centre is None or radius_mm <= 0:
+            self._hold_zone = None
+        else:
+            self._hold_zone = (centre[0], centre[1], radius_mm)
+        self.update()
+
     def clear_trace(self) -> None:
         self._trace.clear()
         self._live_aim = None
@@ -116,9 +128,26 @@ class TargetView(QWidget):
 
         self._draw_rings(painter, cx, cy, scale)
         self._draw_crosshair(painter, cx, cy, size)
+        self._draw_hold_zone(painter, cx, cy, scale)
         self._draw_trace(painter, cx, cy, scale)
         self._draw_shots(painter, cx, cy, scale)
         self._draw_live_aim(painter, cx, cy, scale)
+
+    def _draw_hold_zone(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
+        if self._hold_zone is None:
+            return
+        zx, zy, r_mm = self._hold_zone
+        r = r_mm * scale
+        # Faint amber fill so the trace remains the focus.
+        fill = QColor(243, 156, 18, 40)
+        outline = QColor(243, 156, 18, 160)
+        painter.setBrush(fill)
+        pen = QPen(outline)
+        pen.setWidth(1)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        painter.setPen(pen)
+        painter.drawEllipse(QPointF(cx + zx * scale, cy + zy * scale), r, r)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
 
     def _draw_rings(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
         pen = QPen(QColor("#444"))
