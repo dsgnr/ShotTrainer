@@ -19,6 +19,7 @@ from shottrainer.services.shot_coordinator import (
     ShotCoordinator,
     ShotCoordinatorSettings,
 )
+from shottrainer.services.shot_stats import compute_trace_stats
 from shottrainer.services.trace_buffer import TraceBuffer
 from shottrainer.sessions.database import init_database, make_engine
 from shottrainer.sessions.repository import SessionRepository
@@ -343,8 +344,6 @@ class AppController(QObject):
         pre_points = points[: window.split_index + 1] if window.split_index is not None else points
         self._window.stats_panel.set_trace_points(pre_points)
         if pre_points:
-            from shottrainer.services.shot_stats import compute_trace_stats
-
             stats = compute_trace_stats(pre_points)
             self._window.target_view.set_hold_zone(
                 (stats.mean_x_mm, stats.mean_y_mm), stats.hold_tremor_mm
