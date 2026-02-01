@@ -22,8 +22,8 @@ def main(argv: list[str] | None = None) -> int:
     app.setApplicationName("ShotTrainer")
     app.setOrganizationName("ShotTrainer")
 
-    # The main window is wired up in a later step. For now, exit cleanly so
-    # the entry point is at least importable and usable from CLI tooling.
+    # The main window is set up below. Wiring of camera and audio
+    # services happens once the user starts a session.
     from shottrainer.ui.main_window import MainWindow
 
     window = MainWindow()

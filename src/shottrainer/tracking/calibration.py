@@ -1,6 +1,6 @@
 """Pixel to millimetre conversion.
 
-The first implementation supports two cases:
+Two calibration shapes are supported:
 
 - Linear scale: a single mm-per-pixel value, with the origin at a chosen
   pixel. Adequate when the camera is square-on to the target and the
@@ -9,9 +9,8 @@ The first implementation supports two cases:
   computed from four known correspondences (typically the corners of an
   A4 sheet).
 
-We deliberately keep this module free of OpenCV at import time so the
-linear path is testable without it. The homography fitter imports cv2
-lazily.
+This module is free of OpenCV at import time so the linear path is testable
+without it. The homography fitter imports cv2 lazily.
 """
 
 from __future__ import annotations

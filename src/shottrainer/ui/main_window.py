@@ -1,4 +1,4 @@
-"""Top-level application window. Kept small; views are added incrementally."""
+"""Top-level application window. Kept small. Views compose into it."""
 
 from __future__ import annotations
 
