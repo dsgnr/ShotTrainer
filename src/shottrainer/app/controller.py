@@ -157,7 +157,9 @@ class AppController(QObject):
             self._window.camera_view.set_aim_point(None, None)
             self._window.camera_view.set_status("lost")
             return
-        self._window.camera_view.set_aim_point(sample.x_px, sample.y_px)
+        self._window.camera_view.set_aim_point(
+            sample.x_px, sample.y_px, radius_px=self._tracker.last_radius_px
+        )
         self._window.camera_view.set_status(
             "manual" if self._tracker.manual_point is not None else "tracking"
         )

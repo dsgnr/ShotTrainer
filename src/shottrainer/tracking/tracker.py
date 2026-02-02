@@ -46,6 +46,7 @@ class Tracker:
         self.calibration: _Calibration | None = calibration
         self._frame_id = 0
         self._last_sample: TrackingSample | None = None
+        self._last_radius_px: float = 0.0
         self._manual_px: tuple[float, float] | None = None
 
     def set_calibration(self, calibration: LinearCalibration | HomographyCalibration | None) -> None:
@@ -72,13 +73,16 @@ class Tracker:
         if self._manual_px is not None:
             x_px, y_px = self._manual_px
             confidence = 0.0
+            self._last_radius_px = 0.0
         else:
             det: Detection = self.detector.detect(frame)
             if not det.found:
+                self._last_radius_px = 0.0
                 return None
             x_px = det.x_px
             y_px = det.y_px
             confidence = det.confidence
+            self._last_radius_px = det.radius_px
 
         x_mm: float | None = None
         y_mm: float | None = None
@@ -96,6 +100,10 @@ class Tracker:
         )
         self._last_sample = sample
         return sample
+
+    @property
+    def last_radius_px(self) -> float:
+        return self._last_radius_px
 
     @property
     def last_sample(self) -> TrackingSample | None:
