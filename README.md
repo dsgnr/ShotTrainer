@@ -21,10 +21,13 @@ isn't achievable with a webcam.
 ## Status
 
 The app boots, runs the live preview, detects shots, records sessions, and
-replays the trace around each shot. Calibration uses an A4 sheet. The audio
-threshold is exposed in preferences. See [`docs/troubleshooting.md`](docs/troubleshooting.md)
-for the rough edges and [`docs/engineering-notes.md`](docs/engineering-notes.md)
-for trade-offs.
+replays the trace around each shot. Calibration uses an A4 sheet and survives
+restarts. Preferences include camera rotation and mirroring, audio gain and
+sensitivity, target face selection, and pre/post-shot windows. The stats
+panel shows shot group metrics live, plus hold tremor, trace length, and
+time-in-ring percentages over the pre-shot window of the selected shot. See
+[`docs/troubleshooting.md`](docs/troubleshooting.md) for the rough edges and
+[`docs/engineering-notes.md`](docs/engineering-notes.md) for trade-offs.
 
 ## Requirements
 
