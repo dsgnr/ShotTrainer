@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 class SessionControls(QWidget):
     start_requested = Signal(str)
     stop_requested = Signal()
+    clear_shots_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -31,9 +32,11 @@ class SessionControls(QWidget):
 
         self._start = QPushButton("Start")
         self._stop = QPushButton("Stop")
+        self._clear = QPushButton("Clear shots")
         self._stop.setEnabled(False)
         layout.addWidget(self._start)
         layout.addWidget(self._stop)
+        layout.addWidget(self._clear)
 
         self._summary = QLabel("No active session")
         self._summary.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -41,6 +44,7 @@ class SessionControls(QWidget):
 
         self._start.clicked.connect(self._on_start)
         self._stop.clicked.connect(self._on_stop)
+        self._clear.clicked.connect(self.clear_shots_requested)
 
     def set_active(self, active: bool) -> None:
         self._start.setEnabled(not active)
