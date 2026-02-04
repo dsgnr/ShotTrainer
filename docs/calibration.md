@@ -29,7 +29,7 @@ reported in millimetres relative to the target centre.
    it. The calibration is also written to disk so it survives a
    restart.
 
-The position of the sheet inside the frame doesn't matter much — the
+The position of the sheet inside the frame doesn't matter much. The
 homography handles offset and tilt. What does matter is that all four
 corners are visible and the sheet is on the same plane as the target.
 

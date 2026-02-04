@@ -1,8 +1,9 @@
 """Find a black circular target on a light background.
 
-This is the "version one" detector. It is intentionally simple so it can
-be replaced or extended later. See `docs/engineering-notes.md` for the
-alternatives we've considered.
+The approach is deliberately simple. An adaptive threshold
+binarises the frame, then the detector walks the contours and
+picks the most circular one. ``docs/engineering-notes.md``
+lists the alternatives that were tried and discarded.
 """
 
 from __future__ import annotations
