@@ -64,6 +64,18 @@ class HomographyCalibration:
         dy = float(np.hypot(x2 - x0, y2 - y0))
         return (dx + dy) / 2.0
 
+    def diagnostic_mm_per_pixel(self) -> float:
+        """Average local mm/pixel at the centroid of the recorded image points.
+
+        Falls back to the origin if no points were recorded.
+        """
+        if self.image_points:
+            cx = sum(p[0] for p in self.image_points) / len(self.image_points)
+            cy = sum(p[1] for p in self.image_points) / len(self.image_points)
+        else:
+            cx, cy = 0.0, 0.0
+        return self.mm_per_pixel_at(cx, cy)
+
 
 def _apply_homography(h: np.ndarray, x: float, y: float) -> tuple[float, float]:
     v = h @ np.array([x, y, 1.0], dtype=np.float64)
