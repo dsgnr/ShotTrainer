@@ -12,7 +12,7 @@ from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
@@ -42,6 +42,8 @@ class ShotMarker:
 
 
 class TargetView(QWidget):
+    extent_changed = Signal(float)
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setMinimumSize(320, 320)
@@ -67,6 +69,10 @@ class TargetView(QWidget):
     def set_extent_mm(self, extent_mm: float) -> None:
         self._extent_mm = max(1.0, extent_mm)
         self.update()
+
+    @property
+    def extent_mm(self) -> float:
+        return self._extent_mm
 
     def set_trace_capacity(self, n: int) -> None:
         self._trace = deque(self._trace, maxlen=max(1, n))
@@ -215,3 +221,12 @@ class TargetView(QWidget):
         painter.setPen(pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawEllipse(QPointF(x, y), 5.0, 5.0)
+
+    def wheelEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        delta = event.angleDelta().y()
+        if delta == 0:
+            return
+        factor = 0.9 if delta > 0 else 1.1
+        self.set_extent_mm(self._extent_mm * factor)
+        self.extent_changed.emit(self._extent_mm)
+        event.accept()
