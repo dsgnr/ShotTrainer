@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QApplication
 
 from shottrainer import __version__
 from shottrainer.ui.assets import asset_path
+from shottrainer.ui.theme import apply_dark_theme
 
 from .controller import AppController
 from .paths import database_path
@@ -39,6 +40,8 @@ def main(argv: list[str] | None = None) -> int:
     for size in (16, 32, 48, 64, 128, 256, 512):
         icon.addFile(str(asset_path(f"icon_{size}.png")))
     app.setWindowIcon(icon)
+
+    apply_dark_theme(app)
 
     from shottrainer.ui.main_window import MainWindow
 
