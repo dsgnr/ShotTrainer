@@ -39,10 +39,7 @@ class CircleTargetDetector:
 
     def detect(self, frame_bgr: np.ndarray) -> Detection:
         s = self.settings
-        if frame_bgr.ndim == 3:
-            grey = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
-        else:
-            grey = frame_bgr
+        grey = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY) if frame_bgr.ndim == 3 else frame_bgr
 
         if s.blur_kernel >= 3:
             grey = cv2.GaussianBlur(grey, (s.blur_kernel, s.blur_kernel), 0)
