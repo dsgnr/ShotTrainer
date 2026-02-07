@@ -46,6 +46,7 @@ class MainWindow(QMainWindow):
         self._calibration_corner_detector: Callable | None = None
         self._device_options_provider: Callable | None = None
         self._target_faces_provider: Callable | None = None
+        self._rings_lookup: Callable | None = None
 
         self.session_controls = SessionControls()
         self.camera_view = CameraView()
@@ -178,6 +179,9 @@ class MainWindow(QMainWindow):
         self.calibration_dialog_opened.emit(dialog)
         dialog.exec()
 
+    def set_rings_lookup(self, fn: Callable) -> None:
+        self._rings_lookup = fn
+
     def _open_preferences_dialog(self) -> None:
         cameras: list[tuple[int, str]] | None = None
         microphones: list[str] | None = None
@@ -191,6 +195,7 @@ class MainWindow(QMainWindow):
             camera_options=cameras,
             audio_options=microphones,
             target_faces=target_faces,
+            rings_lookup=self._rings_lookup,
             parent=self,
         )
         dialog.saved.connect(self._on_preferences_saved)
