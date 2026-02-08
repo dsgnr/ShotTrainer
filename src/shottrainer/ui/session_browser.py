@@ -11,6 +11,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
+    QFileDialog,
     QHBoxLayout,
     QListWidget,
     QListWidgetItem,
@@ -20,6 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from shottrainer.services.exporter import export_session_csv
 from shottrainer.sessions.repository import SessionRepository, SessionSummary
 
 
@@ -40,8 +42,10 @@ class SessionBrowserDialog(QDialog):
         actions = QHBoxLayout()
         self._open = QPushButton("Open")
         self._delete = QPushButton("Delete")
+        self._export = QPushButton("Export CSV...")
         actions.addWidget(self._open)
         actions.addWidget(self._delete)
+        actions.addWidget(self._export)
         actions.addStretch(1)
         layout.addLayout(actions)
 
@@ -52,6 +56,7 @@ class SessionBrowserDialog(QDialog):
 
         self._open.clicked.connect(self._on_open)
         self._delete.clicked.connect(self._on_delete)
+        self._export.clicked.connect(self._on_export)
 
         self.refresh()
 
@@ -86,6 +91,22 @@ class SessionBrowserDialog(QDialog):
         if confirm == QMessageBox.StandardButton.Yes:
             self._repo.delete_session(sid)
             self.refresh()
+
+    def _on_export(self) -> None:
+        sid = self._selected_session_id()
+        if sid is None:
+            return
+        target = QFileDialog.getExistingDirectory(self, "Choose export folder")
+        if not target:
+            return
+        from pathlib import Path
+
+        files = export_session_csv(self._repo, sid, Path(target))
+        QMessageBox.information(
+            self,
+            "Export complete",
+            f"Wrote {len(files)} files to {target}",
+        )
 
 
 def _make_item(summary: SessionSummary) -> QListWidgetItem:
