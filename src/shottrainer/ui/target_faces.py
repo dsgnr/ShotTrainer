@@ -2,12 +2,36 @@
 
 Each face is just a list of scoring rings in millimetres. Real disciplines
 have specific ring sets. The ones here are reasonable defaults. Users can
-pick the one closest to what they're shooting on.
+pick the one closest to what they're shooting on, or add their own via a
+JSON file in the application data directory.
+
+Custom face file format (``custom_target_faces.json``):
+
+```
+{
+  "my_face": {
+    "label": "My custom face",
+    "rings": [
+      { "radius_mm": 75.0, "label": "1" },
+      { "radius_mm": 5.0, "label": "X" }
+    ]
+  }
+}
+```
+
+Built-ins are not overwritten by custom entries with the same key. The
+custom entry simply takes precedence in the listing.
 """
 
 from __future__ import annotations
 
+import json
+import logging
+from pathlib import Path
+
 from .target_view import TargetRing
+
+log = logging.getLogger(__name__)
 
 _GENERIC = (
     TargetRing(75.0, "1"),
@@ -58,12 +82,60 @@ _FACES: dict[str, tuple[str, tuple[TargetRing, ...]]] = {
 }
 
 
+def custom_faces_path() -> Path:
+    # Late import to avoid circular: ``app.paths`` doesn't depend on UI.
+    from shottrainer.app.paths import data_dir
+
+    return data_dir() / "custom_target_faces.json"
+
+
+def _load_custom_faces() -> dict[str, tuple[str, tuple[TargetRing, ...]]]:
+    p = custom_faces_path()
+    if not p.exists():
+        return {}
+    try:
+        raw = json.loads(p.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        log.warning("Could not read %s: %s", p, exc)
+        return {}
+    out: dict[str, tuple[str, tuple[TargetRing, ...]]] = {}
+    if not isinstance(raw, dict):
+        return out
+    for key, body in raw.items():
+        if not isinstance(body, dict):
+            continue
+        label = str(body.get("label") or key)
+        rings_raw = body.get("rings", [])
+        if not isinstance(rings_raw, list):
+            continue
+        rings: list[TargetRing] = []
+        for r in rings_raw:
+            if not isinstance(r, dict):
+                continue
+            try:
+                rings.append(TargetRing(float(r["radius_mm"]), str(r.get("label") or "")))
+            except (KeyError, TypeError, ValueError):
+                continue
+        if rings:
+            out[str(key)] = (label, tuple(rings))
+    return out
+
+
+def _merged_faces() -> dict[str, tuple[str, tuple[TargetRing, ...]]]:
+    """Built-ins plus custom faces. Custom entries shadow built-ins of the same key."""
+    merged: dict[str, tuple[str, tuple[TargetRing, ...]]] = {}
+    merged.update(_FACES)
+    merged.update(_load_custom_faces())
+    return merged
+
+
 def list_target_faces() -> list[tuple[str, str]]:
-    return [(key, label) for key, (label, _) in _FACES.items()]
+    return [(key, label) for key, (label, _) in _merged_faces().items()]
 
 
 def rings_for_face(name: str) -> tuple[TargetRing, ...]:
-    entry = _FACES.get(name) or _FACES["default"]
+    faces = _merged_faces()
+    entry = faces.get(name) or faces["default"]
     return entry[1]
 
 
