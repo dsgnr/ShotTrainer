@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 from .audio_meter import AudioMeter
 from .calibration_dialog import CalibrationDialog
 from .camera_view import CameraView
+from .marker_sheet import MarkerSheetDialog
 from .preferences_dialog import Preferences, PreferencesDialog
 from .replay_controls import ReplayControls
 from .session_controls import SessionControls
@@ -148,6 +149,9 @@ class MainWindow(QMainWindow):
         """Provider returns a list of ``(key, label)`` for target face choices."""
         self._target_faces_provider = fn
 
+    def set_rings_lookup(self, fn: Callable) -> None:
+        self._rings_lookup = fn
+
     def current_preferences(self) -> Preferences:
         return self._prefs
 
@@ -173,14 +177,19 @@ class MainWindow(QMainWindow):
         prefs_action.triggered.connect(self._open_preferences_dialog)
         tools_menu.addAction(prefs_action)
 
+        marker_action = QAction("Print &marker sheet...", self)
+        marker_action.triggered.connect(self._open_marker_sheet_dialog)
+        tools_menu.addAction(marker_action)
+
     def _open_calibration_dialog(self) -> None:
         dialog = CalibrationDialog(detect_corners=self._calibration_corner_detector, parent=self)
         dialog.accepted_points.connect(self.calibration_points_accepted)
         self.calibration_dialog_opened.emit(dialog)
         dialog.exec()
 
-    def set_rings_lookup(self, fn: Callable) -> None:
-        self._rings_lookup = fn
+    def _open_marker_sheet_dialog(self) -> None:
+        dialog = MarkerSheetDialog(parent=self)
+        dialog.exec()
 
     def _open_preferences_dialog(self) -> None:
         cameras: list[tuple[int, str]] | None = None
