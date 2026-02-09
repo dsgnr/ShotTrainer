@@ -81,3 +81,15 @@ def test_settings_min_radius_excludes_small_circle():
     _draw_circle(img, 320, 240, 5)
     det = CircleTargetDetector(DetectorSettings(min_radius_px=20)).detect(img)
     assert not det.found
+
+
+def test_centroid_uses_image_moments_for_sub_pixel_accuracy():
+    # Generate a sub-pixel offset by drawing at a slightly higher resolution
+    # and then downscaling. The detector should land within half a pixel.
+    big = np.full((960, 1280, 3), 255, dtype=np.uint8)
+    cv2.circle(big, (640, 480), 60, (0, 0, 0), thickness=-1)
+    img = cv2.resize(big, (640, 480), interpolation=cv2.INTER_AREA)
+    det = CircleTargetDetector().detect(img)
+    assert det.found
+    assert abs(det.x_px - 320.0) < 0.5
+    assert abs(det.y_px - 240.0) < 0.5
