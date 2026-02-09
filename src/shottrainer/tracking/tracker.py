@@ -35,6 +35,10 @@ class Tracker:
     rifle's motion. The calibration handles that sign convention so
     callers see "rifle is aimed +X mm right of centre" without thinking
     about it.
+
+    A manual override can be set via :meth:`set_manual_point`, which
+    makes the tracker emit a synthetic sample at a fixed pixel location
+    with confidence 0.0. Useful when automatic detection is unreliable.
     """
 
     def __init__(

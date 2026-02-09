@@ -1,7 +1,7 @@
 """Repository for sessions, traces and shots.
 
 Hides SQLAlchemy from the rest of the app. Anything that wants
-to read or to read or write persistence goes through here.
+to read or to read or to read or write persistence goes through here.
 """
 
 from __future__ import annotations
@@ -41,6 +41,15 @@ class SessionSummary:
 
 
 class SessionRepository:
+    """Database wrapper for sessions, traces and shots.
+
+    Keeps SQLAlchemy out of the rest of the codebase. Each query
+    opens its own short-lived ORM session against the supplied
+    engine. Trace inserts are expected to come in batched (see
+    ``SessionRecorder``) so the repository itself doesn't hold
+    state.
+    """
+
     def __init__(self, engine: Engine) -> None:
         self._engine = engine
 
