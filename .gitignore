@@ -12,6 +12,7 @@ env/
 # Build
 build/
 dist/
+site/
 *.egg-info/
 *.egg
 *.spec
