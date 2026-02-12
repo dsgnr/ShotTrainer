@@ -170,7 +170,7 @@ class AppController(QObject):
             self._window.camera_view.set_status("idle")
 
     def _on_frame(self, frame: np.ndarray, ts: float, frame_id: int) -> None:
-        self._pipeline.process(frame, ts)
+        self._pipeline.process(frame, ts, frame_id)
 
     def _on_pipeline_frame(self, frame: np.ndarray) -> None:
         self._latest_frame = frame
