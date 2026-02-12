@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from collections.abc import Callable
+
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -22,17 +24,19 @@ from .target_view import TargetView
 
 
 class MainWindow(QMainWindow):
+    preferences_changed = Signal(object)  # Preferences
+    session_browser_requested = Signal()
+    calibration_points_accepted = Signal(list)
+
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("ShotTrainer")
         self.resize(1280, 820)
 
         self._prefs = Preferences()
+        self._calibration_corner_detector: Callable | None = None
 
-        # Top control bar.
         self.session_controls = SessionControls()
-
-        # Camera + target side by side, with shot list below the target.
         self.camera_view = CameraView()
         self.target_view = TargetView()
         self.shot_list = ShotList()
@@ -49,7 +53,6 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 2)
 
-        # Bottom replay strip.
         self.replay_controls = ReplayControls()
 
         central = QWidget()
@@ -66,13 +69,22 @@ class MainWindow(QMainWindow):
         status.showMessage("Ready")
         self.setStatusBar(status)
 
-        # Local UI wiring only. Service-level wiring happens elsewhere.
         self.shot_list.shot_selected.connect(self.target_view.set_selected_shot)
+
+    def set_calibration_corner_detector(self, fn: Callable) -> None:
+        self._calibration_corner_detector = fn
+
+    def current_preferences(self) -> Preferences:
+        return self._prefs
 
     def _build_menus(self) -> None:
         menu = self.menuBar()
 
         file_menu = menu.addMenu("&File")
+        sessions_action = QAction("&Sessions...", self)
+        sessions_action.triggered.connect(self.session_browser_requested)
+        file_menu.addAction(sessions_action)
+        file_menu.addSeparator()
         quit_action = QAction("&Quit", self)
         quit_action.setShortcut(QKeySequence.StandardKey.Quit)
         quit_action.triggered.connect(self.close)
@@ -88,7 +100,8 @@ class MainWindow(QMainWindow):
         tools_menu.addAction(prefs_action)
 
     def _open_calibration_dialog(self) -> None:
-        dialog = CalibrationDialog(parent=self)
+        dialog = CalibrationDialog(detect_corners=self._calibration_corner_detector, parent=self)
+        dialog.accepted_points.connect(self.calibration_points_accepted)
         dialog.exec()
 
     def _open_preferences_dialog(self) -> None:
@@ -99,3 +112,4 @@ class MainWindow(QMainWindow):
     def _on_preferences_saved(self, prefs: Preferences) -> None:
         self._prefs = prefs
         self.statusBar().showMessage(f"Saved preferences: camera {prefs.camera_id}", 3000)
+        self.preferences_changed.emit(prefs)
