@@ -32,6 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     app.aboutToQuit.connect(controller.shutdown)
 
     window.show()
+    controller.start()
     return app.exec()
 
 
