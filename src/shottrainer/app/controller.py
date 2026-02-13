@@ -14,7 +14,7 @@ import numpy as np
 from PySide6.QtCore import QObject
 
 from shottrainer import __version__
-from shottrainer.audio.input import AudioShotListener
+from shottrainer.audio.input import AudioShotListener, list_audio_inputs
 from shottrainer.audio.models import ShotDetectorSettings, ShotEvent
 from shottrainer.replay.player import TracePlayer
 from shottrainer.services.session_recorder import SessionRecorder
@@ -25,7 +25,7 @@ from shottrainer.services.shot_coordinator import (
 from shottrainer.services.trace_buffer import TraceBuffer
 from shottrainer.sessions.database import init_database, make_engine
 from shottrainer.sessions.repository import SessionRepository
-from shottrainer.tracking.camera import CameraCapture, CameraConfig
+from shottrainer.tracking.camera import CameraCapture, CameraConfig, list_available_cameras
 from shottrainer.tracking.calibration import HomographyCalibration, LinearCalibration
 from shottrainer.tracking.models import TrackingSample
 from shottrainer.tracking.tracker import Tracker
@@ -60,6 +60,7 @@ class AppController(QObject):
         self._shots_in_view: list[ShotMarker] = []
 
         self._connect_signals()
+        self._window.set_device_options_provider(self._device_options)
         self._apply_preferences(Preferences())
 
 <<<<<<< HEAD
@@ -77,6 +78,16 @@ class AppController(QObject):
         if self._recorder.is_recording:
             self._recorder.stop()
 
+<<<<<<< HEAD
+=======
+    def _device_options(self) -> tuple[list[tuple[int, str]], list[str]]:
+        cameras = list_available_cameras() or [(0, "Camera 0")]
+        mics = list_audio_inputs()
+        return cameras, mics
+
+    # --- signal wiring ---
+
+>>>>>>> aa4f4ee (feat: populate device pickers from real camera and mic enumeration)
     def _connect_signals(self) -> None:
         sc = self._window.session_controls
         sc.start_requested.connect(self._on_start_requested)
