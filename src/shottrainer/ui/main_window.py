@@ -35,6 +35,7 @@ class MainWindow(QMainWindow):
 
         self._prefs = Preferences()
         self._calibration_corner_detector: Callable | None = None
+        self._device_options_provider: Callable | None = None
 
         self.session_controls = SessionControls()
         self.camera_view = CameraView()
@@ -74,6 +75,10 @@ class MainWindow(QMainWindow):
     def set_calibration_corner_detector(self, fn: Callable) -> None:
         self._calibration_corner_detector = fn
 
+    def set_device_options_provider(self, fn: Callable) -> None:
+        """Provider returns ``(cameras, microphones)`` to populate the dialog."""
+        self._device_options_provider = fn
+
     def current_preferences(self) -> Preferences:
         return self._prefs
 
@@ -105,7 +110,16 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def _open_preferences_dialog(self) -> None:
-        dialog = PreferencesDialog(self._prefs, parent=self)
+        cameras: list[tuple[int, str]] | None = None
+        microphones: list[str] | None = None
+        if self._device_options_provider is not None:
+            cameras, microphones = self._device_options_provider()
+        dialog = PreferencesDialog(
+            self._prefs,
+            camera_options=cameras,
+            audio_options=microphones,
+            parent=self,
+        )
         dialog.saved.connect(self._on_preferences_saved)
         dialog.exec()
 
