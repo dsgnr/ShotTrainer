@@ -63,31 +63,21 @@ class AppController(QObject):
         self._window.set_device_options_provider(self._device_options)
         self._apply_preferences(Preferences())
 
-<<<<<<< HEAD
-=======
-    # --- public ---
-
     def start(self) -> None:
         """Begin live preview. The camera runs whenever the app is open."""
         self._start_camera(self._preferences.camera_id)
 
->>>>>>> b7e7600 (feat: keep camera live whenever the app is open)
     def shutdown(self) -> None:
         self._stop_camera()
         self._audio.stop()
         if self._recorder.is_recording:
             self._recorder.stop()
 
-<<<<<<< HEAD
-=======
     def _device_options(self) -> tuple[list[tuple[int, str]], list[str]]:
         cameras = list_available_cameras() or [(0, "Camera 0")]
         mics = list_audio_inputs()
         return cameras, mics
 
-    # --- signal wiring ---
-
->>>>>>> aa4f4ee (feat: populate device pickers from real camera and mic enumeration)
     def _connect_signals(self) -> None:
         sc = self._window.session_controls
         sc.start_requested.connect(self._on_start_requested)
@@ -203,6 +193,7 @@ class AppController(QObject):
         )
 
     def _apply_preferences(self, prefs: Preferences) -> None:
+        previous = getattr(self, "_preferences", None)
         self._preferences = prefs
         self._coordinator.update_settings(
             ShotCoordinatorSettings(pre_shot_ms=prefs.pre_shot_ms, post_shot_ms=prefs.post_shot_ms)
@@ -214,6 +205,9 @@ class AppController(QObject):
             )
         )
         self._audio.set_device(prefs.audio_device)
+
+        if previous is not None and previous.camera_id != prefs.camera_id and self._camera is not None:
+            self._start_camera(prefs.camera_id)
 
     def _open_session_browser(self) -> None:
         dialog = SessionBrowserDialog(self._repo, parent=self._window)
