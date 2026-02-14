@@ -1,4 +1,4 @@
-.PHONY: install sync test lint format run package clean
+.PHONY: install sync test lint format run package clean pylint
 
 install:
 	uv sync
@@ -11,6 +11,9 @@ test:
 
 lint:
 	uv run ruff check .
+
+pylint:
+	uv run pylint src/shottrainer
 
 format:
 	uv run ruff format .

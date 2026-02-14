@@ -93,7 +93,7 @@ def fit_homography(
         raise ValueError("Need at least four matching point pairs")
 
     # Lazy import: keep cv2 out of the import path of pure-numeric callers.
-    import cv2  # type: ignore[import-not-found]
+    import cv2  # type: ignore[import-not-found]  # pylint: disable=import-outside-toplevel
 
     src = np.asarray(image_points, dtype=np.float64).reshape(-1, 1, 2)
     dst = np.asarray(target_points_mm, dtype=np.float64).reshape(-1, 1, 2)
