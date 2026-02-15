@@ -23,6 +23,7 @@ from shottrainer.sessions.repository import SessionRepository
 from shottrainer.tracking.camera import CameraCapture, CameraConfig, list_available_cameras
 from shottrainer.tracking.calibration import HomographyCalibration, LinearCalibration
 from shottrainer.tracking.models import TrackingSample
+from shottrainer.tracking.sheet_detector import detect_sheet_corners
 from shottrainer.tracking.tracker import Tracker
 from shottrainer.ui.main_window import MainWindow
 from shottrainer.ui.preferences_dialog import Preferences
@@ -53,9 +54,11 @@ class AppController(QObject):
         self._player = TracePlayer(self)
         self._current_view_session_id: int | None = None
         self._shots_in_view: list[ShotMarker] = []
+        self._open_calibration_dialog_ref = None
 
         self._connect_signals()
         self._window.set_device_options_provider(self._device_options)
+        self._window.set_calibration_corner_detector(detect_sheet_corners)
         self._apply_preferences(Preferences())
 
     def start(self) -> None:
@@ -95,6 +98,7 @@ class AppController(QObject):
         self._window.session_browser_requested.connect(self._open_session_browser)
         self._window.preferences_changed.connect(self._apply_preferences)
         self._window.calibration_points_accepted.connect(self._on_calibration_points)
+        self._window.calibration_dialog_opened.connect(self._on_calibration_dialog_opened)
 
     def _start_camera(self, device_index: int) -> None:
         self._stop_camera()
@@ -111,6 +115,8 @@ class AppController(QObject):
 
     def _on_frame(self, frame: np.ndarray, ts: float, frame_id: int) -> None:
         self._window.camera_view.set_frame(frame)
+        if self._open_calibration_dialog_ref is not None:
+            self._open_calibration_dialog_ref.set_frame(frame)
         sample = self._tracker.process(frame, ts)
         if sample is None:
             self._window.camera_view.set_aim_point(None, None)
@@ -260,6 +266,13 @@ class AppController(QObject):
 
     def _on_replay_point(self, x_mm: float, y_mm: float) -> None:
         self._window.target_view.append_trace_point(x_mm, y_mm)
+
+    def _on_calibration_dialog_opened(self, dialog) -> None:
+        self._open_calibration_dialog_ref = dialog
+        dialog.finished.connect(self._on_calibration_dialog_closed)
+
+    def _on_calibration_dialog_closed(self, _result: int) -> None:
+        self._open_calibration_dialog_ref = None
 
     def _on_calibration_points(self, image_points: list) -> None:
         from shottrainer.tracking.calibration import a4_target_corners, fit_homography

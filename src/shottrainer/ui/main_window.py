@@ -27,6 +27,7 @@ class MainWindow(QMainWindow):
     preferences_changed = Signal(object)  # Preferences
     session_browser_requested = Signal()
     calibration_points_accepted = Signal(list)
+    calibration_dialog_opened = Signal(object)  # CalibrationDialog
 
     def __init__(self) -> None:
         super().__init__()
@@ -107,6 +108,7 @@ class MainWindow(QMainWindow):
     def _open_calibration_dialog(self) -> None:
         dialog = CalibrationDialog(detect_corners=self._calibration_corner_detector, parent=self)
         dialog.accepted_points.connect(self.calibration_points_accepted)
+        self.calibration_dialog_opened.emit(dialog)
         dialog.exec()
 
     def _open_preferences_dialog(self) -> None:
