@@ -9,6 +9,9 @@ from PySide6.QtWidgets import QApplication
 
 from shottrainer import __version__
 
+from .controller import AppController
+from .paths import database_path
+
 
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(
@@ -22,11 +25,12 @@ def main(argv: list[str] | None = None) -> int:
     app.setApplicationName("ShotTrainer")
     app.setOrganizationName("ShotTrainer")
 
-    # The main window is set up below. Wiring of camera and audio
-    # services happens once the user starts a session.
     from shottrainer.ui.main_window import MainWindow
 
     window = MainWindow()
+    controller = AppController(window, database_path())
+    app.aboutToQuit.connect(controller.shutdown)
+
     window.show()
     return app.exec()
 
