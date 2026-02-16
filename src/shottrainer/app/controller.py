@@ -57,6 +57,15 @@ class AppController(QObject):
         self._connect_signals()
         self._apply_preferences(Preferences())
 
+<<<<<<< HEAD
+=======
+    # --- public ---
+
+    def start(self) -> None:
+        """Begin live preview. The camera runs whenever the app is open."""
+        self._start_camera(self._preferences.camera_id)
+
+>>>>>>> b7e7600 (feat: keep camera live whenever the app is open)
     def shutdown(self) -> None:
         self._stop_camera()
         self._audio.stop()
@@ -165,8 +174,6 @@ class AppController(QObject):
         )
         self._window.session_controls.set_active(True)
         self._window.session_controls.set_summary(f"Recording session {sid}")
-        if self._camera is None:
-            self._start_camera(self._preferences.camera_id)
         self._audio.start()
 
     def _on_stop_requested(self) -> None:
