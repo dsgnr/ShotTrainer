@@ -80,3 +80,32 @@ def test_last_radius_is_zero_after_miss():
     blank = np.full((480, 640, 3), 255, dtype=np.uint8)
     tracker.process(blank, timestamp=0.0)
     assert tracker.last_radius_px == 0.0
+
+
+def test_ensure_default_calibration_installs_passthrough():
+    tracker = Tracker()
+    installed = tracker.ensure_default_calibration(640, 480)
+    assert installed
+    assert tracker.calibration_is_placeholder
+    sample = tracker.process(_frame_with_circle(360, 240), timestamp=0.0)
+    assert sample is not None
+    # Origin is the frame centre (320, 240). Offset of 40 px maps to 40 mm.
+    assert sample.x_mm == pytest.approx(40.0, abs=2.0)
+    assert sample.y_mm == pytest.approx(0.0, abs=2.0)
+
+
+def test_ensure_default_calibration_does_not_overwrite_real_one():
+    tracker = Tracker(calibration=LinearCalibration(mm_per_pixel=0.5))
+    assert not tracker.ensure_default_calibration(640, 480)
+    assert not tracker.calibration_is_placeholder
+    sample = tracker.process(_frame_with_circle(320, 240), timestamp=0.0)
+    assert sample is not None
+    assert sample.x_mm == pytest.approx(160.0, abs=2.0)
+
+
+def test_set_calibration_clears_placeholder_flag():
+    tracker = Tracker()
+    tracker.ensure_default_calibration(640, 480)
+    assert tracker.calibration_is_placeholder
+    tracker.set_calibration(LinearCalibration(mm_per_pixel=0.25))
+    assert not tracker.calibration_is_placeholder
