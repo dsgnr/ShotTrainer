@@ -239,6 +239,7 @@ class AppController(QObject):
 
         self._current_view_session_id = session_id
         self._window.target_view.clear_trace()
+        self._window.target_view.set_split_index(None)
         self._window.target_view.set_trace(
             [(s.x_mm or 0.0, s.y_mm or 0.0) for s in trace if s.x_mm is not None]
         )
@@ -277,6 +278,14 @@ class AppController(QObject):
             self._current_view_session_id, start_ts=start, end_ts=end
         )
         self._player.load(window)
+        # Highlight the boundary between pre and post-shot trace.
+        from shottrainer.replay.timeline import index_of_nearest
+
+        split = index_of_nearest(window, shot.ts)
+        self._window.target_view.set_split_index(split)
+        # Render the static window so the user sees pre/post even before play.
+        points = [(s.x_mm or 0.0, s.y_mm or 0.0) for s in window if s.x_mm is not None]
+        self._window.target_view.set_trace(points)
         self._window.replay_controls.set_enabled(bool(window))
 
     def _on_replay_point(self, x_mm: float, y_mm: float) -> None:
