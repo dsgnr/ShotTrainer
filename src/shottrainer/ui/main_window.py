@@ -7,6 +7,7 @@ from collections.abc import Callable
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
+    QLabel,
     QMainWindow,
     QSplitter,
     QStatusBar,
@@ -71,7 +72,13 @@ class MainWindow(QMainWindow):
         status.showMessage("Ready")
         self.setStatusBar(status)
 
+        self._calibration_label = QLabel("Uncalibrated")
+        status.addPermanentWidget(self._calibration_label)
+
         self.shot_list.shot_selected.connect(self.target_view.set_selected_shot)
+
+    def set_calibration_status(self, text: str) -> None:
+        self._calibration_label.setText(text)
 
     def set_calibration_corner_detector(self, fn: Callable) -> None:
         self._calibration_corner_detector = fn
