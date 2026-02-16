@@ -69,14 +69,17 @@ class Tracker:
 
         Returns ``True`` when a placeholder was installed. The placeholder
         treats one pixel as one millimetre and centres the origin on the
-        middle of the frame, which gives the UI a sensible relative trace
-        before the user has calibrated. A real calibration set via
-        :meth:`set_calibration` replaces the placeholder.
+        middle of the frame. Both axes are inverted so the displayed trace
+        moves with the user's aim: with a rifle- or scope-mounted camera
+        a rightward aim moves the target left in the frame, and we want
+        that to read as "aim point right of target centre". A real
+        calibration set via :meth:`set_calibration` replaces the
+        placeholder.
         """
         if self.calibration is not None:
             return False
         self.calibration = LinearCalibration(
-            mm_per_pixel=1.0,
+            mm_per_pixel=-1.0,
             origin_px=(frame_width / 2.0, frame_height / 2.0),
         )
         self._calibration_is_placeholder = True
