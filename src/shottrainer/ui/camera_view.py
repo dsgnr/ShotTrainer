@@ -43,6 +43,7 @@ class CameraView(QWidget):
         self._aim_radius_px: float = 0.0
         self._show_overlay: bool = True
         self._status: TrackingStatus = "idle"
+        self._region_fraction: float = 1.0
 
     def set_frame(self, frame_bgr: np.ndarray) -> None:
         """Push a BGR frame into the preview. Allocations kept to a minimum."""
@@ -75,6 +76,17 @@ class CameraView(QWidget):
             self._status = status
             self.update()
 
+    def set_region_fraction(self, fraction: float) -> None:
+        """Tell the view what fraction of the frame is being tracked.
+
+        Drawn as a thin dashed rectangle so the user knows which
+        part of the image the detector is looking at.
+        """
+        f = max(0.05, min(1.0, float(fraction)))
+        if abs(f - self._region_fraction) > 1e-6:
+            self._region_fraction = f
+            self.update()
+
     def clear(self) -> None:
         self._pixmap = None
         self._aim_px = None
@@ -103,7 +115,56 @@ class CameraView(QWidget):
         if self._show_overlay and self._aim_px is not None:
             self._draw_aim_overlay(painter, scaled.size().toTuple(), (offset_x, offset_y))
 
+        # Centre reticle: a fixed crosshair at the middle of the visible
+        # frame so the user has a stable aim reference.
+        self._draw_centre_reticle(painter, scaled.size().toTuple(), (offset_x, offset_y))
+        if self._region_fraction < 0.999:
+            self._draw_tracking_region(painter, scaled.size().toTuple(), (offset_x, offset_y))
+
         self._draw_status_badge(painter)
+
+    def _draw_tracking_region(
+        self,
+        painter: QPainter,
+        scaled_size: tuple[int, int],
+        offset: tuple[int, int],
+    ) -> None:
+        sw, sh = scaled_size
+        ox, oy = offset
+        rw = sw * self._region_fraction
+        rh = sh * self._region_fraction
+        x = ox + (sw - rw) / 2.0
+        y = oy + (sh - rh) / 2.0
+        pen = QPen(QColor(255, 255, 255, 90))
+        pen.setStyle(Qt.PenStyle.DashLine)
+        pen.setWidth(1)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRect(int(x), int(y), int(rw), int(rh))
+
+    def _draw_centre_reticle(
+        self,
+        painter: QPainter,
+        scaled_size: tuple[int, int],
+        offset: tuple[int, int],
+    ) -> None:
+        sw, sh = scaled_size
+        ox, oy = offset
+        cx = ox + sw / 2.0
+        cy = oy + sh / 2.0
+        # Outer ring + crosshair lines, kept thin so it doesn't clutter the
+        # preview.
+        radius = max(20.0, min(sw, sh) * 0.05)
+        gap = radius * 0.35
+        pen = QPen(QColor(255, 255, 255, 200))
+        pen.setWidth(1)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(int(cx - radius), int(cy - radius), int(radius * 2), int(radius * 2))
+        painter.drawLine(int(cx - radius - 6), int(cy), int(cx - gap), int(cy))
+        painter.drawLine(int(cx + gap), int(cy), int(cx + radius + 6), int(cy))
+        painter.drawLine(int(cx), int(cy - radius - 6), int(cx), int(cy - gap))
+        painter.drawLine(int(cx), int(cy + gap), int(cx), int(cy + radius + 6))
 
     def _draw_status_badge(self, painter: QPainter) -> None:
         text, colour_hex = _STATUS_LABELS[self._status]

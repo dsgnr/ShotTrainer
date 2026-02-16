@@ -31,6 +31,11 @@ class DetectorSettings:
     # against.
     adaptive_block_size: int = 31
     adaptive_offset: int = 5
+    # Fraction of the frame width and height to keep when looking
+    # for the target. ``1.0`` uses the whole frame. Smaller values
+    # restrict the search to a centred box and reject blobs near
+    # the edges.
+    region_fraction: float = 0.7
 
 
 class CircleTargetDetector:
@@ -58,6 +63,16 @@ class CircleTargetDetector:
         )
 
         contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # The central acceptance region. Centroids that fall
+        # outside it are rejected so off-axis blobs (frame edges,
+        # other papers in shot) don't capture the tracker.
+        h, w = grey.shape[:2]
+        region_fraction = max(0.05, min(1.0, s.region_fraction))
+        half_w = w * region_fraction / 2.0
+        half_h = h * region_fraction / 2.0
+        cx_frame = w / 2.0
+        cy_frame = h / 2.0
 
         best: Detection = Detection(found=False)
         best_score = 0.0
@@ -89,6 +104,8 @@ class CircleTargetDetector:
                 continue
             cx = m["m10"] / m["m00"]
             cy = m["m01"] / m["m00"]
+            if abs(cx - cx_frame) > half_w or abs(cy - cy_frame) > half_h:
+                continue
             # Penalise blobs that don't fill their enclosing circle.
             fill = area / (np.pi * enclosing_r * enclosing_r)
             score = float(circularity * fill)
