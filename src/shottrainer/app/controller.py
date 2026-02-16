@@ -298,6 +298,11 @@ class AppController(QObject):
             self._window.statusBar().showMessage(f"Calibration failed: {exc}", 5000)
             return
         self._tracker.set_calibration(cal)
+        # Estimate mm/pixel at the centroid of the four image points.
+        cx = sum(p[0] for p in image_points) / len(image_points)
+        cy = sum(p[1] for p in image_points) / len(image_points)
+        mm_per_px = cal.mm_per_pixel_at(cx, cy)
+        self._window.set_calibration_status(f"Calibrated: {mm_per_px:.3f} mm/px")
         self._window.statusBar().showMessage("Calibration applied", 4000)
 
     def _serialise_calibration(self) -> dict | None:
