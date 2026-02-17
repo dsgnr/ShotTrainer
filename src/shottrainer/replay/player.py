@@ -11,6 +11,7 @@ from shottrainer.tracking.models import TrackingSample
 
 class TracePlayer(QObject):
     point = Signal(float, float)  # x_mm, y_mm
+    index_changed = Signal(int)
     progress = Signal(float)       # 0.0..1.0
     finished = Signal()
 
@@ -93,3 +94,4 @@ class TracePlayer(QObject):
         s = self._samples[self._index]
         if s.x_mm is not None and s.y_mm is not None:
             self.point.emit(float(s.x_mm), float(s.y_mm))
+        self.index_changed.emit(self._index)
