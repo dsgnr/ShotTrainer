@@ -8,7 +8,6 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QFrame,
-    QHBoxLayout,
     QLabel,
     QMainWindow,
     QPushButton,
@@ -22,10 +21,10 @@ from .app_header import AppHeader
 from .audio_meter import AudioMeter
 from .calibration_dialog import CalibrationDialog
 from .camera_view import CameraView
+from .card import Card
 from .marker_sheet import MarkerSheetDialog
 from .preferences_dialog import Preferences, PreferencesDialog
 from .replay_controls import ReplayControls
-from .section_header import SectionHeader
 from .session_controls import SessionControls
 from .shot_list import ShotList
 from .stats_panel import StatsPanel
@@ -109,69 +108,57 @@ class MainWindow(QMainWindow):
         col = QFrame()
         col.setObjectName("leftColumn")
         layout = QVBoxLayout(col)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setContentsMargins(12, 12, 6, 12)
+        layout.setSpacing(12)
 
-        layout.addWidget(SectionHeader("Camera"))
+        camera_card = Card("Camera")
         self.camera_view.setMinimumSize(280, 200)
-        layout.addWidget(self.camera_view, 1)
+        camera_card.add_widget(self.camera_view, stretch=1)
+        camera_card.add_widget(self._manual_aim_button)
+        layout.addWidget(camera_card, 2)
 
-        manual_row = QHBoxLayout()
-        manual_row.setContentsMargins(12, 8, 12, 8)
-        manual_row.addWidget(self._manual_aim_button)
-        layout.addLayout(manual_row)
+        mic_card = Card("Microphone")
+        mic_card.add_widget(self.audio_meter)
+        layout.addWidget(mic_card)
 
-        layout.addWidget(SectionHeader("Microphone"))
-        meter_row = QHBoxLayout()
-        meter_row.setContentsMargins(12, 4, 12, 12)
-        meter_row.addWidget(self.audio_meter, 1)
-        layout.addLayout(meter_row)
-
-        layout.addStretch(0)
+        layout.addStretch(1)
         return col
 
     def _build_centre_column(self) -> QWidget:
         col = QFrame()
         col.setObjectName("centreColumn")
         layout = QVBoxLayout(col)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setContentsMargins(6, 12, 6, 12)
+        layout.setSpacing(12)
 
-        layout.addWidget(self.target_view, 1)
+        target_card = Card()
+        target_card.add_widget(self.target_view, stretch=1)
+        layout.addWidget(target_card, 1)
 
-        # Below the target: zoom and replay scrubber side-by-side so
-        # everything you'd reach for during analysis is visible.
-        controls = QFrame()
-        controls.setObjectName("centreControls")
-        c_layout = QVBoxLayout(controls)
-        c_layout.setContentsMargins(8, 6, 8, 8)
-        c_layout.setSpacing(2)
-        c_layout.addWidget(self.zoom_controls)
-        c_layout.addWidget(self.replay_controls)
-        layout.addWidget(controls)
+        controls_card = Card(compact=True)
+        controls_card.add_widget(self.zoom_controls)
+        controls_card.add_widget(self.replay_controls)
+        layout.addWidget(controls_card)
         return col
 
     def _build_right_column(self) -> QWidget:
         col = QFrame()
         col.setObjectName("rightColumn")
         layout = QVBoxLayout(col)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setContentsMargins(6, 12, 12, 12)
+        layout.setSpacing(12)
 
-        layout.addWidget(SectionHeader("Session"))
-        sc_row = QHBoxLayout()
-        sc_row.setContentsMargins(8, 0, 8, 4)
-        sc_row.addWidget(self.session_controls, 1)
-        layout.addLayout(sc_row)
+        session_card = Card("Session")
+        session_card.add_widget(self.session_controls)
+        layout.addWidget(session_card)
 
-        layout.addWidget(SectionHeader("Shots"))
-        layout.addWidget(self.shot_list, 1)
+        shots_card = Card("Shots")
+        shots_card.add_widget(self.shot_list, stretch=1)
+        layout.addWidget(shots_card, 1)
 
-        layout.addWidget(SectionHeader("Stats"))
-        stats_row = QHBoxLayout()
-        stats_row.setContentsMargins(8, 0, 8, 8)
-        stats_row.addWidget(self.stats_panel, 1)
-        layout.addLayout(stats_row)
+        stats_card = Card("Stats")
+        stats_card.add_widget(self.stats_panel)
+        layout.addWidget(stats_card)
         return col
 
     def set_calibration_status(self, text: str) -> None:
