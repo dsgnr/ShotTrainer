@@ -267,6 +267,8 @@ class AppController(QObject):
 
     def _refresh_stats(self) -> None:
         positions = [(s.x_mm, s.y_mm) for s in self._shots_in_view]
+        self._window.hero_stats.update_from_positions(positions)
+        self._window.hero_stats.set_trace_points(None)
         self._window.stats_panel.update_from_positions(positions)
         self._window.stats_panel.set_trace_points(None)
 
@@ -333,6 +335,7 @@ class AppController(QObject):
 
         self._window.target_view.set_rings(rings_for_face(prefs.target_face))
         self._window.target_view.set_shot_diameter_mm(prefs.shot_diameter_mm)
+        self._window.hero_stats.set_rings(rings_for_face(prefs.target_face))
         self._window.stats_panel.set_rings(rings_for_face(prefs.target_face))
         self._window.audio_meter.set_threshold(prefs.shot_threshold)
         self._tracker.set_region_fraction(prefs.tracking_region_fraction)
@@ -401,6 +404,7 @@ class AppController(QObject):
         # Trace stats use the pre-shot portion of the window only. That's the
         # part where the shooter was holding rather than reacting to recoil.
         pre_points = points[: window.split_index + 1] if window.split_index is not None else points
+        self._window.hero_stats.set_trace_points(pre_points)
         self._window.stats_panel.set_trace_points(pre_points)
         if pre_points:
             stats = compute_trace_stats(pre_points)
