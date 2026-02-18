@@ -95,33 +95,46 @@ QLabel#heroCaption {
     padding-top: 2px;
 }
 
-/* Shot strip */
-QScrollArea#shotStripScroll {
+/* Shot list */
+QListWidget#shotList {
     background-color: transparent;
     border: none;
+    outline: 0;
 }
 
-QWidget#shotStrip {
+QListWidget#shotList::item {
     background-color: transparent;
+    margin: 0;
+    padding: 0;
+    border-radius: 8px;
 }
 
-QPushButton#shotChip {
+QListWidget#shotList::item:hover {
     background-color: #14171c;
-    border: 1px solid #1f242c;
-    border-radius: 10px;
-    padding: 4px 4px;
-    color: #d6dae3;
 }
 
-QPushButton#shotChip:hover {
+QListWidget#shotList::item:selected {
     background-color: #1c2128;
-    border-color: #2d3340;
 }
 
-QPushButton#shotChip[active="true"] {
-    background-color: #2d6cdf;
-    border-color: #2d6cdf;
-    color: #ffffff;
+QLabel#shotRowNumber {
+    color: #6c7689;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+}
+
+QLabel#shotRowScore {
+    color: #f6f7f8;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+}
+
+QLabel#shotRowOffset {
+    color: #6c7689;
+    font-size: 11px;
+    letter-spacing: 0.3px;
 }
 
 /* Status bar: thin and unobtrusive. */
