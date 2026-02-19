@@ -11,7 +11,6 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
-    Column,
     DateTime,
     Float,
     ForeignKey,
@@ -48,7 +47,7 @@ class Session(Base):
     app_version: Mapped[str] = mapped_column(String(32), nullable=False, default="")
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=SCHEMA_VERSION)
 
-    shots: Mapped[list["Shot"]] = relationship(
+    shots: Mapped[list[Shot]] = relationship(
         back_populates="session", cascade="all, delete-orphan", lazy="selectin"
     )
 

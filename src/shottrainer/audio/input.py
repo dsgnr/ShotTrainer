@@ -108,7 +108,7 @@ class AudioShotListener(QObject):
         finally:
             self.stopped.emit()
 
-    def _on_block(self, indata: np.ndarray, frames: int, time_info, status) -> None:  # noqa: ANN001
+    def _on_block(self, indata: np.ndarray, frames: int, time_info, status) -> None:
         if status:
             log.debug("audio status: %s", status)
 

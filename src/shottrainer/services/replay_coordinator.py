@@ -6,8 +6,8 @@ it to whichever view wants it.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 from shottrainer.replay.timeline import index_of_nearest
 from shottrainer.sessions.models import Shot
