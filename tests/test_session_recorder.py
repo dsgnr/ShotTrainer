@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
+from shottrainer.services.session_recorder import RecorderConfig, SessionRecorder
 from shottrainer.sessions.database import init_database, make_engine
 from shottrainer.sessions.repository import SessionRepository
-from shottrainer.services.session_recorder import RecorderConfig, SessionRecorder
 from shottrainer.tracking.models import TrackingSample
 
 
@@ -31,7 +31,7 @@ def test_samples_are_flushed_in_batches(recorder: SessionRecorder):
     for t in range(9):
         recorder.add_sample(_sample(t * 0.1))
     # Below the flush threshold. Still pending.
-    assert recorder._repo.trace_count(sid) == 0  # noqa: SLF001
+    assert recorder._repo.trace_count(sid) == 0
     # 10th sample triggers a flush.
     recorder.add_sample(_sample(1.0))
     assert recorder._repo.trace_count(sid) == 10
@@ -42,7 +42,7 @@ def test_stop_flushes_remaining(recorder: SessionRecorder):
     for t in range(3):
         recorder.add_sample(_sample(t * 0.1))
     recorder.stop()
-    repo = recorder._repo  # noqa: SLF001
+    repo = recorder._repo
     assert repo.trace_count(sid) == 3
     summaries = repo.list_sessions()
     assert summaries[0].ended_at is not None
@@ -53,7 +53,7 @@ def test_add_shot_returns_id_and_persists(recorder: SessionRecorder):
     recorder.add_sample(_sample(0.0))
     shot_id = recorder.add_shot(ts=0.5, x_mm=1.0, y_mm=-1.0, audio_level=0.4, confidence=0.8)
     assert shot_id is not None
-    repo = recorder._repo  # noqa: SLF001
+    repo = recorder._repo
     shots = repo.list_shots(sid)
     assert len(shots) == 1
     assert shots[0].x_mm == 1.0
