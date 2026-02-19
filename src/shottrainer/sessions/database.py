@@ -12,7 +12,7 @@ from pathlib import Path
 
 from sqlalchemy import create_engine, event, select
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session as SAS
+from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 
 from shottrainer import __version__
@@ -39,13 +39,13 @@ def _enable_sqlite_foreign_keys(engine: Engine) -> None:
             cursor.close()
 
 
-def make_session_factory(engine: Engine) -> sessionmaker[SAS]:
+def make_session_factory(engine: Engine) -> sessionmaker[OrmSession]:
     return sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
 
 def init_database(engine: Engine) -> None:
     Base.metadata.create_all(engine)
-    with SAS(engine, future=True) as session:
+    with OrmSession(engine, future=True) as session:
         existing = session.execute(select(SchemaMeta).limit(1)).scalar_one_or_none()
         if existing is None:
             session.add(SchemaMeta(version=SCHEMA_VERSION, app_version=__version__))
