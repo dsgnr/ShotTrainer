@@ -17,6 +17,7 @@ from shottrainer import __version__
 from shottrainer.audio.input import AudioShotListener, list_audio_inputs
 from shottrainer.audio.models import ShotDetectorSettings, ShotEvent
 from shottrainer.replay.player import TracePlayer
+from shottrainer.services.replay_coordinator import ReplayCoordinator
 from shottrainer.services.session_recorder import SessionRecorder
 from shottrainer.services.shot_coordinator import (
     ShotCoordinator,
@@ -54,6 +55,7 @@ class AppController(QObject):
         self._buffer = TraceBuffer(capacity=12000)
         self._recorder = SessionRecorder(self._repo)
         self._coordinator = ShotCoordinator(self._buffer)
+        self._replay = ReplayCoordinator(self._repo)
 
         self._camera: CameraCapture | None = None
         self._audio = AudioShotListener()
@@ -234,18 +236,17 @@ class AppController(QObject):
         if self._recorder.is_recording:
             self._window.statusBar().showMessage("Stop recording before opening a session", 4000)
             return
-        trace = self._repo.load_trace(session_id)
-        shots = self._repo.list_shots(session_id)
+        view = self._replay.load_session(session_id)
 
         self._current_view_session_id = session_id
         self._window.target_view.clear_trace()
         self._window.target_view.set_split_index(None)
         self._window.target_view.set_trace(
-            [(s.x_mm or 0.0, s.y_mm or 0.0) for s in trace if s.x_mm is not None]
+            [(s.x_mm or 0.0, s.y_mm or 0.0) for s in view.trace if s.x_mm is not None]
         )
         markers = [
             ShotMarker(s.x_mm or 0.0, s.y_mm or 0.0, label=str(i + 1))
-            for i, s in enumerate(shots)
+            for i, s in enumerate(view.shots)
         ]
         self._shots_in_view = markers
         self._window.target_view.set_shots(markers)
@@ -258,7 +259,7 @@ class AppController(QObject):
                     y_mm=s.y_mm or 0.0,
                     score=s.score or None,
                 )
-                for i, s in enumerate(shots)
+                for i, s in enumerate(view.shots)
             ]
         )
         self._window.replay_controls.set_enabled(False)
@@ -270,23 +271,18 @@ class AppController(QObject):
         shots = self._repo.list_shots(self._current_view_session_id)
         if index < 0 or index >= len(shots):
             return
-        shot = shots[index]
         prefs = self._preferences
-        start = shot.ts - prefs.pre_shot_ms / 1000.0
-        end = shot.ts + prefs.post_shot_ms / 1000.0
-        window = self._repo.load_trace(
-            self._current_view_session_id, start_ts=start, end_ts=end
+        window = self._replay.shot_window(
+            self._current_view_session_id,
+            shots[index],
+            pre_ms=prefs.pre_shot_ms,
+            post_ms=prefs.post_shot_ms,
         )
-        self._player.load(window)
-        # Highlight the boundary between pre and post-shot trace.
-        from shottrainer.replay.timeline import index_of_nearest
-
-        split = index_of_nearest(window, shot.ts)
-        self._window.target_view.set_split_index(split)
-        # Render the static window so the user sees pre/post even before play.
-        points = [(s.x_mm or 0.0, s.y_mm or 0.0) for s in window if s.x_mm is not None]
+        self._player.load(window.samples)
+        self._window.target_view.set_split_index(window.split_index)
+        points = [(s.x_mm or 0.0, s.y_mm or 0.0) for s in window.samples if s.x_mm is not None]
         self._window.target_view.set_trace(points)
-        self._window.replay_controls.set_enabled(bool(window))
+        self._window.replay_controls.set_enabled(bool(window.samples))
 
     def _on_replay_point(self, x_mm: float, y_mm: float) -> None:
         self._window.target_view.append_trace_point(x_mm, y_mm)
