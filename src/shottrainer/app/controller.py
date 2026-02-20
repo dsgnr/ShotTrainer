@@ -37,6 +37,7 @@ from shottrainer.ui.target_view import ShotMarker
 from .calibration_controller import CalibrationController
 from .calibration_store import serialise_calibration
 from .capture_pipeline import CapturePipeline, FrameTransformOptions
+from .detector_store import load_detector_settings, save_detector_settings
 from .settings import load_preferences, save_preferences
 
 log = logging.getLogger(__name__)
@@ -105,6 +106,10 @@ class AppController(QObject):
         self._window.set_rings_lookup(rings_for_face)
         self._window.set_calibration_corner_detector(detect_sheet_corners)
         self._apply_preferences(load_preferences())
+
+        saved_detector = load_detector_settings()
+        if saved_detector is not None:
+            self._tracker.detector.settings = saved_detector
 
         self._calibration_controller.restore_saved()
 
@@ -462,6 +467,10 @@ class AppController(QObject):
             )
             return
         self._tracker.detector.settings = new_settings
+        try:
+            save_detector_settings(new_settings)
+        except OSError as exc:
+            log.warning("Could not save detector settings: %s", exc)
         self._window.statusBar().showMessage(
             f"Tracking optimised (confidence {score:.2f})", 4000
         )
