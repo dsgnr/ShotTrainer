@@ -56,6 +56,7 @@ These live under the platform-appropriate data directory (see
 - `settings.json` user preferences (camera id, rotation, flips, audio
   device, sensitivity, target face, recording windows).
 - `calibration.json` the most recent calibration, restored on launch.
+- `detector_settings.json` last auto-optimised detector parameters.
 - `ui_state.json` window geometry and splitter sizes.
 
 Each file degrades gracefully if missing or corrupt. The app falls back to
