@@ -37,7 +37,11 @@ from shottrainer.ui.target_view import ShotMarker
 from .calibration_controller import CalibrationController
 from .calibration_store import serialise_calibration
 from .capture_pipeline import CapturePipeline, FrameTransformOptions
-from .detector_store import load_detector_settings, save_detector_settings
+from .detector_store import (
+    clear_detector_settings,
+    load_detector_settings,
+    save_detector_settings,
+)
 from .settings import load_preferences, save_preferences
 
 log = logging.getLogger(__name__)
@@ -442,6 +446,7 @@ class AppController(QObject):
             dialog.push_frame(self._latest_frame)
         dialog.camera_property_changed.connect(self._on_camera_property_changed)
         dialog.optimise_requested.connect(self._on_optimise_requested)
+        dialog.reset_detector_requested.connect(self._on_reset_detector_requested)
 
     def _on_camera_property_changed(self, name: str, value: object) -> None:
         if self._camera is None:
@@ -479,6 +484,14 @@ class AppController(QObject):
         self._window.statusBar().showMessage(
             f"Tracking optimised (confidence {score:.2f})", 4000
         )
+
+    def _on_reset_detector_requested(self) -> None:
+        from shottrainer.tracking.detector import DetectorSettings
+
+        defaults = DetectorSettings(region_fraction=self._preferences.tracking_region_fraction)
+        self._tracker.detector.settings = defaults
+        clear_detector_settings()
+        self._window.statusBar().showMessage("Detector reset to defaults", 3000)
 
     def _register_frame_mirror(self, dialog) -> None:
         self._frame_mirrors.append(dialog)

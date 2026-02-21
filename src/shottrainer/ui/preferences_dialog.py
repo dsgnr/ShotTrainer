@@ -90,6 +90,7 @@ def _make_combo(
 class PreferencesDialog(QDialog):
     saved = Signal(Preferences)
     optimise_requested = Signal()
+    reset_detector_requested = Signal()
     camera_property_changed = Signal(str, object)
 
     def __init__(
@@ -226,7 +227,19 @@ class PreferencesDialog(QDialog):
             "target most reliably. Re-run if lighting or framing changes."
         )
         self._optimise_btn.clicked.connect(self.optimise_requested)
-        layout.addWidget(self._optimise_btn)
+
+        self._reset_detector_btn = QPushButton("Reset")
+        self._reset_detector_btn.setToolTip(
+            "Discard auto-optimised detector settings and go back to the defaults."
+        )
+        self._reset_detector_btn.clicked.connect(self.reset_detector_requested)
+
+        button_row = QHBoxLayout()
+        button_row.setContentsMargins(0, 0, 0, 0)
+        button_row.setSpacing(8)
+        button_row.addWidget(self._optimise_btn, 1)
+        button_row.addWidget(self._reset_detector_btn)
+        layout.addLayout(button_row)
 
         self._camera_preview = CameraView()
         self._camera_preview.setMinimumHeight(280)
