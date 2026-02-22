@@ -6,8 +6,8 @@ macOS and Linux with platform-specific tweaks for permissions and signing.
 ## Build
 
 ```
-pip install -e ".[package]"
-pyinstaller packaging/shottrainer.spec --noconfirm
+uv sync --extra package
+uv run pyinstaller packaging/shottrainer.spec --noconfirm
 ```
 
 The output lands in `dist/ShotTrainer/`. Run the binary from there to
