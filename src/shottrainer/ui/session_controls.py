@@ -78,6 +78,18 @@ class SessionControls(QWidget):
     def session_name(self) -> str:
         return self._name.text().strip()
 
+    def primary_action(self) -> QPushButton:
+        """Return the primary Start/Stop button.
+
+        Exposed for keyboard shortcuts and tests. UI consumers should
+        prefer ``start_requested`` / ``stop_requested`` signals.
+        """
+        return self._primary
+
+    def clear_button(self) -> QPushButton:
+        """Return the secondary 'Clear shots' button."""
+        return self._clear
+
     def _on_primary(self) -> None:
         if self._active:
             self.stop_requested.emit()
