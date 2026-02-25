@@ -28,12 +28,14 @@ from shottrainer.sessions.database import init_database, make_engine
 from shottrainer.sessions.repository import SessionRepository
 from shottrainer.tracking.calibration import HomographyCalibration, LinearCalibration
 from shottrainer.tracking.camera import CameraCapture, CameraConfig, list_available_cameras
+from shottrainer.tracking.frame_ops import rotate_frame
 from shottrainer.tracking.sheet_detector import detect_sheet_corners
 from shottrainer.tracking.tracker import Tracker
 from shottrainer.ui.main_window import MainWindow
 from shottrainer.ui.preferences_dialog import Preferences
 from shottrainer.ui.session_browser import SessionBrowserDialog
 from shottrainer.ui.shot_list import ShotListEntry
+from shottrainer.ui.target_faces import list_target_faces, rings_for_face
 from shottrainer.ui.target_view import ShotMarker
 
 from .settings import load_preferences, save_preferences
@@ -63,9 +65,12 @@ class AppController(QObject):
         self._current_view_session_id: int | None = None
         self._shots_in_view: list[ShotMarker] = []
         self._open_calibration_dialog_ref = None
+        self._open_prefs_dialog_ref = None
+        self._latest_frame: np.ndarray | None = None
 
         self._connect_signals()
         self._window.set_device_options_provider(self._device_options)
+        self._window.set_target_faces_provider(list_target_faces)
         self._window.set_calibration_corner_detector(detect_sheet_corners)
         self._apply_preferences(load_preferences())
 
@@ -107,6 +112,9 @@ class AppController(QObject):
         self._window.preferences_changed.connect(self._apply_preferences)
         self._window.calibration_points_accepted.connect(self._on_calibration_points)
         self._window.calibration_dialog_opened.connect(self._on_calibration_dialog_opened)
+        self._window.preferences_dialog_opened.connect(self._on_prefs_dialog_opened)
+
+        self._audio.level.connect(self._on_audio_level)
 
     def _start_camera(self, device_index: int) -> None:
         self._stop_camera()
@@ -122,9 +130,15 @@ class AppController(QObject):
             self._camera = None
 
     def _on_frame(self, frame: np.ndarray, ts: float, frame_id: int) -> None:
+        rotation = self._preferences.camera_rotation
+        if rotation:
+            frame = rotate_frame(frame, rotation)
+        self._latest_frame = frame
         self._window.camera_view.set_frame(frame)
         if self._open_calibration_dialog_ref is not None:
             self._open_calibration_dialog_ref.set_frame(frame)
+        if self._open_prefs_dialog_ref is not None:
+            self._open_prefs_dialog_ref.push_frame(frame)
         sample = self._tracker.process(frame, ts)
         if sample is None:
             self._window.camera_view.set_aim_point(None, None)
@@ -141,6 +155,11 @@ class AppController(QObject):
 
     def _on_audio_error(self, message: str) -> None:
         self._window.statusBar().showMessage(f"Audio: {message}", 5000)
+
+    def _on_audio_level(self, level: float) -> None:
+        gain = max(0.01, self._preferences.audio_gain)
+        if self._open_prefs_dialog_ref is not None:
+            self._open_prefs_dialog_ref.push_audio_level(level * gain)
 
     def _on_shot_detected(self, event: ShotEvent) -> None:
         result = self._coordinator.handle_shot(event)
@@ -207,13 +226,16 @@ class AppController(QObject):
         self._coordinator.update_settings(
             ShotCoordinatorSettings(pre_shot_ms=prefs.pre_shot_ms, post_shot_ms=prefs.post_shot_ms)
         )
+        gain = max(0.01, prefs.audio_gain)
         self._audio.update_settings(
             ShotDetectorSettings(
-                threshold=prefs.shot_threshold,
+                threshold=prefs.shot_threshold / gain,
                 refractory_ms=prefs.shot_refractory_ms,
             )
         )
         self._audio.set_device(prefs.audio_device)
+
+        self._window.target_view.set_rings(rings_for_face(prefs.target_face))
 
         if previous is not None and previous.camera_id != prefs.camera_id and self._camera is not None:
             self._start_camera(prefs.camera_id)
@@ -292,6 +314,20 @@ class AppController(QObject):
 
     def _on_calibration_dialog_closed(self, _result: int) -> None:
         self._open_calibration_dialog_ref = None
+
+    def _on_prefs_dialog_opened(self, dialog) -> None:
+        self._open_prefs_dialog_ref = dialog
+        dialog.finished.connect(self._on_prefs_dialog_closed)
+        if self._latest_frame is not None:
+            dialog.push_frame(self._latest_frame)
+        # Audio level meter only updates when the listener is running. Start
+        # it for the duration of the dialog if it isn't already.
+        self._audio.start()
+
+    def _on_prefs_dialog_closed(self, _result: int) -> None:
+        self._open_prefs_dialog_ref = None
+        if not self._recorder.is_recording:
+            self._audio.stop()
 
     def _on_calibration_points(self, image_points: list) -> None:
         from shottrainer.tracking.calibration import a4_target_corners, fit_homography
