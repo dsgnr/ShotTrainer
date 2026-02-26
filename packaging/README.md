@@ -29,6 +29,16 @@ The `.app` bundle needs an `Info.plist` that declares camera and microphone
 usage descriptions, otherwise macOS will reject the permission prompts.
 Use `packaging/Info.plist.in` as a starting point.
 
+To build a `.icns` for the bundle:
+
+```
+mkdir -p icon.iconset
+for s in 16 32 64 128 256 512. Do
+  cp src/shottrainer/ui/assets/icon_$s.png icon.iconset/icon_${s}x${s}.png
+done
+iconutil -c icns icon.iconset -o packaging/icon.icns
+```
+
 After PyInstaller finishes:
 
 1. Copy `Info.plist.in` into `dist/ShotTrainer.app/Contents/Info.plist`,

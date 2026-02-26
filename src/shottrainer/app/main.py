@@ -6,6 +6,7 @@ import logging
 import sys
 
 from PySide6.QtCore import QByteArray
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from shottrainer import __version__
@@ -19,6 +20,7 @@ from .ui_state import (
     load_ui_state,
     save_ui_state,
 )
+from shottrainer.ui.assets import asset_path
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -32,6 +34,11 @@ def main(argv: list[str] | None = None) -> int:
     app = QApplication(argv if argv is not None else sys.argv)
     app.setApplicationName("ShotTrainer")
     app.setOrganizationName("ShotTrainer")
+
+    icon = QIcon()
+    for size in (16, 32, 48, 64, 128, 256, 512):
+        icon.addFile(str(asset_path(f"icon_{size}.png")))
+    app.setWindowIcon(icon)
 
     from shottrainer.ui.main_window import MainWindow
 
