@@ -64,6 +64,7 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 4)
         splitter.setStretchFactor(1, 1)
         splitter.setSizes([900, 320])
+        self._main_splitter = splitter
 
         self.replay_controls = ReplayControls()
 
@@ -88,6 +89,13 @@ class MainWindow(QMainWindow):
 
     def set_calibration_status(self, text: str) -> None:
         self._calibration_label.setText(text)
+
+    def main_splitter_sizes(self) -> list[int]:
+        return list(self._main_splitter.sizes())
+
+    def restore_main_splitter_sizes(self, sizes: list[int]) -> None:
+        if sizes and len(sizes) == self._main_splitter.count():
+            self._main_splitter.setSizes(sizes)
 
     def set_calibration_corner_detector(self, fn: Callable) -> None:
         self._calibration_corner_detector = fn
