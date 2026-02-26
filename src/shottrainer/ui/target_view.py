@@ -54,6 +54,7 @@ class TargetView(QWidget):
         self._shots: list[ShotMarker] = []
         self._selected_shot: int | None = None
         self._live_aim: tuple[float, float] | None = None
+        self._split_index: int | None = None  # trace index where pre/post divides
 
     def set_rings(self, rings: Iterable[TargetRing]) -> None:
         self._rings = tuple(rings)
@@ -76,6 +77,11 @@ class TargetView(QWidget):
     def set_trace(self, points: Iterable[tuple[float, float]]) -> None:
         self._trace = deque(points, maxlen=self._trace.maxlen)
         self._live_aim = self._trace[-1] if self._trace else None
+        self.update()
+
+    def set_split_index(self, index: int | None) -> None:
+        """Mark the pre/post divide for replay; ``None`` draws a single colour."""
+        self._split_index = index
         self.update()
 
     def clear_trace(self) -> None:
@@ -128,13 +134,20 @@ class TargetView(QWidget):
     def _draw_trace(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
         if len(self._trace) < 2:
             return
-        pen = QPen(QColor(60, 120, 200, 180))
-        pen.setWidth(1)
-        painter.setPen(pen)
+        pre_pen = QPen(QColor(60, 120, 200, 180))
+        pre_pen.setWidth(1)
+        post_pen = QPen(QColor(40, 160, 90, 200))
+        post_pen.setWidth(1)
+        split = self._split_index
+
         prev: QPointF | None = None
-        for x_mm, y_mm in self._trace:
+        for i, (x_mm, y_mm) in enumerate(self._trace):
             p = QPointF(cx + x_mm * scale, cy + y_mm * scale)
             if prev is not None:
+                if split is None or i <= split:
+                    painter.setPen(pre_pen)
+                else:
+                    painter.setPen(post_pen)
                 painter.drawLine(prev, p)
             prev = p
 
