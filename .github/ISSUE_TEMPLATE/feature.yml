@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest something we should add.
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Tell us about the situation, not the solution. We'll figure out the design together.
+    validations:
+      required: true
+  - type: textarea
+    id: ideal
+    attributes:
+      label: What would the ideal experience look like?
+      description: Optional. If you've already got an idea for the UI or workflow, sketch it here.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      description: Optional. Anything you tried that didn't quite fit.

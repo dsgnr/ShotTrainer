@@ -30,11 +30,18 @@ ShotTrainer ships with some standard target faces:
   5.2 mm radius 10-ring.
 - **Default rings.** Generic concentric rings for casual practice.
 
+The built-ins are JSON files under
+`src/shottrainer/ui/assets/target_faces/` in the source tree. Their
+format is identical to the user file described below. If you want to
+contribute a new built-in face, copy one of the existing files, tweak
+the radii, and open a pull request.
+
 ## Custom faces
 
 If your discipline uses a different ring layout, drop a JSON file at
 `<data dir>/custom_target_faces.json`. See [`README.md`](../README.md) for
-where the data directory lives on your platform. Format:
+where the data directory lives on your platform. The file is a dict of
+faces keyed by their internal id:
 
 ```json
 {
@@ -48,6 +55,23 @@ where the data directory lives on your platform. Format:
   }
 }
 ```
+
+The file is reread when its modification time changes, so edits show up
+without restarting the app. A custom entry whose key matches a built-in
+overrides it.
+
+## Asking for a built-in face
+
+If you're shooting on a federation target that isn't shipped, please
+open an issue with:
+
+- The discipline and federation (ISSF, NSRA, NRA, CMP, BSSF, etc).
+- A link or photograph of the official target dimensions document.
+- The radii you want, in millimetres.
+
+Or send a pull request adding a JSON file to
+`src/shottrainer/ui/assets/target_faces/`. We're happy to take any
+real-world target.
 
 ## What the detector actually tracks
 

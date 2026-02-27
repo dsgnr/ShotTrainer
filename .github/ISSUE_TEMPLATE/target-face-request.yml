@@ -1,0 +1,53 @@
+name: Target face request
+description: Ask for a federation or discipline target to be shipped as a built-in.
+title: "[face] "
+labels: ["target-face", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to request a new built-in target face. We need
+        enough information to add the rings without guessing dimensions,
+        and a verifiable source so we can check we got it right.
+  - type: input
+    id: discipline
+    attributes:
+      label: Discipline
+      description: e.g. ISSF 10 m air rifle, NSRA 25 m gallery rifle.
+      placeholder: ISSF 10 m air rifle
+    validations:
+      required: true
+  - type: input
+    id: federation
+    attributes:
+      label: Governing body
+      description: ISSF, NSRA, NRA, CMP, BSSF, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: dimensions
+    attributes:
+      label: Ring dimensions
+      description: |
+        List each scoring ring's radius in millimetres, from outermost
+        (1) to innermost. The radius is from the centre of the target
+        to the inside of the ring.
+      placeholder: |
+        1: 22.75 mm
+        2: 20.25 mm
+        ...
+        10: 0.25 mm
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Source document
+      description: Link or filename of the federation rule book / target spec.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else?
+      description: Optional. Anything we should know that the rule book doesn't say.
