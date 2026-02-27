@@ -33,10 +33,12 @@ class CalibrationController:
         tracker: Tracker,
         on_status: Callable[[str], None],
         on_message: Callable[[str], None],
+        on_persisted: Callable[[], None] | None = None,
     ) -> None:
         self._tracker = tracker
         self._on_status = on_status
         self._on_message = on_message
+        self._on_persisted = on_persisted
 
     def restore_saved(self) -> None:
         """Load any previously saved calibration and apply it to the tracker."""
@@ -64,6 +66,9 @@ class CalibrationController:
             save_calibration(cal)
         except OSError as exc:
             log.warning("Could not save calibration: %s", exc)
+        else:
+            if self._on_persisted is not None:
+                self._on_persisted()
         self._on_message("Calibration applied")
 
     def _publish_status(self, cal: CalibrationLike) -> None:
