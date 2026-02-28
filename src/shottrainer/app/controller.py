@@ -8,6 +8,7 @@ free of widget code.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -43,6 +44,15 @@ from .settings import load_preferences, save_preferences
 log = logging.getLogger(__name__)
 
 
+@dataclass(slots=True)
+class _ShotEntry:
+    """One shot in the current on-screen list."""
+    timestamp: float
+    x_mm: float
+    y_mm: float
+    score: str | None = None
+
+
 class AppController(QObject):
     def __init__(self, window: MainWindow, db_path: Path) -> None:
         super().__init__()
@@ -63,7 +73,7 @@ class AppController(QObject):
 
         self._player = TracePlayer(self)
         self._current_view_session_id: int | None = None
-        self._shots_in_view: list[ShotMarker] = []
+        self._shots_in_view: list[_ShotEntry] = []
         self._open_calibration_dialog_ref = None
         self._open_prefs_dialog_ref = None
         self._latest_frame: np.ndarray | None = None
@@ -179,20 +189,10 @@ class AppController(QObject):
         x_mm = sample.x_mm if sample else None
         y_mm = sample.y_mm if sample else None
 
-        marker = ShotMarker(x_mm or 0.0, y_mm or 0.0, label=str(len(self._shots_in_view) + 1))
-        self._shots_in_view.append(marker)
-        self._window.target_view.set_shots(self._shots_in_view)
-
-        entries = [
-            ShotListEntry(
-                index=i,
-                timestamp=event.timestamp,
-                x_mm=m.x_mm,
-                y_mm=m.y_mm,
-            )
-            for i, m in enumerate(self._shots_in_view)
-        ]
-        self._window.shot_list.set_shots(entries)
+        self._shots_in_view.append(
+            _ShotEntry(timestamp=event.timestamp, x_mm=x_mm or 0.0, y_mm=y_mm or 0.0)
+        )
+        self._render_shots()
         self._refresh_stats()
 
         if self._recorder.is_recording:
@@ -204,8 +204,27 @@ class AppController(QObject):
                 confidence=sample.confidence if sample else 0.0,
             )
 
+    def _render_shots(self) -> None:
+        markers = [
+            ShotMarker(s.x_mm, s.y_mm, label=str(i + 1))
+            for i, s in enumerate(self._shots_in_view)
+        ]
+        self._window.target_view.set_shots(markers)
+        self._window.shot_list.set_shots(
+            [
+                ShotListEntry(
+                    index=i,
+                    timestamp=s.timestamp,
+                    x_mm=s.x_mm,
+                    y_mm=s.y_mm,
+                    score=s.score,
+                )
+                for i, s in enumerate(self._shots_in_view)
+            ]
+        )
+
     def _refresh_stats(self) -> None:
-        positions = [(m.x_mm, m.y_mm) for m in self._shots_in_view]
+        positions = [(s.x_mm, s.y_mm) for s in self._shots_in_view]
         self._window.stats_panel.update_from_positions(positions)
         self._window.stats_panel.set_trace_points(None)
 
@@ -215,8 +234,7 @@ class AppController(QObject):
         self._buffer.clear()
         self._shots_in_view.clear()
         self._window.target_view.clear_trace()
-        self._window.target_view.set_shots([])
-        self._window.shot_list.set_shots([])
+        self._render_shots()
         self._refresh_stats()
 
         calibration = self._serialise_calibration()
@@ -284,24 +302,16 @@ class AppController(QObject):
         self._window.target_view.set_trace(
             [(s.x_mm or 0.0, s.y_mm or 0.0) for s in view.trace if s.x_mm is not None]
         )
-        markers = [
-            ShotMarker(s.x_mm or 0.0, s.y_mm or 0.0, label=str(i + 1))
-            for i, s in enumerate(view.shots)
+        self._shots_in_view = [
+            _ShotEntry(
+                timestamp=s.ts,
+                x_mm=s.x_mm or 0.0,
+                y_mm=s.y_mm or 0.0,
+                score=s.score or None,
+            )
+            for s in view.shots
         ]
-        self._shots_in_view = markers
-        self._window.target_view.set_shots(markers)
-        self._window.shot_list.set_shots(
-            [
-                ShotListEntry(
-                    index=i,
-                    timestamp=s.ts,
-                    x_mm=s.x_mm or 0.0,
-                    y_mm=s.y_mm or 0.0,
-                    score=s.score or None,
-                )
-                for i, s in enumerate(view.shots)
-            ]
-        )
+        self._render_shots()
         self._refresh_stats()
         self._window.replay_controls.set_enabled(False)
 
