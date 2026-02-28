@@ -9,6 +9,7 @@ from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
+    QPushButton,
     QSplitter,
     QStatusBar,
     QVBoxLayout,
@@ -31,6 +32,8 @@ class MainWindow(QMainWindow):
     calibration_points_accepted = Signal(list)
     calibration_dialog_opened = Signal(object)  # CalibrationDialog
     preferences_dialog_opened = Signal(object)  # PreferencesDialog
+    manual_aim_requested = Signal(float, float)  # image-space px
+    manual_aim_cleared = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -58,6 +61,12 @@ class MainWindow(QMainWindow):
         self.camera_view.setMinimumSize(240, 180)
         self.camera_view.setMaximumHeight(260)
         side_layout.addWidget(self.camera_view, 1)
+
+        self._manual_aim_button = QPushButton("Pick aim manually")
+        self._manual_aim_button.setCheckable(True)
+        self._manual_aim_button.toggled.connect(self._on_manual_aim_toggled)
+        side_layout.addWidget(self._manual_aim_button)
+
         side_layout.addWidget(self.shot_list, 2)
         side_layout.addWidget(self.stats_panel)
 
@@ -89,6 +98,19 @@ class MainWindow(QMainWindow):
         status.addPermanentWidget(self._calibration_label)
 
         self.shot_list.shot_selected.connect(self.target_view.set_selected_shot)
+        self.camera_view.clicked_at.connect(self._on_camera_view_clicked)
+
+    def _on_manual_aim_toggled(self, checked: bool) -> None:
+        if checked:
+            self._manual_aim_button.setText("Manual aim ON (click image)")
+            self.statusBar().showMessage("Click the camera view to set the aim point", 4000)
+        else:
+            self._manual_aim_button.setText("Pick aim manually")
+            self.manual_aim_cleared.emit()
+
+    def _on_camera_view_clicked(self, x: float, y: float) -> None:
+        if self._manual_aim_button.isChecked():
+            self.manual_aim_requested.emit(x, y)
 
     def set_calibration_status(self, text: str) -> None:
         self._calibration_label.setText(text)

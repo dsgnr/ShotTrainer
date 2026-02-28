@@ -113,6 +113,8 @@ class AppController(QObject):
         self._window.calibration_points_accepted.connect(self._on_calibration_points)
         self._window.calibration_dialog_opened.connect(self._on_calibration_dialog_opened)
         self._window.preferences_dialog_opened.connect(self._on_prefs_dialog_opened)
+        self._window.manual_aim_requested.connect(self._on_manual_aim_requested)
+        self._window.manual_aim_cleared.connect(self._on_manual_aim_cleared)
 
         self._audio.level.connect(self._on_audio_level)
 
@@ -160,6 +162,16 @@ class AppController(QObject):
         gain = max(0.01, self._preferences.audio_gain)
         if self._open_prefs_dialog_ref is not None:
             self._open_prefs_dialog_ref.push_audio_level(level * gain)
+
+    def _on_manual_aim_requested(self, x_px: float, y_px: float) -> None:
+        self._tracker.set_manual_point(x_px, y_px)
+        self._window.statusBar().showMessage(
+            f"Manual aim point set at ({int(x_px)}, {int(y_px)})", 3000
+        )
+
+    def _on_manual_aim_cleared(self) -> None:
+        self._tracker.set_manual_point(None, None)
+        self._window.statusBar().showMessage("Manual aim cleared", 2000)
 
     def _on_shot_detected(self, event: ShotEvent) -> None:
         result = self._coordinator.handle_shot(event)
