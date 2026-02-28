@@ -46,28 +46,52 @@ class Tracker:
         self.calibration: _Calibration | None = calibration
         self._frame_id = 0
         self._last_sample: TrackingSample | None = None
+        self._manual_px: tuple[float, float] | None = None
 
     def set_calibration(self, calibration: LinearCalibration | HomographyCalibration | None) -> None:
         self.calibration = calibration
 
+    def set_manual_point(self, x_px: float | None, y_px: float | None) -> None:
+        """Force tracking to a fixed pixel location, ignoring the detector.
+
+        Pass ``None`` to clear the override and resume automatic detection.
+        Useful when target detection is unreliable, for example in poor
+        lighting.
+        """
+        if x_px is None or y_px is None:
+            self._manual_px = None
+        else:
+            self._manual_px = (float(x_px), float(y_px))
+
+    @property
+    def manual_point(self) -> tuple[float, float] | None:
+        return self._manual_px
+
     def process(self, frame: np.ndarray, timestamp: float) -> TrackingSample | None:
         self._frame_id += 1
-        det: Detection = self.detector.detect(frame)
-        if not det.found:
-            return None
+        if self._manual_px is not None:
+            x_px, y_px = self._manual_px
+            confidence = 0.0
+        else:
+            det: Detection = self.detector.detect(frame)
+            if not det.found:
+                return None
+            x_px = det.x_px
+            y_px = det.y_px
+            confidence = det.confidence
 
         x_mm: float | None = None
         y_mm: float | None = None
         if self.calibration is not None:
-            x_mm, y_mm = self.calibration.to_mm(det.x_px, det.y_px)
+            x_mm, y_mm = self.calibration.to_mm(x_px, y_px)
 
         sample = TrackingSample(
             timestamp=timestamp,
-            x_px=det.x_px,
-            y_px=det.y_px,
+            x_px=x_px,
+            y_px=y_px,
             x_mm=x_mm,
             y_mm=y_mm,
-            confidence=det.confidence,
+            confidence=confidence,
             frame_id=self._frame_id,
         )
         self._last_sample = sample
