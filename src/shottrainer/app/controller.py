@@ -361,6 +361,22 @@ class AppController(QObject):
         self._window.header.set_state("idle")
 
     def _on_clear_shots_requested(self) -> None:
+        # Don't bother prompting if there's nothing to lose.
+        if not self._shots_in_view:
+            return
+        from PySide6.QtWidgets import QMessageBox
+
+        confirm = QMessageBox.question(
+            self._window,
+            "Clear shots?",
+            "Remove all shots from the display? "
+            "This does not affect saved sessions.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+
         self._shots_in_view.clear()
         self._window.target_view.clear_trace()
         self._window.target_view.set_hold_zone(None)
