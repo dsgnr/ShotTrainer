@@ -29,8 +29,7 @@ def test_single_shot_has_zero_spread_and_radius():
 def test_extreme_spread_picks_max_pairwise():
     points = [(0.0, 0.0), (3.0, 4.0), (-2.0, -1.0)]
     s = compute_stats(points)
-    assert math.isclose(s.extreme_spread_mm, 5 + 0.0, rel_tol=0, abs_tol=0.5) or s.extreme_spread_mm > 5
-    # the max distance between (0,0) and (3,4) is 5; (3,4) to (-2,-1) is sqrt(50)~7.07
+    # max pairwise distance is between (3, 4) and (-2, -1), which is sqrt(50).
     assert math.isclose(s.extreme_spread_mm, math.hypot(5, 5), abs_tol=1e-6)
 
 
