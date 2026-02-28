@@ -207,6 +207,7 @@ class AppController(QObject):
     def _refresh_stats(self) -> None:
         positions = [(m.x_mm, m.y_mm) for m in self._shots_in_view]
         self._window.stats_panel.update_from_positions(positions)
+        self._window.stats_panel.set_trace_points(None)
 
     def _on_start_requested(self, name: str) -> None:
         if self._recorder.is_recording:
@@ -322,6 +323,10 @@ class AppController(QObject):
         self._window.target_view.set_split_index(window.split_index)
         points = [(s.x_mm or 0.0, s.y_mm or 0.0) for s in window.samples if s.x_mm is not None]
         self._window.target_view.set_trace(points)
+        # Trace stats use the pre-shot portion of the window only. That's the
+        # part where the shooter was holding rather than reacting to recoil.
+        pre_points = points[: window.split_index + 1] if window.split_index is not None else points
+        self._window.stats_panel.set_trace_points(pre_points)
         self._window.replay_controls.set_enabled(bool(window.samples))
 
     def _on_replay_point(self, x_mm: float, y_mm: float) -> None:
