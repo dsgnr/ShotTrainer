@@ -135,8 +135,35 @@ class PreferencesDialog(QDialog):
         buttons.rejected.connect(self.reject)
 
     def push_frame(self, frame_bgr: np.ndarray) -> None:
-        """Called by the controller to update the embedded camera preview."""
-        self._camera_preview.set_frame(frame_bgr)
+        """Called by the controller to update the embedded preview.
+
+        The dialog applies the *current* (unsaved) rotation and flip
+        choices so the preview reflects what saving will do.
+        """
+        self._latest_raw_frame = frame_bgr
+        self._refresh_preview_frame()
+
+    def _refresh_preview_frame(self) -> None:
+        from shottrainer.tracking.frame_ops import transform_frame
+
+        frame = getattr(self, "_latest_raw_frame", None)
+        if frame is None:
+            return
+        rotation = self._rotation.currentData() or 0
+        try:
+            transformed = transform_frame(
+                frame,
+                rotation_degrees=int(rotation),
+                flip_horizontal=self._flip_h.isChecked(),
+                flip_vertical=self._flip_v.isChecked(),
+            )
+        except Exception:
+            transformed = frame
+        self._camera_preview.set_frame(transformed)
+        self._camera_preview.set_region_fraction(float(self._region.value()))
+
+    def _on_region_preview_changed(self, _value: float) -> None:
+        self._camera_preview.set_region_fraction(float(self._region.value()))
 
     def push_audio_level(self, level: float) -> None:
         """Update the audio level meter (input is 0..1)."""
@@ -182,16 +209,19 @@ class PreferencesDialog(QDialog):
             tooltip="Rotate the captured frame in 90 degree steps. Useful when a barrel-mounted camera is fitted sideways.",
             initial=prefs.camera_rotation,
         )
+        self._rotation.currentIndexChanged.connect(lambda _i: self._refresh_preview_frame())
         form.addRow("Rotation", self._rotation)
 
         self._flip_h = QCheckBox("Mirror horizontally")
         self._flip_h.setChecked(prefs.camera_flip_h)
         self._flip_h.setToolTip("Flip the image left-right. Tick this if your trace moves opposite to your aim.")
+        self._flip_h.toggled.connect(lambda _v: self._refresh_preview_frame())
         form.addRow("", self._flip_h)
 
         self._flip_v = QCheckBox("Mirror vertically")
         self._flip_v.setChecked(prefs.camera_flip_v)
         self._flip_v.setToolTip("Flip the image top-to-bottom. Useful when the camera is mounted upside down.")
+        self._flip_v.toggled.connect(lambda _v: self._refresh_preview_frame())
         form.addRow("", self._flip_v)
 
         self._region = QDoubleSpinBox()
@@ -204,6 +234,7 @@ class PreferencesDialog(QDialog):
             "ignore distractions near the edges. Higher values let the detector "
             "see more of the scene."
         )
+        self._region.valueChanged.connect(self._on_region_preview_changed)
         form.addRow("Tracking region", self._region)
 
         # Hardware image controls. Each slider has an "auto" checkbox that
@@ -253,6 +284,7 @@ class PreferencesDialog(QDialog):
 
         self._camera_preview = CameraView()
         self._camera_preview.setMinimumHeight(280)
+        self._camera_preview.set_region_fraction(prefs.tracking_region_fraction)
         layout.addWidget(self._camera_preview, 1)
         layout.addWidget(QLabel("Live preview. Pick a camera to verify framing."))
 
