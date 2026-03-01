@@ -14,6 +14,7 @@ from shottrainer.services.shot_stats import (
     time_inside_radius,
 )
 
+from .target_faces import diagnostic_rings
 from .target_view import TargetRing
 
 
@@ -90,7 +91,7 @@ class StatsPanel(QFrame):
         self._ring_rows.clear()
         self._rings = tuple(rings)
 
-        chosen = self._select_diagnostic_rings(self._rings)
+        chosen = diagnostic_rings(self._rings)
         for ring in chosen:
             label = QLabel(f"Time inside {ring.label or f'{ring.radius_mm:.0f} mm'}")
             value = QLabel("-")
@@ -99,16 +100,6 @@ class StatsPanel(QFrame):
 
         # Re-render with the current trace if there is one.
         self._refresh_time_in_ring(self._last_trace)
-
-    def _select_diagnostic_rings(
-        self, rings: Sequence[TargetRing]
-    ) -> list[TargetRing]:
-        if not rings:
-            return []
-        sorted_rings = sorted(rings, key=lambda r: r.radius_mm)
-        if len(sorted_rings) == 1:
-            return [sorted_rings[0]]
-        return [sorted_rings[0], sorted_rings[len(sorted_rings) // 2]]
 
     def _refresh_time_in_ring(self, points: list[tuple[float, float]] | None) -> None:
         for _, value, ring in self._ring_rows:
