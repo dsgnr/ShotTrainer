@@ -186,6 +186,7 @@ issues with cameras, microphones, calibration, and replay.
 
 ## More documentation
 
+- [Setup and camera alignment](docs/setup.md)
 - [How tracking works](docs/how-tracking-works.md)
 - [Accuracy and target sizing](docs/accuracy.md)
 - [Cameras tested](docs/cameras.md)
