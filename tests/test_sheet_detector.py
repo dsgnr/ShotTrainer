@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import cv2
 import numpy as np
-import pytest
 
 from shottrainer.tracking.sheet_detector import detect_sheet_corners
 

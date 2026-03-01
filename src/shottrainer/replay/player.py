@@ -57,7 +57,7 @@ class TracePlayer(QObject):
         if not self._samples:
             return
         f = max(0.0, min(1.0, f))
-        self._index = int(round(f * (len(self._samples) - 1)))
+        self._index = round(f * (len(self._samples) - 1))
         self._emit_current()
         self.progress.emit(self._index / max(1, len(self._samples) - 1))
 
@@ -76,7 +76,7 @@ class TracePlayer(QObject):
             return
         cur = self._samples[self._index]
         nxt = self._samples[self._index + 1]
-        delay_ms = max(1, int(round((nxt.timestamp - cur.timestamp) * 1000.0 / self._speed)))
+        delay_ms = max(1, round((nxt.timestamp - cur.timestamp) * 1000.0 / self._speed))
         self._timer.start(delay_ms)
 
     def _step(self) -> None:
