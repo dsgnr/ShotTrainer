@@ -53,12 +53,46 @@ class Tracker:
         self._last_sample: TrackingSample | None = None
         self._last_radius_px: float = 0.0
         self._manual_px: tuple[float, float] | None = None
+        self._zero_offset_mm: tuple[float, float] = (0.0, 0.0)
 
     def set_calibration(
         self, calibration: LinearCalibration | HomographyCalibration | None
     ) -> None:
         self.calibration = calibration
         self._calibration_is_placeholder = False
+
+    def set_zero_offset(self, x_mm: float, y_mm: float) -> None:
+        """Set the trace's origin to ``(x_mm, y_mm)`` instead of the circle centre.
+
+        After calling this, future samples report position relative to
+        the supplied offset rather than the calibration's (0, 0).
+        Useful for moving the trace's origin to match the rifle's natural
+        aim point or a known impact group centre.
+        """
+        self._zero_offset_mm = (float(x_mm), float(y_mm))
+
+    def clear_zero_offset(self) -> None:
+        """Remove any zero offset, restoring the calibration's origin."""
+        self._zero_offset_mm = (0.0, 0.0)
+
+    @property
+    def zero_offset_mm(self) -> tuple[float, float]:
+        return self._zero_offset_mm
+
+    def zero_at_last_sample(self) -> bool:
+        """Use the last sample's mm position as the new origin.
+
+        Returns ``True`` if there was a usable sample, ``False`` if no
+        calibrated sample has been seen yet.
+        """
+        sample = self._last_sample
+        if sample is None or sample.x_mm is None or sample.y_mm is None:
+            return False
+        # Account for any current offset so calling zero again locks
+        # the new aim point rather than stacking offsets.
+        ox, oy = self._zero_offset_mm
+        self._zero_offset_mm = (sample.x_mm + ox, sample.y_mm + oy)
+        return True
 
     def set_region_fraction(self, fraction: float) -> None:
         """Update the detector's centred acceptance region in place."""
@@ -147,7 +181,10 @@ class Tracker:
         x_mm: float | None = None
         y_mm: float | None = None
         if self.calibration is not None:
-            x_mm, y_mm = self.calibration.to_mm(x_px, y_px)
+            raw_x_mm, raw_y_mm = self.calibration.to_mm(x_px, y_px)
+            ox, oy = self._zero_offset_mm
+            x_mm = raw_x_mm - ox
+            y_mm = raw_y_mm - oy
 
         sample = TrackingSample(
             timestamp=timestamp,
