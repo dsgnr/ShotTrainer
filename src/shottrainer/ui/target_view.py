@@ -54,6 +54,7 @@ class TargetView(QWidget):
         self._shots: list[ShotMarker] = []
         self._selected_shot: int | None = None
         self._live_aim: tuple[float, float] | None = None
+        self._live_aim_manual: bool = False
         self._split_index: int | None = None  # trace index where pre/post divides
 
     def set_rings(self, rings: Iterable[TargetRing]) -> None:
@@ -83,6 +84,12 @@ class TargetView(QWidget):
         """Mark the pre/post divide for replay; ``None`` draws a single colour."""
         self._split_index = index
         self.update()
+
+    def set_live_aim_manual(self, manual: bool) -> None:
+        """Mark the live aim cursor as user-picked rather than auto-detected."""
+        if self._live_aim_manual != manual:
+            self._live_aim_manual = manual
+            self.update()
 
     def clear_trace(self) -> None:
         self._trace.clear()
@@ -172,8 +179,10 @@ class TargetView(QWidget):
             return
         x = cx + self._live_aim[0] * scale
         y = cy + self._live_aim[1] * scale
-        pen = QPen(QColor("#27ae60"))
+        pen = QPen(QColor("#f39c12") if self._live_aim_manual else QColor("#27ae60"))
         pen.setWidth(2)
+        if self._live_aim_manual:
+            pen.setStyle(Qt.PenStyle.DashLine)
         painter.setPen(pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawEllipse(QPointF(x, y), 5.0, 5.0)

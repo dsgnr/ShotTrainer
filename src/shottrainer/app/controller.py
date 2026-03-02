@@ -179,12 +179,14 @@ class AppController(QObject):
 
     def _on_manual_aim_requested(self, x_px: float, y_px: float) -> None:
         self._tracker.set_manual_point(x_px, y_px)
+        self._window.target_view.set_live_aim_manual(True)
         self._window.statusBar().showMessage(
             f"Manual aim point set at ({int(x_px)}, {int(y_px)})", 3000
         )
 
     def _on_manual_aim_cleared(self) -> None:
         self._tracker.set_manual_point(None, None)
+        self._window.target_view.set_live_aim_manual(False)
         self._window.statusBar().showMessage("Manual aim cleared", 2000)
 
     def _on_shot_detected(self, event: ShotEvent) -> None:
