@@ -29,7 +29,7 @@ from shottrainer.sessions.database import init_database, make_engine
 from shottrainer.sessions.repository import SessionRepository
 from shottrainer.tracking.calibration import HomographyCalibration, LinearCalibration
 from shottrainer.tracking.camera import CameraCapture, CameraConfig, list_available_cameras
-from shottrainer.tracking.frame_ops import flip_frame, rotate_frame
+from shottrainer.tracking.frame_ops import transform_frame
 from shottrainer.tracking.sheet_detector import detect_sheet_corners
 from shottrainer.tracking.tracker import Tracker
 from shottrainer.ui.main_window import MainWindow
@@ -143,10 +143,12 @@ class AppController(QObject):
 
     def _on_frame(self, frame: np.ndarray, ts: float, frame_id: int) -> None:
         prefs = self._preferences
-        if prefs.camera_rotation:
-            frame = rotate_frame(frame, prefs.camera_rotation)
-        if prefs.camera_flip_h or prefs.camera_flip_v:
-            frame = flip_frame(frame, horizontal=prefs.camera_flip_h, vertical=prefs.camera_flip_v)
+        frame = transform_frame(
+            frame,
+            rotation_degrees=prefs.camera_rotation,
+            flip_horizontal=prefs.camera_flip_h,
+            flip_vertical=prefs.camera_flip_v,
+        )
         self._latest_frame = frame
         self._window.camera_view.set_frame(frame)
         if self._open_calibration_dialog_ref is not None:

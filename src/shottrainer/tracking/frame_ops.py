@@ -33,3 +33,23 @@ def flip_frame(frame: np.ndarray, horizontal: bool = False, vertical: bool = Fal
     if horizontal:
         return cv2.flip(frame, 1)
     return cv2.flip(frame, 0)
+
+
+def transform_frame(
+    frame: np.ndarray,
+    *,
+    rotation_degrees: int = 0,
+    flip_horizontal: bool = False,
+    flip_vertical: bool = False,
+) -> np.ndarray:
+    """Apply rotation then flip in one place.
+
+    Order matters: rotating after flipping inverts the meaning of "horizontal"
+    flip. Rotation runs first so the flip axes match what the user sees
+    in the preview.
+    """
+    if rotation_degrees:
+        frame = rotate_frame(frame, rotation_degrees)
+    if flip_horizontal or flip_vertical:
+        frame = flip_frame(frame, horizontal=flip_horizontal, vertical=flip_vertical)
+    return frame
