@@ -101,6 +101,7 @@ class CircleTargetDetector:
 
         best: Detection = Detection(found=False)
         best_score = 0.0
+        best_off_region: tuple[float, float, float, float] | None = None  # cx, cy, r, score
 
         for c in contours:
             area = cv2.contourArea(c)
@@ -129,11 +130,16 @@ class CircleTargetDetector:
                 continue
             cx = m["m10"] / m["m00"]
             cy = m["m01"] / m["m00"]
-            if abs(cx - cx_frame) > half_w or abs(cy - cy_frame) > half_h:
-                continue
             # Penalise blobs that don't fill their enclosing circle.
             fill = area / (np.pi * enclosing_r * enclosing_r)
-            score = float(circularity * fill)
+            unboosted_score = float(circularity * fill)
+            if abs(cx - cx_frame) > half_w or abs(cy - cy_frame) > half_h:
+                # Remember the best off-region blob so the UI can
+                # show "saw something circular but ignored it".
+                if best_off_region is None or unboosted_score > best_off_region[3]:
+                    best_off_region = (cx, cy, float(enclosing_r), unboosted_score)
+                continue
+            score = unboosted_score
 
             # Soft-lock score adjustment. Inside
             # ``lock_radius_px`` the boost is strongest at the
@@ -165,12 +171,26 @@ class CircleTargetDetector:
         if best.found:
             self._lock_px = (best.x_px, best.y_px)
             self._consecutive_misses = 0
-        else:
-            self._consecutive_misses += 1
-            if (
-                self._lock_px is not None
-                and self._consecutive_misses >= s.lock_release_after_misses
-            ):
-                self._lock_px = None
+            return best
 
+        # Nothing made the cut. If the best candidate sat
+        # outside the tracking region, surface it so the UI can
+        # show what was rejected.
+        self._consecutive_misses += 1
+        if (
+            self._lock_px is not None
+            and self._consecutive_misses >= s.lock_release_after_misses
+        ):
+            self._lock_px = None
+
+        if best_off_region is not None:
+            cx, cy, r, score = best_off_region
+            return Detection(
+                found=False,
+                x_px=cx,
+                y_px=cy,
+                radius_px=r,
+                confidence=score,
+                rejected_outside_region=True,
+            )
         return best
