@@ -44,17 +44,24 @@ class MainWindow(QMainWindow):
         self.target_view = TargetView()
         self.shot_list = ShotList()
 
-        target_column = QWidget()
-        target_layout = QVBoxLayout(target_column)
-        target_layout.setContentsMargins(0, 0, 0, 0)
-        target_layout.addWidget(self.target_view, 3)
-        target_layout.addWidget(self.shot_list, 2)
+        # Layout: target view dominates the main area. The camera preview
+        # and shot list sit in a slimmer side column. The camera preview is
+        # still useful for verifying tracking, but the user's eyes belong on
+        # the target.
+        side_column = QWidget()
+        side_layout = QVBoxLayout(side_column)
+        side_layout.setContentsMargins(0, 0, 0, 0)
+        self.camera_view.setMinimumSize(240, 180)
+        self.camera_view.setMaximumHeight(260)
+        side_layout.addWidget(self.camera_view, 1)
+        side_layout.addWidget(self.shot_list, 2)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.addWidget(self.camera_view)
-        splitter.addWidget(target_column)
-        splitter.setStretchFactor(0, 3)
-        splitter.setStretchFactor(1, 2)
+        splitter.addWidget(self.target_view)
+        splitter.addWidget(side_column)
+        splitter.setStretchFactor(0, 4)
+        splitter.setStretchFactor(1, 1)
+        splitter.setSizes([900, 320])
 
         self.replay_controls = ReplayControls()
 
