@@ -57,6 +57,8 @@ These live under the platform-appropriate data directory (see
   device, sensitivity, target face, recording windows).
 - `calibration.json` the most recent calibration, restored on launch.
 - `detector_settings.json` last auto-optimised detector parameters.
+- `zero_offset.json` user-set zero offset that shifts the trace origin
+  to match the rifle's actual aim or zeroed group centre.
 - `ui_state.json` window geometry and splitter sizes.
 
 Each file degrades gracefully if missing or corrupt. The app falls back to

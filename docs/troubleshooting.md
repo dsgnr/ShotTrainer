@@ -52,6 +52,13 @@ Confirm the sheet you used really is A4 (210 by 297 mm). The homography
 assumes a centred origin. If you used the top-left origin, scoring will
 appear shifted.
 
+**The trace doesn't sit where the rifle is actually pointing.**
+The calibrated origin is the centre of the calibration sheet, not the
+bore axis. Hold the rifle on the target's centre (or your zeroing
+group's centre) and click **Zero on aim** in the left column. That
+locks the current aim point as (0, 0). The offset persists across
+restarts; **Clear zero** reverts to the calibrated origin.
+
 ## Sessions and replay
 
 **Sessions don't appear in the browser after recording.**
@@ -74,6 +81,7 @@ ShotTrainer keeps everything in a per-user data directory:
 - Windows: `%APPDATA%\ShotTrainer\`
 
 Inside you'll find `sessions.db` (sessions and shot data), `settings.json`,
-`calibration.json`, `detector_settings.json`, and `ui_state.json`. Deleting
-any of them resets the relevant state to defaults. Deleting `sessions.db`
-wipes recorded shots so keep a backup if you care about the history.
+`calibration.json`, `detector_settings.json`, `zero_offset.json`, and
+`ui_state.json`. Deleting any of them resets the relevant state to
+defaults. Deleting `sessions.db` wipes recorded shots so keep a backup
+if you care about the history.

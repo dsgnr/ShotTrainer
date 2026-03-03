@@ -107,9 +107,9 @@ to stay inside the central tracking region during a normal hold (see
 the Tracking region setting in Preferences). If the on-aim image is
 slightly off-centre:
 
-- **Off by less than 1/4 of the frame.** Leave it. Calibration handles
-  position offsets, and the trace coordinates remain correct relative
-  to the target centre.
+- **Off by less than 1/4 of the frame.** Leave it. The "Zero on aim"
+  workflow (see below) makes the on-aim point read as (0, 0) so the
+  trace coordinates are correct relative to where the rifle points.
 - **Off by more than 1/4 of the frame.** The hold motion may push the
   target outside the tracking region during natural wobble. Either
   reseat the mount, widen the tracking region in Preferences, or
@@ -138,24 +138,42 @@ sits comfortably in frame on aim, do the calibration once. See
 The camera-to-bore offset doesn't enter calibration. Calibration only
 maps pixels on the target plane to millimetres on that plane.
 
-## Zeroing the trace to point of impact
+## Zeroing the trace to your aim
 
-There's still a fixed offset between where the camera looks and where
-the bullet goes. To remove it:
+The camera's optical axis isn't the bore axis, so the calibrated
+origin (the centre of the calibration sheet) usually isn't where the
+rifle is actually pointing when you're on aim. The "Zero on aim"
+button in the left column locks the current aim point as the trace's
+(0, 0) so the trace and shot marks line up with where the rifle is
+really pointing.
 
-1. Calibrate as above.
-2. Fire a small group (3 to 5 shots) at the target with the rifle
-   zeroed normally.
-3. Look at the marked group on the digital target. If the centre of
-   the group sits a few millimetres off from where you aimed, that
-   offset is the camera-to-bore mismatch.
-4. Note the offset. The simplest fix is to ead every shot as
-   "trace position plus offset". For a permanent fix, recalibrate
-   with the A4 sheet shifted by the offset so the digital centre
-   matches the rifle's zero.
+```mermaid
+flowchart LR
+    Aim[Hold rifle<br/>on target centre] --> Click[Click<br/>Zero on aim]
+    Click --> Lock[Current aim point<br/>becomes 0, 0]
+    Lock --> Save[Offset saved<br/>across restarts]
+```
 
-For dry-fire practice the offset doesn't matter, since there's no
-impact to compare against. The trace alone is what you're analysing.
+Two ways to use it:
+
+- **Zero to your aim.** Adopt your shooting position, hold the sights
+  on the target's centre, and press **Zero on aim**. The trace now
+  reads "where the rifle is pointing relative to the centre of the
+  target". The offset is saved automatically and survives restarts.
+- **Zero to a known group.** Fire a small group (3 to 5 shots) with
+  the rifle zeroed normally. If the group centre is a few millimetres
+  off the target centre, hold the rifle on the *group centre* in your
+  natural shooting position and press **Zero on aim**. Subsequent
+  shots will register relative to where the bullets actually land.
+
+If you ever want to revert to the calibrated origin (for example if
+you re-mount the camera), press **Clear zero**. The button is enabled
+only while an offset is in effect. The tooltip on **Zero on aim**
+shows the current offset values so you can sanity check them.
+
+For dry-fire practice the bullet-impact part of the second workflow
+doesn't apply. Just zero to your aim and the trace will read in
+"distance from intended aim point" coordinates.
 
 ## Sanity checks
 
