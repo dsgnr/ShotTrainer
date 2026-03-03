@@ -37,13 +37,25 @@ On macOS you will be prompted for camera and microphone permissions the first
 time the app runs. On Linux the user must be in the appropriate `video` and
 `audio` groups, or have access to `/dev/video*` and ALSA/PulseAudio.
 
-## Installing for development
+## Development setup
+
+We use [uv](https://docs.astral.sh/uv/) to manage Python and dependencies.
+If you don't already have it:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate    # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
+curl -LsSf https://astral.sh/uv/install.sh | sh    # macOS / Linux
+# or: powershell -c "irm https://astral.sh/uv/install.ps1 | iex"  on Windows
 ```
+
+Then, from the repo root:
+
+```bash
+uv sync                  # install runtime + dev dependencies in .venv/
+```
+
+`uv sync` creates a virtual environment in `.venv/` and resolves
+everything from `uv.lock` so you get a reproducible install. To add
+or upgrade a dependency edit `pyproject.toml` and run `uv lock`.
 
 If `sounddevice` fails to install you may need PortAudio. On macOS:
 `brew install portaudio`. On Debian/Ubuntu: `sudo apt install libportaudio2`.
@@ -51,30 +63,42 @@ If `sounddevice` fails to install you may need PortAudio. On macOS:
 ## Running
 
 ```bash
+uv run shottrainer
+```
+
+Or, if you've activated the `.venv` manually:
+
+```bash
 shottrainer
+# or: python -m shottrainer.app.main
 ```
 
-Or:
+## Development workflow
+
+The Makefile wraps the common commands:
 
 ```bash
-python -m shottrainer.app.main
+make sync       # install / refresh dependencies
+make test       # run pytest
+make lint       # ruff check
+make format     # ruff format + auto-fixable lints
+make run        # launch the app
+make package    # PyInstaller build, see packaging/README.md
 ```
 
-## Running tests
+Run them directly with `uv run` if you'd rather not use Make.
 
-```bash
-pytest
-```
+A typical change looks like:
 
-The image and audio tests use synthetic data and do not require a physical
-camera or microphone.
+1. `uv sync` to make sure your env matches the lockfile.
+2. Make your edit. Add or update tests next to the code where it makes
+   sense.
+3. `make test` and `make lint` before committing.
+4. Commit with conventional commit messages (`feat: ...`, `fix: ...`,
+   `refactor: ...`, `docs: ...`, `test: ...`, `chore: ...`).
 
-## Linting and formatting
-
-```bash
-ruff check .
-ruff format .
-```
+The image and audio tests use synthetic data and do not require a
+physical camera or microphone, so they are safe to run anywhere.
 
 ## Project layout
 
