@@ -29,6 +29,7 @@ with various cameras people have tried.
 - Live preview of what the barrel-mounted camera sees.
 - Calibration to convert pixels to millimetres on the target.
 - Audio shot detection from a microphone.
+- Automatic ring scoring against your selected target face.
 - Records the rifle's hold trace continuously while practising.
 - Stores sessions and shots in a local SQLite database.
 - Lets you replay the trace around each shot.
