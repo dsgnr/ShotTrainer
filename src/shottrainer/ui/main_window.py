@@ -29,6 +29,7 @@ class MainWindow(QMainWindow):
     session_browser_requested = Signal()
     calibration_points_accepted = Signal(list)
     calibration_dialog_opened = Signal(object)  # CalibrationDialog
+    preferences_dialog_opened = Signal(object)  # PreferencesDialog
 
     def __init__(self) -> None:
         super().__init__()
@@ -38,6 +39,7 @@ class MainWindow(QMainWindow):
         self._prefs = Preferences()
         self._calibration_corner_detector: Callable | None = None
         self._device_options_provider: Callable | None = None
+        self._target_faces_provider: Callable | None = None
 
         self.session_controls = SessionControls()
         self.camera_view = CameraView()
@@ -94,6 +96,10 @@ class MainWindow(QMainWindow):
         """Provider returns ``(cameras, microphones)`` to populate the dialog."""
         self._device_options_provider = fn
 
+    def set_target_faces_provider(self, fn: Callable) -> None:
+        """Provider returns a list of ``(key, label)`` for target face choices."""
+        self._target_faces_provider = fn
+
     def current_preferences(self) -> Preferences:
         return self._prefs
 
@@ -130,13 +136,18 @@ class MainWindow(QMainWindow):
         microphones: list[str] | None = None
         if self._device_options_provider is not None:
             cameras, microphones = self._device_options_provider()
+        target_faces: list[tuple[str, str]] | None = None
+        if self._target_faces_provider is not None:
+            target_faces = self._target_faces_provider()
         dialog = PreferencesDialog(
             self._prefs,
             camera_options=cameras,
             audio_options=microphones,
+            target_faces=target_faces,
             parent=self,
         )
         dialog.saved.connect(self._on_preferences_saved)
+        self.preferences_dialog_opened.emit(dialog)
         dialog.exec()
 
     def _on_preferences_saved(self, prefs: Preferences) -> None:

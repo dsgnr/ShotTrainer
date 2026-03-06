@@ -1,9 +1,10 @@
-"""Preferences covering device choices, sensitivity and recording windows."""
+"""The Preferences dialog with tabbed layout, live camera preview and target picker."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
+import numpy as np
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
@@ -11,20 +12,37 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QDoubleSpinBox,
     QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QProgressBar,
     QSpinBox,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
+
+from .camera_view import CameraView
 
 
 @dataclass(slots=True)
 class Preferences:
     camera_id: int = 0
+    camera_rotation: int = 0  # 0, 90, 180 or 270 degrees, clockwise
     audio_device: str = "default"
+    audio_gain: float = 1.0
     shot_threshold: float = 0.25
     shot_refractory_ms: int = 400
     pre_shot_ms: int = 1500
     post_shot_ms: int = 800
+    target_face: str = "default"
+
+
+ROTATION_OPTIONS: tuple[tuple[int, str], ...] = (
+    (0, "None"),
+    (90, "90 clockwise"),
+    (180, "180"),
+    (270, "90 counter-clockwise"),
+)
 
 
 class PreferencesDialog(QDialog):
@@ -35,22 +53,79 @@ class PreferencesDialog(QDialog):
         prefs: Preferences,
         camera_options: list[tuple[int, str]] | None = None,
         audio_options: list[str] | None = None,
+        target_faces: list[tuple[str, str]] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Preferences")
+        self.resize(720, 540)
         self._prefs = prefs
 
         layout = QVBoxLayout(self)
-        form = QFormLayout()
+        tabs = QTabWidget()
+        tabs.addTab(self._build_camera_tab(prefs, camera_options), "Camera")
+        tabs.addTab(self._build_audio_tab(prefs, audio_options), "Audio")
+        tabs.addTab(self._build_target_tab(prefs, target_faces), "Target")
+        tabs.addTab(self._build_recording_tab(prefs), "Recording")
+        layout.addWidget(tabs)
 
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
+        layout.addWidget(buttons)
+        buttons.accepted.connect(self._on_save)
+        buttons.rejected.connect(self.reject)
+
+    def push_frame(self, frame_bgr: np.ndarray) -> None:
+        """Called by the controller to update the embedded camera preview."""
+        self._camera_preview.set_frame(frame_bgr)
+
+    def push_audio_level(self, level: float) -> None:
+        """Update the audio level meter (input is 0..1)."""
+        v = round(min(1.0, max(0.0, level)) * 100)
+        self._audio_meter.setValue(v)
+
+    def _build_camera_tab(
+        self,
+        prefs: Preferences,
+        camera_options: list[tuple[int, str]] | None,
+    ) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+
+        form = QFormLayout()
         self._camera = QComboBox()
         for cam_id, name in camera_options or [(0, "Camera 0")]:
             self._camera.addItem(name, cam_id)
         index = self._camera.findData(prefs.camera_id)
         if index >= 0:
             self._camera.setCurrentIndex(index)
-        form.addRow("Camera", self._camera)
+        form.addRow("Device", self._camera)
+
+        self._rotation = QComboBox()
+        for value, label in ROTATION_OPTIONS:
+            self._rotation.addItem(label, value)
+        index = self._rotation.findData(prefs.camera_rotation)
+        if index >= 0:
+            self._rotation.setCurrentIndex(index)
+        form.addRow("Rotation", self._rotation)
+        layout.addLayout(form)
+
+        self._camera_preview = CameraView()
+        self._camera_preview.setMinimumHeight(280)
+        layout.addWidget(self._camera_preview, 1)
+        layout.addWidget(QLabel("Live preview. Pick a camera to verify framing."))
+
+        return page
+
+    def _build_audio_tab(
+        self,
+        prefs: Preferences,
+        audio_options: list[str] | None,
+    ) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        form = QFormLayout()
 
         self._audio = QComboBox()
         for name in audio_options or ["default"]:
@@ -58,7 +133,14 @@ class PreferencesDialog(QDialog):
         idx = self._audio.findText(prefs.audio_device)
         if idx >= 0:
             self._audio.setCurrentIndex(idx)
-        form.addRow("Microphone", self._audio)
+        form.addRow("Input", self._audio)
+
+        self._audio_gain = QDoubleSpinBox()
+        self._audio_gain.setRange(0.1, 10.0)
+        self._audio_gain.setSingleStep(0.1)
+        self._audio_gain.setSuffix("x")
+        self._audio_gain.setValue(prefs.audio_gain)
+        form.addRow("Volume", self._audio_gain)
 
         self._threshold = QDoubleSpinBox()
         self._threshold.setRange(0.01, 1.0)
@@ -71,6 +153,56 @@ class PreferencesDialog(QDialog):
         self._refractory.setSuffix(" ms")
         self._refractory.setValue(prefs.shot_refractory_ms)
         form.addRow("Refractory window", self._refractory)
+        layout.addLayout(form)
+
+        meter_row = QHBoxLayout()
+        meter_row.addWidget(QLabel("Live level"))
+        self._audio_meter = QProgressBar()
+        self._audio_meter.setRange(0, 100)
+        self._audio_meter.setTextVisible(False)
+        meter_row.addWidget(self._audio_meter, 1)
+        layout.addLayout(meter_row)
+
+        layout.addWidget(
+            QLabel(
+                "Lower the threshold if shots aren't detected. Raise it if loud "
+                "ambient noise triggers false shots."
+            )
+        )
+        layout.addStretch(1)
+        return page
+
+    def _build_target_tab(
+        self,
+        prefs: Preferences,
+        target_faces: list[tuple[str, str]] | None,
+    ) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        form = QFormLayout()
+
+        self._target_face = QComboBox()
+        for key, label in target_faces or [("default", "Default rings")]:
+            self._target_face.addItem(label, key)
+        idx = self._target_face.findData(prefs.target_face)
+        if idx >= 0:
+            self._target_face.setCurrentIndex(idx)
+        form.addRow("Face", self._target_face)
+        layout.addLayout(form)
+
+        layout.addWidget(
+            QLabel(
+                "The selected face controls the scoring rings drawn on the "
+                "target view. Calibration is independent of this choice."
+            )
+        )
+        layout.addStretch(1)
+        return page
+
+    def _build_recording_tab(self, prefs: Preferences) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        form = QFormLayout()
 
         self._pre = QSpinBox()
         self._pre.setRange(0, 10000)
@@ -83,26 +215,32 @@ class PreferencesDialog(QDialog):
         self._post.setSuffix(" ms")
         self._post.setValue(prefs.post_shot_ms)
         form.addRow("Post-shot window", self._post)
-
         layout.addLayout(form)
 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        layout.addWidget(
+            QLabel(
+                "These windows control how much trace is kept around each "
+                "shot for replay."
+            )
         )
-        layout.addWidget(buttons)
-        buttons.accepted.connect(self._on_save)
-        buttons.rejected.connect(self.reject)
+        layout.addStretch(1)
+        return page
 
     def _on_save(self) -> None:
         cam_id = self._camera.currentData()
+        rotation = self._rotation.currentData()
         audio = self._audio.currentText()
+        target_face = self._target_face.currentData() or "default"
         updated = Preferences(
             camera_id=int(cam_id) if cam_id is not None else 0,
+            camera_rotation=int(rotation) if rotation is not None else 0,
             audio_device=audio,
+            audio_gain=float(self._audio_gain.value()),
             shot_threshold=float(self._threshold.value()),
             shot_refractory_ms=int(self._refractory.value()),
             pre_shot_ms=int(self._pre.value()),
             post_shot_ms=int(self._post.value()),
+            target_face=str(target_face),
         )
         self.saved.emit(updated)
         self.accept()
