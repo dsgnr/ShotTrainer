@@ -5,12 +5,20 @@ from __future__ import annotations
 import logging
 import sys
 
+from PySide6.QtCore import QByteArray
 from PySide6.QtWidgets import QApplication
 
 from shottrainer import __version__
 
 from .controller import AppController
 from .paths import database_path
+from .ui_state import (
+    UiState,
+    decode_geometry,
+    encode_geometry,
+    load_ui_state,
+    save_ui_state,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -29,6 +37,25 @@ def main(argv: list[str] | None = None) -> int:
 
     window = MainWindow()
     controller = AppController(window, database_path())
+
+    state = load_ui_state()
+    geometry = decode_geometry(state.window_geometry_b64)
+    if geometry:
+        window.restoreGeometry(QByteArray(geometry))
+    window.restore_main_splitter_sizes(state.main_splitter_sizes)
+
+    def _persist_state() -> None:
+        try:
+            save_ui_state(
+                UiState(
+                    window_geometry_b64=encode_geometry(bytes(window.saveGeometry())),
+                    main_splitter_sizes=window.main_splitter_sizes(),
+                )
+            )
+        except OSError as exc:
+            log.warning("Could not save UI state: %s", exc)
+
+    app.aboutToQuit.connect(_persist_state)
     app.aboutToQuit.connect(controller.shutdown)
 
     window.show()
