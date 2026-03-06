@@ -15,6 +15,7 @@ from shottrainer.audio.input import AudioShotListener, list_audio_inputs
 from shottrainer.audio.models import ShotDetectorSettings, ShotEvent
 from shottrainer.replay.player import TracePlayer
 from shottrainer.services.replay_coordinator import ReplayCoordinator
+from shottrainer.services.scoring import ScoringRing, score_shot
 from shottrainer.services.session_recorder import SessionRecorder
 from shottrainer.services.shot_coordinator import (
     ShotCoordinator,
@@ -346,9 +347,15 @@ class AppController(QObject):
         sample = result.sample
         x_mm = sample.x_mm if sample else None
         y_mm = sample.y_mm if sample else None
+        score = self._score_for(x_mm, y_mm)
 
         self._shots_in_view.append(
-            _ShotEntry(timestamp=event.timestamp, x_mm=x_mm or 0.0, y_mm=y_mm or 0.0)
+            _ShotEntry(
+                timestamp=event.timestamp,
+                x_mm=x_mm or 0.0,
+                y_mm=y_mm or 0.0,
+                score=score or None,
+            )
         )
         self._render_shots()
         self._refresh_stats()
@@ -360,7 +367,25 @@ class AppController(QObject):
                 y_mm=y_mm,
                 audio_level=event.audio_level,
                 confidence=sample.confidence if sample else 0.0,
+                score=score,
             )
+
+    def _score_for(self, x_mm: float | None, y_mm: float | None) -> str:
+        """Score a shot against the currently selected target face.
+
+        Returns an empty string if the shot has no calibrated position
+        or sits outside every ring of the active face.
+        """
+        if x_mm is None or y_mm is None:
+            return ""
+        rings = rings_for_face(self._preferences.target_face)
+        scoring = [ScoringRing(r.radius_mm, r.label or "") for r in rings if r.label]
+        return score_shot(
+            x_mm,
+            y_mm,
+            scoring,
+            shot_diameter_mm=self._preferences.shot_diameter_mm,
+        )
 
     def _render_shots(self) -> None:
         markers = [
@@ -381,6 +406,9 @@ class AppController(QObject):
             ]
         )
         self._window.header.set_shot_count(len(self._shots_in_view))
+        self._window.hero_stats.set_scores(
+            [s.score or "" for s in self._shots_in_view]
+        )
 
     def _refresh_stats(self) -> None:
         positions = [(s.x_mm, s.y_mm) for s in self._shots_in_view]
