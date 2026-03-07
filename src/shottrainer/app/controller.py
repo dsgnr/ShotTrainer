@@ -176,6 +176,7 @@ class AppController(QObject):
             for i, m in enumerate(self._shots_in_view)
         ]
         self._window.shot_list.set_shots(entries)
+        self._refresh_stats()
 
         if self._recorder.is_recording:
             self._recorder.add_shot(
@@ -186,6 +187,10 @@ class AppController(QObject):
                 confidence=sample.confidence if sample else 0.0,
             )
 
+    def _refresh_stats(self) -> None:
+        positions = [(m.x_mm, m.y_mm) for m in self._shots_in_view]
+        self._window.stats_panel.update_from_positions(positions)
+
     def _on_start_requested(self, name: str) -> None:
         if self._recorder.is_recording:
             return
@@ -194,6 +199,7 @@ class AppController(QObject):
         self._window.target_view.clear_trace()
         self._window.target_view.set_shots([])
         self._window.shot_list.set_shots([])
+        self._refresh_stats()
 
         calibration = self._serialise_calibration()
         sid = self._recorder.start(
@@ -278,6 +284,7 @@ class AppController(QObject):
                 for i, s in enumerate(view.shots)
             ]
         )
+        self._refresh_stats()
         self._window.replay_controls.set_enabled(False)
 
     def _on_shot_selected(self, index: int) -> None:
