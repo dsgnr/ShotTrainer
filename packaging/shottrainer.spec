@@ -28,6 +28,7 @@ binaries += collect_dynamic_libs("sounddevice")
 datas = []
 datas += collect_data_files("cv2")
 datas += collect_data_files("sounddevice")
+datas += collect_data_files("shottrainer", subdir="ui/assets")
 
 hiddenimports = []
 hiddenimports += collect_submodules("shottrainer")
@@ -66,6 +67,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon="../src/shottrainer/ui/assets/icon.ico",
 )
 
 coll = COLLECT(
