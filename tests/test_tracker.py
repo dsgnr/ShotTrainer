@@ -45,3 +45,25 @@ def test_tracker_increments_frame_id_each_call():
     b = tracker.process(_frame_with_circle(320, 240), timestamp=0.1)
     assert a is not None and b is not None
     assert b.frame_id == a.frame_id + 1
+
+
+def test_manual_point_overrides_detector():
+    tracker = Tracker(calibration=LinearCalibration(mm_per_pixel=0.5, origin_px=(320.0, 240.0)))
+    tracker.set_manual_point(360.0, 240.0)
+    blank = np.full((480, 640, 3), 255, dtype=np.uint8)
+    sample = tracker.process(blank, timestamp=0.0)
+    assert sample is not None
+    assert sample.x_px == 360.0
+    assert sample.y_px == 240.0
+    assert sample.confidence == 0.0
+    assert sample.x_mm == pytest.approx(20.0)
+
+
+def test_manual_point_can_be_cleared():
+    tracker = Tracker()
+    tracker.set_manual_point(100.0, 100.0)
+    tracker.set_manual_point(None, None)
+    assert tracker.manual_point is None
+    blank = np.full((480, 640, 3), 255, dtype=np.uint8)
+    # Without override, the detector returns nothing for a blank frame.
+    assert tracker.process(blank, timestamp=0.0) is None
