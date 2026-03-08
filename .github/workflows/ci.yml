@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: tests on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+          enable-cache: true
+
+      - name: install python
+        run: uv python install 3.11
+
+      - name: install system audio dependencies (linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libportaudio2 libegl1 libgl1 libxkbcommon0 libdbus-1-3
+        shell: bash
+
+      - name: sync dependencies
+        run: uv sync --frozen
+
+      - name: lint
+        run: uv run ruff check .
+
+      - name: test
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run pytest -q
