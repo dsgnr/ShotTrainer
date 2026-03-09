@@ -43,6 +43,7 @@ class MainWindow(QMainWindow):
     manual_aim_cleared = Signal()
     zero_on_aim_requested = Signal()
     zero_cleared = Signal()
+    rescore_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -281,6 +282,16 @@ class MainWindow(QMainWindow):
         marker_action = QAction("Print &marker sheet...", self)
         marker_action.triggered.connect(self._open_marker_sheet_dialog)
         tools_menu.addAction(marker_action)
+
+        tools_menu.addSeparator()
+
+        rescore_action = QAction("&Re-score with current face", self)
+        rescore_action.setToolTip(
+            "Re-evaluate every shot in view against the currently selected "
+            "target face. Useful after switching faces on a loaded session."
+        )
+        rescore_action.triggered.connect(self.rescore_requested)
+        tools_menu.addAction(rescore_action)
 
     def _open_calibration_dialog(self) -> None:
         dialog = CalibrationDialog(detect_corners=self._calibration_corner_detector, parent=self)
