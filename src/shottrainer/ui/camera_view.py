@@ -10,10 +10,21 @@ a real camera.
 
 from __future__ import annotations
 
+from typing import Literal
+
 import numpy as np
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QImage, QPainter, QPen, QPixmap
+from PySide6.QtGui import QColor, QImage, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QSizePolicy, QWidget
+
+TrackingStatus = Literal["idle", "tracking", "lost", "manual"]
+
+_STATUS_LABELS: dict[str, tuple[str, str]] = {
+    "idle": ("Idle", "#888888"),
+    "tracking": ("Tracking", "#27ae60"),
+    "lost": ("No target", "#e67e22"),
+    "manual": ("Manual aim", "#f39c12"),
+}
 
 
 class CameraView(QWidget):
@@ -30,6 +41,7 @@ class CameraView(QWidget):
         self._aim_px: tuple[float, float] | None = None
         self._aim_radius_px: float = 0.0
         self._show_overlay: bool = True
+        self._status: TrackingStatus = "idle"
 
     def set_frame(self, frame_bgr: np.ndarray) -> None:
         if frame_bgr.ndim != 3 or frame_bgr.shape[2] != 3:
@@ -53,6 +65,13 @@ class CameraView(QWidget):
     def set_overlay_visible(self, visible: bool) -> None:
         self._show_overlay = visible
         self.update()
+
+    def set_status(self, status: TrackingStatus) -> None:
+        if status not in _STATUS_LABELS:
+            raise ValueError(f"Unknown tracking status: {status}")
+        if status != self._status:
+            self._status = status
+            self.update()
 
     def clear(self) -> None:
         self._pixmap = None
@@ -81,6 +100,38 @@ class CameraView(QWidget):
 
         if self._show_overlay and self._aim_px is not None:
             self._draw_aim_overlay(painter, scaled.size().toTuple(), (offset_x, offset_y))
+
+        self._draw_status_badge(painter)
+
+    def _draw_status_badge(self, painter: QPainter) -> None:
+        text, colour_hex = _STATUS_LABELS[self._status]
+        # Background pill in the top-left corner of the widget.
+        margin = 8
+        padding_x = 8
+        padding_y = 4
+        metrics = painter.fontMetrics()
+        text_w = metrics.horizontalAdvance(text)
+        text_h = metrics.height()
+        rect_w = text_w + padding_x * 2
+        rect_h = text_h + padding_y
+        x = margin
+        y = margin
+
+        painter.save()
+        painter.setBrush(QColor(0, 0, 0, 160))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRoundedRect(x, y, rect_w, rect_h, 4, 4)
+        # A coloured dot to make the state pop without relying on text alone.
+        dot_d = 8
+        painter.setBrush(QColor(colour_hex))
+        painter.drawEllipse(x + 6, y + (rect_h - dot_d) // 2, dot_d, dot_d)
+        painter.setPen(QColor("#f7f7f5"))
+        painter.drawText(
+            x + dot_d + 12,
+            y + padding_y // 2 + metrics.ascent(),
+            text,
+        )
+        painter.restore()
 
     def _draw_aim_overlay(
         self,
