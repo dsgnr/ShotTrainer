@@ -141,6 +141,7 @@ class AppController(QObject):
         if self._camera is not None:
             self._camera.stop()
             self._camera = None
+            self._window.camera_view.set_status("idle")
 
     def _on_frame(self, frame: np.ndarray, ts: float, frame_id: int) -> None:
         prefs = self._preferences
@@ -159,8 +160,12 @@ class AppController(QObject):
         sample = self._tracker.process(frame, ts)
         if sample is None:
             self._window.camera_view.set_aim_point(None, None)
+            self._window.camera_view.set_status("lost")
             return
         self._window.camera_view.set_aim_point(sample.x_px, sample.y_px)
+        self._window.camera_view.set_status(
+            "manual" if self._tracker.manual_point is not None else "tracking"
+        )
         self._buffer.append(sample)
         if sample.x_mm is not None and sample.y_mm is not None:
             self._window.target_view.append_trace_point(sample.x_mm, sample.y_mm)
