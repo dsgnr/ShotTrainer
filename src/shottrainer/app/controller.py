@@ -35,7 +35,7 @@ from shottrainer.ui.shot_list import ShotListEntry
 from shottrainer.ui.target_faces import list_target_faces, rings_for_face
 from shottrainer.ui.target_view import ShotMarker
 
-from .calibration_store import load_calibration, save_calibration
+from .calibration_store import load_calibration, save_calibration, serialise_calibration
 from .settings import load_preferences, save_preferences
 
 log = logging.getLogger(__name__)
@@ -253,7 +253,7 @@ class AppController(QObject):
         self._render_shots()
         self._refresh_stats()
 
-        calibration = self._serialise_calibration()
+        calibration = serialise_calibration(self._tracker.calibration)
         sid = self._recorder.start(
             name=name,
             calibration=calibration,
@@ -419,22 +419,3 @@ class AppController(QObject):
                 cx, cy = 0.0, 0.0
             mm_per_px = cal.mm_per_pixel_at(cx, cy)
         self._window.set_calibration_status(f"Calibrated: {mm_per_px:.3f} mm/px")
-
-    def _serialise_calibration(self) -> dict | None:
-        cal = self._tracker.calibration
-        if cal is None:
-            return None
-        if isinstance(cal, LinearCalibration):
-            return {
-                "type": "linear",
-                "mm_per_pixel": cal.mm_per_pixel,
-                "origin_px": list(cal.origin_px),
-            }
-        if isinstance(cal, HomographyCalibration):
-            return {
-                "type": "homography",
-                "matrix": cal.matrix.tolist(),
-                "image_points": [list(p) for p in cal.image_points],
-                "target_points_mm": [list(p) for p in cal.target_points_mm],
-            }
-        return None
