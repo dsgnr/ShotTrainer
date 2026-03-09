@@ -1,7 +1,7 @@
 """Repository for sessions, traces and shots.
 
 Hides SQLAlchemy from the rest of the app. Anything that wants
-to read or to read or to read or to read or write persistence goes through here.
+to read or to read or to read or to read or to read or write persistence goes through here.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session as OrmSession
 
+from shottrainer.services.scoring import total_score
 from shottrainer.tracking.models import TrackingSample
 
 from .models import Session, Shot, TraceSample
@@ -23,7 +24,7 @@ from .models import Session, Shot, TraceSample
 class SessionSummary:
     """A read-only view of a session for list rendering. Cheap to build."""
 
-    __slots__ = ("ended_at", "id", "name", "shot_count", "started_at")
+    __slots__ = ("ended_at", "id", "name", "shot_count", "started_at", "total_score")
 
     def __init__(
         self,
@@ -32,12 +33,14 @@ class SessionSummary:
         started_at: datetime,
         ended_at: datetime | None,
         shot_count: int,
+        total_score: float = 0.0,
     ) -> None:
         self.id = session_id
         self.name = name
         self.started_at = started_at
         self.ended_at = ended_at
         self.shot_count = shot_count
+        self.total_score = total_score
 
 
 class SessionRepository:
@@ -89,7 +92,9 @@ class SessionRepository:
             ).scalars().all()
             summaries: list[SessionSummary] = []
             for r in rows:
-                shot_count = session.query(Shot).filter_by(session_id=r.id).count()
+                shots = session.query(Shot).filter_by(session_id=r.id).all()
+                shot_count = len(shots)
+                total = total_score(s.score for s in shots)
                 summaries.append(
                     SessionSummary(
                         session_id=int(r.id),
@@ -97,6 +102,7 @@ class SessionRepository:
                         started_at=r.started_at,
                         ended_at=r.ended_at,
                         shot_count=shot_count,
+                        total_score=total,
                     )
                 )
             return summaries

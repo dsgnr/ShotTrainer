@@ -63,6 +63,24 @@ def test_add_and_list_shots(repo: SessionRepository):
     assert summary.shot_count == 2
 
 
+def test_session_summary_includes_total_score(repo: SessionRepository):
+    sid = repo.create_session(name="qual")
+    repo.add_shot(sid, ts=0.1, x_mm=0.0, y_mm=0.0, audio_level=0.4, confidence=0.9, score="10")
+    repo.add_shot(sid, ts=0.2, x_mm=0.0, y_mm=0.0, audio_level=0.4, confidence=0.9, score="X")
+    repo.add_shot(sid, ts=0.3, x_mm=0.0, y_mm=0.0, audio_level=0.4, confidence=0.9, score="9")
+    summary = repo.list_sessions()[0]
+    assert summary.shot_count == 3
+    # 10 + 10 (X) + 9 = 29
+    assert summary.total_score == pytest.approx(29.0)
+
+
+def test_session_summary_zero_for_unscored_shots(repo: SessionRepository):
+    sid = repo.create_session()
+    repo.add_shot(sid, ts=0.1, x_mm=0.0, y_mm=0.0, audio_level=0.4, confidence=0.9)
+    summary = repo.list_sessions()[0]
+    assert summary.total_score == 0.0
+
+
 def test_delete_session_cascades(repo: SessionRepository):
     sid = repo.create_session()
     repo.append_trace(sid, [_sample(0.0), _sample(0.1)])
