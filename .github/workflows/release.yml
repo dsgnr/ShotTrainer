@@ -39,26 +39,59 @@ jobs:
       - name: sync dependencies
         run: uv sync --frozen --extra package
 
+      - name: build icns (macos)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: bash packaging/build_icns.sh
+
       - name: build
         run: uv run pyinstaller packaging/shottrainer.spec --noconfirm
 
-      - name: archive (linux/macos)
-        if: runner.os != 'Windows'
+      - name: build dmg (macos)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: bash packaging/make_dmg.sh
+
+      - name: install Inno Setup (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: build installer (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: pwsh packaging/make_installer.ps1
+
+      - name: archive (windows portable)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist/ShotTrainer -DestinationPath dist/ShotTrainer-Windows.zip
+
+      - name: archive (linux)
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           cd dist
-          tar -czf ShotTrainer-${{ runner.os }}.tar.gz ShotTrainer
+          tar -czf ShotTrainer-Linux.tar.gz ShotTrainer
 
-      - name: archive (windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
+      - name: archive (macos)
+        if: runner.os == 'macOS'
+        shell: bash
         run: |
-          Compress-Archive -Path dist/ShotTrainer -DestinationPath dist/ShotTrainer-Windows.zip
+          # The .dmg is the user-facing artefact. The raw folder build
+          # is kept as a tarball for users who prefer to run unsigned.
+          cd dist
+          tar -czf ShotTrainer-macOS.tar.gz ShotTrainer
 
       - uses: actions/upload-artifact@v4
         with:
           name: shottrainer-${{ runner.os }}
-          path: dist/ShotTrainer-*
+          path: |
+            dist/ShotTrainer-*.tar.gz
+            dist/ShotTrainer-*.zip
+            dist/ShotTrainer-*.dmg
+            dist/ShotTrainer-Setup.exe
+          if-no-files-found: ignore
 
   publish:
     needs: build
@@ -74,7 +107,12 @@ jobs:
       - name: collect artefacts
         run: |
           mkdir -p release
-          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -exec cp {} release/ \;
+          find artifacts -type f \( \
+              -name '*.tar.gz' -o \
+              -name '*.zip' -o \
+              -name '*.dmg' -o \
+              -name 'ShotTrainer-Setup.exe' \
+            \) -exec cp {} release/ \;
           ls -la release
 
       - uses: softprops/action-gh-release@v2
