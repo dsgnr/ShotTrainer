@@ -10,18 +10,17 @@ from PySide6.QtGui import QFont, QIcon
 from PySide6.QtWidgets import QApplication
 
 from shottrainer import __version__
-from shottrainer.ui.assets import asset_path
-from shottrainer.ui.theme import apply_dark_theme
-
-from .controller import AppController
-from .paths import database_path
-from .ui_state import (
+from shottrainer.app.controller import AppController
+from shottrainer.app.paths import database_path
+from shottrainer.app.ui_state import (
     UiState,
     decode_geometry,
     encode_geometry,
     load_ui_state,
     save_ui_state,
 )
+from shottrainer.ui.assets import asset_path
+from shottrainer.ui.theme import apply_dark_theme
 
 
 def main(argv: list[str] | None = None) -> int:
