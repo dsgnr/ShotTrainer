@@ -55,16 +55,26 @@ def list_available_cameras(max_index: int = 5) -> list[tuple[int, str]]:
 
     OpenCV does not give names on all platforms, so this returns generic
     labels. Good enough for a device picker.
+
+    OpenCV chats noisily on stderr for every index that doesn't open
+    (one log line per backend per failed probe). Lower the OpenCV log
+    level for the duration of the probe so the console stays clean,
+    then restore the previous level.
     """
-    found: list[tuple[int, str]] = []
-    for idx in range(max_index):
-        cap = cv2.VideoCapture(idx, cv2.CAP_ANY)
-        try:
-            if cap.isOpened():
-                found.append((idx, f"Camera {idx}"))
-        finally:
-            cap.release()
-    return found
+    previous_level = cv2.utils.logging.getLogLevel()
+    cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_SILENT)
+    try:
+        found: list[tuple[int, str]] = []
+        for idx in range(max_index):
+            cap = cv2.VideoCapture(idx, cv2.CAP_ANY)
+            try:
+                if cap.isOpened():
+                    found.append((idx, f"Camera {idx}"))
+            finally:
+                cap.release()
+        return found
+    finally:
+        cv2.utils.logging.setLogLevel(previous_level)
 
 
 class CameraCapture(QObject):
