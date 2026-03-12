@@ -268,6 +268,7 @@ class AppController(QObject):
         self._audio.set_device(prefs.audio_device)
 
         self._window.target_view.set_rings(rings_for_face(prefs.target_face))
+        self._window.stats_panel.set_rings(rings_for_face(prefs.target_face))
 
         if previous is not None and previous.camera_id != prefs.camera_id and self._camera is not None:
             self._start_camera(prefs.camera_id)
