@@ -245,7 +245,8 @@ class AppController(QObject):
     def _on_stop_requested(self) -> None:
         if not self._recorder.is_recording:
             return
-        self._audio.stop()
+        if self._open_prefs_dialog_ref is None:
+            self._audio.stop()
         sid = self._recorder.stop()
         self._window.session_controls.set_active(False)
         self._window.session_controls.set_summary(
