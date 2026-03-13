@@ -65,3 +65,17 @@ def list_target_faces() -> list[tuple[str, str]]:
 def rings_for_face(name: str) -> tuple[TargetRing, ...]:
     entry = _FACES.get(name) or _FACES["default"]
     return entry[1]
+
+
+def diagnostic_rings(rings: tuple[TargetRing, ...]) -> list[TargetRing]:
+    """Pick a couple of rings worth reporting time-in-ring for.
+
+    The smallest ring shows precision, a mid-sized one shows the
+    hold area. Returns an empty list when no rings are available.
+    """
+    if not rings:
+        return []
+    sorted_rings = sorted(rings, key=lambda r: r.radius_mm)
+    if len(sorted_rings) == 1:
+        return [sorted_rings[0]]
+    return [sorted_rings[0], sorted_rings[len(sorted_rings) // 2]]
