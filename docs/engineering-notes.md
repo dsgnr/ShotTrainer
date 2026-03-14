@@ -9,7 +9,7 @@ The detector runs an adaptive threshold over the grayscale frame and then
 walks the resulting contours, scoring each by circularity (4π·area /
 perimeter²) and how well it fills its enclosing circle. The highest-scoring
 blob within the radius range wins. This rejects long rectangles like the
-edge of the A4 sheet.
+edge of the marker sheet.
 
 Alternatives considered:
 
@@ -26,18 +26,24 @@ Alternatives considered:
 
 ## Calibration
 
-Calibration uses a known-size A4 sheet. The user shows the sheet to the
-camera, the app finds its corners, and the resulting homography gives both
-pixels per millimetre and perspective correction. Without perspective
-correction the mm-per-pixel ratio is only valid at the centre of the frame
-when the camera is square-on to the target.
+Calibration uses a single circle of known diameter printed on the marker
+sheet. The user shows the circle to the camera, the app fits its centre
+and radius (either automatically with the same contour pipeline as the
+live detector, or by two manual clicks), and the printed diameter divided
+by the detected diameter in pixels gives a uniform mm-per-pixel scale.
+The circle's centre is taken as the image-space origin.
 
-Alternatives:
+Trade-offs:
 
-- **Known-size circle.** Simpler, gives a scale but not perspective.
-- **Manual point selection.** Always available as a fallback.
+- **Single circle vs four corners.** A single circle gives scale and an
+  origin but cannot recover perspective tilt. Acceptable here because the
+  camera is rail- or barrel-mounted and roughly square-on to the target;
+  if non-trivial tilt becomes a problem the upgrade path is to fit an
+  ellipse and recover plane pose from it.
+- **Manual point selection.** Always available as a fallback when the
+  detector can't find the circle (centre click + edge click).
 - **Camera intrinsics.** Lens distortion is a separate problem. Not
-  attempted here. The homography handles linear perspective only.
+  attempted here. The linear scale handles distance and zoom only.
 
 ## Audio shot detection
 

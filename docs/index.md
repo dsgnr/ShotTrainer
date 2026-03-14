@@ -15,7 +15,8 @@ what hasn't with various cameras.
 ## What it does
 
 - Live target tracking from any USB or built-in camera.
-- A4 sheet calibration that converts pixels to millimetres on the target.
+- Single-circle calibration that converts pixels to millimetres on the
+  target.
 - Audio shot detection with adjustable sensitivity and a refractory window.
 - Automatic ring scoring against your selected target face, with a
   running session total.

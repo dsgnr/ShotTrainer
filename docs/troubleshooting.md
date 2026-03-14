@@ -42,18 +42,18 @@ ShotTrainer itself.
 
 ## Calibration
 
-**The detected sheet outline is wrong.**
-Make sure the A4 sheet fills most of the frame and contrasts strongly
-with the background. If automatic detection still fails, click "Pick
-manually" and select the four corners yourself.
+**Detect can't find the calibration circle.**
+Make sure the printed circle contrasts strongly with the background and
+is fully visible. If automatic detection still fails, click "Pick
+manually", click the circle's centre, then click any point on its edge.
 
 **The mm-per-pixel value looks wildly off.**
-Confirm the sheet you used really is A4 (210 by 297 mm). The homography
-assumes a centred origin. If you used the top-left origin, scoring will
-appear shifted.
+Confirm the diameter shown in the dialog matches the diameter you
+actually printed. The marker sheet's footer reports the size it was
+rendered at.
 
 **The trace doesn't sit where the rifle is actually pointing.**
-The calibrated origin is the centre of the calibration sheet, not the
+The calibrated origin is the centre of the calibration circle, not the
 bore axis. Hold the rifle on the target's centre (or your zeroing
 group's centre) and click **Zero on aim** in the left column. That
 locks the current aim point as (0, 0). The offset persists across
