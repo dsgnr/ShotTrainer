@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from shottrainer.tracking.frame_ops import rotate_frame
+from shottrainer.tracking.frame_ops import flip_frame, rotate_frame
 
 
 def _gradient_frame(h: int = 30, w: int = 40) -> np.ndarray:
@@ -42,3 +42,26 @@ def test_270_swaps_and_flips():
 def test_invalid_rotation_raises():
     with pytest.raises(ValueError):
         rotate_frame(_gradient_frame(), 45)
+
+
+def test_flip_noop_when_neither():
+    f = _gradient_frame()
+    assert flip_frame(f) is f
+
+
+def test_flip_horizontal_mirrors_columns():
+    f = _gradient_frame(h=4, w=6)
+    out = flip_frame(f, horizontal=True)
+    assert int(out[0, 0, 0]) == int(f[0, -1, 0])
+
+
+def test_flip_vertical_mirrors_rows():
+    f = _gradient_frame(h=4, w=6)
+    out = flip_frame(f, vertical=True)
+    assert int(out[0, 0, 0]) == int(f[-1, 0, 0])
+
+
+def test_flip_both_axes():
+    f = _gradient_frame(h=4, w=6)
+    out = flip_frame(f, horizontal=True, vertical=True)
+    assert int(out[0, 0, 0]) == int(f[-1, -1, 0])

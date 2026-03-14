@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -28,6 +29,8 @@ from .camera_view import CameraView
 class Preferences:
     camera_id: int = 0
     camera_rotation: int = 0  # 0, 90, 180 or 270 degrees, clockwise
+    camera_flip_h: bool = False
+    camera_flip_v: bool = False
     audio_device: str = "default"
     audio_gain: float = 1.0
     shot_threshold: float = 0.25
@@ -109,6 +112,14 @@ class PreferencesDialog(QDialog):
         if index >= 0:
             self._rotation.setCurrentIndex(index)
         form.addRow("Rotation", self._rotation)
+
+        self._flip_h = QCheckBox("Mirror horizontally")
+        self._flip_h.setChecked(prefs.camera_flip_h)
+        form.addRow("", self._flip_h)
+
+        self._flip_v = QCheckBox("Mirror vertically")
+        self._flip_v.setChecked(prefs.camera_flip_v)
+        form.addRow("", self._flip_v)
         layout.addLayout(form)
 
         self._camera_preview = CameraView()
@@ -234,6 +245,8 @@ class PreferencesDialog(QDialog):
         updated = Preferences(
             camera_id=int(cam_id) if cam_id is not None else 0,
             camera_rotation=int(rotation) if rotation is not None else 0,
+            camera_flip_h=self._flip_h.isChecked(),
+            camera_flip_v=self._flip_v.isChecked(),
             audio_device=audio,
             audio_gain=float(self._audio_gain.value()),
             shot_threshold=float(self._threshold.value()),
