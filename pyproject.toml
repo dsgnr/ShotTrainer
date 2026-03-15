@@ -17,7 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 package = [
-    "pyinstaller>=6.6",
+    "nuitka>=2.4",
 ]
 
 [dependency-groups]

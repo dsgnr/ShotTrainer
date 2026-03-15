@@ -16,7 +16,7 @@ Alternatives considered:
 - **Hough circle transform.** Works well when parameters match the target,
   but is sensitive to radius range, blur, and contrast. The OpenCV
   implementation gives sub-pixel centres which is attractive for
-  high-resolution frames. We kept it in mind as a drop-in replacement.
+  high-resolution frames. Left as a possible drop-in replacement.
 - **Template matching.** Fast and simple, but does not generalise across
   distances or zoom levels without a pyramid.
 - **Fiducial markers (ArUco).** Probably the most robust if you can stick
@@ -86,9 +86,47 @@ The UI thread does drawing only.
 
 ## Packaging
 
-PyInstaller is the chosen packager. It has the broadest platform coverage
-and the least new tooling. Briefcase and Nuitka are interesting
-alternatives that were not pursued.
+The first packaging pass used PyInstaller. Broad platform coverage,
+nothing new to learn, fastest path to a distributable artefact. It
+ran on PyInstaller long enough to ship Windows and macOS installers
+and a Linux tarball.
+
+Nuitka took over after a few PyInstaller failings started to
+add up:
+
+- **Version drift.** The macOS bundle's `Info.plist` lived in a
+  templated file separate from `pyproject.toml`, so the version had
+  to be remembered in two places. Nuitka derives the plist values
+  from command-line flags in the build driver, so a single constant
+  in `packaging/build_nuitka.py` is the source of truth.
+- **Bundle shape.** PyInstaller produces a frozen interpreter plus a
+  zip of pyc files. Nuitka compiles the Python source to C and emits
+  a real native binary. The resulting bundles are smaller and start
+  faster.
+- **Hook surface.** PySide6, OpenCV and SoundDevice each needed their
+  own PyInstaller hook config (`collect_dynamic_libs`,
+  `collect_data_files`, `collect_submodules`). Nuitka's
+  `--enable-plugin=pyside6` and the standard import-graph walk cover
+  the same ground without the spec file.
+
+Tradeoffs:
+
+- Compile time goes from seconds to 5-15 minutes per platform. CI feels
+  it more than local dev.
+- Nuitka downloads a C compiler the first time it runs on a fresh
+  machine. The build driver passes `--assume-yes-for-downloads` so
+  this isn't interactive.
+- macOS has a case-insensitive filesystem (APFS by default), so the
+  bundle's `Contents/MacOS/ShotTrainer` binary collides with the
+  compiled `Contents/MacOS/shottrainer/` package directory placed
+  alongside it. The driver renames the macOS binary to
+  `ShotTrainer-bin` and lets `CFBundleExecutable` point at it.
+
+Briefcase was considered as a more opinionated alternative that bakes
+notarisation and Linux installers into the build pipeline. It was set
+aside because the existing installer scripts (`make_dmg.sh`,
+`shottrainer.iss`) already cover the same ground without the
+project-layout churn Briefcase requires.
 
 ## Accuracy
 
