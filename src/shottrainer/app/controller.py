@@ -235,6 +235,7 @@ class AppController(QObject):
         self._buffer.clear()
         self._shots_in_view.clear()
         self._window.target_view.clear_trace()
+        self._window.target_view.set_hold_zone(None)
         self._render_shots()
         self._refresh_stats()
 
@@ -302,6 +303,7 @@ class AppController(QObject):
         self._current_view_session_id = session_id
         self._window.target_view.clear_trace()
         self._window.target_view.set_split_index(None)
+        self._window.target_view.set_hold_zone(None)
         self._window.target_view.set_trace(
             [(s.x_mm or 0.0, s.y_mm or 0.0) for s in view.trace if s.x_mm is not None]
         )
@@ -340,6 +342,15 @@ class AppController(QObject):
         # part where the shooter was holding rather than reacting to recoil.
         pre_points = points[: window.split_index + 1] if window.split_index is not None else points
         self._window.stats_panel.set_trace_points(pre_points)
+        if pre_points:
+            from shottrainer.services.shot_stats import compute_trace_stats
+
+            stats = compute_trace_stats(pre_points)
+            self._window.target_view.set_hold_zone(
+                (stats.mean_x_mm, stats.mean_y_mm), stats.hold_tremor_mm
+            )
+        else:
+            self._window.target_view.set_hold_zone(None)
         self._window.replay_controls.set_enabled(bool(window.samples))
 
     def _on_replay_point(self, x_mm: float, y_mm: float) -> None:
