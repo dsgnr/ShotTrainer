@@ -110,6 +110,7 @@ class AppController(QObject):
         sc = self._window.session_controls
         sc.start_requested.connect(self._on_start_requested)
         sc.stop_requested.connect(self._on_stop_requested)
+        sc.clear_shots_requested.connect(self._on_clear_shots_requested)
 
         rc = self._window.replay_controls
         rc.play_clicked.connect(self._player.play)
@@ -278,6 +279,14 @@ class AppController(QObject):
         self._window.session_controls.set_summary(
             f"Saved session {sid}" if sid else "No active session"
         )
+
+    def _on_clear_shots_requested(self) -> None:
+        self._shots_in_view.clear()
+        self._window.target_view.clear_trace()
+        self._window.target_view.set_hold_zone(None)
+        self._render_shots()
+        self._refresh_stats()
+        self._window.statusBar().showMessage("Display cleared", 2000)
 
     def _apply_preferences(self, prefs: Preferences) -> None:
         previous = getattr(self, "_preferences", None)
