@@ -38,7 +38,7 @@ class MarkerSheetDialog(QDialog):
         layout = QVBoxLayout(self)
         form = QFormLayout()
         self._diameter = QDoubleSpinBox()
-        self._diameter.setRange(5.0, 200.0)
+        self._diameter.setRange(5.0, 1000.0)
         self._diameter.setSingleStep(1.0)
         self._diameter.setSuffix(" mm")
         self._diameter.setValue(float(diameter_mm))

@@ -13,11 +13,13 @@ the user file is a dict of faces):
 {
   "label": "My face",
   "rings": [
-    { "radius_mm": 75.0, "label": "1" },
-    { "radius_mm": 5.0,  "label": "X" }
+    { "diameter_mm": 150.0, "label": "1" },
+    { "diameter_mm": 10.0,  "label": "X" }
   ]
 }
 ```
+
+Each ring's ``diameter_mm`` is the full width of the printed circle.
 """
 
 from __future__ import annotations
@@ -32,11 +34,7 @@ from .target_view import TargetRing
 log = logging.getLogger(__name__)
 
 
-_BUILT_IN_FILES: tuple[tuple[str, str], ...] = (
-    ("default", "default.json"),
-    ("air_rifle_10m", "air_rifle_10m.json"),
-    ("smallbore_50m", "smallbore_50m.json"),
-)
+_BUILT_IN_DIR = asset_path("target_faces")
 
 
 def custom_faces_path() -> Path:
@@ -52,7 +50,7 @@ def _parse_rings(rings_raw: list) -> list[TargetRing]:
         if not isinstance(r, dict):
             continue
         try:
-            rings.append(TargetRing(float(r["radius_mm"]), str(r.get("label") or "")))
+            rings.append(TargetRing(float(r["diameter_mm"]), str(r.get("label") or "")))
         except (KeyError, TypeError, ValueError):
             continue
     return rings
@@ -75,10 +73,25 @@ _built_in_cache: dict[str, tuple[str, tuple[TargetRing, ...]]] = {}
 
 
 def _load_built_in_faces() -> dict[str, tuple[str, tuple[TargetRing, ...]]]:
+    """Load every ``*.json`` face shipped under ``ui/assets/target_faces/``.
+
+    The filename stem (so ``smallbore_50m.json`` becomes ``smallbore_50m``)
+    is the stable key that ends up in
+    :class:`Preferences.target_face`. The JSON's ``label`` is the
+    human-readable string shown in the picker. Walking the
+    directory means a new built-in face is a single drop-in, no
+    code change. The result is cached for the lifetime of the
+    process since the built-ins are data files that don't change.
+    """
     if _built_in_cache:
         return _built_in_cache
-    for key, filename in _BUILT_IN_FILES:
-        path = asset_path("target_faces") / filename
+    try:
+        entries = sorted(_BUILT_IN_DIR.glob("*.json"))
+    except OSError as exc:  # pragma: no cover - asset dir guaranteed to exist
+        log.warning("Could not list built-in face directory: %s", exc)
+        return _built_in_cache
+    for path in entries:
+        key = path.stem
         try:
             raw = json.loads(path.read_text())
         except (OSError, json.JSONDecodeError) as exc:
@@ -139,13 +152,38 @@ def _merged_faces() -> dict[str, tuple[str, tuple[TargetRing, ...]]]:
 
 
 def list_target_faces() -> list[tuple[str, str]]:
-    return [(key, label) for key, (label, _) in _merged_faces().items()]
+    """Return ``(key, label)`` pairs for every available face.
+
+    ``default`` comes first so it's the obvious pick for new
+    users. The rest are sorted by their human-readable label so
+    disciplines cluster sensibly in the picker.
+    """
+    items = list(_merged_faces().items())
+
+    def sort_key(item: tuple[str, tuple[str, tuple[TargetRing, ...]]]) -> tuple[int, str]:
+        key, (label, _) = item
+        return (0 if key == "default" else 1, label.lower())
+
+    return [(key, label) for key, (label, _) in sorted(items, key=sort_key)]
 
 
 def rings_for_face(name: str) -> tuple[TargetRing, ...]:
+    """Return the rings for ``name``, falling back gracefully.
+
+    The fallback walks through ``default`` (if present) and then
+    the first face in the merged catalogue. Returns an empty
+    tuple if nothing is loadable, so callers don't need a
+    special branch for "no faces installed".
+    """
     faces = _merged_faces()
-    entry = faces.get(name) or faces["default"]
-    return entry[1]
+    entry = faces.get(name)
+    if entry is not None:
+        return entry[1]
+    if "default" in faces:
+        return faces["default"][1]
+    if faces:
+        return next(iter(faces.values()))[1]
+    return ()
 
 
 def diagnostic_rings(rings: tuple[TargetRing, ...]) -> list[TargetRing]:
@@ -156,7 +194,7 @@ def diagnostic_rings(rings: tuple[TargetRing, ...]) -> list[TargetRing]:
     """
     if not rings:
         return []
-    sorted_rings = sorted(rings, key=lambda r: r.radius_mm)
+    sorted_rings = sorted(rings, key=lambda r: r.diameter_mm)
     if len(sorted_rings) == 1:
         return [sorted_rings[0]]
     return [sorted_rings[0], sorted_rings[len(sorted_rings) // 2]]

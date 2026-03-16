@@ -37,7 +37,7 @@ class TargetFacePreview(QWidget):
         size = min(self.width(), self.height())
         cx = self.width() / 2.0
         cy = self.height() / 2.0
-        max_radius = max(r.radius_mm for r in self._rings)
+        max_radius = max(r.diameter_mm for r in self._rings) / 2
         scale = (size - 16) / (2.0 * max_radius * 1.05)
 
         pen = QPen(QColor("#aab2c0"))
@@ -45,5 +45,5 @@ class TargetFacePreview(QWidget):
         painter.setPen(pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         for ring in self._rings:
-            r = ring.radius_mm * scale
+            r = ring.diameter_mm / 2 * scale
             painter.drawEllipse(QPointF(cx, cy), r, r)

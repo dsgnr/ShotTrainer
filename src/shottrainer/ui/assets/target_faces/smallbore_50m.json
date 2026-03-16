@@ -1,15 +1,15 @@
 {
   "label": "50 m smallbore",
   "rings": [
-    { "radius_mm": 77.2, "label": "1" },
-    { "radius_mm": 69.2, "label": "2" },
-    { "radius_mm": 61.2, "label": "3" },
-    { "radius_mm": 53.2, "label": "4" },
-    { "radius_mm": 45.2, "label": "5" },
-    { "radius_mm": 37.2, "label": "6" },
-    { "radius_mm": 29.2, "label": "7" },
-    { "radius_mm": 21.2, "label": "8" },
-    { "radius_mm": 13.2, "label": "9" },
-    { "radius_mm": 5.2, "label": "10" }
+    { "diameter_mm": 154.4, "label": "1" },
+    { "diameter_mm": 138.4, "label": "2" },
+    { "diameter_mm": 122.4, "label": "3" },
+    { "diameter_mm": 106.4, "label": "4" },
+    { "diameter_mm": 90.4, "label": "5" },
+    { "diameter_mm": 74.4, "label": "6" },
+    { "diameter_mm": 58.4, "label": "7" },
+    { "diameter_mm": 42.4, "label": "8" },
+    { "diameter_mm": 26.4, "label": "9" },
+    { "diameter_mm": 10.4, "label": "10" }
   ]
 }

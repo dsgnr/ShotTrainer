@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
 
 from .app_header import AppHeader
 from .audio_meter import AudioMeter
-from .calibration_dialog import CalibrationDialog
 from .camera_view import CameraView
 from .hero_stats import HeroStats
 from .marker_sheet import MarkerSheetDialog
@@ -34,17 +33,15 @@ from .zoom_controls import ZoomControls
 
 
 class MainWindow(QMainWindow):
+    """The window. Actual work is done by the controller."""
+
     preferences_changed = Signal(object)  # Preferences
     session_browser_requested = Signal()
-    calibration_circle_accepted = Signal(float, float, float, float)  # cx, cy, r, diameter_mm
-    calibration_dialog_opened = Signal(object)  # CalibrationDialog
     preferences_dialog_opened = Signal(object)  # PreferencesDialog
-    manual_aim_requested = Signal(float, float)  # image-space px
-    manual_aim_cleared = Signal()
     zero_on_aim_requested = Signal()
     zero_cleared = Signal()
     rescore_requested = Signal()
-    marker_diameter_changed = Signal(float)
+    circle_diameter_changed = Signal(float)
 
     def __init__(self) -> None:
         super().__init__()
@@ -52,7 +49,6 @@ class MainWindow(QMainWindow):
         self.resize(1440, 880)
 
         self._prefs = Preferences()
-        self._calibration_circle_detector: Callable | None = None
         self._device_options_provider: Callable | None = None
         self._target_faces_provider: Callable | None = None
         self._rings_lookup: Callable | None = None
@@ -66,7 +62,7 @@ class MainWindow(QMainWindow):
         self.target_view = TargetView()
         self.shot_list = ShotList()
         self.hero_stats = HeroStats()
-        self.stats_panel = StatsPanel()  # not displayed. Kept for the controller
+        self.stats_panel = StatsPanel()  # built but not displayed. Kept for the controller
         self.audio_meter = AudioMeter()
         self.zoom_controls = ZoomControls()
         self.zoom_controls.set_extent(self.target_view.extent_mm)
@@ -74,20 +70,17 @@ class MainWindow(QMainWindow):
         self.target_view.extent_changed.connect(self.zoom_controls.set_extent)
         self.replay_controls = ReplayControls()
 
-        self._manual_aim_button = QPushButton("Manual aim")
-        self._manual_aim_button.setCheckable(True)
-        self._manual_aim_button.toggled.connect(self._on_manual_aim_toggled)
-
         self._zero_button = QPushButton("Zero on aim")
         self._zero_button.setToolTip(
-            "Lock the current aim point as the trace's (0, 0). Hold the rifle "
-            "on the target's centre (or your zeroing group's centre) and click."
+            "Lock the current aim point as the trace's (0, 0). Hold the "
+            "rifle on the target's centre and click."
         )
         self._zero_button.clicked.connect(self.zero_on_aim_requested)
 
         self._clear_zero_button = QPushButton("Clear zero")
         self._clear_zero_button.setToolTip(
-            "Remove the user-set zero offset and revert to the calibrated origin."
+            "Remove the user-set zero offset and report aim relative to "
+            "the live circle's centre again."
         )
         self._clear_zero_button.clicked.connect(self.zero_cleared)
         self._clear_zero_button.setEnabled(False)
@@ -118,7 +111,6 @@ class MainWindow(QMainWindow):
         self.setStatusBar(status)
 
         self.shot_list.shot_selected.connect(self.target_view.set_selected_shot)
-        self.camera_view.clicked_at.connect(self._on_camera_view_clicked)
         self._install_shortcuts()
 
     def _build_left_column(self) -> QWidget:
@@ -134,12 +126,6 @@ class MainWindow(QMainWindow):
         self.camera_view.setMinimumSize(220, 165)
         self.camera_view.setMaximumHeight(220)
         layout.addWidget(self.camera_view)
-
-        manual_row = QHBoxLayout()
-        manual_row.setContentsMargins(0, 0, 0, 0)
-        manual_row.addWidget(self._manual_aim_button)
-        manual_row.addStretch(1)
-        layout.addLayout(manual_row)
 
         zero_row = QHBoxLayout()
         zero_row.setContentsMargins(0, 0, 0, 0)
@@ -201,7 +187,8 @@ class MainWindow(QMainWindow):
         label.setObjectName("columnCaption")
         return label
 
-    def set_calibration_status(self, text: str) -> None:
+    def set_tracking_status(self, text: str) -> None:
+        """Update the header's secondary status line (live mm/px and so on)."""
         self.header.set_calibration_text(text)
 
     def set_zero_offset_state(
@@ -223,8 +210,8 @@ class MainWindow(QMainWindow):
             )
         else:
             self._zero_button.setToolTip(
-                "Lock the current aim point as the trace's (0, 0). Hold the rifle "
-                "on the target's centre (or your zeroing group's centre) and click."
+                "Lock the current aim point as the trace's (0, 0). Hold the "
+                "rifle on the target's centre and click."
             )
 
     def main_splitter_sizes(self) -> list[int]:
@@ -233,9 +220,6 @@ class MainWindow(QMainWindow):
     def restore_main_splitter_sizes(self, sizes: list[int]) -> None:
         if sizes and len(sizes) == self._main_splitter.count():
             self._main_splitter.setSizes(sizes)
-
-    def set_calibration_circle_detector(self, fn: Callable) -> None:
-        self._calibration_circle_detector = fn
 
     def set_device_options_provider(self, fn: Callable) -> None:
         self._device_options_provider = fn
@@ -272,10 +256,6 @@ class MainWindow(QMainWindow):
         file_menu.addAction(quit_action)
 
         tools_menu = menu.addMenu("&Tools")
-        calibrate_action = QAction("&Calibrate target...", self)
-        calibrate_action.triggered.connect(self._open_calibration_dialog)
-        tools_menu.addAction(calibrate_action)
-
         prefs_action = QAction("&Preferences...", self)
         prefs_action.triggered.connect(self._open_preferences_dialog)
         tools_menu.addAction(prefs_action)
@@ -294,36 +274,21 @@ class MainWindow(QMainWindow):
         rescore_action.triggered.connect(self.rescore_requested)
         tools_menu.addAction(rescore_action)
 
-    def _open_calibration_dialog(self) -> None:
-        dialog = CalibrationDialog(
-            detect_circle=self._calibration_circle_detector,
-            diameter_mm=self._prefs.calibration_diameter_mm,
-            parent=self,
-        )
-        dialog.accepted_circle.connect(self._on_calibration_circle_accepted)
-        self.calibration_dialog_opened.emit(dialog)
-        dialog.exec()
-
-    def _on_calibration_circle_accepted(
-        self, cx: float, cy: float, r: float, diameter_mm: float
-    ) -> None:
-        # Remember the diameter the user actually accepted so the next
-        # marker sheet and calibration default to the same value.
-        if abs(diameter_mm - self._prefs.calibration_diameter_mm) > 1e-6:
-            self._prefs.calibration_diameter_mm = diameter_mm
-            self.marker_diameter_changed.emit(diameter_mm)
-        self.calibration_circle_accepted.emit(cx, cy, r, diameter_mm)
-
     def _open_marker_sheet_dialog(self) -> None:
+        """Open the marker-sheet print dialog and propagate any diameter change.
+
+        Keeps Preferences (and the live tracker) in sync with
+        whatever value the user picked in the dialog.
+        """
         dialog = MarkerSheetDialog(
-            diameter_mm=self._prefs.calibration_diameter_mm,
+            diameter_mm=self._prefs.circle_diameter_mm,
             parent=self,
         )
         dialog.exec()
         chosen = dialog.diameter_mm()
-        if abs(chosen - self._prefs.calibration_diameter_mm) > 1e-6:
-            self._prefs.calibration_diameter_mm = chosen
-            self.marker_diameter_changed.emit(chosen)
+        if abs(chosen - self._prefs.circle_diameter_mm) > 1e-6:
+            self._prefs.circle_diameter_mm = chosen
+            self.circle_diameter_changed.emit(chosen)
 
     def _open_preferences_dialog(self) -> None:
         cameras: list[tuple[int, str]] | None = None
@@ -350,18 +315,6 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Saved preferences: camera {prefs.camera_id}", 3000)
         self.preferences_changed.emit(prefs)
 
-    def _on_manual_aim_toggled(self, checked: bool) -> None:
-        if checked:
-            self._manual_aim_button.setText("Manual aim ON")
-            self.statusBar().showMessage("Click the camera view to set the aim point", 4000)
-        else:
-            self._manual_aim_button.setText("Manual aim")
-            self.manual_aim_cleared.emit()
-
-    def _on_camera_view_clicked(self, x: float, y: float) -> None:
-        if self._manual_aim_button.isChecked():
-            self.manual_aim_requested.emit(x, y)
-
     def _install_shortcuts(self) -> None:
         """Set up the keyboard shortcuts.
 
@@ -377,7 +330,6 @@ class MainWindow(QMainWindow):
         space.activated.connect(self._toggle_replay)
 
     def _toggle_session(self) -> None:
-        # The primary button drives both Start and Stop. Click it.
         self.session_controls.primary_action().click()
 
     def _invoke_clear_shots(self) -> None:
@@ -394,17 +346,11 @@ class MainWindow(QMainWindow):
             "QComboBox",
         ):
             return
-        # Toggle play / pause on the replay controls.
         if self.replay_controls.isEnabled():
             self.replay_controls.play_clicked.emit()
 
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        """Prompt before closing if a session is in progress.
-
-        The user can choose to stop and save the session, discard the
-        close, or quit anyway (which lets the controller's shutdown hook
-        flush whatever's in flight).
-        """
+        """Prompt before closing if a session is in progress."""
         if not self._is_recording_check():
             super().closeEvent(event)
             return

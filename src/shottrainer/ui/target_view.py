@@ -19,7 +19,7 @@ from PySide6.QtWidgets import QSizePolicy, QWidget
 
 @dataclass(frozen=True, slots=True)
 class TargetRing:
-    radius_mm: float
+    diameter_mm: float
     label: str | None = None
 
 
@@ -97,7 +97,6 @@ class TargetView(QWidget):
         self._shots: list[ShotMarker] = []
         self._selected_shot: int | None = None
         self._live_aim: tuple[float, float] | None = None
-        self._live_aim_manual: bool = False
         self._split_index: int | None = None  # trace index where pre/post divides
         self._playhead_index: int | None = None
         self._hold_zone: tuple[float, float, float] | None = None  # (cx, cy, r) in mm
@@ -106,7 +105,7 @@ class TargetView(QWidget):
     def set_rings(self, rings: Iterable[TargetRing]) -> None:
         self._rings = tuple(rings)
         if self._rings:
-            self._extent_mm = max(r.radius_mm for r in self._rings) * 1.15
+            self._extent_mm = max(r.diameter_mm for r in self._rings) / 2 * 1.15
         self.update()
 
     def set_extent_mm(self, extent_mm: float) -> None:
@@ -140,12 +139,6 @@ class TargetView(QWidget):
         """Highlight a single trace sample as the replay cursor."""
         if index != self._playhead_index:
             self._playhead_index = index
-            self.update()
-
-    def set_live_aim_manual(self, manual: bool) -> None:
-        """Mark the live aim cursor as user-picked rather than auto-detected."""
-        if self._live_aim_manual != manual:
-            self._live_aim_manual = manual
             self.update()
 
     def set_hold_zone(self, centre: tuple[float, float] | None, radius_mm: float = 0.0) -> None:
@@ -238,7 +231,7 @@ class TargetView(QWidget):
         painter.setPen(pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         for ring in self._rings:
-            r = ring.radius_mm * scale
+            r = ring.diameter_mm / 2 * scale
             painter.drawEllipse(QPointF(cx, cy), r, r)
             if ring.label:
                 painter.drawText(QRectF(cx + r - 24, cy - 10, 22, 14), Qt.AlignmentFlag.AlignRight, ring.label)
@@ -302,10 +295,8 @@ class TargetView(QWidget):
             return
         x = cx + self._live_aim[0] * scale
         y = cy + self._live_aim[1] * scale
-        pen = QPen(QColor("#f39c12") if self._live_aim_manual else QColor("#27ae60"))
+        pen = QPen(QColor("#27ae60"))
         pen.setWidth(2)
-        if self._live_aim_manual:
-            pen.setStyle(Qt.PenStyle.DashLine)
         painter.setPen(pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawEllipse(QPointF(x, y), 5.0, 5.0)

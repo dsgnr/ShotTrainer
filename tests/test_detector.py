@@ -183,3 +183,41 @@ def test_rejected_flag_clears_when_blob_returns_to_region():
     accepted = detector.detect(inside)
     assert accepted.found
     assert not accepted.rejected_outside_region
+
+
+def test_morphological_opening_severs_thin_bridge_to_neighbour():
+    """Adaptive thresholding can pinch the target's contour together
+    with a nearby dark feature when the gap between them is small.
+    Without the morphological opening pass, the merged contour's
+    centroid is biased toward the neighbour. With opening, the bridge
+    breaks and the target's centroid stays where it should.
+
+    Mirrors the real-world failure where the trace drifted toward the
+    centre when the target moved into a cluttered side of the frame.
+    """
+    img = _white_canvas()
+    # Target circle and a small distractor 4 pixels away, too close
+    # for the adaptive threshold to keep them visually separate.
+    cv2.circle(img, (320, 240), 20, (40, 40, 40), thickness=-1)
+    cv2.circle(img, (348, 240), 6, (40, 40, 40), thickness=-1)
+    # A faint grey smear in the gap. With the adaptive threshold's local
+    # mean dragged down by both blobs, those grey pixels go binary-on
+    # and the contour bridges. Opening severs the bridge.
+    cv2.line(img, (340, 240), (342, 240), (180, 180, 180), thickness=2)
+
+    with_opening = CircleTargetDetector(DetectorSettings(opening_kernel_px=3)).detect(img)
+    without_opening = CircleTargetDetector(DetectorSettings(opening_kernel_px=0)).detect(img)
+
+    assert with_opening.found
+    # Centroid should be on the target, not pulled toward the distractor
+    # (which sits at x=348). The opening case stays inside ±2 px of the
+    # true centre. The no-opening case is allowed to drift further as
+    # documentation of the symptom this test exists to catch.
+    assert abs(with_opening.x_px - 320) <= 2.0
+
+    if without_opening.found:
+        # If the no-opening detector still sees the target, its centroid
+        # should be biased rightward versus the with-opening one. Doesn't
+        # have to fail outright. The qualitative direction is the
+        # contract.
+        assert without_opening.x_px >= with_opening.x_px - 0.5

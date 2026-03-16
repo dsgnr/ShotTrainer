@@ -11,8 +11,8 @@ the bore by however far apart the two are physically (typically a few
 centimetres above or to the side). Both axes ultimately need to point
 at the same target, but they don't have to be perfectly parallel.
 Anything imperfect in the alignment becomes a fixed offset between
-the trace and the actual point of impact, and calibration plus zeroing
-absorb that offset.
+the trace and the actual point of impact, and the **Zero on aim**
+button absorbs that offset.
 
 ```mermaid
 flowchart LR
@@ -26,9 +26,9 @@ What you actually need:
 
 1. The camera moves with the rifle (no flex, no slip).
 2. The camera sees the target plainly when you're on aim.
-3. The trace direction matches your aim direction once calibrated.
+3. The trace direction matches your aim direction.
 4. The fixed offset between trace and impact is small enough that
-   calibration and your zero handle it.
+   "Zero on aim" handles it.
 
 ## Mounting the camera
 
@@ -122,30 +122,31 @@ slightly off-centre:
   pick 90, 180, or 270 degrees. This is common when the camera body
   was clamped sideways for clearance.
 
-## Calibrating after alignment
+## Setting the tracking circle diameter
 
-Once the camera is mounted and aligned well enough that the target
-sits comfortably in frame on aim, do the calibration once. See
-[`calibration.md`](calibration.md) for the full workflow. Briefly:
+Once the camera is mounted and aligned, the only spatial parameter to
+set is the diameter of the printed black circle the live tracker
+measures against. There is no calibration step: every frame derives
+the mm/px scale from the detected radius and this diameter, so a small
+distance change after setting it self-corrects on the next frame.
 
-1. Print the marker sheet from `Tools > Print marker sheet` and pin it
-   at the target distance, in the same plane the target will sit in.
-2. Aim at the printed circle from your shooting position.
-3. Open `Tools > Calibrate target`, confirm the circle diameter, and
-   press **Detect** (or pick the circle manually).
-4. The dialog reports mm per pixel and saves the calibration.
+1. Print the marker sheet from `Tools > Print marker sheet`.
+2. Pin it at the target distance, in the same plane the target will
+   sit in.
+3. Open `Preferences > Target > Tracking circle` and set the diameter
+   to the value you just printed (the marker-sheet dialog updates this
+   automatically when you close it, so this is mostly a sanity check).
 
-The camera-to-bore offset doesn't enter calibration. Calibration only
-maps pixels on the target plane to millimetres on that plane.
+The camera-to-bore offset doesn't enter the conversion: the live
+tracker reports millimetres on the target plane.
 
 ## Zeroing the trace to your aim
 
-The camera's optical axis isn't the bore axis, so the calibrated
-origin (the centre of the calibration circle) usually isn't where the
-rifle is actually pointing when you're on aim. The "Zero on aim"
-button in the left column locks the current aim point as the trace's
-(0, 0) so the trace and shot marks line up with where the rifle is
-really pointing.
+The camera's optical axis isn't the bore axis, so the trace's origin
+(the centre of the printed circle) usually isn't where the rifle is
+actually pointing when you're on aim. The "Zero on aim" button in the
+left column locks the current aim point as the trace's (0, 0) so the
+trace and shot marks line up with where the rifle is really pointing.
 
 ```mermaid
 flowchart LR
@@ -166,9 +167,10 @@ Two ways to use it:
   natural shooting position and press **Zero on aim**. Subsequent
   shots will register relative to where the bullets actually land.
 
-If you ever want to revert to the calibrated origin (for example if
-you re-mount the camera), press **Clear zero**. The button is enabled
-only while an offset is in effect. The tooltip on **Zero on aim**
+If you ever want to revert the origin to the printed circle's centre
+(for example if you re-mount the camera), press **Clear zero**. The
+button is enabled only while an offset is in effect. The tooltip on
+**Zero on aim** shows the current offset value when one is set.
 shows the current offset values so you can sanity check them.
 
 For dry-fire practice the bullet-impact part of the second workflow
@@ -188,5 +190,5 @@ After setup, before recording sessions:
 - Fire one shot. The shot mark should appear inside the recorded
   hold zone, not somewhere else entirely.
 
-If any of these fail, revisit the mount before tuning calibration or
-detector settings.
+If any of these fail, revisit the mount before tuning the tracking
+circle diameter or detector settings.

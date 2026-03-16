@@ -1,3 +1,5 @@
+"""Capture-pipeline tests with synthetic frames. No camera needed."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -16,7 +18,7 @@ def pipeline_pieces():
     engine = make_engine(":memory:")
     init_database(engine)
     repo = SessionRepository(engine)
-    return Tracker(), TraceBuffer(), SessionRecorder(repo)
+    return Tracker(circle_diameter_mm=60.0), TraceBuffer(), SessionRecorder(repo)
 
 
 def _frame_with_circle(x: int, y: int, r: int = 25) -> np.ndarray:
@@ -27,103 +29,74 @@ def _frame_with_circle(x: int, y: int, r: int = 25) -> np.ndarray:
     return img
 
 
-def test_pipeline_dispatches_detection(pipeline_pieces):
+def _make_pipeline(
+    pipeline_pieces,
+    *,
+    on_frame=None,
+    on_detection=None,
+    on_no_detection=None,
+) -> tuple[CapturePipeline, Tracker, TraceBuffer]:
     tracker, buffer, recorder = pipeline_pieces
+    pipe = CapturePipeline(
+        tracker,
+        buffer,
+        recorder,
+        on_frame=on_frame or (lambda _f: None),
+        on_detection=on_detection or (lambda *_a: None),
+        on_no_detection=on_no_detection or (lambda _d: None),
+    )
+    return pipe, tracker, buffer
+
+
+def test_pipeline_dispatches_detection(pipeline_pieces):
     seen_frames: list[np.ndarray] = []
     detections: list[tuple] = []
-    no_detections = 0
+    pipe, _, buffer = _make_pipeline(
+        pipeline_pieces,
+        on_frame=seen_frames.append,
+        on_detection=lambda sample, radius: detections.append((sample.x_px, sample.y_px, radius)),
+    )
 
-    def on_frame(frame):
-        seen_frames.append(frame)
-
-    def on_detection(sample, radius_px):
-        detections.append((sample.x_px, sample.y_px, radius_px))
-
-    def on_no_detection(_detection):
-        nonlocal no_detections
-        no_detections += 1
-
-    pipe = CapturePipeline(tracker, buffer, recorder, on_frame, on_detection, on_no_detection)
     sample = pipe.process(_frame_with_circle(320, 240), ts=1.0)
-
     assert sample is not None
     assert len(seen_frames) == 1
     assert len(detections) == 1
-    assert no_detections == 0
     assert len(buffer) == 1
 
 
 def test_pipeline_reports_no_detection_on_blank(pipeline_pieces):
-    tracker, buffer, recorder = pipeline_pieces
-    misses = []
-    pipe = CapturePipeline(
-        tracker,
-        buffer,
-        recorder,
-        on_frame=lambda _f: None,
-        on_detection=lambda *_a: None,
-        on_no_detection=lambda _det: misses.append(True),
+    misses: list[bool] = []
+    pipe, _, _ = _make_pipeline(
+        pipeline_pieces,
+        on_no_detection=lambda _d: misses.append(True),
     )
+
     blank = np.full((480, 640, 3), 255, dtype=np.uint8)
     assert pipe.process(blank, ts=0.0) is None
-    assert len(misses) == 1
+    assert misses == [True]
 
 
 def test_pipeline_applies_transform(pipeline_pieces):
-    tracker, buffer, recorder = pipeline_pieces
-    pipe = CapturePipeline(
-        tracker,
-        buffer,
-        recorder,
-        on_frame=lambda _f: None,
-        on_detection=lambda *_a: None,
-        on_no_detection=lambda _det: None,
-    )
+    pipe, _, _ = _make_pipeline(pipeline_pieces)
     pipe.set_transform(FrameTransformOptions(rotation_degrees=180))
-    # A circle at (100, 100) on a 640x480 frame ends up at (540, 380) after 180.
+
+    # A circle at (100, 100) on a 640x480 frame ends up at (540, 380)
+    # after 180 degree rotation.
     sample = pipe.process(_frame_with_circle(100, 100), ts=0.0)
     assert sample is not None
     assert abs(sample.x_px - 540) < 3
     assert abs(sample.y_px - 380) < 3
 
 
-def test_pipeline_installs_default_calibration_on_first_frame(pipeline_pieces):
-    tracker, buffer, recorder = pipeline_pieces
-    notified: list[bool] = []
-
-    pipe = CapturePipeline(
-        tracker,
-        buffer,
-        recorder,
-        on_frame=lambda _f: None,
-        on_detection=lambda *_a: None,
-        on_no_detection=lambda _det: None,
-        on_default_calibration_installed=lambda: notified.append(True),
-    )
-    sample = pipe.process(_frame_with_circle(400, 300), ts=0.0)
-    assert sample is not None
-    assert sample.x_mm is not None and sample.y_mm is not None
-    assert tracker.calibration_is_placeholder
-    assert notified == [True]
-
-    # Second frame should not retrigger the callback.
-    pipe.process(_frame_with_circle(400, 300), ts=0.1)
-    assert notified == [True]
-
-
 def test_pipeline_passes_rejected_detection_to_miss_callback(pipeline_pieces):
-    tracker, buffer, recorder = pipeline_pieces
-    miss_payloads = []
-    pipe = CapturePipeline(
-        tracker,
-        buffer,
-        recorder,
-        on_frame=lambda _f: None,
-        on_detection=lambda *_a: None,
+    miss_payloads: list = []
+    pipe, tracker, _ = _make_pipeline(
+        pipeline_pieces,
         on_no_detection=miss_payloads.append,
     )
+
     # Reduce the tracking region to half the frame, then place a circle
-    # near a corner so the detector rejects it.
+    # near a corner so the detector rejects it as off-region.
     tracker.set_region_fraction(0.5)
     rejected_frame = _frame_with_circle(40, 40, r=20)
     sample = pipe.process(rejected_frame, ts=0.0)
