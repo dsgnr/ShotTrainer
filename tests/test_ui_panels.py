@@ -82,3 +82,20 @@ def test_target_view_records_shots(qtbot):
     assert len(tv._shots) == 2
     tv.set_selected_shot(1)
     assert tv._selected_shot == 1
+
+
+def test_camera_view_status_changes_are_recorded(qtbot):
+    view = CameraView()
+    qtbot.addWidget(view)
+    assert view._status == "idle"
+    view.set_status("tracking")
+    assert view._status == "tracking"
+    view.set_status("manual")
+    assert view._status == "manual"
+
+
+def test_camera_view_rejects_unknown_status(qtbot):
+    view = CameraView()
+    qtbot.addWidget(view)
+    with pytest.raises(ValueError):
+        view.set_status("nonsense")  # type: ignore[arg-type]
