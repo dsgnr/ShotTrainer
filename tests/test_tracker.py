@@ -67,3 +67,16 @@ def test_manual_point_can_be_cleared():
     blank = np.full((480, 640, 3), 255, dtype=np.uint8)
     # Without override, the detector returns nothing for a blank frame.
     assert tracker.process(blank, timestamp=0.0) is None
+
+
+def test_last_radius_reflects_latest_detection():
+    tracker = Tracker()
+    tracker.process(_frame_with_circle(320, 240, r=30), timestamp=0.0)
+    assert tracker.last_radius_px == pytest.approx(30.0, abs=2.0)
+
+
+def test_last_radius_is_zero_after_miss():
+    tracker = Tracker()
+    blank = np.full((480, 640, 3), 255, dtype=np.uint8)
+    tracker.process(blank, timestamp=0.0)
+    assert tracker.last_radius_px == 0.0
