@@ -50,6 +50,9 @@ class SessionControls(QWidget):
         self._start.setEnabled(not active)
         self._stop.setEnabled(active)
         self._name.setEnabled(not active)
+        # Clearing the view while recording would let the live display drift
+        # from what's stored in the database, which is confusing.
+        self._clear.setEnabled(not active)
 
     def set_summary(self, text: str) -> None:
         self._summary.setText(text)
