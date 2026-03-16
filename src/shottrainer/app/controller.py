@@ -425,11 +425,5 @@ class AppController(QObject):
         if isinstance(cal, LinearCalibration):
             mm_per_px = cal.mm_per_pixel
         else:
-            # Estimate at the centroid of the recorded image points.
-            if cal.image_points:
-                cx = sum(p[0] for p in cal.image_points) / len(cal.image_points)
-                cy = sum(p[1] for p in cal.image_points) / len(cal.image_points)
-            else:
-                cx, cy = 0.0, 0.0
-            mm_per_px = cal.mm_per_pixel_at(cx, cy)
+            mm_per_px = cal.diagnostic_mm_per_pixel()
         self._window.set_calibration_status(f"Calibrated: {mm_per_px:.3f} mm/px")
