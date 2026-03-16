@@ -97,10 +97,21 @@ class TargetView(QWidget):
         self._shots: list[ShotMarker] = []
         self._selected_shot: int | None = None
         self._live_aim: tuple[float, float] | None = None
-        self._split_index: int | None = None  # trace index where pre/post divides
+        # Replay segmentation. ``_release_index`` marks the moment the
+        # shooter is "settling for the shot" (a few hundred ms before
+        # the shot itself). ``_shot_index`` marks the shot. Each is
+        # ``None`` outside replay. The trace is drawn in three colours
+        # so the approach, the release window and the follow-through
+        # are visually distinct.
+        self._release_index: int | None = None
+        self._shot_index: int | None = None
         self._playhead_index: int | None = None
         self._hold_zone: tuple[float, float, float] | None = None  # (cx, cy, r) in mm
         self._shot_diameter_mm: float = 4.5
+        # When true, ``_draw_shots`` renders only ``_selected_shot``.
+        # Used during replay so the chosen shot's trace isn't competing
+        # with other markers from the same session.
+        self._isolate_selected_shot: bool = False
 
     def set_rings(self, rings: Iterable[TargetRing]) -> None:
         self._rings = tuple(rings)
@@ -131,9 +142,42 @@ class TargetView(QWidget):
         self.update()
 
     def set_split_index(self, index: int | None) -> None:
-        """Mark the pre/post divide for replay; ``None`` draws a single colour."""
-        self._split_index = index
+        """Mark the pre/post divide for replay; ``None`` draws a single colour.
+
+        Equivalent to :meth:`set_trace_segments` with no separate
+        release marker. Kept for callers that don't yet pass a
+        release index alongside the shot.
+        """
+        self.set_trace_segments(release_index=None, shot_index=index)
+
+    def set_trace_segments(
+        self,
+        release_index: int | None,
+        shot_index: int | None,
+    ) -> None:
+        """Mark the boundaries between the trace's three replay phases.
+
+        Approach runs from the start of the window up to ``release_index``.
+        Release runs from ``release_index`` to ``shot_index``.
+        Follow-through runs after ``shot_index``.
+
+        ``None`` collapses the corresponding boundary. Passing both as
+        ``None`` draws the trace in a single colour.
+        """
+        self._release_index = release_index
+        self._shot_index = shot_index
         self.update()
+
+    def set_isolate_selected_shot(self, isolate: bool) -> None:
+        """Hide every shot but the selected one.
+
+        Used during replay so the chosen shot's trace isn't
+        drawn over the top of unrelated shot markers from the
+        same session.
+        """
+        if self._isolate_selected_shot != isolate:
+            self._isolate_selected_shot = isolate
+            self.update()
 
     def set_playhead_index(self, index: int | None) -> None:
         """Highlight a single trace sample as the replay cursor."""
@@ -246,35 +290,74 @@ class TargetView(QWidget):
     def _draw_trace(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
         if len(self._trace) < 2:
             return
-        pre_pen = QPen(QColor(60, 120, 200, 220))
-        pre_pen.setWidth(2)
-        pre_pen.setCosmetic(True)
-        pre_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pre_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        post_pen = QPen(QColor(40, 160, 90, 230))
-        post_pen.setWidth(2)
-        post_pen.setCosmetic(True)
-        post_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        post_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        split = self._split_index
+
+        # Three-colour ramp: cool blue for the long approach, warm
+        # amber for the short release window immediately before the
+        # shot, green for the follow-through.
+        approach_pen = self._segment_pen(QColor(60, 120, 200, 220))
+        release_pen = self._segment_pen(QColor(243, 156, 18, 230))
+        follow_pen = self._segment_pen(QColor(40, 160, 90, 230))
 
         prev: QPointF | None = None
         for i, (x_mm, y_mm) in enumerate(self._trace):
             p = QPointF(cx + x_mm * scale, cy + y_mm * scale)
             if prev is not None:
-                if split is None or i <= split:
-                    painter.setPen(pre_pen)
-                else:
-                    painter.setPen(post_pen)
+                painter.setPen(self._pen_for_index(
+                    i, approach_pen, release_pen, follow_pen,
+                ))
                 painter.drawLine(prev, p)
             prev = p
 
+    @staticmethod
+    def _segment_pen(colour: QColor) -> QPen:
+        pen = QPen(colour)
+        pen.setWidth(3)
+        pen.setCosmetic(True)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        return pen
+
+    def _pen_for_index(
+        self,
+        i: int,
+        approach: QPen,
+        release: QPen,
+        follow: QPen,
+    ) -> QPen:
+        """Pick the pen for a trace segment ending at sample ``i``.
+
+        Falls back to the approach colour when no segmentation
+        is in force, so a live trace reads as a single colour.
+        The boundary sample itself belongs to the *new* segment
+        so the visual transition lines up with the timestamp.
+        """
+        shot = self._shot_index
+        release_idx = self._release_index
+        if shot is not None and i > shot:
+            return follow
+        if release_idx is not None and i > release_idx:
+            return release
+        return approach
+
     def _draw_shots(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
-        # Render shots at the configured projectile diameter, with a minimum
-        # pixel size so they remain visible at very wide zoom levels.
+        # Render shots at the configured projectile diameter,
+        # with a minimum pixel size so they remain visible at
+        # very wide zoom levels.
+        #
+        # During replay (``_isolate_selected_shot``) only the
+        # selected shot is drawn, and only once the playhead
+        # has reached the shot's moment in the trace. That way
+        # the marker appears at the same instant the shot fired
+        # in real life rather than being painted over the trace
+        # from the start of the window.
         diameter_px = max(4.0, self._shot_diameter_mm * scale)
         radius_px = diameter_px / 2.0
         for i, shot in enumerate(self._shots):
+            if self._isolate_selected_shot:
+                if i != self._selected_shot:
+                    continue
+                if not self._playhead_has_reached_shot():
+                    continue
             x = cx + shot.x_mm * scale
             y = cy + shot.y_mm * scale
             selected = i == self._selected_shot
@@ -289,6 +372,26 @@ class TargetView(QWidget):
             if shot.label:
                 painter.setPen(QColor("#1f2228"))
                 painter.drawText(QRectF(x + r + 4, y - 16, 30, 14), Qt.AlignmentFlag.AlignLeft, shot.label)
+
+    def _playhead_has_reached_shot(self) -> bool:
+        """Has the replay cursor arrived at (or past) the shot moment?
+
+        In isolated replay the marker is suppressed until the
+        playhead reaches the shot index, so the shot only shows
+        up at the moment it actually happened. Outside isolated
+        replay this method isn't called.
+
+        Returns ``True`` when there's no shot index to gate on.
+        That path doesn't apply during replay (the controller
+        always sets a shot index when isolation is on) but the
+        check keeps the helper safe for any future caller that
+        doesn't.
+        """
+        if self._shot_index is None:
+            return True
+        if self._playhead_index is None:
+            return False
+        return self._playhead_index >= self._shot_index
 
     def _draw_live_aim(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
         if self._live_aim is None:
