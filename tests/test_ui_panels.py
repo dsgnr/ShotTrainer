@@ -12,6 +12,7 @@ from shottrainer.ui.replay_controls import ReplayControls
 from shottrainer.ui.session_controls import SessionControls
 from shottrainer.ui.shot_list import ShotList, ShotListEntry
 from shottrainer.ui.target_view import ShotMarker, TargetView
+from shottrainer.ui.zoom_controls import ZoomControls
 
 
 def test_shot_list_emits_selection(qtbot):
@@ -101,3 +102,23 @@ def test_camera_view_rejects_unknown_status(qtbot):
     qtbot.addWidget(view)
     with pytest.raises(ValueError):
         view.set_status("nonsense")  # type: ignore[arg-type]
+
+
+def test_zoom_controls_emit_extent(qtbot):
+    z = ZoomControls(min_extent_mm=10.0, max_extent_mm=100.0)
+    qtbot.addWidget(z)
+    received: list[float] = []
+    z.extent_changed.connect(received.append)
+    # Halfway along log slider should be sqrt(10*100) = ~31.6.
+    z._slider.setValue(500)
+    assert received
+    assert abs(received[-1] - 31.6) < 0.5
+
+
+def test_zoom_controls_set_extent_clamps(qtbot):
+    z = ZoomControls(min_extent_mm=10.0, max_extent_mm=100.0)
+    qtbot.addWidget(z)
+    z.set_extent(1.0)  # below minimum
+    assert z._slider.value() == 0
+    z.set_extent(1000.0)  # above maximum
+    assert z._slider.value() == 1000
