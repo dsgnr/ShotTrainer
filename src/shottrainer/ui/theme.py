@@ -205,6 +205,6 @@ QLabel#calibrationIntro {
 """
 
 
-def apply_dark_theme(app) -> None:  # noqa: ANN001 (Qt type comes from runtime)
+def apply_dark_theme(app) -> None:
     """Apply the dark stylesheet to a QApplication."""
     app.setStyleSheet(DARK_QSS)
