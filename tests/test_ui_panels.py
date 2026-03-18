@@ -237,3 +237,57 @@ def test_target_view_records_shot_score(qtbot):
     qtbot.addWidget(tv)
     tv.set_shots([ShotMarker(0.0, 0.0, "1", score="10")])
     assert tv._shots[0].score == "10"
+
+
+def test_preferences_dialog_autofills_diameters_from_face(qtbot):
+    """Picking a different face in the combo populates the calibre and
+    tracking-circle spinboxes from the face's metadata. Only the
+    user's explicit choice triggers this. The values present when the
+    dialog opens are left alone so saved preferences aren't clobbered."""
+    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+    from shottrainer.ui.target_faces import TargetFace
+    from shottrainer.ui.target_view import TargetRing
+
+    rich = TargetFace(
+        key="rich",
+        label="Rich face",
+        rings=(TargetRing(50.0, "1"),),
+        shot_diameter_mm=5.6,
+        face_diameter_mm=112.5,
+    )
+    bare = TargetFace(
+        key="bare",
+        label="Bare face",
+        rings=(TargetRing(40.0, "1"),),
+    )
+    catalogue = {"rich": rich, "bare": bare}
+
+    dialog = PreferencesDialog(
+        Preferences(target_face="bare"),
+        target_faces=[("bare", "Bare face"), ("rich", "Rich face")],
+        rings_lookup=lambda key: catalogue[key].rings,
+        face_lookup=catalogue.get,
+    )
+    qtbot.addWidget(dialog)
+
+    # Opening the dialog must not have changed the saved diameters.
+    assert dialog._shot_diameter.value() == Preferences().shot_diameter_mm
+    assert dialog._circle_diameter.value() == Preferences().circle_diameter_mm
+
+    # Simulate the user picking the rich face.
+    rich_index = dialog._target_face.findData("rich")
+    dialog._target_face.setCurrentIndex(rich_index)
+    dialog._on_face_chosen(rich_index)
+
+    assert dialog._shot_diameter.value() == 5.6
+    assert dialog._circle_diameter.value() == 112.5
+
+    # Switching back to the bare face must leave the spinboxes alone:
+    # there's no metadata to copy from, and silently clearing them
+    # would surprise the user.
+    bare_index = dialog._target_face.findData("bare")
+    dialog._target_face.setCurrentIndex(bare_index)
+    dialog._on_face_chosen(bare_index)
+
+    assert dialog._shot_diameter.value() == 5.6
+    assert dialog._circle_diameter.value() == 112.5
