@@ -78,6 +78,7 @@ class AppController(QObject):
         self._connect_signals()
         self._window.set_device_options_provider(self._device_options)
         self._window.set_target_faces_provider(list_target_faces)
+        self._window.set_rings_lookup(rings_for_face)
         self._window.set_calibration_corner_detector(detect_sheet_corners)
         self._apply_preferences(load_preferences())
 
