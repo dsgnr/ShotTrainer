@@ -38,3 +38,36 @@ def test_diagnostic_rings_handles_single_ring():
 
 def test_diagnostic_rings_empty():
     assert diagnostic_rings(()) == []
+
+
+
+def test_custom_face_loaded_from_data_dir(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    import shottrainer.ui.target_faces as tf
+
+    custom_file = tmp_path / "custom_target_faces.json"
+    custom_file.write_text(
+        '{"my_face": {"label": "My face", "rings": ['
+        '{"radius_mm": 50.0, "label": "1"},'
+        '{"radius_mm": 5.0, "label": "X"}'
+        ']}}'
+    )
+    monkeypatch.setattr(tf, "custom_faces_path", lambda: Path(custom_file))
+
+    keys = {k for k, _ in tf.list_target_faces()}
+    assert "my_face" in keys
+    assert tf.rings_for_face("my_face")[0].radius_mm == 50.0
+
+
+def test_custom_face_with_garbage_file_is_ignored(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    import shottrainer.ui.target_faces as tf
+
+    custom_file = tmp_path / "custom_target_faces.json"
+    custom_file.write_text("not json")
+    monkeypatch.setattr(tf, "custom_faces_path", lambda: Path(custom_file))
+    # Built-ins are still listed.
+    keys = {k for k, _ in tf.list_target_faces()}
+    assert "default" in keys
