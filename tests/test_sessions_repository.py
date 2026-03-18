@@ -95,3 +95,38 @@ def test_end_session_records_timestamp(repo: SessionRepository):
     repo.end_session(sid)
     summary = repo.list_sessions()[0]
     assert summary.ended_at is not None
+
+
+def test_list_sessions_query_count_does_not_grow_with_session_count(repo: SessionRepository):
+    """``list_sessions`` must not issue one query per session.
+
+    Pins the query count to a small constant so regressions land here
+    rather than in user-visible load times once a shooter has months of
+    sessions on disk. With 20 sessions and 60 total shots the expected
+    plan is one SELECT for the sessions plus one SELECT for the shots
+    of those sessions.
+    """
+    for i in range(20):
+        sid = repo.create_session(name=f"session {i}")
+        for _ in range(3):
+            repo.add_shot(sid, ts=0.1, x_mm=0.0, y_mm=0.0, audio_level=0.5, confidence=0.9, score="9")
+
+    queries: list[str] = []
+
+    from sqlalchemy import event
+
+    def _record(_conn, _cursor, statement, *_args, **_kwargs):
+        if statement.lstrip().upper().startswith("SELECT"):
+            queries.append(statement)
+
+    event.listen(repo._engine, "before_cursor_execute", _record)
+    try:
+        summaries = repo.list_sessions()
+    finally:
+        event.remove(repo._engine, "before_cursor_execute", _record)
+
+    assert len(summaries) == 20
+    # One SELECT for sessions, one SELECT for the shots in those sessions.
+    assert len(queries) == 2, "list_sessions issued more SELECTs than expected:\n" + "\n".join(queries)
+    assert all(s.shot_count == 3 for s in summaries)
+    assert all(s.total_score == pytest.approx(27.0) for s in summaries)

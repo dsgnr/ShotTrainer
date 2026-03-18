@@ -1,7 +1,7 @@
 """Repository for sessions, traces and shots.
 
 Hides SQLAlchemy from the rest of the app. Anything that wants
-to read or to read or to read or to read or to read or write persistence goes through here.
+to read or to read or to read or to read or to read or to read or write persistence goes through here.
 """
 
 from __future__ import annotations
@@ -14,8 +14,9 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session as OrmSession
+from sqlalchemy.orm import noload
 
-from shottrainer.services.scoring import total_score
+from shottrainer.services.scoring import label_to_value
 from shottrainer.tracking.models import TrackingSample
 
 from .models import Session, Shot, TraceSample
@@ -86,26 +87,53 @@ class SessionRepository:
             session.commit()
 
     def list_sessions(self) -> list[SessionSummary]:
+        """Return one :class:`SessionSummary` per row in ``sessions``.
+
+        Resolves shot counts and total scores for every session in two
+        SQL queries regardless of how many sessions exist: one ``SELECT``
+        for the sessions themselves, one for the shots that belong to
+        them. Avoids the obvious-but-slow N+1 pattern of issuing a
+        per-session shot query.
+        """
         with OrmSession(self._engine, future=True) as session:
-            rows = session.execute(
-                select(Session).order_by(Session.started_at.desc())
-            ).scalars().all()
-            summaries: list[SessionSummary] = []
-            for r in rows:
-                shots = session.query(Shot).filter_by(session_id=r.id).all()
-                shot_count = len(shots)
-                total = total_score(s.score for s in shots)
-                summaries.append(
-                    SessionSummary(
-                        session_id=int(r.id),
-                        name=r.name,
-                        started_at=r.started_at,
-                        ended_at=r.ended_at,
-                        shot_count=shot_count,
-                        total_score=total,
-                    )
+            sessions = (
+                session.execute(
+                    select(Session)
+                    .options(noload(Session.shots))
+                    .order_by(Session.started_at.desc())
                 )
-            return summaries
+                .scalars()
+                .all()
+            )
+            if not sessions:
+                return []
+
+            session_ids = [int(s.id) for s in sessions]
+            shot_rows = session.execute(
+                select(Shot.session_id, Shot.score).where(
+                    Shot.session_id.in_(session_ids)
+                )
+            ).all()
+
+            counts: dict[int, int] = {sid: 0 for sid in session_ids}
+            totals: dict[int, float] = {sid: 0.0 for sid in session_ids}
+            for sid, score in shot_rows:
+                counts[sid] += 1
+                value = label_to_value(score)
+                if value is not None:
+                    totals[sid] += value
+
+            return [
+                SessionSummary(
+                    session_id=int(s.id),
+                    name=s.name,
+                    started_at=s.started_at,
+                    ended_at=s.ended_at,
+                    shot_count=counts[int(s.id)],
+                    total_score=totals[int(s.id)],
+                )
+                for s in sessions
+            ]
 
     def get_session(self, session_id: int) -> Session | None:
         with OrmSession(self._engine, future=True) as session:
