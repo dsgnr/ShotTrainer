@@ -24,6 +24,15 @@ from .models import ShotDetectorSettings, ShotEvent
 
 
 class ShotDetector:
+    """Spot a sharp shot impulse in a running stream of audio blocks.
+
+    Holds state between calls to :meth:`process_block`. The
+    high-pass filter's delay line and the timestamp of the last
+    shot for the refractory window. Call :meth:`reset` when a
+    new session starts so an old shot timestamp doesn't suppress
+    the first shot of the new one.
+    """
+
     def __init__(self, settings: ShotDetectorSettings | None = None) -> None:
         self.settings = settings or ShotDetectorSettings()
         self._last_shot_ts: float | None = None

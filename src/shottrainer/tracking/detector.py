@@ -18,6 +18,8 @@ from .models import Detection
 
 @dataclass(frozen=True, slots=True)
 class DetectorSettings:
+    """Tunable knobs for the circle detector."""
+
     min_radius_px: int = 4
     max_radius_px: int = 200
     blur_kernel: int = 5
@@ -38,6 +40,7 @@ class CircleTargetDetector:
         self.settings = settings or DetectorSettings()
 
     def detect(self, frame_bgr: np.ndarray) -> Detection:
+        """Return the best detection in ``frame_bgr``, or one with ``found=False``."""
         s = self.settings
         grey = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY) if frame_bgr.ndim == 3 else frame_bgr
 
