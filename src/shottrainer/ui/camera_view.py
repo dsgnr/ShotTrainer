@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import Literal
 
+import cv2
 import numpy as np
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QImage, QPainter, QPen, QPixmap
@@ -44,13 +45,14 @@ class CameraView(QWidget):
         self._status: TrackingStatus = "idle"
 
     def set_frame(self, frame_bgr: np.ndarray) -> None:
+        """Push a BGR frame into the preview. Allocations kept to a minimum."""
         if frame_bgr.ndim != 3 or frame_bgr.shape[2] != 3:
             return
         h, w, _ = frame_bgr.shape
-        # QImage wants an RGB byte buffer with a known stride.
-        rgb = np.ascontiguousarray(frame_bgr[:, :, ::-1])
+        rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         image = QImage(rgb.data, w, h, 3 * w, QImage.Format.Format_RGB888)
-        self._pixmap = QPixmap.fromImage(image.copy())  # detach from numpy buffer
+        # ``image`` references the numpy buffer. Copy once so the QPixmap owns the data.
+        self._pixmap = QPixmap.fromImage(image.copy())
         self._frame_size = (w, h)
         self.update()
 
