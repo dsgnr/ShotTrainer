@@ -35,6 +35,7 @@ from shottrainer.ui.shot_list import ShotListEntry
 from shottrainer.ui.target_faces import list_target_faces, rings_for_face
 from shottrainer.ui.target_view import ShotMarker
 
+from .calibration_store import load_calibration, save_calibration
 from .settings import load_preferences, save_preferences
 
 log = logging.getLogger(__name__)
@@ -79,6 +80,11 @@ class AppController(QObject):
         self._window.set_target_faces_provider(list_target_faces)
         self._window.set_calibration_corner_detector(detect_sheet_corners)
         self._apply_preferences(load_preferences())
+
+        saved_cal = load_calibration()
+        if saved_cal is not None:
+            self._tracker.set_calibration(saved_cal)
+            self._update_calibration_status(saved_cal)
 
     def start(self) -> None:
         """Begin live preview. The camera runs whenever the app is open."""
@@ -392,12 +398,27 @@ class AppController(QObject):
             self._window.statusBar().showMessage(f"Calibration failed: {exc}", 5000)
             return
         self._tracker.set_calibration(cal)
-        # Estimate mm/pixel at the centroid of the four image points.
-        cx = sum(p[0] for p in image_points) / len(image_points)
-        cy = sum(p[1] for p in image_points) / len(image_points)
-        mm_per_px = cal.mm_per_pixel_at(cx, cy)
-        self._window.set_calibration_status(f"Calibrated: {mm_per_px:.3f} mm/px")
+        self._update_calibration_status(cal)
+        try:
+            save_calibration(cal)
+        except OSError as exc:
+            log.warning("Could not save calibration: %s", exc)
         self._window.statusBar().showMessage("Calibration applied", 4000)
+
+    def _update_calibration_status(
+        self, cal: LinearCalibration | HomographyCalibration
+    ) -> None:
+        if isinstance(cal, LinearCalibration):
+            mm_per_px = cal.mm_per_pixel
+        else:
+            # Estimate at the centroid of the recorded image points.
+            if cal.image_points:
+                cx = sum(p[0] for p in cal.image_points) / len(cal.image_points)
+                cy = sum(p[1] for p in cal.image_points) / len(cal.image_points)
+            else:
+                cx, cy = 0.0, 0.0
+            mm_per_px = cal.mm_per_pixel_at(cx, cy)
+        self._window.set_calibration_status(f"Calibrated: {mm_per_px:.3f} mm/px")
 
     def _serialise_calibration(self) -> dict | None:
         cal = self._tracker.calibration
