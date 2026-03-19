@@ -1,4 +1,4 @@
-"""Generate and print a calibration marker sheet.
+"""Print a tracking-circle marker sheet.
 
 A4 page with a centred black circle. The diameter is settable
 so users can match the size to their target stand. The dialog

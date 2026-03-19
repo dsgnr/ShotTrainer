@@ -55,9 +55,6 @@ class Preferences:
     target_face: str = "default"
     shot_diameter_mm: float = 4.5  # air pellet by default; .22 ~= 5.6 mm
     tracking_region_fraction: float = 0.7
-    # Diameter of the printed black circle the live tracker measures
-    # against. Tracking is direct (not via a calibration step), so
-    # this is the only spatial parameter the user has to set.
     circle_diameter_mm: float = 60.0
     # Trace inversion. The default convention assumes a forward-facing
     # barrel-mounted camera with no optics that flip the image. A
