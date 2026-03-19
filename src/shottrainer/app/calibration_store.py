@@ -56,6 +56,15 @@ def load_calibration(
     return _deserialise(raw)
 
 
+def serialise_calibration(
+    cal: LinearCalibration | HomographyCalibration | None,
+) -> dict | None:
+    """Return a JSON-friendly dict for a calibration, or ``None`` if absent."""
+    if cal is None:
+        return None
+    return _serialise(cal)
+
+
 def _serialise(cal: LinearCalibration | HomographyCalibration) -> dict:
     if isinstance(cal, LinearCalibration):
         return {
