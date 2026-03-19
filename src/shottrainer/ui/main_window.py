@@ -50,6 +50,7 @@ class MainWindow(QMainWindow):
 
         self._prefs = Preferences()
         self._device_options_provider: Callable | None = None
+        self._saved_camera_name_provider: Callable | None = None
         self._target_faces_provider: Callable | None = None
         self._rings_lookup: Callable | None = None
         self._face_lookup: Callable | None = None
@@ -225,6 +226,16 @@ class MainWindow(QMainWindow):
     def set_device_options_provider(self, fn: Callable) -> None:
         self._device_options_provider = fn
 
+    def set_saved_camera_name_provider(self, fn: Callable) -> None:
+        """Provide a ``() -> str`` callable returning the saved camera's name.
+
+        Used by the Preferences dialog so the device dropdown can
+        match the saved camera by name across changes in
+        enumeration order (someone plugs in a new USB camera
+        that shifts the indices).
+        """
+        self._saved_camera_name_provider = fn
+
     def set_target_faces_provider(self, fn: Callable) -> None:
         self._target_faces_provider = fn
 
@@ -236,7 +247,7 @@ class MainWindow(QMainWindow):
 
         Used by the Preferences dialog to auto-populate the
         calibre and tracking-circle fields when the user picks
-        a different face. Optional. Without it the face combo
+        a different face. Optional. Without it the face dropdown
         still works but the spinboxes don't auto-fill.
         """
         self._face_lookup = fn
@@ -252,6 +263,18 @@ class MainWindow(QMainWindow):
 
     def current_preferences(self) -> Preferences:
         return self._prefs
+
+    def set_current_preferences(self, prefs: Preferences) -> None:
+        """Replace the cached preferences the dialog will show next time.
+
+        The controller calls this whenever its authoritative
+        copy changes (load-from-disk at startup, the settings
+        watcher reloading the file, the marker-sheet dialog
+        editing the circle diameter) so the Preferences dialog
+        always opens against current values, not the stale
+        defaults this window started with.
+        """
+        self._prefs = prefs
 
     def _build_menus(self) -> None:
         menu = self.menuBar()
@@ -309,6 +332,9 @@ class MainWindow(QMainWindow):
         target_faces: list[tuple[str, str]] | None = None
         if self._target_faces_provider is not None:
             target_faces = self._target_faces_provider()
+        saved_camera_name = ""
+        if self._saved_camera_name_provider is not None:
+            saved_camera_name = self._saved_camera_name_provider() or ""
         dialog = PreferencesDialog(
             self._prefs,
             camera_options=cameras,
@@ -316,6 +342,7 @@ class MainWindow(QMainWindow):
             target_faces=target_faces,
             rings_lookup=self._rings_lookup,
             face_lookup=self._face_lookup,
+            saved_camera_name=saved_camera_name,
             parent=self,
         )
         dialog.saved.connect(self._on_preferences_saved)
@@ -324,7 +351,10 @@ class MainWindow(QMainWindow):
 
     def _on_preferences_saved(self, prefs: Preferences) -> None:
         self._prefs = prefs
-        self.statusBar().showMessage(f"Saved preferences: camera {prefs.camera_id}", 3000)
+        cam_text = (
+            "no camera" if prefs.camera_id is None else f"camera {prefs.camera_id}"
+        )
+        self.statusBar().showMessage(f"Saved preferences: {cam_text}", 3000)
         self.preferences_changed.emit(prefs)
 
     def _install_shortcuts(self) -> None:
