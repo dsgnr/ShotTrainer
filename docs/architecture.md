@@ -34,16 +34,32 @@ nothing blocks the event loop.
 ## Modules
 
 - `tracking/` Camera capture, target detection, calibration, coordinate
-  conversion. Pure functions where possible so they can be tested with
-  synthetic images.
+  conversion, frame transforms (rotation, flip). Pure functions where
+  possible so they can be tested with synthetic images.
 - `audio/` Microphone input and shot detection. Configurable threshold and
   refractory window.
 - `sessions/` SQLAlchemy models, repository, schema migrations.
-- `services/` Coordinates capture, tracking, audio, and storage. The UI
-  talks to this layer.
+- `services/` Coordinates capture, tracking, audio, and storage. Pure
+  Python, no Qt. The UI talks to this layer.
 - `replay/` Loads and steps through stored traces for playback.
-- `ui/` PySide6 widgets and dialogs. Thin layer.
-- `app/` Wiring, settings, logging, entry point.
+- `ui/` PySide6 widgets and dialogs. Thin layer. Widgets only render and
+  expose signals.
+- `app/` Entry point, controller (the place Qt signals meet pure-Python
+  services), settings, calibration store, paths, persisted UI state.
+
+## Persistent state files
+
+These live under the platform-appropriate data directory (see
+`docs/troubleshooting.md` if you need to find them):
+
+- `sessions.db` SQLite database with sessions, shots, and trace samples.
+- `settings.json` user preferences (camera id, rotation, flips, audio
+  device, sensitivity, target face, recording windows).
+- `calibration.json` the most recent calibration, restored on launch.
+- `ui_state.json` window geometry and splitter sizes.
+
+Each file degrades gracefully if missing or corrupt. The app falls back to
+defaults rather than failing to start.
 
 ## Module boundaries
 

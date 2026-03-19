@@ -63,3 +63,17 @@ ended.
 **Replay scrubber is greyed out.**
 Replay only enables once you select a shot from the shot list. If a
 session has no shots there is nothing to scrub.
+
+
+## Where the app stores its data
+
+ShotTrainer keeps everything in a per-user data directory:
+
+- macOS: `~/Library/Application Support/ShotTrainer/`
+- Linux: `$XDG_DATA_HOME/shottrainer/` (or `~/.local/share/shottrainer/`)
+- Windows: `%APPDATA%\ShotTrainer\`
+
+Inside you'll find `sessions.db` (sessions and shot data), `settings.json`,
+`calibration.json`, and `ui_state.json`. Deleting any of them resets the
+relevant state to defaults. Deleting `sessions.db` wipes recorded shots so
+keep a backup if you care about the history.
