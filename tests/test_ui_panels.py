@@ -41,9 +41,11 @@ def test_session_controls_active_state_toggles_buttons(qtbot):
     bar.set_active(True)
     assert not bar._start.isEnabled()
     assert bar._stop.isEnabled()
+    assert not bar._clear.isEnabled()
     bar.set_active(False)
     assert bar._start.isEnabled()
     assert not bar._stop.isEnabled()
+    assert bar._clear.isEnabled()
 
 
 def test_replay_controls_progress_clamps(qtbot):
