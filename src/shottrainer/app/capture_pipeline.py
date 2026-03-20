@@ -59,7 +59,7 @@ class CapturePipeline:
     def set_transform(self, options: FrameTransformOptions) -> None:
         self._transform = options
 
-    def process(self, frame: np.ndarray, ts: float) -> TrackingSample | None:
+    def process(self, frame: np.ndarray, ts: float, frame_id: int | None = None) -> TrackingSample | None:
         """Apply transforms, run the tracker, dispatch side effects."""
         opts = self._transform
         frame = transform_frame(
@@ -70,7 +70,7 @@ class CapturePipeline:
         )
         self._on_frame(frame)
 
-        sample = self._tracker.process(frame, ts)
+        sample = self._tracker.process(frame, ts, frame_id)
         if sample is None:
             self._on_no_detection()
             return None
