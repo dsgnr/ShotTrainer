@@ -72,8 +72,24 @@ class Tracker:
     def manual_point(self) -> tuple[float, float] | None:
         return self._manual_px
 
-    def process(self, frame: np.ndarray, timestamp: float) -> TrackingSample | None:
-        self._frame_id += 1
+    def process(
+        self,
+        frame: np.ndarray,
+        timestamp: float,
+        frame_id: int | None = None,
+    ) -> TrackingSample | None:
+        """Run detection (or apply manual aim) and return a sample.
+
+        If ``frame_id`` is supplied it is recorded on the sample as-is.
+        Otherwise an internal counter is used so callers without source
+        ids still get strictly increasing values.
+        """
+        if frame_id is None:
+            self._frame_id += 1
+            sample_frame_id = self._frame_id
+        else:
+            sample_frame_id = frame_id
+
         if self._manual_px is not None:
             x_px, y_px = self._manual_px
             confidence = 0.0
@@ -100,7 +116,7 @@ class Tracker:
             x_mm=x_mm,
             y_mm=y_mm,
             confidence=confidence,
-            frame_id=self._frame_id,
+            frame_id=sample_frame_id,
         )
         self._last_sample = sample
         return sample
