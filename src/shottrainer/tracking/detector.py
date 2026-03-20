@@ -78,9 +78,17 @@ class CircleTargetDetector:
             if circularity < s.min_circularity:
                 continue
 
-            (cx, cy), enclosing_r = cv2.minEnclosingCircle(c)
+            (_, _), enclosing_r = cv2.minEnclosingCircle(c)
             if enclosing_r <= 0:
                 continue
+            # Use image moments for the centroid. More stable
+            # than the minimum-enclosing-circle centre when the
+            # contour is noisy.
+            m = cv2.moments(c)
+            if m["m00"] <= 0:
+                continue
+            cx = m["m10"] / m["m00"]
+            cy = m["m01"] / m["m00"]
             # Penalise blobs that don't fill their enclosing circle.
             fill = area / (np.pi * enclosing_r * enclosing_r)
             score = float(circularity * fill)
