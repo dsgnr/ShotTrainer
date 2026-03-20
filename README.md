@@ -1,22 +1,46 @@
 # ShotTrainer
 
-A desktop application for optical shooting practice. It uses a camera to track
-the aiming point on a paper target, detects shots from audio, marks the hit
-position, and records the full aiming trace for later replay.
+ShotTrainer is a DIY hold-tracking and shot-scoring tool for shooting
+practice. You bring your own camera and microphone, mount the camera
+to your rifle's barrel or stock, and point it at a printed paper
+target. As you aim around the target, the camera sees the target drift
+through its frame, and ShotTrainer turns that drift into your rifle's
+hold trace. The microphone picks up the shot, the trace freezes around
+it, and the hit is marked on the digital target.
 
-This is an open project for optical shooting trainers. It is not a
-commercial product and makes no accuracy guarantees. See
-[`docs/accuracy.md`](docs/accuracy.md) for an honest discussion of what is and
-isn't achievable with a webcam.
+Useful for:
+
+- Air rifle and air pistol dry-fire and live-fire practice.
+- Smallbore (.22) practice at indoor and outdoor ranges.
+- Coaching feedback on hold stability, follow-through and trigger
+  release.
+- Recording groups and shot timing for review and export.
+
+Inspired by commercial optical trainers. Runs on Windows, macOS and Linux.
+
+It is a personal/hobby project, not a product, and makes no accuracy
+guarantees. See [`docs/accuracy.md`](docs/accuracy.md) for what is and
+isn't achievable with this kind of setup, and
+[`docs/cameras.md`](docs/cameras.md) for success and failure stories
+with various cameras people have tried.
 
 ## What it does
 
-- Live camera preview with target detection.
+- Live preview of what the barrel-mounted camera sees.
 - Calibration to convert pixels to millimetres on the target.
 - Audio shot detection from a microphone.
-- Records the aiming trace continuously while practising.
+- Records the rifle's hold trace continuously while practising.
 - Stores sessions and shots in a local SQLite database.
 - Lets you replay the trace around each shot.
+
+## How it's set up
+
+1. Print and place a paper target at your shooting position.
+2. Mount a small USB webcam to the rifle barrel or stock so it looks
+   forward at the target.
+3. Calibrate once: ShotTrainer detects the printed A4 sheet's corners
+   and builds a millimetres-per-pixel mapping for the target plane.
+4. Aim, shoot, repeat. The trace and hit position appear in real time.
 
 ## Status
 
@@ -153,6 +177,16 @@ covers platform-specific notes (PySide6 plugins, OpenCV bundling, signing).
 
 See [`docs/troubleshooting.md`](docs/troubleshooting.md) for the common
 issues with cameras, microphones, calibration, and replay.
+
+## More documentation
+
+- [How tracking works](docs/how-tracking-works.md)
+- [Accuracy and target sizing](docs/accuracy.md)
+- [Cameras tested](docs/cameras.md)
+- [Using federation targets (NSRA, ISSF)](docs/provided-targets.md)
+- [Architecture](docs/architecture.md)
+- [Calibration](docs/calibration.md)
+- [Engineering notes](docs/engineering-notes.md)
 
 ## Licence
 
