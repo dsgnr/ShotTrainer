@@ -30,7 +30,6 @@ from shottrainer.sessions.database import init_database, make_engine
 from shottrainer.sessions.repository import SessionRepository
 from shottrainer.tracking.calibration import HomographyCalibration, LinearCalibration
 from shottrainer.tracking.camera import CameraCapture, CameraConfig, list_available_cameras
-from shottrainer.tracking.frame_ops import transform_frame
 from shottrainer.tracking.sheet_detector import detect_sheet_corners
 from shottrainer.tracking.tracker import Tracker
 from shottrainer.ui.main_window import MainWindow
@@ -41,6 +40,7 @@ from shottrainer.ui.target_faces import list_target_faces, rings_for_face
 from shottrainer.ui.target_view import ShotMarker
 
 from .calibration_store import load_calibration, save_calibration, serialise_calibration
+from .capture_pipeline import CapturePipeline, FrameTransformOptions
 from .settings import load_preferences, save_preferences
 
 log = logging.getLogger(__name__)
@@ -80,6 +80,15 @@ class AppController(QObject):
 
         self._camera: CameraCapture | None = None
         self._audio = AudioShotListener()
+
+        self._pipeline = CapturePipeline(
+            tracker=self._tracker,
+            buffer=self._buffer,
+            recorder=self._recorder,
+            on_frame=self._on_pipeline_frame,
+            on_detection=self._on_pipeline_detection,
+            on_no_detection=self._on_pipeline_miss,
+        )
 
         self._player = TracePlayer(self)
         self._current_view_session_id: int | None = None
@@ -161,35 +170,27 @@ class AppController(QObject):
             self._window.camera_view.set_status("idle")
 
     def _on_frame(self, frame: np.ndarray, ts: float, frame_id: int) -> None:
-        prefs = self._preferences
-        frame = transform_frame(
-            frame,
-            rotation_degrees=prefs.camera_rotation,
-            flip_horizontal=prefs.camera_flip_h,
-            flip_vertical=prefs.camera_flip_v,
-        )
+        self._pipeline.process(frame, ts)
+
+    def _on_pipeline_frame(self, frame: np.ndarray) -> None:
         self._latest_frame = frame
         self._window.camera_view.set_frame(frame)
         if self._open_calibration_dialog_ref is not None:
             self._open_calibration_dialog_ref.set_frame(frame)
         if self._open_prefs_dialog_ref is not None:
             self._open_prefs_dialog_ref.push_frame(frame)
-        sample = self._tracker.process(frame, ts)
-        if sample is None:
-            self._window.camera_view.set_aim_point(None, None)
-            self._window.camera_view.set_status("lost")
-            return
-        self._window.camera_view.set_aim_point(
-            sample.x_px, sample.y_px, radius_px=self._tracker.last_radius_px
-        )
+
+    def _on_pipeline_detection(self, sample, radius_px: float) -> None:
+        self._window.camera_view.set_aim_point(sample.x_px, sample.y_px, radius_px=radius_px)
         self._window.camera_view.set_status(
             "manual" if self._tracker.manual_point is not None else "tracking"
         )
-        self._buffer.append(sample)
         if sample.x_mm is not None and sample.y_mm is not None:
             self._window.target_view.append_trace_point(sample.x_mm, sample.y_mm)
-        if self._recorder.is_recording:
-            self._recorder.add_sample(sample)
+
+    def _on_pipeline_miss(self) -> None:
+        self._window.camera_view.set_aim_point(None, None)
+        self._window.camera_view.set_status("lost")
 
     def _on_camera_error(self, message: str) -> None:
         self._window.statusBar().showMessage(f"Camera: {message}", 5000)
@@ -311,6 +312,14 @@ class AppController(QObject):
             )
         )
         self._audio.set_device(prefs.audio_device)
+
+        self._pipeline.set_transform(
+            FrameTransformOptions(
+                rotation_degrees=prefs.camera_rotation,
+                flip_horizontal=prefs.camera_flip_h,
+                flip_vertical=prefs.camera_flip_v,
+            )
+        )
 
         self._window.target_view.set_rings(rings_for_face(prefs.target_face))
         self._window.target_view.set_shot_diameter_mm(prefs.shot_diameter_mm)
