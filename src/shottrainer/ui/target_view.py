@@ -141,15 +141,6 @@ class TargetView(QWidget):
         self._playhead_index = None
         self.update()
 
-    def set_split_index(self, index: int | None) -> None:
-        """Mark the pre/post divide for replay; ``None`` draws a single colour.
-
-        Equivalent to :meth:`set_trace_segments` with no separate
-        release marker. Kept for callers that don't yet pass a
-        release index alongside the shot.
-        """
-        self.set_trace_segments(release_index=None, shot_index=index)
-
     def set_trace_segments(
         self,
         release_index: int | None,

@@ -284,15 +284,6 @@ class PreferencesDialog(QDialog):
         value = self._camera.currentData()
         return value if isinstance(value, int) else None
 
-    def set_camera_property_actual(self, name: str, value: float | None) -> None:
-        """Hook for the controller to report what the camera driver actually accepted.
-
-        Currently a no-op: with the tooltip-free preferences UI there is
-        nowhere to surface this without adding a new label per slider. The
-        controller still calls it, so the API stays in place.
-        """
-        del name, value
-
     def _build_camera_tab(
         self,
         prefs: Preferences,
