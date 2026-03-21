@@ -75,6 +75,23 @@ def test_homography_requires_four_points():
         fit_homography([(0.0, 0.0), (1.0, 0.0)], [(0.0, 0.0), (1.0, 0.0)])
 
 
+def test_homography_diagnostic_uses_centroid_of_image_points():
+    image_pts = [(0.0, 0.0), (210.0, 0.0), (210.0, 297.0), (0.0, 297.0)]
+    target_pts = a4_target_corners("top-left")
+    cal = fit_homography(image_pts, target_pts)
+    # 1 pixel == 1 mm in this scaling, so the diagnostic should be 1.
+    assert cal.diagnostic_mm_per_pixel() == pytest.approx(1.0, abs=1e-6)
+
+
+def test_homography_diagnostic_with_no_points_uses_origin():
+    image_pts = [(0.0, 0.0), (4.0, 0.0), (4.0, 8.0), (0.0, 8.0)]
+    target_pts = [(0.0, 0.0), (8.0, 0.0), (8.0, 16.0), (0.0, 16.0)]
+    cal = fit_homography(image_pts, target_pts)
+    # Wipe the recorded points so the fallback path runs.
+    bare = type(cal)(matrix=cal.matrix, inverse=cal.inverse)
+    assert bare.diagnostic_mm_per_pixel() == pytest.approx(2.0, abs=1e-6)
+
+
 def test_rifle_homography_negates_target_axes():
     """For a rifle-mounted camera, target image left of frame centre means
     the rifle is aimed right. The rifle homography returns positive-X."""
