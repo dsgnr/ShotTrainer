@@ -89,18 +89,39 @@ def custom_faces_path() -> Path:
     return data_dir() / "custom_target_faces.json"
 
 
+_custom_cache: dict[str, tuple[str, tuple[TargetRing, ...]]] = {}
+_custom_cache_mtime: float = -1.0
+
+
+def reload_custom_faces() -> None:
+    """Drop the cache so the next lookup re-reads the file."""
+    global _custom_cache_mtime
+    _custom_cache.clear()
+    _custom_cache_mtime = -1.0
+
+
 def _load_custom_faces() -> dict[str, tuple[str, tuple[TargetRing, ...]]]:
+    global _custom_cache_mtime
     p = custom_faces_path()
-    if not p.exists():
-        return {}
+    try:
+        mtime = p.stat().st_mtime if p.exists() else -1.0
+    except OSError:
+        mtime = -1.0
+
+    if mtime == _custom_cache_mtime:
+        return _custom_cache
+
+    _custom_cache.clear()
+    _custom_cache_mtime = mtime
+    if mtime < 0:
+        return _custom_cache
     try:
         raw = json.loads(p.read_text())
     except (OSError, json.JSONDecodeError) as exc:
         log.warning("Could not read %s: %s", p, exc)
-        return {}
-    out: dict[str, tuple[str, tuple[TargetRing, ...]]] = {}
+        return _custom_cache
     if not isinstance(raw, dict):
-        return out
+        return _custom_cache
     for key, body in raw.items():
         if not isinstance(body, dict):
             continue
@@ -117,8 +138,8 @@ def _load_custom_faces() -> dict[str, tuple[str, tuple[TargetRing, ...]]]:
             except (KeyError, TypeError, ValueError):
                 continue
         if rings:
-            out[str(key)] = (label, tuple(rings))
-    return out
+            _custom_cache[str(key)] = (label, tuple(rings))
+    return _custom_cache
 
 
 def _merged_faces() -> dict[str, tuple[str, tuple[TargetRing, ...]]]:
