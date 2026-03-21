@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from PySide6.QtCore import QObject
@@ -98,8 +99,7 @@ class AppController(QObject):
         self._player = TracePlayer(self)
         self._current_view_session_id: int | None = None
         self._shots_in_view: list[_ShotEntry] = []
-        self._open_calibration_dialog_ref = None
-        self._open_prefs_dialog_ref = None
+        self._frame_mirrors: list[Any] = []  # dialogs that want live frames
         self._latest_frame: np.ndarray | None = None
 
         self._connect_signals()
@@ -180,10 +180,10 @@ class AppController(QObject):
     def _on_pipeline_frame(self, frame: np.ndarray) -> None:
         self._latest_frame = frame
         self._window.camera_view.set_frame(frame)
-        if self._open_calibration_dialog_ref is not None:
-            self._open_calibration_dialog_ref.set_frame(frame)
-        if self._open_prefs_dialog_ref is not None:
-            self._open_prefs_dialog_ref.push_frame(frame)
+        for mirror in self._frame_mirrors:
+            handler = getattr(mirror, "set_frame", None) or getattr(mirror, "push_frame", None)
+            if handler is not None:
+                handler(frame)
 
     def _on_pipeline_detection(self, sample, radius_px: float) -> None:
         self._window.camera_view.set_aim_point(sample.x_px, sample.y_px, radius_px=radius_px)
@@ -207,8 +207,10 @@ class AppController(QObject):
         gain = max(0.01, self._preferences.audio_gain)
         scaled = level * gain
         self._window.audio_meter.set_level(scaled)
-        if self._open_prefs_dialog_ref is not None:
-            self._open_prefs_dialog_ref.push_audio_level(scaled)
+        for mirror in self._frame_mirrors:
+            push = getattr(mirror, "push_audio_level", None)
+            if push is not None:
+                push(scaled)
 
     def _on_manual_aim_requested(self, x_px: float, y_px: float) -> None:
         self._tracker.set_manual_point(x_px, y_px)
@@ -408,20 +410,16 @@ class AppController(QObject):
         self._window.target_view.append_trace_point(x_mm, y_mm)
 
     def _on_calibration_dialog_opened(self, dialog) -> None:
-        self._open_calibration_dialog_ref = dialog
-        dialog.finished.connect(self._on_calibration_dialog_closed)
-
-    def _on_calibration_dialog_closed(self, _result: int) -> None:
-        self._open_calibration_dialog_ref = None
+        self._register_frame_mirror(dialog)
 
     def _on_prefs_dialog_opened(self, dialog) -> None:
-        self._open_prefs_dialog_ref = dialog
-        dialog.finished.connect(self._on_prefs_dialog_closed)
+        self._register_frame_mirror(dialog)
         if self._latest_frame is not None:
             dialog.push_frame(self._latest_frame)
 
-    def _on_prefs_dialog_closed(self, _result: int) -> None:
-        self._open_prefs_dialog_ref = None
+    def _register_frame_mirror(self, dialog) -> None:
+        self._frame_mirrors.append(dialog)
+        dialog.finished.connect(lambda _r, d=dialog: self._frame_mirrors.remove(d) if d in self._frame_mirrors else None)
 
     def _on_calibration_points(self, image_points: list) -> None:
         try:
