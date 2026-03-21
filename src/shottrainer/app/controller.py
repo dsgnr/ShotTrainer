@@ -120,10 +120,13 @@ class AppController(QObject):
         self._audio.start()
 
     def shutdown(self) -> None:
-        self._stop_camera()
-        self._audio.stop()
+        # Stop the recorder first so anything still in flight (an
+        # in-progress shot batch) gets flushed against the database before
+        # the audio listener stops emitting events.
         if self._recorder.is_recording:
             self._recorder.stop()
+        self._stop_camera()
+        self._audio.stop()
 
     def _device_options(self) -> tuple[list[tuple[int, str]], list[str]]:
         cameras = list_available_cameras() or [(0, "Camera 0")]
