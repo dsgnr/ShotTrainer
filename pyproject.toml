@@ -57,9 +57,6 @@ ignore = ["E501"]  # handled by formatter
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
-filterwarnings = [
-    "ignore::DeprecationWarning",
-]
 
 [tool.mypy]
 python_version = "3.13"
