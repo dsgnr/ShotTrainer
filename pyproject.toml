@@ -3,7 +3,7 @@ name = "shottrainer"
 version = "0.1.0"
 description = "Optical shooting trainer with camera tracking and audio shot detection"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 license = { text = "GPL-3.0-or-later" }
 authors = [{ name = "dsgnr" }]
 
@@ -44,7 +44,7 @@ shottrainer = ["py.typed", "ui/assets/*", "ui/assets/target_faces/*"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py313"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -62,7 +62,7 @@ filterwarnings = [
 ]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.13"
 strict_optional = true
 warn_unused_ignores = true
 warn_redundant_casts = true
