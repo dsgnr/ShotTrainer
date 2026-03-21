@@ -1,7 +1,7 @@
 """Repository for sessions, traces and shots.
 
 Hides SQLAlchemy from the rest of the app. Anything that wants
-to read or to read or to read or write persistence goes through here.
+to read or to read or to read or to read or write persistence goes through here.
 """
 
 from __future__ import annotations
@@ -27,13 +27,13 @@ class SessionSummary:
 
     def __init__(
         self,
-        id: int,
+        session_id: int,
         name: str,
         started_at: datetime,
         ended_at: datetime | None,
         shot_count: int,
     ) -> None:
-        self.id = id
+        self.id = session_id
         self.name = name
         self.started_at = started_at
         self.ended_at = ended_at
@@ -92,7 +92,7 @@ class SessionRepository:
                 shot_count = session.query(Shot).filter_by(session_id=r.id).count()
                 summaries.append(
                     SessionSummary(
-                        id=int(r.id),
+                        session_id=int(r.id),
                         name=r.name,
                         started_at=r.started_at,
                         ended_at=r.ended_at,

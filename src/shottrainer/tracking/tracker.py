@@ -53,7 +53,9 @@ class Tracker:
         self._last_radius_px: float = 0.0
         self._manual_px: tuple[float, float] | None = None
 
-    def set_calibration(self, calibration: LinearCalibration | HomographyCalibration | None) -> None:
+    def set_calibration(
+        self, calibration: LinearCalibration | HomographyCalibration | None
+    ) -> None:
         self.calibration = calibration
 
     def set_manual_point(self, x_px: float | None, y_px: float | None) -> None:
