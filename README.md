@@ -103,6 +103,19 @@ A typical change looks like:
 The image and audio tests use synthetic data and do not require a
 physical camera or microphone, so they are safe to run anywhere.
 
+### Pre-commit hooks (optional)
+
+Install [pre-commit](https://pre-commit.com/) and the hooks defined in
+`.pre-commit-config.yaml` to catch trailing whitespace, formatting drift,
+and lint regressions before they land:
+
+```bash
+uvx pre-commit install
+```
+
+Hooks then run on every `git commit`. Run them manually with
+`uvx pre-commit run --all-files`.
+
 ## Project layout
 
 ```
