@@ -144,7 +144,7 @@ class AppController(QObject):
         rc.reset_clicked.connect(self._player.stop)
         rc.scrubbed.connect(self._player.seek_fraction)
 
-        self._player.point.connect(self._on_replay_point)
+        self._player.index_changed.connect(self._window.target_view.set_playhead_index)
         self._player.progress.connect(rc.set_progress)
 
         self._window.shot_list.shot_selected.connect(self._on_shot_selected)
@@ -412,9 +412,6 @@ class AppController(QObject):
         else:
             self._window.target_view.set_hold_zone(None)
         self._window.replay_controls.set_enabled(bool(window.samples))
-
-    def _on_replay_point(self, x_mm: float, y_mm: float) -> None:
-        self._window.target_view.append_trace_point(x_mm, y_mm)
 
     def _on_calibration_dialog_opened(self, dialog) -> None:
         self._register_frame_mirror(dialog)
