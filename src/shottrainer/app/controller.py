@@ -89,6 +89,7 @@ class AppController(QObject):
             on_frame=self._on_pipeline_frame,
             on_detection=self._on_pipeline_detection,
             on_no_detection=self._on_pipeline_miss,
+            on_default_calibration_installed=self._on_default_calibration_installed,
         )
 
         self._player = TracePlayer(self)
@@ -197,6 +198,9 @@ class AppController(QObject):
     def _on_pipeline_miss(self) -> None:
         self._window.camera_view.set_aim_point(None, None)
         self._window.camera_view.set_status("lost")
+
+    def _on_default_calibration_installed(self) -> None:
+        self._window.set_calibration_status("Uncalibrated (preview)")
 
     def _on_camera_error(self, message: str) -> None:
         self._window.statusBar().showMessage(f"Camera: {message}", 5000)

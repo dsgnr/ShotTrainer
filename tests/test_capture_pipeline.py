@@ -85,3 +85,27 @@ def test_pipeline_applies_transform(pipeline_pieces):
     assert sample is not None
     assert abs(sample.x_px - 540) < 3
     assert abs(sample.y_px - 380) < 3
+
+
+def test_pipeline_installs_default_calibration_on_first_frame(pipeline_pieces):
+    tracker, buffer, recorder = pipeline_pieces
+    notified: list[bool] = []
+
+    pipe = CapturePipeline(
+        tracker,
+        buffer,
+        recorder,
+        on_frame=lambda _f: None,
+        on_detection=lambda *_a: None,
+        on_no_detection=lambda: None,
+        on_default_calibration_installed=lambda: notified.append(True),
+    )
+    sample = pipe.process(_frame_with_circle(400, 300), ts=0.0)
+    assert sample is not None
+    assert sample.x_mm is not None and sample.y_mm is not None
+    assert tracker.calibration_is_placeholder
+    assert notified == [True]
+
+    # Second frame should not retrigger the callback.
+    pipe.process(_frame_with_circle(400, 300), ts=0.1)
+    assert notified == [True]
