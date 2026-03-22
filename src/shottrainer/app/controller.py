@@ -332,6 +332,8 @@ class AppController(QObject):
         self._window.target_view.set_shot_diameter_mm(prefs.shot_diameter_mm)
         self._window.stats_panel.set_rings(rings_for_face(prefs.target_face))
         self._window.audio_meter.set_threshold(prefs.shot_threshold)
+        self._tracker.set_region_fraction(prefs.tracking_region_fraction)
+        self._window.camera_view.set_region_fraction(prefs.tracking_region_fraction)
 
         if previous is not None and previous.camera_id != prefs.camera_id and self._camera is not None:
             self._start_camera(prefs.camera_id)
