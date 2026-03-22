@@ -29,12 +29,6 @@ from shottrainer.services.shot_stats import compute_trace_stats
 from shottrainer.services.trace_buffer import TraceBuffer
 from shottrainer.sessions.database import init_database, make_engine
 from shottrainer.sessions.repository import SessionRepository
-from shottrainer.tracking.calibration import (
-    HomographyCalibration,
-    LinearCalibration,
-    a4_target_corners,
-    fit_homography,
-)
 from shottrainer.tracking.camera import CameraCapture, CameraConfig, list_available_cameras
 from shottrainer.tracking.sheet_detector import detect_sheet_corners
 from shottrainer.tracking.tracker import Tracker
@@ -45,7 +39,8 @@ from shottrainer.ui.shot_list import ShotListEntry
 from shottrainer.ui.target_faces import list_target_faces, rings_for_face
 from shottrainer.ui.target_view import ShotMarker
 
-from .calibration_store import load_calibration, save_calibration, serialise_calibration
+from .calibration_controller import CalibrationController
+from .calibration_store import serialise_calibration
 from .capture_pipeline import CapturePipeline, FrameTransformOptions
 from .settings import load_preferences, save_preferences
 
@@ -102,6 +97,12 @@ class AppController(QObject):
         self._frame_mirrors: list[Any] = []  # dialogs that want live frames
         self._latest_frame: np.ndarray | None = None
 
+        self._calibration_controller = CalibrationController(
+            tracker=self._tracker,
+            on_status=self._window.set_calibration_status,
+            on_message=lambda msg: self._window.statusBar().showMessage(msg, 4000),
+        )
+
         self._connect_signals()
         self._window.set_device_options_provider(self._device_options)
         self._window.set_target_faces_provider(list_target_faces)
@@ -109,10 +110,7 @@ class AppController(QObject):
         self._window.set_calibration_corner_detector(detect_sheet_corners)
         self._apply_preferences(load_preferences())
 
-        saved_cal = load_calibration()
-        if saved_cal is not None:
-            self._tracker.set_calibration(saved_cal)
-            self._update_calibration_status(saved_cal)
+        self._calibration_controller.restore_saved()
 
     def start(self) -> None:
         """Start live preview. The camera and microphone run for as long as the app is open."""
@@ -155,7 +153,7 @@ class AppController(QObject):
 
         self._window.session_browser_requested.connect(self._open_session_browser)
         self._window.preferences_changed.connect(self._apply_preferences)
-        self._window.calibration_points_accepted.connect(self._on_calibration_points)
+        self._window.calibration_points_accepted.connect(self._calibration_controller.apply_image_points)
         self._window.calibration_dialog_opened.connect(self._on_calibration_dialog_opened)
         self._window.preferences_dialog_opened.connect(self._on_prefs_dialog_opened)
         self._window.manual_aim_requested.connect(self._on_manual_aim_requested)
@@ -422,27 +420,6 @@ class AppController(QObject):
 
     def _register_frame_mirror(self, dialog) -> None:
         self._frame_mirrors.append(dialog)
-        dialog.finished.connect(lambda _r, d=dialog: self._frame_mirrors.remove(d) if d in self._frame_mirrors else None)
-
-    def _on_calibration_points(self, image_points: list) -> None:
-        try:
-            cal = fit_homography(image_points, a4_target_corners("centre"))
-        except Exception as exc:
-            self._window.statusBar().showMessage(f"Calibration failed: {exc}", 5000)
-            return
-        self._tracker.set_calibration(cal)
-        self._update_calibration_status(cal)
-        try:
-            save_calibration(cal)
-        except OSError as exc:
-            log.warning("Could not save calibration: %s", exc)
-        self._window.statusBar().showMessage("Calibration applied", 4000)
-
-    def _update_calibration_status(
-        self, cal: LinearCalibration | HomographyCalibration
-    ) -> None:
-        if isinstance(cal, LinearCalibration):
-            mm_per_px = cal.mm_per_pixel
-        else:
-            mm_per_px = cal.diagnostic_mm_per_pixel()
-        self._window.set_calibration_status(f"Calibrated: {mm_per_px:.3f} mm/px")
+        dialog.finished.connect(
+            lambda _r, d=dialog: self._frame_mirrors.remove(d) if d in self._frame_mirrors else None
+        )
