@@ -89,8 +89,9 @@ def test_ensure_default_calibration_installs_passthrough():
     assert tracker.calibration_is_placeholder
     sample = tracker.process(_frame_with_circle(360, 240), timestamp=0.0)
     assert sample is not None
-    # Origin is the frame centre (320, 240). Offset of 40 px maps to 40 mm.
-    assert sample.x_mm == pytest.approx(40.0, abs=2.0)
+    # The placeholder inverts so frame motion reads as aim motion: target
+    # 40 px to the right of centre means the aim is 40 mm to the LEFT.
+    assert sample.x_mm == pytest.approx(-40.0, abs=2.0)
     assert sample.y_mm == pytest.approx(0.0, abs=2.0)
 
 
