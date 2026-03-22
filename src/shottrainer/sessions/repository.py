@@ -1,15 +1,13 @@
 """Repository for sessions, traces and shots.
 
 Hides SQLAlchemy from the rest of the app. Anything that wants
-to read or to read or to read or to read or to read or to read or to read or write persistence goes through here.
+to read or to read or to read or to read or to read or to read or to read or to read or write persistence goes through here.
 """
 
 from __future__ import annotations
 
-import json
 from collections.abc import Iterable, Sequence
 from datetime import datetime
-from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.engine import Engine
@@ -62,7 +60,6 @@ class SessionRepository:
         *,
         name: str = "",
         notes: str = "",
-        calibration: dict[str, Any] | None = None,
         target_profile: str = "default",
         app_version: str = "",
     ) -> int:
@@ -70,7 +67,6 @@ class SessionRepository:
             row = Session(
                 name=name,
                 notes=notes,
-                calibration_json=json.dumps(calibration) if calibration else None,
                 target_profile=target_profile,
                 app_version=app_version,
             )

@@ -468,7 +468,6 @@ class AppController(QObject):
 
         sid = self._recorder.start(
             name=name,
-            calibration=None,
             app_version=__version__,
         )
         self._window.session_controls.set_active(True)
