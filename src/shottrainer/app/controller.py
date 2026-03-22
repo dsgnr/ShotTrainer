@@ -453,8 +453,6 @@ class AppController(QObject):
         positions = [(s.x_mm, s.y_mm) for s in self._shots_in_view]
         self._window.hero_stats.update_from_positions(positions)
         self._window.hero_stats.set_trace_points(None)
-        self._window.stats_panel.update_from_positions(positions)
-        self._window.stats_panel.set_trace_points(None)
 
     def _on_start_requested(self, name: str) -> None:
         if self._recorder.is_recording:
@@ -543,7 +541,6 @@ class AppController(QObject):
         self._window.target_view.set_rings(rings)
         self._window.target_view.set_shot_diameter_mm(prefs.shot_diameter_mm)
         self._window.hero_stats.set_rings(rings)
-        self._window.stats_panel.set_rings(rings)
         self._window.audio_meter.set_threshold(prefs.shot_threshold)
 
         self._tracker.set_circle_diameter_mm(prefs.circle_diameter_mm)
@@ -649,7 +646,6 @@ class AppController(QObject):
         # reacting to recoil.
         pre_points = points[: window.split_index + 1] if window.split_index is not None else points
         self._window.hero_stats.set_trace_points(pre_points)
-        self._window.stats_panel.set_trace_points(pre_points)
         if pre_points:
             stats = compute_trace_stats(pre_points)
             self._window.target_view.set_hold_zone(
