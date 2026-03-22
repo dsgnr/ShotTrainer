@@ -70,6 +70,7 @@ class PreferencesDialog(QDialog):
         tabs.addTab(self._build_audio_tab(prefs, audio_options), "Audio")
         tabs.addTab(self._build_target_tab(prefs, target_faces), "Target")
         tabs.addTab(self._build_recording_tab(prefs), "Recording")
+        tabs.addTab(self._build_about_tab(), "About")
         layout.addWidget(tabs)
 
         buttons = QDialogButtonBox(
@@ -232,6 +233,25 @@ class PreferencesDialog(QDialog):
             QLabel(
                 "These windows control how much trace is kept around each "
                 "shot for replay."
+            )
+        )
+        layout.addStretch(1)
+        return page
+
+    def _build_about_tab(self) -> QWidget:
+        from shottrainer import __version__
+
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        form = QFormLayout()
+        form.addRow("Version", QLabel(__version__))
+        form.addRow("Licence", QLabel("GPL-3.0-or-later"))
+        layout.addLayout(form)
+
+        layout.addWidget(
+            QLabel(
+                "ShotTrainer is open source. See the project README for the "
+                "issue tracker and contribution guide."
             )
         )
         layout.addStretch(1)
