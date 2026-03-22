@@ -10,9 +10,9 @@ import pytest
 
 pytest.importorskip("PySide6")
 
+from shottrainer.app.preferences import Preferences
 from shottrainer.app.settings import save_preferences
 from shottrainer.app.settings_watcher import SettingsWatcher
-from shottrainer.ui.preferences_dialog import Preferences
 
 
 def test_no_change_when_file_missing(qtbot, tmp_path):

@@ -18,12 +18,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from shottrainer.app.preferences import Preferences
+
 from .app_header import AppHeader
 from .audio_meter import AudioMeter
 from .camera_view import CameraView
 from .hero_stats import HeroStats
 from .marker_sheet import MarkerSheetDialog
-from .preferences_dialog import Preferences, PreferencesDialog
+from .preferences_dialog import PreferencesDialog
 from .replay_controls import ReplayControls
 from .session_controls import SessionControls
 from .shot_list import ShotList

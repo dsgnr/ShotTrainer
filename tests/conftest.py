@@ -14,7 +14,7 @@ def _reset_target_faces_cache():
     # ``target_faces`` caches the custom-faces JSON across calls. Reset
     # between tests so ordering doesn't change behaviour.
     try:
-        from shottrainer.ui.target_faces import reload_custom_faces
+        from shottrainer.app.target_faces import reload_custom_faces
     except Exception:
         return
     reload_custom_faces()

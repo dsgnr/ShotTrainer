@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
 
 import numpy as np
 from PySide6.QtCore import Qt, Signal
@@ -26,44 +25,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from shottrainer.app.preferences import Preferences
+from shottrainer.app.target_faces import TargetFace, TargetRing
+
 from .camera_view import CameraView
 from .target_face_preview import TargetFacePreview
-from .target_faces import TargetFace
-from .target_view import TargetRing
-
-
-@dataclass(slots=True)
-class Preferences:
-    # ``None`` means "no camera selected". Used when the previously
-    # saved device is no longer attached. Live preview is paused until
-    # the user picks one in the dialog.
-    camera_id: int | None = 0
-    camera_rotation: int = 0  # 0, 90, 180 or 270 degrees, clockwise
-    camera_flip_h: bool = False
-    camera_flip_v: bool = False
-    camera_brightness: float | None = None
-    camera_contrast: float | None = None
-    camera_saturation: float | None = None
-    camera_gain: float | None = None
-    camera_exposure: float | None = None
-    audio_device: str = "default"
-    audio_gain: float = 1.0
-    shot_threshold: float = 0.25
-    shot_refractory_ms: int = 400
-    pre_shot_ms: int = 1500
-    post_shot_ms: int = 800
-    target_face: str = "default"
-    shot_diameter_mm: float = 4.5  # air pellet by default; .22 ~= 5.6 mm
-    tracking_region_fraction: float = 0.7
-    circle_diameter_mm: float = 60.0
-    # Trace inversion. The default convention assumes a forward-facing
-    # barrel-mounted camera with no optics that flip the image. A
-    # magnifying scope or a mirror in the optical path can put the
-    # image-vs-aim relationship the wrong way round. Tick the
-    # appropriate axis to flip it back.
-    invert_trace_horizontal: bool = False
-    invert_trace_vertical: bool = False
-
 
 ROTATION_OPTIONS: tuple[tuple[int, str], ...] = (
     (0, "None"),

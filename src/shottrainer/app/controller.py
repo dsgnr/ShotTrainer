@@ -11,6 +11,8 @@ import numpy as np
 from PySide6.QtCore import QObject
 
 from shottrainer import __version__
+from shottrainer.app.preferences import Preferences
+from shottrainer.app.target_faces import face_for_name, list_target_faces, rings_for_face
 from shottrainer.audio.input import AudioShotListener, list_audio_inputs
 from shottrainer.audio.models import ShotDetectorSettings, ShotEvent
 from shottrainer.replay.player import TracePlayer
@@ -30,10 +32,8 @@ from shottrainer.tracking.detector import DetectorSettings
 from shottrainer.tracking.detector_tuning import optimise_detector_settings
 from shottrainer.tracking.tracker import Tracker
 from shottrainer.ui.main_window import MainWindow
-from shottrainer.ui.preferences_dialog import Preferences
 from shottrainer.ui.session_browser import SessionBrowserDialog
 from shottrainer.ui.shot_list import ShotListEntry
-from shottrainer.ui.target_faces import face_for_name, list_target_faces, rings_for_face
 from shottrainer.ui.target_view import ShotMarker
 
 from .camera_selection import (
