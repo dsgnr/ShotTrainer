@@ -93,3 +93,24 @@ def test_centroid_uses_image_moments_for_sub_pixel_accuracy():
     assert det.found
     assert abs(det.x_px - 320.0) < 0.5
     assert abs(det.y_px - 240.0) < 0.5
+
+
+def test_blob_outside_centre_region_is_rejected():
+    img = _white_canvas()
+    _draw_circle(img, 50, 50, 20)  # well outside the centre
+    det = CircleTargetDetector(DetectorSettings(region_fraction=0.5)).detect(img)
+    assert not det.found
+
+
+def test_blob_inside_centre_region_is_accepted():
+    img = _white_canvas()
+    _draw_circle(img, 320, 240, 20)
+    det = CircleTargetDetector(DetectorSettings(region_fraction=0.5)).detect(img)
+    assert det.found
+
+
+def test_full_frame_region_keeps_old_behaviour():
+    img = _white_canvas()
+    _draw_circle(img, 50, 50, 20)
+    det = CircleTargetDetector(DetectorSettings(region_fraction=1.0)).detect(img)
+    assert det.found
