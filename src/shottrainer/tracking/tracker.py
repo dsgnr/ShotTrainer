@@ -48,6 +48,7 @@ class Tracker:
     ) -> None:
         self.detector = detector or CircleTargetDetector()
         self.calibration: _Calibration | None = calibration
+        self._calibration_is_placeholder: bool = False
         self._frame_id = 0
         self._last_sample: TrackingSample | None = None
         self._last_radius_px: float = 0.0
@@ -57,6 +58,29 @@ class Tracker:
         self, calibration: LinearCalibration | HomographyCalibration | None
     ) -> None:
         self.calibration = calibration
+        self._calibration_is_placeholder = False
+
+    @property
+    def calibration_is_placeholder(self) -> bool:
+        return self._calibration_is_placeholder
+
+    def ensure_default_calibration(self, frame_width: int, frame_height: int) -> bool:
+        """Install a passthrough calibration centred on the frame if none is set.
+
+        Returns ``True`` when a placeholder was installed. The placeholder
+        treats one pixel as one millimetre and centres the origin on the
+        middle of the frame, which gives the UI a sensible relative trace
+        before the user has calibrated. A real calibration set via
+        :meth:`set_calibration` replaces the placeholder.
+        """
+        if self.calibration is not None:
+            return False
+        self.calibration = LinearCalibration(
+            mm_per_pixel=1.0,
+            origin_px=(frame_width / 2.0, frame_height / 2.0),
+        )
+        self._calibration_is_placeholder = True
+        return True
 
     def set_manual_point(self, x_px: float | None, y_px: float | None) -> None:
         """Force tracking to a fixed pixel location, ignoring the detector.
