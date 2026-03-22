@@ -47,6 +47,7 @@ class CapturePipeline:
         on_frame: Callable[[np.ndarray], None],
         on_detection: Callable[[TrackingSample, float], None],
         on_no_detection: Callable[[], None],
+        on_default_calibration_installed: Callable[[], None] = lambda: None,
     ) -> None:
         self._tracker = tracker
         self._buffer = buffer
@@ -54,6 +55,7 @@ class CapturePipeline:
         self._on_frame = on_frame
         self._on_detection = on_detection
         self._on_no_detection = on_no_detection
+        self._on_default_calibration_installed = on_default_calibration_installed
         self._transform = FrameTransformOptions()
 
     def set_transform(self, options: FrameTransformOptions) -> None:
@@ -69,6 +71,12 @@ class CapturePipeline:
             flip_vertical=opts.flip_vertical,
         )
         self._on_frame(frame)
+
+        # Install a placeholder calibration on the first frame so the trace
+        # and shot markers have meaningful mm coordinates even before the
+        # user explicitly calibrates.
+        if self._tracker.ensure_default_calibration(frame.shape[1], frame.shape[0]):
+            self._on_default_calibration_installed()
 
         sample = self._tracker.process(frame, ts, frame_id)
         if sample is None:
