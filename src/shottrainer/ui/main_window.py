@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from shottrainer.app.preferences import Preferences
+from shottrainer.app.target_faces import TargetFace, TargetRing
 
 from .app_header import AppHeader
 from .audio_meter import AudioMeter
@@ -31,6 +32,13 @@ from .session_controls import SessionControls
 from .shot_list import ShotList
 from .target_view import TargetView
 from .zoom_controls import ZoomControls
+
+DeviceOptionsProvider = Callable[[], tuple[list[tuple[int, str]], list[str]]]
+SavedCameraNameProvider = Callable[[], str]
+TargetFacesProvider = Callable[[], list[tuple[str, str]]]
+RingsLookup = Callable[[str], tuple[TargetRing, ...]]
+FaceLookup = Callable[[str], TargetFace | None]
+RecordingCheck = Callable[[], bool]
 
 
 class MainWindow(QMainWindow):
@@ -50,12 +58,12 @@ class MainWindow(QMainWindow):
         self.resize(1440, 880)
 
         self._prefs = Preferences()
-        self._device_options_provider: Callable | None = None
-        self._saved_camera_name_provider: Callable | None = None
-        self._target_faces_provider: Callable | None = None
-        self._rings_lookup: Callable | None = None
-        self._face_lookup: Callable | None = None
-        self._is_recording_check: Callable[[], bool] = lambda: False
+        self._device_options_provider: DeviceOptionsProvider | None = None
+        self._saved_camera_name_provider: SavedCameraNameProvider | None = None
+        self._target_faces_provider: TargetFacesProvider | None = None
+        self._rings_lookup: RingsLookup | None = None
+        self._face_lookup: FaceLookup | None = None
+        self._is_recording_check: RecordingCheck = lambda: False
 
         self.header = AppHeader()
         self.header.settings_button.clicked.connect(self._open_preferences_dialog)
@@ -223,10 +231,10 @@ class MainWindow(QMainWindow):
         if sizes and len(sizes) == self._main_splitter.count():
             self._main_splitter.setSizes(sizes)
 
-    def set_device_options_provider(self, fn: Callable) -> None:
+    def set_device_options_provider(self, fn: DeviceOptionsProvider) -> None:
         self._device_options_provider = fn
 
-    def set_saved_camera_name_provider(self, fn: Callable) -> None:
+    def set_saved_camera_name_provider(self, fn: SavedCameraNameProvider) -> None:
         """Provide a ``() -> str`` callable returning the saved camera's name.
 
         Used by the Preferences dialog so the device dropdown can
@@ -236,13 +244,13 @@ class MainWindow(QMainWindow):
         """
         self._saved_camera_name_provider = fn
 
-    def set_target_faces_provider(self, fn: Callable) -> None:
+    def set_target_faces_provider(self, fn: TargetFacesProvider) -> None:
         self._target_faces_provider = fn
 
-    def set_rings_lookup(self, fn: Callable) -> None:
+    def set_rings_lookup(self, fn: RingsLookup) -> None:
         self._rings_lookup = fn
 
-    def set_face_lookup(self, fn: Callable) -> None:
+    def set_face_lookup(self, fn: FaceLookup) -> None:
         """Provide a ``(key) -> TargetFace | None`` callable.
 
         Used by the Preferences dialog to auto-populate the
@@ -252,7 +260,7 @@ class MainWindow(QMainWindow):
         """
         self._face_lookup = fn
 
-    def set_recording_check(self, fn: Callable[[], bool]) -> None:
+    def set_recording_check(self, fn: RecordingCheck) -> None:
         """Hook for the controller to tell the window whether a session is live.
 
         Used by the close prompt. Defaults to "not recording"
