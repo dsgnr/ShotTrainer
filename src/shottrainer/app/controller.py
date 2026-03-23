@@ -55,7 +55,7 @@ from .zero_offset_store import load_zero_offset, save_zero_offset
 log = logging.getLogger(__name__)
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class _ShotEntry:
     """One shot in the current on-screen list."""
 
@@ -403,11 +403,13 @@ class AppController(QObject):
             self._window.statusBar().showMessage("No shots in view to re-score", 3000)
             return
         rescored = 0
+        new_entries: list[_ShotEntry] = []
         for entry in self._shots_in_view:
             new_score = self._score_for(entry.x_mm, entry.y_mm)
-            entry.score = new_score or None
+            new_entries.append(replace(entry, score=new_score or None))
             if new_score:
                 rescored += 1
+        self._shots_in_view = new_entries
         self._render_shots()
         self._refresh_stats()
         face = self._preferences.target_face
