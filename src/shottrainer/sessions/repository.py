@@ -1,7 +1,7 @@
 """Repository for sessions, traces and shots.
 
 Hides SQLAlchemy from the rest of the app. Anything that wants
-to read or to read or to read or to read or to read or to read or to read or to read or to read or write persistence goes through here.
+to read or to read or to read or to read or to read or to read or to read or to read or to read or to read or write persistence goes through here.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import noload
@@ -174,7 +174,12 @@ class SessionRepository:
 
     def trace_count(self, session_id: int) -> int:
         with OrmSession(self._engine, future=True) as session:
-            return session.query(TraceSample).filter_by(session_id=session_id).count()
+            result = session.execute(
+                select(func.count())
+                .select_from(TraceSample)
+                .where(TraceSample.session_id == session_id)
+            ).scalar_one()
+            return int(result)
 
     def add_shot(
         self,
