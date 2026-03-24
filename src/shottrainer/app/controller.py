@@ -87,8 +87,9 @@ class AppController(QObject):
             self._update_calibration_status(saved_cal)
 
     def start(self) -> None:
-        """Begin live preview. The camera runs whenever the app is open."""
+        """Start live preview. The camera and microphone run for as long as the app is open."""
         self._start_camera(self._preferences.camera_id)
+        self._audio.start()
 
     def shutdown(self) -> None:
         self._stop_camera()
@@ -184,8 +185,10 @@ class AppController(QObject):
 
     def _on_audio_level(self, level: float) -> None:
         gain = max(0.01, self._preferences.audio_gain)
+        scaled = level * gain
+        self._window.audio_meter.set_level(scaled)
         if self._open_prefs_dialog_ref is not None:
-            self._open_prefs_dialog_ref.push_audio_level(level * gain)
+            self._open_prefs_dialog_ref.push_audio_level(scaled)
 
     def _on_manual_aim_requested(self, x_px: float, y_px: float) -> None:
         self._tracker.set_manual_point(x_px, y_px)
@@ -262,13 +265,10 @@ class AppController(QObject):
         )
         self._window.session_controls.set_active(True)
         self._window.session_controls.set_summary(f"Recording session {sid}")
-        self._audio.start()
 
     def _on_stop_requested(self) -> None:
         if not self._recorder.is_recording:
             return
-        if self._open_prefs_dialog_ref is None:
-            self._audio.stop()
         sid = self._recorder.stop()
         self._window.session_controls.set_active(False)
         self._window.session_controls.set_summary(
@@ -300,6 +300,7 @@ class AppController(QObject):
 
         self._window.target_view.set_rings(rings_for_face(prefs.target_face))
         self._window.stats_panel.set_rings(rings_for_face(prefs.target_face))
+        self._window.audio_meter.set_threshold(prefs.shot_threshold)
 
         if previous is not None and previous.camera_id != prefs.camera_id and self._camera is not None:
             self._start_camera(prefs.camera_id)
@@ -389,14 +390,9 @@ class AppController(QObject):
         dialog.finished.connect(self._on_prefs_dialog_closed)
         if self._latest_frame is not None:
             dialog.push_frame(self._latest_frame)
-        # Audio level meter only updates when the listener is running. Start
-        # it for the duration of the dialog if it isn't already.
-        self._audio.start()
 
     def _on_prefs_dialog_closed(self, _result: int) -> None:
         self._open_prefs_dialog_ref = None
-        if not self._recorder.is_recording:
-            self._audio.stop()
 
     def _on_calibration_points(self, image_points: list) -> None:
         from shottrainer.tracking.calibration import a4_target_corners, fit_homography

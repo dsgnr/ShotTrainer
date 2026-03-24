@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .audio_meter import AudioMeter
 from .calibration_dialog import CalibrationDialog
 from .camera_view import CameraView
 from .preferences_dialog import Preferences, PreferencesDialog
@@ -51,6 +52,7 @@ class MainWindow(QMainWindow):
         self.target_view = TargetView()
         self.shot_list = ShotList()
         self.stats_panel = StatsPanel()
+        self.audio_meter = AudioMeter()
         self.zoom_controls = ZoomControls()
         self.zoom_controls.set_extent(self.target_view.extent_mm)
         self.zoom_controls.extent_changed.connect(self.target_view.set_extent_mm)
@@ -73,6 +75,7 @@ class MainWindow(QMainWindow):
         side_layout.addWidget(self._manual_aim_button)
 
         side_layout.addWidget(self.shot_list, 2)
+        side_layout.addWidget(self.audio_meter)
         side_layout.addWidget(self.stats_panel)
 
         target_column = QWidget()
