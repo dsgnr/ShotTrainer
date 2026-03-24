@@ -114,3 +114,40 @@ def test_full_frame_region_keeps_old_behaviour():
     _draw_circle(img, 50, 50, 20)
     det = CircleTargetDetector(DetectorSettings(region_fraction=1.0)).detect(img)
     assert det.found
+
+
+def test_lock_prefers_close_blob_over_distant_one():
+    img = _white_canvas()
+    _draw_circle(img, 320, 240, 25)
+    det = CircleTargetDetector(DetectorSettings(region_fraction=1.0)).detect(img)
+    assert det.found
+    primary_x = det.x_px
+
+    # Now both blobs in the same frame: a noise blob slightly closer to
+    # the centre, and the original further off. With the lock active,
+    # the original wins.
+    detector = CircleTargetDetector(
+        DetectorSettings(region_fraction=1.0, lock_radius_px=80.0)
+    )
+    detector.detect(img)  # establish lock at (320, 240)
+    img2 = _white_canvas()
+    _draw_circle(img2, 320, 240, 25)  # original
+    _draw_circle(img2, 200, 240, 27)  # competing blob 120 px away
+    second = detector.detect(img2)
+    assert second.found
+    assert abs(second.x_px - primary_x) < 5.0
+
+
+def test_lock_released_after_consecutive_misses():
+    detector = CircleTargetDetector(
+        DetectorSettings(region_fraction=1.0, lock_release_after_misses=3)
+    )
+    img = _white_canvas()
+    _draw_circle(img, 320, 240, 25)
+    detector.detect(img)
+    assert detector._lock_px is not None
+
+    blank = _white_canvas()
+    for _ in range(3):
+        detector.detect(blank)
+    assert detector._lock_px is None
