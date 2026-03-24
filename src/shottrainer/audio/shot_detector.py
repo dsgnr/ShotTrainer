@@ -13,6 +13,7 @@ from __future__ import annotations
 import math
 
 import numpy as np
+from scipy.signal import lfilter
 
 from .models import ShotDetectorSettings, ShotEvent
 
@@ -30,13 +31,15 @@ class ShotDetector:
     def __init__(self, settings: ShotDetectorSettings | None = None) -> None:
         self.settings = settings or ShotDetectorSettings()
         self._last_shot_ts: float | None = None
-        self._hp_prev_in: float = 0.0
-        self._hp_prev_out: float = 0.0
+        # ``lfilter`` carries its delay line in a small ``zi``
+        # array. The DC blocker is order 1 (one delay tap on the
+        # input, one on the output), so ``zi`` is just a single
+        # element.
+        self._filter_state: np.ndarray = np.zeros(1, dtype=np.float32)
 
     def reset(self) -> None:
         self._last_shot_ts = None
-        self._hp_prev_in = 0.0
-        self._hp_prev_out = 0.0
+        self._filter_state = np.zeros(1, dtype=np.float32)
 
     def update_settings(self, settings: ShotDetectorSettings) -> None:
         self.settings = settings
@@ -50,18 +53,17 @@ class ShotDetector:
             samples = samples.mean(axis=1)
         samples = samples.astype(np.float32, copy=False)
 
-        # One-pole DC blocker: y[n] = x[n] - x[n-1] + a * y[n-1]
-        a = s.high_pass_alpha
-        out = np.empty_like(samples)
-        prev_in = self._hp_prev_in
-        prev_out = self._hp_prev_out
-        for i, x in enumerate(samples):
-            y = x - prev_in + a * prev_out
-            out[i] = y
-            prev_in = x
-            prev_out = y
-        self._hp_prev_in = float(prev_in)
-        self._hp_prev_out = float(prev_out)
+        # One-pole DC blocker: ``y[n] = x[n] - x[n-1] + a*y[n-1]``.
+        # We express it in transfer-function form for ``lfilter``
+        # so the work runs in C: numerator ``[1, -1]`` for the
+        # input difference, denominator ``[1, -a]`` for the
+        # recursive output. ``zi`` carries the one-sample delay
+        # line across blocks so streaming output matches a
+        # concatenated signal.
+        b = np.array([1.0, -1.0], dtype=np.float32)
+        a_coef = np.array([1.0, -s.high_pass_alpha], dtype=np.float32)
+        out, self._filter_state = lfilter(b, a_coef, samples, zi=self._filter_state)
+        out = out.astype(np.float32, copy=False)
 
         rms = float(np.sqrt(np.mean(out * out))) if out.size else 0.0
         if not math.isfinite(rms) or rms < s.threshold:
