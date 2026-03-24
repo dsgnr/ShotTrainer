@@ -145,6 +145,15 @@ class TargetView(QWidget):
         cy = self.height() / 2.0
         scale = (size - 16) / (2.0 * self._extent_mm)  # px per mm
 
+        # Cream paper-target face fills the visible extent.
+        face_radius = self._extent_mm * scale * 0.95
+        painter.setBrush(QColor("#f5f1e8"))
+        face_pen = QPen(QColor("#1f2228"))
+        face_pen.setWidth(1)
+        painter.setPen(face_pen)
+        painter.drawEllipse(QPointF(cx, cy), face_radius, face_radius)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+
         self._draw_rings(painter, cx, cy, scale)
         self._draw_crosshair(painter, cx, cy, size)
         self._draw_hold_zone(painter, cx, cy, scale)
@@ -183,7 +192,7 @@ class TargetView(QWidget):
         painter.setBrush(Qt.BrushStyle.NoBrush)
 
     def _draw_rings(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
-        pen = QPen(QColor("#aab2c0"))
+        pen = QPen(QColor("#1f2228"))
         pen.setWidth(1)
         painter.setPen(pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -194,7 +203,7 @@ class TargetView(QWidget):
                 painter.drawText(QRectF(cx + r - 24, cy - 10, 22, 14), Qt.AlignmentFlag.AlignRight, ring.label)
 
     def _draw_crosshair(self, painter: QPainter, cx: float, cy: float, size: float) -> None:
-        pen = QPen(QColor("#5a6478"))
+        pen = QPen(QColor("#888888"))
         pen.setStyle(Qt.PenStyle.DashLine)
         painter.setPen(pen)
         painter.drawLine(int(cx - size / 2), int(cy), int(cx + size / 2), int(cy))
@@ -237,7 +246,7 @@ class TargetView(QWidget):
             r = radius_px * (1.2 if selected else 1.0)
             painter.drawEllipse(QPointF(x, y), r, r)
             if shot.label:
-                painter.setPen(QColor("#cfd6e0"))
+                painter.setPen(QColor("#1f2228"))
                 painter.drawText(QRectF(x + r + 4, y - 16, 30, 14), Qt.AlignmentFlag.AlignLeft, shot.label)
 
     def _draw_live_aim(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
