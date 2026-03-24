@@ -24,6 +24,7 @@ from .session_controls import SessionControls
 from .shot_list import ShotList
 from .stats_panel import StatsPanel
 from .target_view import TargetView
+from .zoom_controls import ZoomControls
 
 
 class MainWindow(QMainWindow):
@@ -50,6 +51,10 @@ class MainWindow(QMainWindow):
         self.target_view = TargetView()
         self.shot_list = ShotList()
         self.stats_panel = StatsPanel()
+        self.zoom_controls = ZoomControls()
+        self.zoom_controls.set_extent(self.target_view.extent_mm)
+        self.zoom_controls.extent_changed.connect(self.target_view.set_extent_mm)
+        self.target_view.extent_changed.connect(self.zoom_controls.set_extent)
 
         # Layout: target view dominates the main area. The camera preview
         # and shot list sit in a slimmer side column. The camera preview is
@@ -70,8 +75,14 @@ class MainWindow(QMainWindow):
         side_layout.addWidget(self.shot_list, 2)
         side_layout.addWidget(self.stats_panel)
 
+        target_column = QWidget()
+        target_layout = QVBoxLayout(target_column)
+        target_layout.setContentsMargins(0, 0, 0, 0)
+        target_layout.addWidget(self.target_view, 1)
+        target_layout.addWidget(self.zoom_controls)
+
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.addWidget(self.target_view)
+        splitter.addWidget(target_column)
         splitter.addWidget(side_column)
         splitter.setStretchFactor(0, 4)
         splitter.setStretchFactor(1, 1)
