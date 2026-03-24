@@ -59,6 +59,7 @@ class TargetView(QWidget):
         self._live_aim_manual: bool = False
         self._split_index: int | None = None  # trace index where pre/post divides
         self._hold_zone: tuple[float, float, float] | None = None  # (cx, cy, r) in mm
+        self._shot_diameter_mm: float = 4.5
 
     def set_rings(self, rings: Iterable[TargetRing]) -> None:
         self._rings = tuple(rings)
@@ -120,6 +121,10 @@ class TargetView(QWidget):
 
     def set_selected_shot(self, index: int | None) -> None:
         self._selected_shot = index
+        self.update()
+
+    def set_shot_diameter_mm(self, diameter_mm: float) -> None:
+        self._shot_diameter_mm = max(0.1, float(diameter_mm))
         self.update()
 
     def paintEvent(self, event) -> None:  # noqa: N802 (Qt naming)
@@ -194,6 +199,10 @@ class TargetView(QWidget):
             prev = p
 
     def _draw_shots(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
+        # Render shots at the configured projectile diameter, with a minimum
+        # pixel size so they remain visible at very wide zoom levels.
+        diameter_px = max(4.0, self._shot_diameter_mm * scale)
+        radius_px = diameter_px / 2.0
         for i, shot in enumerate(self._shots):
             x = cx + shot.x_mm * scale
             y = cy + shot.y_mm * scale
@@ -203,11 +212,11 @@ class TargetView(QWidget):
             pen = QPen(QColor("#7b1f15"))
             pen.setWidth(2 if selected else 1)
             painter.setPen(pen)
-            radius = 6.0 if selected else 4.0
-            painter.drawEllipse(QPointF(x, y), radius, radius)
+            r = radius_px * (1.2 if selected else 1.0)
+            painter.drawEllipse(QPointF(x, y), r, r)
             if shot.label:
                 painter.setPen(QColor("#cfd6e0"))
-                painter.drawText(QRectF(x + 6, y - 16, 30, 14), Qt.AlignmentFlag.AlignLeft, shot.label)
+                painter.drawText(QRectF(x + r + 4, y - 16, 30, 14), Qt.AlignmentFlag.AlignLeft, shot.label)
 
     def _draw_live_aim(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
         if self._live_aim is None:

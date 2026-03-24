@@ -38,6 +38,7 @@ class Preferences:
     pre_shot_ms: int = 1500
     post_shot_ms: int = 800
     target_face: str = "default"
+    shot_diameter_mm: float = 4.5  # air pellet by default; .22 ~= 5.6 mm
 
 
 ROTATION_OPTIONS: tuple[tuple[int, str], ...] = (
@@ -200,6 +201,13 @@ class PreferencesDialog(QDialog):
         if idx >= 0:
             self._target_face.setCurrentIndex(idx)
         form.addRow("Face", self._target_face)
+
+        self._shot_diameter = QDoubleSpinBox()
+        self._shot_diameter.setRange(0.5, 25.0)
+        self._shot_diameter.setSingleStep(0.1)
+        self._shot_diameter.setSuffix(" mm")
+        self._shot_diameter.setValue(prefs.shot_diameter_mm)
+        form.addRow("Shot diameter", self._shot_diameter)
         layout.addLayout(form)
 
         layout.addWidget(
@@ -274,6 +282,7 @@ class PreferencesDialog(QDialog):
             pre_shot_ms=int(self._pre.value()),
             post_shot_ms=int(self._post.value()),
             target_face=str(target_face),
+            shot_diameter_mm=float(self._shot_diameter.value()),
         )
         self.saved.emit(updated)
         self.accept()

@@ -299,6 +299,7 @@ class AppController(QObject):
         self._audio.set_device(prefs.audio_device)
 
         self._window.target_view.set_rings(rings_for_face(prefs.target_face))
+        self._window.target_view.set_shot_diameter_mm(prefs.shot_diameter_mm)
         self._window.stats_panel.set_rings(rings_for_face(prefs.target_face))
         self._window.audio_meter.set_threshold(prefs.shot_threshold)
 
