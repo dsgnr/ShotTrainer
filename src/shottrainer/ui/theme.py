@@ -19,6 +19,58 @@ QMainWindow, QDialog {
     background-color: #1a1d22;
 }
 
+QWidget#appHeader {
+    background-color: #14171c;
+    border-bottom: 1px solid #2c303a;
+}
+
+QLabel#appHeaderTitle {
+    font-size: 18px;
+    font-weight: 600;
+    color: #f6f7f8;
+    letter-spacing: 0.5px;
+}
+
+QLabel#appHeaderStateLabel {
+    font-size: 14px;
+    color: #c8ccd4;
+}
+
+QLabel#appHeaderCaption {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #7a8090;
+}
+
+QLabel#appHeaderValue {
+    font-size: 22px;
+    font-weight: 600;
+    color: #f6f7f8;
+}
+
+QToolButton#appHeaderSettings {
+    border-radius: 20px;
+    background-color: #232730;
+    color: #cfd6e0;
+    font-size: 18px;
+}
+
+QToolButton#appHeaderSettings:hover {
+    background-color: #2d6cdf;
+    color: #ffffff;
+}
+
+QFrame#sidePanelHeader {
+    background-color: #14171c;
+    border: none;
+    color: #7a8090;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 8px 12px;
+}
+
 QStatusBar {
     background-color: #15171b;
     color: #cfcfcf;
