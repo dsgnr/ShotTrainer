@@ -263,6 +263,7 @@ class AppController(QObject):
                 for i, s in enumerate(self._shots_in_view)
             ]
         )
+        self._window.header.set_shot_count(len(self._shots_in_view))
 
     def _refresh_stats(self) -> None:
         positions = [(s.x_mm, s.y_mm) for s in self._shots_in_view]
@@ -287,6 +288,7 @@ class AppController(QObject):
         )
         self._window.session_controls.set_active(True)
         self._window.session_controls.set_summary(f"Recording session {sid}")
+        self._window.header.set_state("recording")
 
     def _on_stop_requested(self) -> None:
         if not self._recorder.is_recording:
@@ -296,6 +298,7 @@ class AppController(QObject):
         self._window.session_controls.set_summary(
             f"Saved session {sid}" if sid else "No active session"
         )
+        self._window.header.set_state("idle")
 
     def _on_clear_shots_requested(self) -> None:
         self._shots_in_view.clear()
