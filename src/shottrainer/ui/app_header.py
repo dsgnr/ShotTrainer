@@ -15,12 +15,12 @@ class AppHeader(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("appHeader")
-        self.setFixedHeight(72)
+        self.setFixedHeight(80)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(20, 8, 20, 8)
-        layout.setSpacing(20)
+        layout.setContentsMargins(24, 10, 24, 10)
+        layout.setSpacing(28)
 
         self._title = QLabel("ShotTrainer")
         self._title.setObjectName("appHeaderTitle")
@@ -78,27 +78,22 @@ class AppHeader(QWidget):
 
 
 class _HeaderMetric(QWidget):
-    """Two stacked labels with a small caption above a large value."""
+    """Caption stacked above a large value."""
 
     def __init__(self, caption: str, initial: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        layout = QHBoxLayout(self)
+        from PySide6.QtWidgets import QVBoxLayout
+        layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
-
-        col = QWidget()
-        col_layout = QHBoxLayout(col)
-        col_layout.setContentsMargins(0, 0, 0, 0)
-        col_layout.setSpacing(8)
+        layout.setSpacing(0)
 
         self.caption = QLabel(caption)
         self.caption.setObjectName("appHeaderCaption")
-        self.caption.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
+        self.caption.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
 
         self.value = QLabel(initial)
         self.value.setObjectName("appHeaderValue")
         self.value.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
 
-        col_layout.addWidget(self.caption)
-        col_layout.addWidget(self.value)
-        layout.addWidget(col)
+        layout.addWidget(self.caption)
+        layout.addWidget(self.value)
