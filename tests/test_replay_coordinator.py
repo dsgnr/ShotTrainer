@@ -28,7 +28,7 @@ def test_shot_window_finds_split(repo: SessionRepository):
     repo.add_shot(sid, ts=1.0, x_mm=0.0, y_mm=0.0, audio_level=0.4, confidence=0.9)
     coord = ReplayCoordinator(repo)
     shots = repo.list_shots(sid)
-    window = coord.shot_window(sid, shots[0], pre_ms=500, post_ms=500)
+    window = coord.shot_window(sid, shots[0].ts, pre_ms=500, post_ms=500)
     assert window.split_index is not None
     centre_sample = window.samples[window.split_index]
     assert abs(centre_sample.timestamp - 1.0) < 0.05
