@@ -26,7 +26,7 @@ from .marker_sheet import MarkerSheetDialog
 from .preferences_dialog import Preferences, PreferencesDialog
 from .replay_controls import ReplayControls
 from .session_controls import SessionControls
-from .shot_strip import ShotStrip
+from .shot_list import ShotList
 from .stats_panel import StatsPanel
 from .target_view import TargetView
 from .zoom_controls import ZoomControls
@@ -58,12 +58,7 @@ class MainWindow(QMainWindow):
         self.session_controls = SessionControls()
         self.camera_view = CameraView()
         self.target_view = TargetView()
-        self.shot_strip = ShotStrip()
-        # Keep a reference around so the controller's existing shot_list
-        # connections continue to work. HeroStats provides the visible
-        # numbers, the StatsPanel is no longer rendered but still serves
-        # as an internal sink if anyone listens.
-        self.shot_list = self.shot_strip
+        self.shot_list = ShotList()
         self.hero_stats = HeroStats()
         self.stats_panel = StatsPanel()  # not displayed. Kept for the controller
         self.audio_meter = AudioMeter()
@@ -102,7 +97,7 @@ class MainWindow(QMainWindow):
         status.showMessage("Ready")
         self.setStatusBar(status)
 
-        self.shot_strip.shot_selected.connect(self.target_view.set_selected_shot)
+        self.shot_list.shot_selected.connect(self.target_view.set_selected_shot)
         self.camera_view.clicked_at.connect(self._on_camera_view_clicked)
 
     def _build_left_column(self) -> QWidget:
@@ -149,15 +144,13 @@ class MainWindow(QMainWindow):
         controls_row.addSpacing(8)
         controls_row.addWidget(self.replay_controls, 1)
         layout.addLayout(controls_row)
-
-        layout.addWidget(self.shot_strip)
         return col
 
     def _build_right_column(self) -> QWidget:
         col = QFrame()
         col.setObjectName("rightColumn")
-        col.setMinimumWidth(240)
-        col.setMaximumWidth(360)
+        col.setMinimumWidth(280)
+        col.setMaximumWidth(380)
         layout = QVBoxLayout(col)
         layout.setContentsMargins(12, 24, 24, 24)
         layout.setSpacing(20)
@@ -165,7 +158,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._caption_label("RESULTS"))
         layout.addWidget(self.hero_stats)
 
-        layout.addStretch(1)
+        layout.addSpacing(12)
+        layout.addWidget(self._caption_label("SHOTS"))
+        layout.addWidget(self.shot_list, 1)
 
         layout.addWidget(self._caption_label("SESSION"))
         layout.addWidget(self.session_controls)
