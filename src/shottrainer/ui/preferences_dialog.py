@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -23,6 +24,8 @@ from PySide6.QtWidgets import (
 )
 
 from .camera_view import CameraView
+from .target_face_preview import TargetFacePreview
+from .target_view import TargetRing
 
 
 @dataclass(slots=True)
@@ -58,12 +61,14 @@ class PreferencesDialog(QDialog):
         camera_options: list[tuple[int, str]] | None = None,
         audio_options: list[str] | None = None,
         target_faces: list[tuple[str, str]] | None = None,
+        rings_lookup: Callable[[str], tuple[TargetRing, ...]] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Preferences")
         self.resize(720, 540)
         self._prefs = prefs
+        self._rings_lookup = rings_lookup
 
         layout = QVBoxLayout(self)
         tabs = QTabWidget()
@@ -210,14 +215,27 @@ class PreferencesDialog(QDialog):
         form.addRow("Shot diameter", self._shot_diameter)
         layout.addLayout(form)
 
+        self._face_preview = TargetFacePreview()
+        layout.addWidget(self._face_preview, 1)
+        self._target_face.currentIndexChanged.connect(self._refresh_face_preview)
+        self._refresh_face_preview()
+
         layout.addWidget(
             QLabel(
                 "The selected face controls the scoring rings drawn on the "
                 "target view. Calibration is independent of this choice."
             )
         )
-        layout.addStretch(1)
         return page
+
+    def _refresh_face_preview(self) -> None:
+        if self._rings_lookup is None:
+            return
+        key = self._target_face.currentData()
+        if not isinstance(key, str):
+            return
+        rings = self._rings_lookup(key)
+        self._face_preview.set_rings(rings)
 
     def _build_recording_tab(self, prefs: Preferences) -> QWidget:
         page = QWidget()
