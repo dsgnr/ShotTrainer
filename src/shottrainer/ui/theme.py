@@ -260,6 +260,26 @@ QLabel#aboutTitle {
     letter-spacing: 0.5px;
 }
 
+QLabel#zoomCaption {
+    color: #6c7689;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+QLabel#zoomReadout {
+    color: #d6dae3;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+QPushButton#zoomButton {
+    font-size: 16px;
+    font-weight: 600;
+    padding: 0;
+    border-radius: 8px;
+}
+
 /* Inputs */
 QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {
     background-color: #0a0c10;
