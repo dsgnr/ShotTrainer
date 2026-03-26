@@ -224,6 +224,35 @@ QPushButton:checked {
     color: #ffffff;
 }
 
+QPushButton#primaryButton {
+    background-color: #2d6cdf;
+    border-color: #2d6cdf;
+    color: #ffffff;
+    font-weight: 600;
+    padding: 9px 14px;
+}
+
+QPushButton#primaryButton:hover {
+    background-color: #4a8cf0;
+    border-color: #4a8cf0;
+}
+
+QPushButton#primaryButton[variant="stop"] {
+    background-color: #c0392b;
+    border-color: #c0392b;
+}
+
+QPushButton#primaryButton[variant="stop"]:hover {
+    background-color: #e64a3a;
+    border-color: #e64a3a;
+}
+
+QLabel#sessionSummary {
+    color: #6c7689;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+}
+
 /* Inputs */
 QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {
     background-color: #0a0c10;
