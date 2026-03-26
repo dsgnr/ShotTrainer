@@ -253,6 +253,13 @@ QLabel#sessionSummary {
     letter-spacing: 0.3px;
 }
 
+QLabel#aboutTitle {
+    color: #f6f7f8;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
 /* Inputs */
 QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {
     background-color: #0a0c10;
