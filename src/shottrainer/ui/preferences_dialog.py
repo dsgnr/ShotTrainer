@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QProgressBar,
+    QSizePolicy,
     QSpinBox,
     QTabWidget,
     QVBoxLayout,
@@ -51,6 +52,32 @@ ROTATION_OPTIONS: tuple[tuple[int, str], ...] = (
     (180, "180"),
     (270, "90 counter-clockwise"),
 )
+
+
+def _make_combo(
+    items: list[tuple[object, str]],
+    *,
+    tooltip: str = "",
+    initial: object | None = None,
+) -> QComboBox:
+    """Build a QComboBox whose popup view sizes to its longest entry."""
+    combo = QComboBox()
+    combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+    combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContentsOnFirstShow)
+    if tooltip:
+        combo.setToolTip(tooltip)
+    for value, label in items:
+        combo.addItem(label, value)
+    if initial is not None:
+        idx = combo.findData(initial)
+        if idx >= 0:
+            combo.setCurrentIndex(idx)
+    # Make the popup wide enough to read the longest entry, regardless
+    # of how narrow the combo itself is.
+    metrics = combo.fontMetrics()
+    max_w = max((metrics.horizontalAdvance(label) for _, label in items), default=120)
+    combo.view().setMinimumWidth(max_w + 32)
+    return combo
 
 
 class PreferencesDialog(QDialog):
@@ -105,28 +132,29 @@ class PreferencesDialog(QDialog):
         layout = QVBoxLayout(page)
 
         form = QFormLayout()
-        self._camera = QComboBox()
-        for cam_id, name in camera_options or [(0, "Camera 0")]:
-            self._camera.addItem(name, cam_id)
-        index = self._camera.findData(prefs.camera_id)
-        if index >= 0:
-            self._camera.setCurrentIndex(index)
+        cam_items = list(camera_options or [(0, "Camera 0")])
+        self._camera = _make_combo(
+            cam_items,
+            tooltip="Webcam to use for tracking. Disconnect/reconnect a camera and reopen this dialog to refresh.",
+            initial=prefs.camera_id,
+        )
         form.addRow("Device", self._camera)
 
-        self._rotation = QComboBox()
-        for value, label in ROTATION_OPTIONS:
-            self._rotation.addItem(label, value)
-        index = self._rotation.findData(prefs.camera_rotation)
-        if index >= 0:
-            self._rotation.setCurrentIndex(index)
+        self._rotation = _make_combo(
+            list(ROTATION_OPTIONS),
+            tooltip="Rotate the captured frame in 90 degree steps. Useful when a barrel-mounted camera is fitted sideways.",
+            initial=prefs.camera_rotation,
+        )
         form.addRow("Rotation", self._rotation)
 
         self._flip_h = QCheckBox("Mirror horizontally")
         self._flip_h.setChecked(prefs.camera_flip_h)
+        self._flip_h.setToolTip("Flip the image left-right. Tick this if your trace moves opposite to your aim.")
         form.addRow("", self._flip_h)
 
         self._flip_v = QCheckBox("Mirror vertically")
         self._flip_v.setChecked(prefs.camera_flip_v)
+        self._flip_v.setToolTip("Flip the image top-to-bottom. Useful when the camera is mounted upside down.")
         form.addRow("", self._flip_v)
 
         self._region = QDoubleSpinBox()
@@ -134,6 +162,11 @@ class PreferencesDialog(QDialog):
         self._region.setSingleStep(0.05)
         self._region.setDecimals(2)
         self._region.setValue(prefs.tracking_region_fraction)
+        self._region.setToolTip(
+            "Fraction of the camera frame considered for tracking. Lower values "
+            "ignore distractions near the edges. Higher values let the detector "
+            "see more of the scene."
+        )
         form.addRow("Tracking region", self._region)
         layout.addLayout(form)
 
@@ -153,12 +186,12 @@ class PreferencesDialog(QDialog):
         layout = QVBoxLayout(page)
         form = QFormLayout()
 
-        self._audio = QComboBox()
-        for name in audio_options or ["default"]:
-            self._audio.addItem(name)
-        idx = self._audio.findText(prefs.audio_device)
-        if idx >= 0:
-            self._audio.setCurrentIndex(idx)
+        audio_items = [(name, name) for name in (audio_options or ["default"])]
+        self._audio = _make_combo(
+            audio_items,
+            tooltip="Microphone used to detect shots.",
+            initial=prefs.audio_device,
+        )
         form.addRow("Input", self._audio)
 
         self._audio_gain = QDoubleSpinBox()
@@ -166,18 +199,32 @@ class PreferencesDialog(QDialog):
         self._audio_gain.setSingleStep(0.1)
         self._audio_gain.setSuffix("x")
         self._audio_gain.setValue(prefs.audio_gain)
+        self._audio_gain.setToolTip(
+            "Software gain applied to the mic input before shot detection. "
+            "Increase if a quiet shot doesn't register. Reduce if loud noises "
+            "cause false triggers."
+        )
         form.addRow("Volume", self._audio_gain)
 
         self._threshold = QDoubleSpinBox()
         self._threshold.setRange(0.01, 1.0)
         self._threshold.setSingleStep(0.01)
         self._threshold.setValue(prefs.shot_threshold)
+        self._threshold.setToolTip(
+            "Audio level above which a shot is registered (0..1). "
+            "Watch the live level meter and pick a value just above the "
+            "ambient noise."
+        )
         form.addRow("Shot threshold", self._threshold)
 
         self._refractory = QSpinBox()
         self._refractory.setRange(50, 5000)
         self._refractory.setSuffix(" ms")
         self._refractory.setValue(prefs.shot_refractory_ms)
+        self._refractory.setToolTip(
+            "Time after a shot in which further triggers are ignored. "
+            "Stops echoes and ringing being counted as extra shots."
+        )
         form.addRow("Refractory window", self._refractory)
         layout.addLayout(form)
 
@@ -207,12 +254,12 @@ class PreferencesDialog(QDialog):
         layout = QVBoxLayout(page)
         form = QFormLayout()
 
-        self._target_face = QComboBox()
-        for key, label in target_faces or [("default", "Default rings")]:
-            self._target_face.addItem(label, key)
-        idx = self._target_face.findData(prefs.target_face)
-        if idx >= 0:
-            self._target_face.setCurrentIndex(idx)
+        face_items = list(target_faces or [("default", "Default rings")])
+        self._target_face = _make_combo(
+            face_items,
+            tooltip="Scoring rings to draw on the target view. Doesn't change tracking. Only the visual reference.",
+            initial=prefs.target_face,
+        )
         form.addRow("Face", self._target_face)
 
         self._shot_diameter = QDoubleSpinBox()
@@ -220,6 +267,10 @@ class PreferencesDialog(QDialog):
         self._shot_diameter.setSingleStep(0.1)
         self._shot_diameter.setSuffix(" mm")
         self._shot_diameter.setValue(prefs.shot_diameter_mm)
+        self._shot_diameter.setToolTip(
+            "Pellet/bullet diameter. Used to draw shots at their correct size on "
+            "the target view (4.5 mm for .177 air, 5.6 mm for .22)."
+        )
         form.addRow("Shot diameter", self._shot_diameter)
         layout.addLayout(form)
 
@@ -254,12 +305,20 @@ class PreferencesDialog(QDialog):
         self._pre.setRange(0, 10000)
         self._pre.setSuffix(" ms")
         self._pre.setValue(prefs.pre_shot_ms)
+        self._pre.setToolTip(
+            "How much trace to keep before each shot. Used for hold-stability and "
+            "tremor analysis on replay."
+        )
         form.addRow("Pre-shot window", self._pre)
 
         self._post = QSpinBox()
         self._post.setRange(0, 10000)
         self._post.setSuffix(" ms")
         self._post.setValue(prefs.post_shot_ms)
+        self._post.setToolTip(
+            "How much trace to keep after each shot. Useful for follow-through "
+            "review."
+        )
         form.addRow("Post-shot window", self._post)
         layout.addLayout(form)
 
