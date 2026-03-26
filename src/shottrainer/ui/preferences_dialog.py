@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -333,20 +333,40 @@ class PreferencesDialog(QDialog):
 
     def _build_about_tab(self) -> QWidget:
         from shottrainer import __version__
+        from shottrainer.ui.assets import asset_path
 
         page = QWidget()
         layout = QVBoxLayout(page)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
+
+        from PySide6.QtGui import QPixmap
+
+        logo_label = QLabel()
+        pixmap = QPixmap(str(asset_path("icon_128.png")))
+        if not pixmap.isNull():
+            logo_label.setPixmap(pixmap)
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(logo_label)
+
+        title = QLabel("ShotTrainer")
+        title.setObjectName("aboutTitle")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
+
         form = QFormLayout()
         form.addRow("Version", QLabel(__version__))
         form.addRow("Licence", QLabel("GPL-3.0-or-later"))
         layout.addLayout(form)
 
-        layout.addWidget(
-            QLabel(
-                "ShotTrainer is open source. See the project README for the "
-                "issue tracker and contribution guide."
-            )
+        blurb = QLabel(
+            "ShotTrainer is open source. See the project README for the "
+            "issue tracker and contribution guide."
         )
+        blurb.setWordWrap(True)
+        blurb.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(blurb)
+
         layout.addStretch(1)
         return page
 
