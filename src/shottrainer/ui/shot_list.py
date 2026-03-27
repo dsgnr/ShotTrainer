@@ -59,7 +59,7 @@ class ShotList(QWidget):
             )
             item = QListWidgetItem()
             item.setSizeHint(row.sizeHint())
-            item.setData(0x0100, e.index)  # Qt.UserRole
+            item.setData(Qt.ItemDataRole.UserRole, e.index)
             self._list.addItem(item)
             self._list.setItemWidget(item, row)
         self._list.blockSignals(False)
@@ -75,7 +75,7 @@ class ShotList(QWidget):
         items = self._list.selectedItems()
         if not items:
             return
-        idx = items[0].data(0x0100)
+        idx = items[0].data(Qt.ItemDataRole.UserRole)
         if isinstance(idx, int):
             self.shot_selected.emit(idx)
 
