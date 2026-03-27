@@ -164,11 +164,24 @@ class AppController(QObject):
 
     def _start_camera(self, device_index: int) -> None:
         self._stop_camera()
-        cam = CameraCapture(CameraConfig(device_index=device_index))
+        cam = CameraCapture(self._camera_config_from_prefs(device_index))
         cam.frame_ready.connect(self._on_frame)
         cam.error.connect(self._on_camera_error)
         cam.start()
         self._camera = cam
+
+    def _camera_config_from_prefs(self, device_index: int) -> CameraConfig:
+        prefs = getattr(self, "_preferences", None)
+        if prefs is None:
+            return CameraConfig(device_index=device_index)
+        return CameraConfig(
+            device_index=device_index,
+            brightness=prefs.camera_brightness,
+            contrast=prefs.camera_contrast,
+            saturation=prefs.camera_saturation,
+            gain=prefs.camera_gain,
+            exposure=prefs.camera_exposure,
+        )
 
     def _stop_camera(self) -> None:
         if self._camera is not None:
@@ -427,6 +440,36 @@ class AppController(QObject):
         self._register_frame_mirror(dialog)
         if self._latest_frame is not None:
             dialog.push_frame(self._latest_frame)
+        dialog.camera_property_changed.connect(self._on_camera_property_changed)
+        dialog.optimise_requested.connect(self._on_optimise_requested)
+
+    def _on_camera_property_changed(self, name: str, value: object) -> None:
+        if self._camera is None:
+            return
+        # ``value`` is float | None at runtime. The dialog's signal types
+        # it loosely so Qt can carry None.
+        self._camera.set_property(name, value if value is not None else None)
+
+    def _on_optimise_requested(self) -> None:
+        from shottrainer.tracking.detector_tuning import optimise_detector_settings
+
+        if self._latest_frame is None:
+            self._window.statusBar().showMessage(
+                "No camera frame available to optimise from", 4000
+            )
+            return
+        new_settings, score = optimise_detector_settings(
+            self._latest_frame, self._tracker.detector.settings
+        )
+        if new_settings is None:
+            self._window.statusBar().showMessage(
+                "Could not find a stable target in the current frame", 4000
+            )
+            return
+        self._tracker.detector.settings = new_settings
+        self._window.statusBar().showMessage(
+            f"Tracking optimised (confidence {score:.2f})", 4000
+        )
 
     def _register_frame_mirror(self, dialog) -> None:
         self._frame_mirrors.append(dialog)

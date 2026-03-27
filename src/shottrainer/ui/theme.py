@@ -270,7 +270,6 @@ QLabel#zoomCaption {
 QLabel#zoomReadout {
     color: #d6dae3;
     font-size: 12px;
-    font-variant-numeric: tabular-nums;
 }
 
 QPushButton#zoomButton {
