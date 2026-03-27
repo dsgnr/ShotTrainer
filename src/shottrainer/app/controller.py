@@ -51,6 +51,14 @@ class _ShotEntry:
 
 
 class AppController(QObject):
+    """Connects UI signals to the underlying services.
+
+    Owns the camera capture thread, the audio listener, the tracker, and
+    the recorder/replay coordinators. Reacts to widget signals from
+    ``MainWindow`` and pushes results back via the same widgets. The
+    controller does not draw anything itself.
+    """
+
     def __init__(self, window: MainWindow, db_path: Path) -> None:
         super().__init__()
         self._window = window

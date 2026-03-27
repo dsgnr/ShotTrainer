@@ -32,7 +32,11 @@ class TrackingSample:
 
 @dataclass(frozen=True, slots=True)
 class Detection:
-    """Result of looking at a single frame."""
+    """What the detector saw in a single frame.
+
+    ``found`` is ``False`` when nothing circular enough was located. The
+    other fields are zero in that case.
+    """
 
     found: bool
     x_px: float = 0.0
