@@ -11,6 +11,24 @@ from PySide6.QtCore import QTimer
 from PySide6.QtGui import QColor, QPainter
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
+# Level thresholds for the meter bar's three-band colour ramp.
+# Below the first threshold the bar is green ("comfortably below
+# clipping"). Above the last it's red ("close to clipping"). In
+# between it's amber. Stored as a small table so adding a band is a
+# one-line change.
+_LEVEL_BANDS: tuple[tuple[float, str], ...] = (
+    (0.7, "#27ae60"),
+    (0.9, "#f39c12"),
+    (1.0, "#e74c3c"),
+)
+
+
+def _colour_for_level(level: float) -> QColor:
+    for threshold, hex_colour in _LEVEL_BANDS:
+        if level < threshold:
+            return QColor(hex_colour)
+    return QColor(_LEVEL_BANDS[-1][1])
+
 
 class AudioMeter(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -50,10 +68,13 @@ class AudioMeter(QWidget):
         # Fill the bar in segments coloured by level so it reads as a meter.
         bar_w = int(rect.width() * self._level)
         if bar_w > 0:
-            colour = QColor("#27ae60") if self._level < 0.7 else (
-                QColor("#f39c12") if self._level < 0.9 else QColor("#e74c3c")
+            p.fillRect(
+                rect.x(),
+                rect.y(),
+                bar_w,
+                rect.height(),
+                _colour_for_level(self._level),
             )
-            p.fillRect(rect.x(), rect.y(), bar_w, rect.height(), colour)
 
         # Peak indicator: 2 px line at the highest level seen recently.
         if self._peak > 0:
