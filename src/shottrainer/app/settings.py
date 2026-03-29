@@ -14,10 +14,17 @@ log = logging.getLogger(__name__)
 
 
 def settings_path() -> Path:
+    """The on-disk path for ``settings.json``."""
     return data_dir() / "settings.json"
 
 
 def load_preferences(path: Path | None = None) -> Preferences:
+    """Read saved preferences, falling back to defaults if needed.
+
+    Unknown keys are dropped silently, so adding new fields in a
+    later release doesn't break older settings files. Parse
+    errors are logged and we return defaults rather than raising.
+    """
     p = path or settings_path()
     if not p.exists():
         return Preferences()
@@ -40,6 +47,7 @@ def load_preferences(path: Path | None = None) -> Preferences:
 
 
 def save_preferences(prefs: Preferences, path: Path | None = None) -> None:
+    """Write preferences to disk, creating the data directory if needed."""
     p = path or settings_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(asdict(prefs), indent=2))

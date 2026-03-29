@@ -15,10 +15,18 @@ log = logging.getLogger(__name__)
 
 
 def detector_settings_path() -> Path:
+    """The on-disk path for ``detector_settings.json``."""
     return data_dir() / "detector_settings.json"
 
 
 def load_detector_settings(path: Path | None = None) -> DetectorSettings | None:
+    """Return saved detector settings, or ``None`` if there are none.
+
+    ``None`` lets the caller fall back to whichever defaults make
+    sense for the current preferences (typically a fresh
+    :class:`DetectorSettings` parameterised by the chosen
+    tracking-region fraction).
+    """
     p = path or detector_settings_path()
     if not p.exists():
         return None
@@ -39,6 +47,7 @@ def load_detector_settings(path: Path | None = None) -> DetectorSettings | None:
 def save_detector_settings(
     settings: DetectorSettings, path: Path | None = None
 ) -> None:
+    """Write the tuned detector settings to disk."""
     p = path or detector_settings_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(asdict(settings), indent=2))
