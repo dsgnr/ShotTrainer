@@ -77,6 +77,13 @@ def compute_stats(positions: Sequence[tuple[float, float]]) -> ShotStats:
 
 
 def compute_trace_stats(points: Sequence[tuple[float, float]]) -> TraceStats:
+    """Tremor and total-travel numbers across one trace window.
+
+    ``hold_tremor_mm`` is the RMS distance of the trace from its
+    average position. Smaller means a steadier hold.
+    ``trace_length_mm`` is the cumulative path the aim point
+    covered, a rough proxy for how busy the hold was.
+    """
     if not points:
         return TraceStats(0, 0.0, 0.0, 0.0, 0.0)
 
