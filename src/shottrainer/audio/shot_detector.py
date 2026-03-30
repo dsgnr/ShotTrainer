@@ -38,13 +38,27 @@ class ShotDetector:
         self._filter_state: np.ndarray = np.zeros(1, dtype=np.float32)
 
     def reset(self) -> None:
+        """Clear the filter state and the refractory timestamp.
+
+        Call this when starting a new session so an old shot
+        timestamp doesn't suppress the first shot of the new one.
+        """
         self._last_shot_ts = None
         self._filter_state = np.zeros(1, dtype=np.float32)
 
     def update_settings(self, settings: ShotDetectorSettings) -> None:
+        """Swap in new settings without losing the filter state."""
         self.settings = settings
 
     def process_block(self, samples: np.ndarray, block_start_ts: float) -> ShotEvent | None:
+        """Process one block of audio and return a shot event if there is one.
+
+        Returns a :class:`ShotEvent` when the block's RMS crosses
+        ``settings.threshold`` and we're not still inside the
+        refractory window. ``None`` for silent or refractory
+        blocks. Multichannel input gets averaged down to mono
+        before the filter runs.
+        """
         if samples.size == 0:
             return None
 
