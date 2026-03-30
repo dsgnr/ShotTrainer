@@ -38,15 +38,24 @@ class SettingsWatcher(QObject):
         self._timer.timeout.connect(self._poll)
 
     def start(self) -> None:
+        """Begin polling and remember the file's current mtime.
+
+        Seeding the baseline means the first tick after start
+        doesn't fire ``changed`` just because the file already
+        exists. Only edits made *after* ``start`` trigger a
+        reload.
+        """
         # Take an initial mtime so the first tick doesn't refire
         # just because the file already exists.
         self._mtime = self._current_mtime()
         self._timer.start()
 
     def stop(self) -> None:
+        """Stop the poll timer. Safe to call more than once."""
         self._timer.stop()
 
     def force_check(self) -> None:
+        """Run a single poll cycle synchronously. Used by tests."""
         self._poll()
 
     def mark_seen(self) -> None:
@@ -54,6 +63,7 @@ class SettingsWatcher(QObject):
         self._mtime = self._current_mtime()
 
     def _current_mtime(self) -> float | None:
+        """The file's current mtime, or ``None`` if it's missing or unreadable."""
         try:
             return self._path.stat().st_mtime if self._path.exists() else None
         except OSError as exc:
@@ -61,6 +71,12 @@ class SettingsWatcher(QObject):
             return None
 
     def _poll(self) -> None:
+        """Compare the current mtime against the baseline and fire on change.
+
+        If the file has vanished we emit a default
+        :class:`Preferences` so the controller falls back to
+        defaults rather than holding stale values.
+        """
         current = self._current_mtime()
         if current == self._mtime:
             return
