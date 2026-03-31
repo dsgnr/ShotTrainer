@@ -225,9 +225,16 @@ class MainWindow(QMainWindow):
             )
 
     def main_splitter_sizes(self) -> list[int]:
+        """Return the current splitter pane widths for persistence."""
         return list(self._main_splitter.sizes())
 
     def restore_main_splitter_sizes(self, sizes: list[int]) -> None:
+        """Apply previously saved splitter widths.
+
+        Silently ignored if the saved layout doesn't match the
+        current pane count (which happens if the window has been
+        redesigned between releases).
+        """
         if sizes and len(sizes) == self._main_splitter.count():
             self._main_splitter.setSizes(sizes)
 
@@ -270,6 +277,7 @@ class MainWindow(QMainWindow):
         self._is_recording_check = fn
 
     def current_preferences(self) -> Preferences:
+        """The cached preferences the dialog will open against."""
         return self._prefs
 
     def set_current_preferences(self, prefs: Preferences) -> None:
@@ -380,13 +388,21 @@ class MainWindow(QMainWindow):
         space.activated.connect(self._toggle_replay)
 
     def _toggle_session(self) -> None:
+        """Route the Ctrl+S shortcut to whichever primary action is active."""
         self.session_controls.primary_action().click()
 
     def _invoke_clear_shots(self) -> None:
+        """Emit the clear request for Ctrl+R when the button is enabled."""
         if self.session_controls.clear_button().isEnabled():
             self.session_controls.clear_shots_requested.emit()
 
     def _toggle_replay(self) -> None:
+        """Play or pause replay on Space, but only when no input has focus.
+
+        Without the focus check, pressing space would interrupt
+        typing in any spinbox or text field that's open, which
+        is jarring.
+        """
         # Don't intercept space when an input has focus.
         focus = self.focusWidget()
         if focus is not None and focus.metaObject().className() in (

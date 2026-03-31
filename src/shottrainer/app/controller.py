@@ -75,8 +75,11 @@ class _FrameMirror(Protocol):
     be useful.
     """
 
-    def push_frame(self, frame_bgr: np.ndarray) -> None: ...
-    def push_audio_level(self, level: float) -> None: ...
+    def push_frame(self, frame_bgr: np.ndarray) -> None:
+        """Receive the latest BGR camera frame."""
+
+    def push_audio_level(self, level: float) -> None:
+        """Receive the latest audio level (0..1)."""
 
 
 class AppController(QObject):
@@ -367,12 +370,15 @@ class AppController(QObject):
         )
 
     def _on_camera_error(self, message: str) -> None:
+        """Show a brief camera error in the status bar."""
         self._window.statusBar().showMessage(f"Camera: {message}", 5000)
 
     def _on_audio_error(self, message: str) -> None:
+        """Show a brief audio error in the status bar."""
         self._window.statusBar().showMessage(f"Audio: {message}", 5000)
 
     def _on_audio_level(self, level: float) -> None:
+        """Scale the incoming audio level by the user's gain, then push it to the meter and any frame mirrors."""
         gain = max(0.01, self._preferences.audio_gain)
         scaled = level * gain
         self._window.audio_meter.set_level(scaled)
@@ -380,6 +386,13 @@ class AppController(QObject):
             mirror.push_audio_level(scaled)
 
     def _on_zero_on_aim_requested(self) -> None:
+        """Lock the most recent aim point as the trace's origin.
+
+        If the detector hasn't reported a sample yet we tell the
+        user via the status bar instead. Otherwise we save the
+        new offset and clear the trace so the new origin is
+        obvious straight away.
+        """
         if not self._tracker.zero_at_last_sample():
             self._window.statusBar().showMessage(
                 "Aim at the target until the trace is live, then try again", 4000
@@ -587,6 +600,17 @@ class AppController(QObject):
         self._window.statusBar().showMessage("Display cleared", 2000)
 
     def _apply_preferences(self, prefs: Preferences, *, persist: bool = True) -> None:
+        """Push a fresh :class:`Preferences` into every dependent service.
+
+        Acts as the one place that handles "the user (or the settings
+        file) changed something". Updates the tracker, the audio
+        listener, the shot coordinator's pre/post window, the
+        target view's rings, the camera's image transform and
+        the window's cached preferences. Saves to disk only when
+        ``persist=True`` and the change actually originated from
+        the user, so the settings-file watcher doesn't bounce
+        external edits back at itself.
+        """
         previous = getattr(self, "_preferences", None)
         self._preferences = prefs
         # Keep the window's cached copy in sync so the
@@ -747,6 +771,13 @@ class AppController(QObject):
         self._window.replay_controls.set_enabled(bool(window.samples))
 
     def _on_prefs_dialog_opened(self, dialog) -> None:
+        """Hook the controller into a freshly opened Preferences dialog.
+
+        Adds the dialog as a frame mirror so the embedded preview
+        ticks live, connects every dialog-side signal to its
+        controller slot, and arranges to revert the camera
+        selection if the user closes without saving.
+        """
         self._register_frame_mirror(dialog)
         if self._latest_frame is not None:
             dialog.push_frame(self._latest_frame)

@@ -218,6 +218,12 @@ class PreferencesDialog(QDialog):
         self._refresh_preview_frame()
 
     def _refresh_preview_frame(self) -> None:
+        """Repaint the embedded camera preview with the latest frame.
+
+        The preview applies the *current* (unsaved) rotation and
+        flip choices so the user sees what saving would do before
+        committing.
+        """
         from shottrainer.tracking.frame_ops import transform_frame
 
         frame = getattr(self, "_latest_raw_frame", None)
@@ -634,6 +640,7 @@ class PreferencesDialog(QDialog):
         # themselves stay where the user had them.
 
     def _calibre_for_diameter(self, mm: float) -> str:
+        """Return the preset key whose diameter matches ``mm`` (or "custom")."""
         for key, value in _CALIBRES_BY_KEY.items():
             if abs(value - mm) < 0.05:
                 return key
@@ -744,6 +751,12 @@ class PreferencesDialog(QDialog):
         return page
 
     def _on_save(self) -> None:
+        """Build a :class:`Preferences` from the dialog state, emit it and accept.
+
+        Reads every widget back to its saved value. Dropdown
+        ``currentData`` for the camera, audio device and target
+        face, slider values for the image properties, and so on.
+        """
         cam_id = self._camera.currentData()
         rotation = self._rotation.currentData()
         audio = self._audio.currentText()

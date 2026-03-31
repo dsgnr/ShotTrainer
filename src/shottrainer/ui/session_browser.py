@@ -61,17 +61,20 @@ class SessionBrowserDialog(QDialog):
         self.refresh()
 
     def refresh(self) -> None:
+        """Re-read the session list from the repository and rebuild the rows."""
         self._list.clear()
         for s in self._repo.list_sessions():
             self._list.addItem(_make_item(s))
 
     def _selected_session_id(self) -> int | None:
+        """Database id of the currently selected row, or ``None``."""
         item = self._list.currentItem()
         if item is None:
             return None
         return int(item.data(Qt.ItemDataRole.UserRole))
 
     def _on_open(self) -> None:
+        """Fire ``open_session`` for the selected row and close the dialog."""
         sid = self._selected_session_id()
         if sid is None:
             return
@@ -79,6 +82,7 @@ class SessionBrowserDialog(QDialog):
         self.accept()
 
     def _on_delete(self) -> None:
+        """Confirm with the user, then cascade-delete the selected session."""
         sid = self._selected_session_id()
         if sid is None:
             return
@@ -93,6 +97,7 @@ class SessionBrowserDialog(QDialog):
             self.refresh()
 
     def _on_export(self) -> None:
+        """Ask the user for a folder and write the session's CSVs into it."""
         sid = self._selected_session_id()
         if sid is None:
             return
@@ -110,6 +115,7 @@ class SessionBrowserDialog(QDialog):
 
 
 def _make_item(summary: SessionSummary) -> QListWidgetItem:
+    """Build a list item for one session, with the id stored as user data."""
     started = summary.started_at.strftime("%Y-%m-%d %H:%M")
     name = summary.name or "(unnamed)"
     score = (

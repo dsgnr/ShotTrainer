@@ -56,9 +56,11 @@ class MarkerSheetDialog(QDialog):
         layout.addWidget(buttons)
 
     def diameter_mm(self) -> float:
+        """The diameter the user currently has set, in mm."""
         return float(self._diameter.value())
 
     def _on_save_pdf(self) -> None:
+        """Ask for a path and render the marker sheet to PDF."""
         path, _ = QFileDialog.getSaveFileName(
             self, "Save marker sheet", "marker.pdf", "PDF (*.pdf)"
         )
@@ -71,16 +73,19 @@ class MarkerSheetDialog(QDialog):
         self._render(printer)
 
     def _on_print(self) -> None:
+        """Open the system print dialog and render the sheet on accept."""
         printer = QPrinter(QPrinter.PrinterMode.HighResolution)
         self._configure_printer(printer)
         if QPrintDialog(printer, self).exec() == QDialog.DialogCode.Accepted:
             self._render(printer)
 
     def _configure_printer(self, printer: QPrinter) -> None:
+        """Set the page size and margins, shared by both output paths."""
         printer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
         printer.setPageMargins(QMarginsF(0, 0, 0, 0), QPageLayout.Unit.Millimeter)
 
     def _render(self, printer: QPrinter) -> None:
+        """Draw the marker sheet onto ``printer`` (PDF or paper)."""
         painter = QPainter(printer)
         try:
             page_rect = printer.pageRect(QPrinter.Unit.Millimeter)
