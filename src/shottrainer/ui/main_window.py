@@ -288,10 +288,10 @@ class MainWindow(QMainWindow):
 
     def _toggle_session(self) -> None:
         # The primary button drives both Start and Stop. Click it.
-        self.session_controls._primary.click()
+        self.session_controls.primary_action().click()
 
     def _invoke_clear_shots(self) -> None:
-        if self.session_controls._clear.isEnabled():
+        if self.session_controls.clear_button().isEnabled():
             self.session_controls.clear_shots_requested.emit()
 
     def _toggle_replay(self) -> None:
