@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QAction, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -99,6 +99,7 @@ class MainWindow(QMainWindow):
 
         self.shot_list.shot_selected.connect(self.target_view.set_selected_shot)
         self.camera_view.clicked_at.connect(self._on_camera_view_clicked)
+        self._install_shortcuts()
 
     def _build_left_column(self) -> QWidget:
         col = QFrame()
@@ -270,3 +271,39 @@ class MainWindow(QMainWindow):
     def _on_camera_view_clicked(self, x: float, y: float) -> None:
         if self._manual_aim_button.isChecked():
             self.manual_aim_requested.emit(x, y)
+
+    def _install_shortcuts(self) -> None:
+        """Set up the keyboard shortcuts.
+
+        The same actions are always reachable through buttons
+        and menus too. The shortcuts are for users who prefer
+        muscle memory.
+        """
+        toggle = QShortcut(QKeySequence("Ctrl+S"), self)
+        toggle.activated.connect(self._toggle_session)
+        clear = QShortcut(QKeySequence("Ctrl+R"), self)
+        clear.activated.connect(self._invoke_clear_shots)
+        space = QShortcut(QKeySequence("Space"), self)
+        space.activated.connect(self._toggle_replay)
+
+    def _toggle_session(self) -> None:
+        # The primary button drives both Start and Stop. Click it.
+        self.session_controls._primary.click()
+
+    def _invoke_clear_shots(self) -> None:
+        if self.session_controls._clear.isEnabled():
+            self.session_controls.clear_shots_requested.emit()
+
+    def _toggle_replay(self) -> None:
+        # Don't intercept space when an input has focus.
+        focus = self.focusWidget()
+        if focus is not None and focus.metaObject().className() in (
+            "QLineEdit",
+            "QSpinBox",
+            "QDoubleSpinBox",
+            "QComboBox",
+        ):
+            return
+        # Toggle play / pause on the replay controls.
+        if self.replay_controls.isEnabled():
+            self.replay_controls.play_clicked.emit()
