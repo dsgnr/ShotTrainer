@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from shottrainer.app.detector_store import load_detector_settings, save_detector_settings
+from shottrainer.app.detector_store import (
+    clear_detector_settings,
+    load_detector_settings,
+    save_detector_settings,
+)
 from shottrainer.tracking.detector import DetectorSettings
 
 
@@ -37,3 +41,16 @@ def test_unknown_keys_are_ignored(tmp_path: Path):
     loaded = load_detector_settings(p)
     assert loaded is not None
     assert loaded.min_radius_px == 12
+
+
+def test_clear_removes_existing_file(tmp_path: Path):
+    p = tmp_path / "detector.json"
+    save_detector_settings(DetectorSettings(min_radius_px=12), p)
+    assert p.exists()
+    clear_detector_settings(p)
+    assert not p.exists()
+
+
+def test_clear_silently_handles_missing_file(tmp_path: Path):
+    p = tmp_path / "nope.json"
+    clear_detector_settings(p)  # should not raise

@@ -48,3 +48,12 @@ def save_detector_settings(
     p = path or detector_settings_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(asdict(settings), indent=2))
+
+
+def clear_detector_settings(path: Path | None = None) -> None:
+    """Delete the detector settings file. No error if it isn't there."""
+    p = path or detector_settings_path()
+    try:
+        p.unlink(missing_ok=True)
+    except OSError as exc:
+        log.warning("Could not remove %s: %s", p, exc)
