@@ -139,6 +139,7 @@ class Tracker:
 
     @property
     def zero_offset_mm(self) -> tuple[float, float]:
+        """Current zero-on-aim offset in mm. ``(0, 0)`` means none is set."""
         return self._zero_offset_mm
 
     def zero_at_last_sample(self) -> bool:
@@ -204,14 +205,17 @@ class Tracker:
 
     @property
     def last_radius_px(self) -> float:
+        """Pixel radius of the last circle the detector found."""
         return self._last_radius_px
 
     @property
     def last_detection(self) -> Detection | None:
+        """The most recent :class:`Detection`, or ``None`` if nothing has run yet."""
         return self._last_detection
 
     @property
     def last_sample(self) -> TrackingSample | None:
+        """The most recent :class:`TrackingSample`, or ``None`` if no detection has landed."""
         return self._last_sample
 
     @property
@@ -236,6 +240,7 @@ class Tracker:
 
     @property
     def circle_diameter_mm(self) -> float:
+        """The tracking-circle diameter the user configured, in mm."""
         return self._diameter_mm
 
     def _next_frame_id(self, frame_id: int | None) -> int:
