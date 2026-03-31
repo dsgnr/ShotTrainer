@@ -30,6 +30,8 @@ from shottrainer.services.trace_buffer import TraceBuffer
 from shottrainer.sessions.database import init_database, make_engine
 from shottrainer.sessions.repository import SessionRepository
 from shottrainer.tracking.camera import CameraCapture, CameraConfig, list_available_cameras
+from shottrainer.tracking.detector import DetectorSettings
+from shottrainer.tracking.detector_tuning import optimise_detector_settings
 from shottrainer.tracking.sheet_detector import detect_sheet_corners
 from shottrainer.tracking.tracker import Tracker
 from shottrainer.ui.main_window import MainWindow
@@ -466,8 +468,6 @@ class AppController(QObject):
                 push(name, actual)
 
     def _on_optimise_requested(self) -> None:
-        from shottrainer.tracking.detector_tuning import optimise_detector_settings
-
         if self._latest_frame is None:
             self._window.statusBar().showMessage(
                 "No camera frame available to optimise from", 4000
@@ -491,8 +491,6 @@ class AppController(QObject):
         )
 
     def _on_reset_detector_requested(self) -> None:
-        from shottrainer.tracking.detector import DetectorSettings
-
         defaults = DetectorSettings(region_fraction=self._preferences.tracking_region_fraction)
         self._tracker.detector.settings = defaults
         clear_detector_settings()
