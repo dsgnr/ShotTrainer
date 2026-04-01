@@ -346,15 +346,15 @@ class AppController(QObject):
         if self._recorder.is_recording:
             self._window.statusBar().showMessage("Stop recording before opening a session", 4000)
             return
-        view = self._replay.load_session(session_id)
+        # Load shots only here. The trace is loaded per-shot on selection.
+        # Full traces can be large and most users want the window around
+        # a specific shot, not the whole session.
+        shots = self._repo.list_shots(session_id)
 
         self._current_view_session_id = session_id
         self._window.target_view.clear_trace()
         self._window.target_view.set_split_index(None)
         self._window.target_view.set_hold_zone(None)
-        self._window.target_view.set_trace(
-            [(s.x_mm or 0.0, s.y_mm or 0.0) for s in view.trace if s.x_mm is not None]
-        )
         self._shots_in_view = [
             _ShotEntry(
                 timestamp=s.ts,
@@ -362,7 +362,7 @@ class AppController(QObject):
                 y_mm=s.y_mm or 0.0,
                 score=s.score or None,
             )
-            for s in view.shots
+            for s in shots
         ]
         self._render_shots()
         self._refresh_stats()
