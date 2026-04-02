@@ -61,6 +61,16 @@ ROTATION_OPTIONS: tuple[tuple[int, str], ...] = (
 )
 
 
+CALIBRES_MM: dict[str, float] = {
+    "177": 4.5,
+    "20": 5.0,
+    "22": 5.6,
+    "25": 6.35,
+    "9mm": 9.0,
+    "45": 11.43,
+}
+
+
 def _make_combo(
     items: list[tuple[object, str]],
     *,
@@ -384,6 +394,24 @@ class PreferencesDialog(QDialog):
         )
         form.addRow("Face", self._target_face)
 
+        # Dropdown of the most common calibres. Picking a preset
+        # sets the diameter spinbox. Users can still type a custom value.
+        self._calibre = _make_combo(
+            [
+                ("custom", "Custom"),
+                ("177", ".177 air pellet (4.5 mm)"),
+                ("20", ".20 air pellet (5.0 mm)"),
+                ("22", ".22 (5.6 mm)"),
+                ("25", ".25 (6.35 mm)"),
+                ("9mm", "9 mm"),
+                ("45", ".45 (11.43 mm)"),
+            ],
+            tooltip="Common projectile calibres. Pick one or type a custom diameter below.",
+            initial=self._calibre_for_diameter(prefs.shot_diameter_mm),
+        )
+        self._calibre.currentIndexChanged.connect(self._on_calibre_changed)
+        form.addRow("Calibre", self._calibre)
+
         self._shot_diameter = QDoubleSpinBox()
         self._shot_diameter.setRange(0.5, 25.0)
         self._shot_diameter.setSingleStep(0.1)
@@ -393,6 +421,7 @@ class PreferencesDialog(QDialog):
             "Pellet/bullet diameter. Used to draw shots at their correct size on "
             "the target view (4.5 mm for .177 air, 5.6 mm for .22)."
         )
+        self._shot_diameter.valueChanged.connect(self._on_shot_diameter_changed)
         form.addRow("Shot diameter", self._shot_diameter)
         layout.addLayout(form)
 
@@ -417,6 +446,29 @@ class PreferencesDialog(QDialog):
             return
         rings = self._rings_lookup(key)
         self._face_preview.set_rings(rings)
+
+    def _calibre_for_diameter(self, mm: float) -> str:
+        for key, value in CALIBRES_MM.items():
+            if abs(value - mm) < 0.05:
+                return key
+        return "custom"
+
+    def _on_calibre_changed(self, _index: int) -> None:
+        key = self._calibre.currentData()
+        if isinstance(key, str) and key in CALIBRES_MM:
+            # Block signals during the spinbox update so the change
+            # doesn't flip the dropdown back to "Custom".
+            self._shot_diameter.blockSignals(True)
+            self._shot_diameter.setValue(CALIBRES_MM[key])
+            self._shot_diameter.blockSignals(False)
+
+    def _on_shot_diameter_changed(self, value: float) -> None:
+        # Manual edit invalidates the preset selection.
+        self._calibre.blockSignals(True)
+        idx = self._calibre.findData(self._calibre_for_diameter(value))
+        if idx >= 0:
+            self._calibre.setCurrentIndex(idx)
+        self._calibre.blockSignals(False)
 
     def _build_recording_tab(self, prefs: Preferences) -> QWidget:
         page = QWidget()
