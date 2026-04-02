@@ -5,24 +5,55 @@ subsystem can be tested in isolation, and Qt signals connect them at the edges.
 
 ## High level
 
-```
-camera + tracking ----> tracking samples (timestamp, x_mm, y_mm, ...)
-                              |
-audio shot detector ---->  shot events  (timestamp, audio_level)
-                              |
-                  shot coordinator (in services/)
-                              |
-                  session recorder (in services/)
-                              |
-                  SQLite via SQLAlchemy
-                              |
-                            UI
+```mermaid
+flowchart TB
+    Cam[Camera<br/>frame] --> Pipeline[Capture pipeline]
+    Pipeline --> Tracker[Tracker]
+    Tracker --> Buffer[Trace buffer]
+    Pipeline --> Preview[Live preview<br/>and target view]
+
+    Mic[Microphone<br/>block] --> Detector[Audio shot detector]
+    Detector --> ShotCoord[Shot coordinator]
+    Buffer --> ShotCoord
+    ShotCoord --> Recorder[Session recorder]
+    Recorder --> DB[(SQLite via<br/>SQLAlchemy)]
+
+    DB --> Replay[Replay coordinator]
+    Replay --> ReplayUI[Replay UI]
+
+    classDef capture fill:#1d3557,stroke:#a8dadc,color:#f1faee;
+    classDef domain fill:#2d6cdf,stroke:#a8dadc,color:#f1faee;
+    classDef store fill:#457b9d,stroke:#a8dadc,color:#f1faee;
+    classDef ui fill:#264653,stroke:#a8dadc,color:#f1faee;
+    class Cam,Mic capture;
+    class Pipeline,Tracker,Buffer,Detector,ShotCoord,Recorder,Replay domain;
+    class DB store;
+    class Preview,ReplayUI ui;
 ```
 
 The UI never talks to the camera or audio backends directly. It listens to
 high level signals from the services layer (new tracking sample, shot
 detected, session saved) and reads from the repository when displaying past
 sessions.
+
+## Module boundaries
+
+```mermaid
+flowchart LR
+    UI[ui/<br/>widgets &amp. Dialogs] --> App[app/<br/>controller, settings]
+    App --> Services[services/<br/>recorder, replay, scoring]
+    App --> Tracking[tracking/<br/>camera, detector, tracker]
+    App --> Audio[audio/<br/>input, detector]
+    Services --> Sessions[sessions/<br/>models, repository]
+    Replay[replay/<br/>player, timeline] --> Sessions
+
+    classDef layer fill:#2d6cdf,stroke:#a8dadc,color:#f1faee;
+    class UI,App,Services,Tracking,Audio,Sessions,Replay layer;
+```
+
+Arrows point from depends-on to depended-upon. ``ui/`` and ``app/``
+are the only modules that import Qt. Everything below the controller
+is pure Python so it tests cleanly with synthetic data.
 
 ## Threads
 
@@ -64,7 +95,7 @@ These live under the platform-appropriate data directory (see
 Each file degrades gracefully if missing or corrupt. The app falls back to
 defaults rather than failing to start.
 
-## Module boundaries
+## Why detection lives outside the capture loop
 
 The original sketch had everything inside the camera loop. Pulling
 detection and coordinate conversion out of the capture loop makes them
