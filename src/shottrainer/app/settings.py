@@ -29,6 +29,9 @@ def load_preferences(path: Path | None = None) -> Preferences:
         return Preferences()
 
     valid = {f.name for f in fields(Preferences)}
+    unknown = set(raw) - valid
+    if unknown:
+        log.debug("Ignoring unknown preference keys: %s", sorted(unknown))
     filtered = {k: v for k, v in raw.items() if k in valid}
     try:
         return Preferences(**filtered)
