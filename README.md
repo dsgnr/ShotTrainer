@@ -61,7 +61,9 @@ with various cameras people have tried.
 ## How it's set up
 
 1. Print the marker sheet from `Tools > Print marker sheet` and pin it
-   at your shooting position.
+   at your shooting position, or use any printed target whose black
+   aiming circle has a known diameter (NSRA, ISSF and other federation
+   targets all work. The built-in face presets cover common ones).
 2. Mount a small USB webcam to the rifle barrel or stock so it looks
    forward at the printed circle.
 3. In `Preferences > Target > Tracking circle`, set the diameter to
