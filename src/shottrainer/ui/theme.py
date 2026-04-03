@@ -386,6 +386,29 @@ QCheckBox::indicator {
 QCheckBox::indicator:checked {
     background: #2d6cdf;
     border-color: #2d6cdf;
+    image: url("__CHECK_PATH__");
+}
+
+QCheckBox::indicator:disabled {
+    border-color: #1f242c;
+    background: #0c0e12;
+}
+
+QCheckBox:disabled {
+    color: #4a5260;
+}
+
+QSlider:disabled::groove:horizontal {
+    background: #181b21;
+}
+
+QSlider:disabled::sub-page:horizontal {
+    background: #2d3340;
+}
+
+QSlider:disabled::handle:horizontal {
+    background: #2d3340;
+    border: 2px solid #0e1014;
 }
 
 /* Scrollbars */
@@ -428,4 +451,9 @@ QLabel#calibrationIntro {
 
 def apply_dark_theme(app) -> None:
     """Apply the dark stylesheet to a QApplication."""
-    app.setStyleSheet(DARK_QSS)
+    from .assets import asset_path
+
+    # Use a forward-slash path so QSS parses it consistently on Windows.
+    check_path = str(asset_path("check.svg")).replace("\\", "/")
+    qss = DARK_QSS.replace("__CHECK_PATH__", check_path)
+    app.setStyleSheet(qss)
