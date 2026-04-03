@@ -24,6 +24,7 @@ from shottrainer.services.shot_stats import compute_trace_stats
 from shottrainer.services.trace_buffer import TraceBuffer
 from shottrainer.sessions.database import init_database, make_engine
 from shottrainer.sessions.repository import SessionRepository
+from shottrainer.tracking.calibration import LinearCalibration
 from shottrainer.tracking.camera import CameraCapture, CameraConfig, list_available_cameras
 from shottrainer.tracking.detector import DetectorSettings
 from shottrainer.tracking.detector_tuning import optimise_detector_settings
@@ -38,6 +39,7 @@ from shottrainer.ui.target_view import ShotMarker
 
 from .calibration_controller import CalibrationController
 from .calibration_store import serialise_calibration
+from .calibration_watcher import CalibrationWatcher
 from .capture_pipeline import CapturePipeline, FrameTransformOptions
 from .detector_store import (
     clear_detector_settings,
@@ -100,10 +102,14 @@ class AppController(QObject):
         self._frame_mirrors: list[Any] = []  # dialogs that want live frames
         self._latest_frame: np.ndarray | None = None
 
+        self._calibration_watcher = CalibrationWatcher(parent=self)
+        self._calibration_watcher.changed.connect(self._on_calibration_file_changed)
+
         self._calibration_controller = CalibrationController(
             tracker=self._tracker,
             on_status=self._window.set_calibration_status,
             on_message=lambda msg: self._window.statusBar().showMessage(msg, 4000),
+            on_persisted=self._calibration_watcher.mark_seen,
         )
 
         self._connect_signals()
@@ -118,6 +124,7 @@ class AppController(QObject):
             self._tracker.detector.settings = saved_detector
 
         self._calibration_controller.restore_saved()
+        self._calibration_watcher.start()
 
     def start(self) -> None:
         """Start live preview. The camera and microphone run for as long as the app is open."""
@@ -130,6 +137,7 @@ class AppController(QObject):
         # the audio listener stops emitting events.
         if self._recorder.is_recording:
             self._recorder.stop()
+        self._calibration_watcher.stop()
         self._stop_camera()
         self._audio.stop()
 
@@ -490,6 +498,19 @@ class AppController(QObject):
         self._tracker.detector.settings = defaults
         clear_detector_settings()
         self._window.statusBar().showMessage("Detector reset to defaults", 3000)
+
+    def _on_calibration_file_changed(self, calibration) -> None:
+        if calibration is None:
+            self._tracker.set_calibration(None)
+            self._window.set_calibration_status("Uncalibrated")
+            return
+        self._tracker.set_calibration(calibration)
+        if isinstance(calibration, LinearCalibration):
+            mm_per_px = calibration.mm_per_pixel
+        else:
+            mm_per_px = calibration.diagnostic_mm_per_pixel()
+        self._window.set_calibration_status(f"Calibrated: {mm_per_px:.3f} mm/px")
+        self._window.statusBar().showMessage("Calibration updated from disk", 3000)
 
     def _register_frame_mirror(self, dialog) -> None:
         self._frame_mirrors.append(dialog)
