@@ -40,6 +40,12 @@ from shottrainer.ui.target_view import ShotMarker
 from .calibration_controller import CalibrationController
 from .calibration_store import serialise_calibration
 from .calibration_watcher import CalibrationWatcher
+from .camera_selection import (
+    CameraSelection,
+    load_camera_selection,
+    resolve_camera_index,
+    save_camera_selection,
+)
 from .capture_pipeline import CapturePipeline, FrameTransformOptions
 from .detector_store import (
     clear_detector_settings,
@@ -128,8 +134,28 @@ class AppController(QObject):
 
     def start(self) -> None:
         """Start live preview. The camera and microphone run for as long as the app is open."""
-        self._start_camera(self._preferences.camera_id)
+        self._start_camera(self._effective_camera_index())
         self._audio.start()
+
+    def _effective_camera_index(self) -> int:
+        """Resolve the camera to use given the persisted selection."""
+        try:
+            available = list_available_cameras() or [(0, "Camera 0")]
+        except Exception:  # pragma: no cover - driver dependent
+            available = [(0, "Camera 0")]
+        selection = load_camera_selection()
+        return resolve_camera_index(selection, available)
+
+    def _persist_camera_selection(self, index: int) -> None:
+        try:
+            available = list_available_cameras() or [(index, f"Camera {index}")]
+        except Exception:  # pragma: no cover
+            available = [(index, f"Camera {index}")]
+        name = next((n for i, n in available if i == index), f"Camera {index}")
+        try:
+            save_camera_selection(CameraSelection(name=name, index=index))
+        except OSError as exc:
+            log.warning("Could not save camera selection: %s", exc)
 
     def shutdown(self) -> None:
         # Stop the recorder first so anything still in flight (an
@@ -375,6 +401,7 @@ class AppController(QObject):
 
         if previous is not None and previous.camera_id != prefs.camera_id and self._camera is not None:
             self._start_camera(prefs.camera_id)
+            self._persist_camera_selection(prefs.camera_id)
 
         # Only persist when the change came from the user. The initial load
         # of saved preferences should not rewrite the file.
