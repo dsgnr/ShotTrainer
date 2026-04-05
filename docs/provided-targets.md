@@ -25,6 +25,9 @@ printed circle whose diameter you can measure works.
 
 ShotTrainer ships with some standard target faces:
 
+- **NSRA 25 yd Prone Rifle (NSRA 2510 BM/89-18).** Five rings from 41.5 mm diamter down to a 13 mm 10-ring.
+- **NSRA 50 m Prone Rifle (NSRA MM 12 C 1996-18).** Seven rings from 105.5 mm diameter down to a 4.5 mm X-ring.
+- **NSRA 100 yd Prone Rifle (NSRA 1001C 1996-18).** Seven rings from 205 mm diameter down to an 11.5 mm X-ring.
 - **10 m air rifle (ISSF).** Ten rings from 45.5 mm diameter down to a
   0.5 mm diameter 10-ring (5 mm wide rings, 1.0 mm 10-ring).
 - **50 m smallbore (ISSF).** Ten rings from 154.4 mm diameter down to a
