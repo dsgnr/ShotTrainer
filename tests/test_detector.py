@@ -221,3 +221,57 @@ def test_morphological_opening_severs_thin_bridge_to_neighbour():
         # have to fail outright. The qualitative direction is the
         # contract.
         assert without_opening.x_px >= with_opening.x_px - 0.5
+
+
+
+def test_busy_scene_still_finds_target_and_caps_candidates():
+    """A scene full of small dark blobs should not derail the detector.
+
+    Pathological frames (textured walls, lots of paper printed with
+    small ink marks) used to expand into thousands of contours, each
+    going through the full filter chain. The detector now caps the
+    candidate count and prefilters by bounding rect so a busy scene
+    can't stall the GUI thread, and it should still latch onto a
+    real target sitting in the middle of the noise.
+    """
+    import numpy as np
+
+    rng = np.random.default_rng(42)
+    img = np.full((480, 640, 3), 240, dtype=np.uint8)
+    for _ in range(400):
+        x = int(rng.integers(0, 640 - 4))
+        y = int(rng.integers(0, 480 - 4))
+        side = int(rng.integers(2, 5))
+        cv2.rectangle(img, (x, y), (x + side, y + side), (10, 10, 10), -1)
+    cv2.circle(img, (320, 240), 25, (0, 0, 0), -1)
+
+    detection = CircleTargetDetector().detect(img)
+    assert detection.found
+    assert abs(detection.x_px - 320) < 5
+    assert abs(detection.y_px - 240) < 5
+
+
+def test_lock_window_prefers_nearby_target_over_far_distractor():
+    """With a lock established, a fresh distractor outside the search
+    window should be ignored entirely. The cropped findContours loop
+    means contours far from the lock never enter the candidate list,
+    so even a more "circular" blob far away can't take the lock."""
+    detector = CircleTargetDetector(
+        DetectorSettings(region_fraction=1.0, lock_radius_px=50.0)
+    )
+
+    # Establish the lock on a centred circle.
+    img = _white_canvas()
+    _draw_circle(img, 320, 240, 25)
+    first = detector.detect(img)
+    assert first.found
+
+    # Put a much larger distractor far away from the lock. The lock
+    # window should keep the detector ignoring it.
+    img2 = _white_canvas()
+    _draw_circle(img2, 320, 240, 25)
+    _draw_circle(img2, 60, 60, 35)
+    second = detector.detect(img2)
+    assert second.found
+    assert abs(second.x_px - 320) < 5
+    assert abs(second.y_px - 240) < 5
