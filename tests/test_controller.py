@@ -128,7 +128,7 @@ class _StubSignal:
     def __init__(self) -> None:
         self._slots: list[Callable] = []
 
-    def connect(self, slot: Callable) -> None:
+    def connect(self, slot: Callable, type: object = None) -> None:
         self._slots.append(slot)
 
     def emit(self, *args, **kwargs) -> None:
