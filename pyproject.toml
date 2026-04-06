@@ -26,6 +26,7 @@ dev = [
     "pytest-qt>=4.4",
     "ruff>=0.5",
     "mypy>=1.10",
+    "pylint>=3.2",
 ]
 
 [project.scripts]
@@ -68,3 +69,27 @@ warn_redundant_casts = true
 ignore_missing_imports = true
 packages = ["shottrainer"]
 mypy_path = "src"
+
+[tool.pylint.main]
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "too-few-public-methods",
+    "too-many-instance-attributes",
+    "too-many-arguments",
+    "too-many-locals",
+    "too-many-positional-arguments",
+    "duplicate-code",
+    "broad-exception-caught",
+    "fixme",
+    # PySide6's Signal class is generated at runtime. Pylint can't see
+    # its `connect`/`emit` so it complains everywhere a signal is connected.
+    "no-member",
+]
+ignore = ["build", "dist", ".venv", "site"]
+extension-pkg-allow-list = ["cv2", "PySide6"]
+generated-members = ["cv2.*", "PySide6.*"]
+
+[tool.pylint.format]
+max-line-length = 100

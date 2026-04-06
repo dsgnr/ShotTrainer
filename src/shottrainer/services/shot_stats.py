@@ -51,11 +51,10 @@ def compute_stats(positions: Sequence[tuple[float, float]]) -> ShotStats:
     mean_r = sum(radii) / len(radii)
 
     spread = 0.0
-    for i in range(len(positions)):
-        for j in range(i + 1, len(positions)):
-            d = math.hypot(positions[i][0] - positions[j][0], positions[i][1] - positions[j][1])
-            if d > spread:
-                spread = d
+    for i, (xi, yi) in enumerate(positions):
+        for xj, yj in positions[i + 1 :]:
+            d = math.hypot(xi - xj, yi - yj)
+            spread = max(spread, d)
 
     return ShotStats(
         count=len(positions),

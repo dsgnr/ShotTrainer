@@ -20,7 +20,9 @@ def export_session_csv(repo: SessionRepository, session_id: int, target_dir: Pat
     shots_path = target_dir / f"session_{session_id}_shots.csv"
     with shots_path.open("w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["index", "timestamp", "x_mm", "y_mm", "audio_level", "confidence", "score"])
+        writer.writerow(
+            ["index", "timestamp", "x_mm", "y_mm", "audio_level", "confidence", "score"]
+        )
         for i, shot in enumerate(repo.list_shots(session_id)):
             writer.writerow(
                 [
