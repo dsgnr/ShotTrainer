@@ -55,13 +55,25 @@ class CameraView(QWidget):
         self._status: TrackingStatus = "idle"
         self._region_fraction: float = 1.0
 
-    def set_frame(self, frame_bgr: np.ndarray) -> None:
-        """Push a BGR frame into the preview. Allocations kept to a minimum."""
-        if frame_bgr.ndim != 3 or frame_bgr.shape[2] != 3:
+    def set_frame(self, frame: np.ndarray) -> None:
+        """Push a frame into the preview.
+
+        Accepts either a colour BGR frame (``H x W x 3`` uint8)
+        or a single-channel greyscale frame (``H x W`` uint8).
+        The detector strips colour out before looking at the
+        frame, so feeding the preview the same single-channel
+        buffer skips a second conversion and a bigger pixmap
+        allocation.
+        """
+        if frame.ndim == 2 and frame.dtype == np.uint8:
+            h, w = frame.shape
+            image = QImage(frame.data, w, h, w, QImage.Format.Format_Grayscale8)
+        elif frame.ndim == 3 and frame.shape[2] == 3:
+            h, w, _ = frame.shape
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            image = QImage(rgb.data, w, h, 3 * w, QImage.Format.Format_RGB888)
+        else:
             return
-        h, w, _ = frame_bgr.shape
-        rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-        image = QImage(rgb.data, w, h, 3 * w, QImage.Format.Format_RGB888)
         # ``image`` references the numpy buffer. Copy once so the QPixmap owns the data.
         self._pixmap = QPixmap.fromImage(image.copy())
         self._frame_size = (w, h)
