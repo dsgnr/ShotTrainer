@@ -77,3 +77,41 @@ def test_transform_combines_rotation_and_flip():
     via_pipeline = transform_frame(f, rotation_degrees=180, flip_horizontal=True)
     expected = flip_frame(rotate_frame(f, 180), horizontal=True)
     assert (via_pipeline == expected).all()
+
+
+def test_adjust_image_identity_returns_input():
+    from shottrainer.tracking.frame_ops import adjust_image
+
+    f = _gradient_frame()
+    assert adjust_image(f) is f
+
+
+def test_adjust_image_brightness_offsets_pixels():
+    from shottrainer.tracking.frame_ops import adjust_image
+
+    f = np.full((4, 4), 100, dtype=np.uint8)
+    out = adjust_image(f, brightness=20.0)
+    assert int(out[0, 0]) == 120
+
+
+def test_adjust_image_contrast_scales_pixels():
+    from shottrainer.tracking.frame_ops import adjust_image
+
+    f = np.full((4, 4), 100, dtype=np.uint8)
+    out = adjust_image(f, contrast=1.5)
+    assert int(out[0, 0]) == 150
+
+
+def test_adjust_image_clips_to_uint8_range():
+    from shottrainer.tracking.frame_ops import adjust_image
+
+    f = np.full((4, 4), 200, dtype=np.uint8)
+    out = adjust_image(f, brightness=200.0)
+    assert int(out[0, 0]) == 255
+
+
+def test_transform_applies_brightness_and_contrast():
+    f = np.full((4, 4), 100, dtype=np.uint8)
+    out = transform_frame(f, contrast=1.2, brightness=10.0)
+    # 100 * 1.2 + 10 = 130
+    assert int(out[0, 0]) == 130

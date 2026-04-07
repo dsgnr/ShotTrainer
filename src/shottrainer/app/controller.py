@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol
@@ -31,6 +32,7 @@ from shottrainer.sessions.repository import SessionRepository
 from shottrainer.tracking.camera import CameraCapture, CameraConfig, list_available_cameras
 from shottrainer.tracking.detector import DetectorSettings
 from shottrainer.tracking.detector_tuning import optimise_detector_settings
+from shottrainer.tracking.frame_ops import transform_frame
 from shottrainer.tracking.models import Detection, TrackingSample
 from shottrainer.tracking.tracker import Tracker
 from shottrainer.ui.main_window import MainWindow
@@ -108,6 +110,11 @@ class AppController(QObject):
     # last_detection_or_None)``.
     _frame_processed = Signal(object, object, float, object)
 
+    # Auto-optimise runs on a background thread so the UI stays
+    # responsive. Carries ``(detector_settings_or_None,
+    # image_adjustment, confidence)``.
+    _optimise_finished = Signal(object, object, float)
+
     def __init__(self, window: MainWindow, db_path: Path) -> None:
         super().__init__()
         self._window = window
@@ -146,6 +153,9 @@ class AppController(QObject):
         self._current_view_session_id: int | None = None
         self._shots_in_view: list[_ShotEntry] = []
         self._frame_mirrors: list[_FrameMirror] = []  # dialogs that want live frames
+        self._active_prefs_dialog = None  # set while the Preferences dialog is open
+        self._frame_transform: FrameTransformOptions | None = None
+        self._optimise_in_progress = False
         self._latest_frame: np.ndarray | None = None
         # The camera list as it was last enumerated. Refreshed
         # lazily when the Preferences dialog opens. Consulted by
@@ -241,6 +251,11 @@ class AppController(QObject):
         # without the controller having to know about thread
         # affinity.
         self._frame_processed.connect(self._on_frame_processed)
+        # Auto-optimise runs on a background thread so the UI
+        # stays responsive while the grid search runs. Same
+        # trick as above: the signal is queued onto the GUI
+        # thread so the slot can touch widgets directly.
+        self._optimise_finished.connect(self._on_optimise_finished)
 
     def _effective_camera_index(self) -> int | None:
         """Pick the camera index to use given the saved selection.
@@ -291,14 +306,14 @@ class AppController(QObject):
             log.warning("Could not save camera selection: %s", exc)
 
     def _start_camera(self, device_index: int) -> None:
-        """Tear down any running capture and bring up a fresh one.
+        """Stop any running capture and bring up a fresh one.
 
-        Always recreates the :class:`CameraCapture` instance because
-        the worker is single-use. Reusing it would risk a stale
-        thread reference. Hardware property values from
-        :attr:`_preferences` are copied into the new config so the
-        camera comes up at the user's preferred brightness, gain
-        and so on.
+        Always builds a new :class:`CameraCapture` instance
+        because the worker is single-use, and reusing it would
+        risk a stale thread reference. Image controls
+        (brightness, contrast) live in the capture pipeline
+        rather than at the camera, so they aren't part of the
+        device config.
         """
         self._stop_camera()
         cam = CameraCapture(self._camera_config_from_prefs(device_index))
@@ -318,21 +333,12 @@ class AppController(QObject):
     def _camera_config_from_prefs(self, device_index: int) -> CameraConfig:
         """Build a :class:`CameraConfig` from preferences for ``device_index``.
 
-        Falls back to a bare config if preferences haven't loaded
-        yet (the very first call, before ``_apply_preferences``
-        runs).
+        ``CameraConfig`` only carries device-side options (index,
+        backend, requested resolution and frame rate). The image
+        controls are applied in software inside the capture
+        pipeline, so they don't show up here.
         """
-        prefs = getattr(self, "_preferences", None)
-        if prefs is None:
-            return CameraConfig(device_index=device_index)
-        return CameraConfig(
-            device_index=device_index,
-            brightness=prefs.camera_brightness,
-            contrast=prefs.camera_contrast,
-            saturation=prefs.camera_saturation,
-            gain=prefs.camera_gain,
-            exposure=prefs.camera_exposure,
-        )
+        return CameraConfig(device_index=device_index)
 
     def _stop_camera(self) -> None:
         """Stop the worker thread and reset the camera view's status pill."""
@@ -355,20 +361,33 @@ class AppController(QObject):
         return cameras, mics
 
     def _on_frame(self, frame: np.ndarray, ts: float, frame_id: int) -> None:
-        """Feed every frame from the camera signal into the capture pipeline.
+        """Camera signal slot, called for every incoming frame.
 
-        Runs on the camera worker thread (``DirectConnection``) so
-        detection, EMA updates, buffer append and recorder writes
-        all happen off the GUI thread. Only the resulting widget
-        updates are sent across via ``_frame_processed``.
+        Runs on the camera worker thread (because of the
+        ``DirectConnection``), so detection, the running-average
+        update, the buffer append and the recorder write all
+        happen off the GUI thread. Only the resulting widget
+        updates are passed across via ``_frame_processed``.
 
-        The frame is converted to greyscale before the pipeline
-        runs. The detector ignores colour anyway, and reusing the
-        single-channel buffer for the preview avoids a second
-        conversion in the camera widget.
+        The frame is converted to greyscale and run through the
+        per-frame transforms (rotation, flip, brightness,
+        contrast) before the pipeline sees it. The detector
+        ignores colour anyway, and reusing the single-channel
+        buffer for the preview avoids a second conversion in
+        the camera widget.
         """
         if frame.ndim == 3 and frame.shape[2] == 3:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        opts = self._frame_transform
+        if opts is not None:
+            frame = transform_frame(
+                frame,
+                rotation_degrees=opts.rotation_degrees,
+                flip_horizontal=opts.flip_horizontal,
+                flip_vertical=opts.flip_vertical,
+                brightness=opts.brightness,
+                contrast=opts.contrast,
+            )
         sample = self._pipeline.process(frame, ts, frame_id)
         # Snapshot the tracker state so the GUI handler reads
         # consistent values even though the worker thread might
@@ -693,13 +712,7 @@ class AppController(QObject):
         )
         self._audio.set_device(prefs.audio_device)
 
-        self._pipeline.set_transform(
-            FrameTransformOptions(
-                rotation_degrees=prefs.camera_rotation,
-                flip_horizontal=prefs.camera_flip_h,
-                flip_vertical=prefs.camera_flip_v,
-            )
-        )
+        self._frame_transform = self._build_transform_options(prefs)
 
         rings = rings_for_face(prefs.target_face)
         self._window.target_view.set_rings(rings)
@@ -842,9 +855,12 @@ class AppController(QObject):
         selection if the user closes without saving.
         """
         self._register_frame_mirror(dialog)
+        self._active_prefs_dialog = dialog
+        dialog.finished.connect(self._on_prefs_dialog_closed)
         if self._latest_frame is not None:
             dialog.push_frame(self._latest_frame)
         dialog.camera_property_changed.connect(self._on_camera_property_changed)
+        dialog.camera_transform_changed.connect(self._on_camera_transform_changed)
         dialog.camera_changed.connect(self._on_camera_chosen_in_dialog)
         dialog.refresh_devices_requested.connect(
             lambda: self._refresh_dialog_devices(dialog)
@@ -858,11 +874,15 @@ class AppController(QObject):
         # Save button). Any other close path (Cancel, the OS close
         # button, Escape) restores the previous capture.
         original_index = self._preferences.camera_id
+        original_prefs = self._preferences
         saved = {"committed": False}
 
         dialog.saved.connect(lambda _prefs: saved.__setitem__("committed", True))
         dialog.finished.connect(
             lambda _r: self._revert_camera_after_dialog(original_index, saved["committed"])
+        )
+        dialog.finished.connect(
+            lambda _r: self._revert_transform_after_dialog(original_prefs, saved["committed"])
         )
 
         # Sync the live capture to whatever the dialog ended up
@@ -914,6 +934,27 @@ class AppController(QObject):
         else:
             self._start_camera(original_index)
 
+    def _revert_transform_after_dialog(
+        self,
+        original_prefs: Preferences,
+        committed: bool,
+    ) -> None:
+        """Undo unsaved rotation, flip and image-control changes on cancel.
+
+        While the dialog is open the controller updates
+        ``self._preferences`` and the live frame transform on
+        every slider movement and rotation/flip toggle so the
+        preview reflects the new values. On a non-Save close
+        both have to revert to what was loaded when the dialog
+        opened. The Save path is covered by
+        :meth:`_apply_preferences` with a fresh
+        :class:`Preferences`.
+        """
+        if committed:
+            return
+        self._preferences = original_prefs
+        self._frame_transform = self._build_transform_options(original_prefs)
+
     def _camera_device_index(self) -> int | None:
         """Return the device index of the running capture, or ``None``."""
         cam = self._camera
@@ -941,48 +982,214 @@ class AppController(QObject):
         self._start_camera(index)
 
     def _on_camera_property_changed(self, name: str, value: object) -> None:
-        """Push a slider change into the live camera in real time."""
-        if self._camera is None:
+        """Push a slider change into the live transform straight away.
+
+        The dialog fires this on every slider movement so the
+        embedded preview shows the change at once. The new value
+        goes into the controller's frame transform so both the
+        preview and the detector see the corrected frame.
+        Nothing is saved to disk until the user clicks Save. The
+        cancel path leaves the previous values in place via
+        :meth:`_apply_preferences`.
+        """
+        if value is None:
             return
-        # ``value`` is float | None at runtime. The dialog's signal types
-        # it loosely so Qt can carry None.
-        self._camera.set_property(name, value if value is not None else None)
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return
+        if name == "brightness":
+            self._preferences = replace(self._preferences, camera_brightness=numeric)
+        elif name == "contrast":
+            self._preferences = replace(self._preferences, camera_contrast=numeric)
+        else:
+            return
+        self._frame_transform = self._build_transform_options(self._preferences)
+
+    def _on_camera_transform_changed(
+        self, rotation: int, flip_h: bool, flip_v: bool
+    ) -> None:
+        """Apply a rotation or flip change from the open Preferences dialog.
+
+        Mirrors the brightness/contrast path. The controller's
+        frame transform is updated live so the embedded preview
+        reflects what saving will do, and nothing is written to
+        disk until the user clicks Save.
+        """
+        self._preferences = replace(
+            self._preferences,
+            camera_rotation=rotation,
+            camera_flip_h=flip_h,
+            camera_flip_v=flip_v,
+        )
+        self._frame_transform = self._build_transform_options(self._preferences)
+
+    @staticmethod
+    def _build_transform_options(prefs: Preferences) -> FrameTransformOptions:
+        """Build the controller's frame transform from a preferences object."""
+        return FrameTransformOptions(
+            rotation_degrees=prefs.camera_rotation,
+            flip_horizontal=prefs.camera_flip_h,
+            flip_vertical=prefs.camera_flip_v,
+            brightness=prefs.camera_brightness,
+            contrast=prefs.camera_contrast,
+        )
 
     def _on_optimise_requested(self) -> None:
-        """Run the auto-tuner against the latest frame and persist the result.
+        """Run the auto-tuner on a background thread.
 
-        Surfaces a status message either way: success reports the
-        confidence score. Failure tells the user why nothing
-        changed.
+        The grid search is hundreds of detector evaluations on a
+        720p frame, which is enough to freeze the GUI for a
+        couple of seconds if it ran inline. So we run it on a
+        worker thread. The result comes back via
+        :attr:`_optimise_finished`, which is queued onto the GUI
+        thread for :meth:`_on_optimise_finished`.
         """
+        if self._optimise_in_progress:
+            return
         if self._latest_frame is None:
-            self._window.statusBar().showMessage(
-                "No camera frame available to optimise from", 4000
+            self._set_detector_status(
+                "No camera frame available to optimise from", kind="warning"
             )
             return
-        new_settings, score = optimise_detector_settings(
-            self._latest_frame, self._tracker.detector.settings
+        # The latest frame already has the user's current
+        # brightness/contrast applied, so we re-run the
+        # optimisation against the *raw* greyscale source.
+        # Otherwise the search would be biased by wherever the
+        # sliders happen to be.
+        source = self._raw_optimisation_frame()
+        if source is None:
+            self._set_detector_status(
+                "No camera frame available to optimise from", kind="warning"
+            )
+            return
+        self._optimise_in_progress = True
+        self._set_optimise_button_enabled(False)
+        self._set_detector_status("Optimising tracking...", kind="info")
+
+        base_settings = self._tracker.detector.settings
+        # ``frame.copy`` so the worker thread doesn't race with
+        # the next camera frame writing into the same buffer.
+        snapshot = source.copy()
+        thread = threading.Thread(
+            target=self._run_optimise_worker,
+            args=(snapshot, base_settings),
+            daemon=True,
+            name="optimise-detector",
         )
-        if new_settings is None:
-            self._window.statusBar().showMessage(
-                "Could not find a stable target in the current frame", 4000
+        thread.start()
+
+    def _run_optimise_worker(
+        self,
+        frame: np.ndarray,
+        base_settings: DetectorSettings,
+    ) -> None:
+        """Worker-thread body for auto-optimise. Emits a finished signal."""
+        try:
+            new_settings, adjustment, score = optimise_detector_settings(
+                frame, base_settings
+            )
+        except Exception:
+            log.exception("Auto-optimise failed")
+            self._optimise_finished.emit(None, None, 0.0)
+            return
+        self._optimise_finished.emit(new_settings, adjustment, score)
+
+    def _on_optimise_finished(
+        self,
+        new_settings: DetectorSettings | None,
+        adjustment: object,
+        score: float,
+    ) -> None:
+        """Apply the optimiser's result on the GUI thread and refresh the dialog."""
+        self._optimise_in_progress = False
+        self._set_optimise_button_enabled(True)
+        if new_settings is None or adjustment is None:
+            self._set_detector_status(
+                "Could not find a stable target in the current frame", kind="warning"
             )
             return
+        previous_settings = self._tracker.detector.settings
+        previous_brightness = self._preferences.camera_brightness
+        previous_contrast = self._preferences.camera_contrast
+        unchanged = (
+            new_settings == previous_settings
+            and adjustment.brightness == previous_brightness
+            and adjustment.contrast == previous_contrast
+        )
         self._tracker.detector.settings = new_settings
         try:
             save_detector_settings(new_settings)
         except OSError as exc:
             log.warning("Could not save detector settings: %s", exc)
-        self._window.statusBar().showMessage(
-            f"Tracking optimised (confidence {score:.2f})", 4000
+        # Push the suggested brightness/contrast back into
+        # preferences so the live pipeline picks them up on the
+        # next frame.
+        self._preferences = replace(
+            self._preferences,
+            camera_brightness=adjustment.brightness,
+            camera_contrast=adjustment.contrast,
         )
+        self._frame_transform = self._build_transform_options(self._preferences)
+        # If the Preferences dialog is open, snap its sliders so
+        # the user can see what the optimiser settled on.
+        dialog = self._active_prefs_dialog
+        if dialog is not None:
+            dialog.set_image_controls(adjustment.brightness, adjustment.contrast)
+        if unchanged:
+            self._set_detector_status(
+                f"Already optimal (confidence {score:.2f})", kind="info"
+            )
+        else:
+            self._set_detector_status(
+                f"Tracking optimised (confidence {score:.2f})", kind="success"
+            )
+
+    def _set_optimise_button_enabled(self, enabled: bool) -> None:
+        """Enable or disable the Auto-optimise button on the open dialog."""
+        dialog = self._active_prefs_dialog
+        if dialog is not None:
+            dialog.set_optimise_enabled(enabled)
+
+    def _raw_optimisation_frame(self) -> np.ndarray | None:
+        """Return the latest frame with the image adjustments backed out.
+
+        ``self._latest_frame`` already has the user's current
+        brightness and contrast baked in, so optimising against
+        it would compose two adjustments instead of searching the
+        full space. Reversing ``cv2.convertScaleAbs`` exactly
+        isn't possible, but for the optimiser's purposes a good
+        enough approximation is to subtract the offset, divide
+        by the multiplier, and clip back into the uint8 range.
+        """
+        frame = self._latest_frame
+        if frame is None:
+            return None
+        opts = self._frame_transform
+        if opts is None or (opts.brightness == 0.0 and opts.contrast == 1.0):
+            return frame
+        f = frame.astype(np.float32)
+        f = (f - opts.brightness) / max(opts.contrast, 1e-3)
+        return np.clip(f, 0, 255).astype(np.uint8)
 
     def _on_reset_detector_requested(self) -> None:
         """Reset the detector to defaults and delete the saved file."""
         defaults = DetectorSettings(region_fraction=self._preferences.tracking_region_fraction)
         self._tracker.detector.settings = defaults
         clear_detector_settings()
-        self._window.statusBar().showMessage("Detector reset to defaults", 3000)
+        self._set_detector_status("Detector reset to defaults", kind="info")
+
+    def _set_detector_status(self, text: str, *, kind: str) -> None:
+        """Show a detector status message in the status bar and the dialog."""
+        timeout = 4000 if kind != "info" else 3000
+        self._window.statusBar().showMessage(text, timeout)
+        dialog = self._active_prefs_dialog
+        if dialog is not None:
+            dialog.set_detector_status(text, kind=kind)
+
+    def _on_prefs_dialog_closed(self, _result: int) -> None:
+        """Drop the dialog reference once it closes."""
+        self._active_prefs_dialog = None
 
     def _register_frame_mirror(self, dialog) -> None:
         """Forward live frames and audio levels to ``dialog`` until it closes."""
