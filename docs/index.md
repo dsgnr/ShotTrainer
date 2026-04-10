@@ -24,6 +24,7 @@ what hasn't with various cameras.
 
 ## Get started
 
+- [Setup and camera alignment](setup.md)
 - [Setup and development workflow](https://github.com/dsgnr/ShotTrainer#development-setup) on GitHub.
 - [How tracking works](how-tracking-works.md)
 - [Accuracy and target sizing](accuracy.md)
