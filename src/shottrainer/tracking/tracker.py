@@ -60,6 +60,14 @@ class Tracker:
         self.calibration = calibration
         self._calibration_is_placeholder = False
 
+    def set_region_fraction(self, fraction: float) -> None:
+        """Update the detector's centred acceptance region in place."""
+        from dataclasses import replace
+
+        self.detector.settings = replace(
+            self.detector.settings, region_fraction=max(0.05, min(1.0, float(fraction)))
+        )
+
     @property
     def calibration_is_placeholder(self) -> bool:
         return self._calibration_is_placeholder

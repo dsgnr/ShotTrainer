@@ -42,6 +42,7 @@ class Preferences:
     post_shot_ms: int = 800
     target_face: str = "default"
     shot_diameter_mm: float = 4.5  # air pellet by default; .22 ~= 5.6 mm
+    tracking_region_fraction: float = 0.7
 
 
 ROTATION_OPTIONS: tuple[tuple[int, str], ...] = (
@@ -127,6 +128,13 @@ class PreferencesDialog(QDialog):
         self._flip_v = QCheckBox("Mirror vertically")
         self._flip_v.setChecked(prefs.camera_flip_v)
         form.addRow("", self._flip_v)
+
+        self._region = QDoubleSpinBox()
+        self._region.setRange(0.1, 1.0)
+        self._region.setSingleStep(0.05)
+        self._region.setDecimals(2)
+        self._region.setValue(prefs.tracking_region_fraction)
+        form.addRow("Tracking region", self._region)
         layout.addLayout(form)
 
         self._camera_preview = CameraView()
@@ -301,6 +309,7 @@ class PreferencesDialog(QDialog):
             post_shot_ms=int(self._post.value()),
             target_face=str(target_face),
             shot_diameter_mm=float(self._shot_diameter.value()),
+            tracking_region_fraction=float(self._region.value()),
         )
         self.saved.emit(updated)
         self.accept()
