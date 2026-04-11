@@ -40,6 +40,8 @@ class MainWindow(QMainWindow):
     preferences_dialog_opened = Signal(object)  # PreferencesDialog
     manual_aim_requested = Signal(float, float)  # image-space px
     manual_aim_cleared = Signal()
+    zero_on_aim_requested = Signal()
+    zero_cleared = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -71,6 +73,20 @@ class MainWindow(QMainWindow):
         self._manual_aim_button = QPushButton("Manual aim")
         self._manual_aim_button.setCheckable(True)
         self._manual_aim_button.toggled.connect(self._on_manual_aim_toggled)
+
+        self._zero_button = QPushButton("Zero on aim")
+        self._zero_button.setToolTip(
+            "Lock the current aim point as the trace's (0, 0). Hold the rifle "
+            "on the target's centre (or your zeroing group's centre) and click."
+        )
+        self._zero_button.clicked.connect(self.zero_on_aim_requested)
+
+        self._clear_zero_button = QPushButton("Clear zero")
+        self._clear_zero_button.setToolTip(
+            "Remove the user-set zero offset and revert to the calibrated origin."
+        )
+        self._clear_zero_button.clicked.connect(self.zero_cleared)
+        self._clear_zero_button.setEnabled(False)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(0)
@@ -120,6 +136,13 @@ class MainWindow(QMainWindow):
         manual_row.addWidget(self._manual_aim_button)
         manual_row.addStretch(1)
         layout.addLayout(manual_row)
+
+        zero_row = QHBoxLayout()
+        zero_row.setContentsMargins(0, 0, 0, 0)
+        zero_row.setSpacing(8)
+        zero_row.addWidget(self._zero_button)
+        zero_row.addWidget(self._clear_zero_button)
+        layout.addLayout(zero_row)
 
         layout.addSpacing(12)
         layout.addWidget(self._caption_label("MIC LEVEL"))
@@ -176,6 +199,25 @@ class MainWindow(QMainWindow):
 
     def set_calibration_status(self, text: str) -> None:
         self.header.set_calibration_text(text)
+
+    def set_zero_offset_state(self, has_offset: bool, offset_mm: tuple[float, float] | None = None) -> None:
+        """Reflect the current zero offset in the UI.
+
+        ``has_offset`` enables the "Clear zero" button.
+        ``offset_mm`` is only used for the button's tooltip so
+        the user can see what's being applied.
+        """
+        self._clear_zero_button.setEnabled(has_offset)
+        if has_offset and offset_mm is not None:
+            self._zero_button.setToolTip(
+                f"Current zero offset: ({offset_mm[0]:.1f}, {offset_mm[1]:.1f}) mm. "
+                "Click to lock the current aim as the new origin."
+            )
+        else:
+            self._zero_button.setToolTip(
+                "Lock the current aim point as the trace's (0, 0). Hold the rifle "
+                "on the target's centre (or your zeroing group's centre) and click."
+            )
 
     def main_splitter_sizes(self) -> list[int]:
         return list(self._main_splitter.sizes())
