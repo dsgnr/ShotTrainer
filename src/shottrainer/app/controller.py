@@ -43,7 +43,11 @@ from shottrainer.ui.target_faces import list_target_faces, rings_for_face
 from shottrainer.ui.target_view import ShotMarker
 
 from .calibration_controller import CalibrationController
-from .calibration_store import serialise_calibration
+from .calibration_store import (
+    load_zero_offset,
+    save_zero_offset,
+    serialise_calibration,
+)
 from .calibration_watcher import CalibrationWatcher
 from .camera_selection import (
     CameraSelection,
@@ -137,6 +141,12 @@ class AppController(QObject):
         self._calibration_controller.restore_saved()
         self._calibration_watcher.start()
 
+        # Restore any saved zero offset and surface it in the UI.
+        saved_offset = load_zero_offset()
+        if saved_offset != (0.0, 0.0):
+            self._tracker.set_zero_offset(*saved_offset)
+        self._window.set_zero_offset_state(saved_offset != (0.0, 0.0), saved_offset)
+
     def start(self) -> None:
         """Start live preview. The camera and microphone run for as long as the app is open."""
         self._start_camera(self._effective_camera_index())
@@ -204,6 +214,8 @@ class AppController(QObject):
         self._window.preferences_dialog_opened.connect(self._on_prefs_dialog_opened)
         self._window.manual_aim_requested.connect(self._on_manual_aim_requested)
         self._window.manual_aim_cleared.connect(self._on_manual_aim_cleared)
+        self._window.zero_on_aim_requested.connect(self._on_zero_on_aim_requested)
+        self._window.zero_cleared.connect(self._on_zero_cleared)
 
         self._audio.level.connect(self._on_audio_level)
 
@@ -286,6 +298,37 @@ class AppController(QObject):
         self._tracker.set_manual_point(None, None)
         self._window.target_view.set_live_aim_manual(False)
         self._window.statusBar().showMessage("Manual aim cleared", 2000)
+
+    def _on_zero_on_aim_requested(self) -> None:
+        if not self._tracker.zero_at_last_sample():
+            self._window.statusBar().showMessage(
+                "Aim at the target until the trace is live, then try again", 4000
+            )
+            return
+        offset = self._tracker.zero_offset_mm
+        self._persist_zero_offset(offset)
+        self._window.set_zero_offset_state(True, offset)
+        # The trace and on-screen shots were positioned against
+        # the old origin. Clearing makes the new zero obvious.
+        self._window.target_view.clear_trace()
+        self._window.target_view.set_hold_zone(None)
+        self._window.statusBar().showMessage(
+            f"Trace zeroed: offset ({offset[0]:.1f}, {offset[1]:.1f}) mm", 4000
+        )
+
+    def _on_zero_cleared(self) -> None:
+        self._tracker.clear_zero_offset()
+        self._persist_zero_offset((0.0, 0.0))
+        self._window.set_zero_offset_state(False, (0.0, 0.0))
+        self._window.target_view.clear_trace()
+        self._window.target_view.set_hold_zone(None)
+        self._window.statusBar().showMessage("Zero offset cleared", 2000)
+
+    def _persist_zero_offset(self, offset: tuple[float, float]) -> None:
+        try:
+            save_zero_offset(offset)
+        except OSError as exc:
+            log.warning("Could not save zero offset: %s", exc)
 
     def _on_shot_detected(self, event: ShotEvent) -> None:
         result = self._coordinator.handle_shot(event)
