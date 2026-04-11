@@ -58,6 +58,7 @@ class TargetView(QWidget):
         self._live_aim: tuple[float, float] | None = None
         self._live_aim_manual: bool = False
         self._split_index: int | None = None  # trace index where pre/post divides
+        self._playhead_index: int | None = None
         self._hold_zone: tuple[float, float, float] | None = None  # (cx, cy, r) in mm
         self._shot_diameter_mm: float = 4.5
 
@@ -86,12 +87,19 @@ class TargetView(QWidget):
     def set_trace(self, points: Iterable[tuple[float, float]]) -> None:
         self._trace = deque(points, maxlen=self._trace.maxlen)
         self._live_aim = self._trace[-1] if self._trace else None
+        self._playhead_index = None
         self.update()
 
     def set_split_index(self, index: int | None) -> None:
         """Mark the pre/post divide for replay; ``None`` draws a single colour."""
         self._split_index = index
         self.update()
+
+    def set_playhead_index(self, index: int | None) -> None:
+        """Highlight a single trace sample as the replay cursor."""
+        if index != self._playhead_index:
+            self._playhead_index = index
+            self.update()
 
     def set_live_aim_manual(self, manual: bool) -> None:
         """Mark the live aim cursor as user-picked rather than auto-detected."""
@@ -141,8 +149,22 @@ class TargetView(QWidget):
         self._draw_crosshair(painter, cx, cy, size)
         self._draw_hold_zone(painter, cx, cy, scale)
         self._draw_trace(painter, cx, cy, scale)
+        self._draw_playhead(painter, cx, cy, scale)
         self._draw_shots(painter, cx, cy, scale)
         self._draw_live_aim(painter, cx, cy, scale)
+
+    def _draw_playhead(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
+        if self._playhead_index is None or not self._trace:
+            return
+        i = max(0, min(len(self._trace) - 1, self._playhead_index))
+        x_mm, y_mm = self._trace[i]
+        x = cx + x_mm * scale
+        y = cy + y_mm * scale
+        pen = QPen(QColor("#f1c40f"))
+        pen.setWidth(2)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(QPointF(x, y), 7.0, 7.0)
 
     def _draw_hold_zone(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
         if self._hold_zone is None:
