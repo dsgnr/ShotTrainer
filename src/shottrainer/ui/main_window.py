@@ -7,6 +7,8 @@ from collections.abc import Callable
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
     QLabel,
     QMainWindow,
     QPushButton,
@@ -16,12 +18,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .app_header import AppHeader
 from .audio_meter import AudioMeter
 from .calibration_dialog import CalibrationDialog
 from .camera_view import CameraView
 from .marker_sheet import MarkerSheetDialog
 from .preferences_dialog import Preferences, PreferencesDialog
 from .replay_controls import ReplayControls
+from .section_header import SectionHeader
 from .session_controls import SessionControls
 from .shot_list import ShotList
 from .stats_panel import StatsPanel
@@ -41,7 +45,7 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("ShotTrainer")
-        self.resize(1280, 820)
+        self.resize(1440, 880)
 
         self._prefs = Preferences()
         self._calibration_corner_detector: Callable | None = None
@@ -49,6 +53,11 @@ class MainWindow(QMainWindow):
         self._target_faces_provider: Callable | None = None
         self._rings_lookup: Callable | None = None
 
+        # Header. Cross-cutting state and the only entry to settings.
+        self.header = AppHeader()
+        self.header.settings_button.clicked.connect(self._open_preferences_dialog)
+
+        # Core widgets
         self.session_controls = SessionControls()
         self.camera_view = CameraView()
         self.target_view = TargetView()
@@ -59,49 +68,29 @@ class MainWindow(QMainWindow):
         self.zoom_controls.set_extent(self.target_view.extent_mm)
         self.zoom_controls.extent_changed.connect(self.target_view.set_extent_mm)
         self.target_view.extent_changed.connect(self.zoom_controls.set_extent)
+        self.replay_controls = ReplayControls()
 
-        # Layout: target view dominates the main area. The camera preview
-        # and shot list sit in a slimmer side column. The camera preview is
-        # still useful for verifying tracking, but the user's eyes belong on
-        # the target.
-        side_column = QWidget()
-        side_layout = QVBoxLayout(side_column)
-        side_layout.setContentsMargins(0, 0, 0, 0)
-        self.camera_view.setMinimumSize(240, 180)
-        self.camera_view.setMaximumHeight(260)
-        side_layout.addWidget(self.camera_view, 1)
-
+        # Manual aim toggle, used in the camera column.
         self._manual_aim_button = QPushButton("Pick aim manually")
         self._manual_aim_button.setCheckable(True)
         self._manual_aim_button.toggled.connect(self._on_manual_aim_toggled)
-        side_layout.addWidget(self._manual_aim_button)
-
-        side_layout.addWidget(self.shot_list, 2)
-        side_layout.addWidget(self.audio_meter)
-        side_layout.addWidget(self.stats_panel)
-
-        target_column = QWidget()
-        target_layout = QVBoxLayout(target_column)
-        target_layout.setContentsMargins(0, 0, 0, 0)
-        target_layout.addWidget(self.target_view, 1)
-        target_layout.addWidget(self.zoom_controls)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.addWidget(target_column)
-        splitter.addWidget(side_column)
-        splitter.setStretchFactor(0, 4)
-        splitter.setStretchFactor(1, 1)
-        splitter.setSizes([900, 320])
+        splitter.addWidget(self._build_left_column())
+        splitter.addWidget(self._build_centre_column())
+        splitter.addWidget(self._build_right_column())
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 3)
+        splitter.setStretchFactor(2, 1)
+        splitter.setSizes([320, 800, 320])
         self._main_splitter = splitter
-
-        self.replay_controls = ReplayControls()
 
         central = QWidget()
         layout = QVBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.session_controls)
+        layout.setSpacing(0)
+        layout.addWidget(self.header)
         layout.addWidget(splitter, 1)
-        layout.addWidget(self.replay_controls)
         self.setCentralWidget(central)
 
         self._build_menus()
@@ -116,17 +105,74 @@ class MainWindow(QMainWindow):
         self.shot_list.shot_selected.connect(self.target_view.set_selected_shot)
         self.camera_view.clicked_at.connect(self._on_camera_view_clicked)
 
-    def _on_manual_aim_toggled(self, checked: bool) -> None:
-        if checked:
-            self._manual_aim_button.setText("Manual aim ON (click image)")
-            self.statusBar().showMessage("Click the camera view to set the aim point", 4000)
-        else:
-            self._manual_aim_button.setText("Pick aim manually")
-            self.manual_aim_cleared.emit()
+    def _build_left_column(self) -> QWidget:
+        col = QFrame()
+        col.setObjectName("leftColumn")
+        layout = QVBoxLayout(col)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-    def _on_camera_view_clicked(self, x: float, y: float) -> None:
-        if self._manual_aim_button.isChecked():
-            self.manual_aim_requested.emit(x, y)
+        layout.addWidget(SectionHeader("Camera"))
+        self.camera_view.setMinimumSize(280, 200)
+        layout.addWidget(self.camera_view, 1)
+
+        manual_row = QHBoxLayout()
+        manual_row.setContentsMargins(12, 8, 12, 8)
+        manual_row.addWidget(self._manual_aim_button)
+        layout.addLayout(manual_row)
+
+        layout.addWidget(SectionHeader("Microphone"))
+        meter_row = QHBoxLayout()
+        meter_row.setContentsMargins(12, 4, 12, 12)
+        meter_row.addWidget(self.audio_meter, 1)
+        layout.addLayout(meter_row)
+
+        layout.addStretch(0)
+        return col
+
+    def _build_centre_column(self) -> QWidget:
+        col = QFrame()
+        col.setObjectName("centreColumn")
+        layout = QVBoxLayout(col)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        layout.addWidget(self.target_view, 1)
+
+        # Below the target: zoom and replay scrubber side-by-side so
+        # everything you'd reach for during analysis is visible.
+        controls = QFrame()
+        controls.setObjectName("centreControls")
+        c_layout = QVBoxLayout(controls)
+        c_layout.setContentsMargins(8, 6, 8, 8)
+        c_layout.setSpacing(2)
+        c_layout.addWidget(self.zoom_controls)
+        c_layout.addWidget(self.replay_controls)
+        layout.addWidget(controls)
+        return col
+
+    def _build_right_column(self) -> QWidget:
+        col = QFrame()
+        col.setObjectName("rightColumn")
+        layout = QVBoxLayout(col)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        layout.addWidget(SectionHeader("Session"))
+        sc_row = QHBoxLayout()
+        sc_row.setContentsMargins(8, 0, 8, 4)
+        sc_row.addWidget(self.session_controls, 1)
+        layout.addLayout(sc_row)
+
+        layout.addWidget(SectionHeader("Shots"))
+        layout.addWidget(self.shot_list, 1)
+
+        layout.addWidget(SectionHeader("Stats"))
+        stats_row = QHBoxLayout()
+        stats_row.setContentsMargins(8, 0, 8, 8)
+        stats_row.addWidget(self.stats_panel, 1)
+        layout.addLayout(stats_row)
+        return col
 
     def set_calibration_status(self, text: str) -> None:
         self._calibration_label.setText(text)
@@ -215,3 +261,15 @@ class MainWindow(QMainWindow):
         self._prefs = prefs
         self.statusBar().showMessage(f"Saved preferences: camera {prefs.camera_id}", 3000)
         self.preferences_changed.emit(prefs)
+
+    def _on_manual_aim_toggled(self, checked: bool) -> None:
+        if checked:
+            self._manual_aim_button.setText("Manual aim ON (click image)")
+            self.statusBar().showMessage("Click the camera view to set the aim point", 4000)
+        else:
+            self._manual_aim_button.setText("Pick aim manually")
+            self.manual_aim_cleared.emit()
+
+    def _on_camera_view_clicked(self, x: float, y: float) -> None:
+        if self._manual_aim_button.isChecked():
+            self.manual_aim_requested.emit(x, y)
