@@ -259,13 +259,22 @@ class AppController(QObject):
 
     def _on_pipeline_detection(self, sample, radius_px: float) -> None:
         self._window.camera_view.set_aim_point(sample.x_px, sample.y_px, radius_px=radius_px)
+        self._window.camera_view.set_rejected_point(None, None)
         self._window.camera_view.set_status(
             "manual" if self._tracker.manual_point is not None else "tracking"
         )
         if sample.x_mm is not None and sample.y_mm is not None:
             self._window.target_view.append_trace_point(sample.x_mm, sample.y_mm)
 
-    def _on_pipeline_miss(self) -> None:
+    def _on_pipeline_miss(self, detection) -> None:
+        if detection is not None and detection.rejected_outside_region:
+            self._window.camera_view.set_rejected_point(
+                detection.x_px, detection.y_px, radius_px=detection.radius_px
+            )
+            self._window.camera_view.set_aim_point(None, None)
+            self._window.camera_view.set_status("rejected")
+            return
+        self._window.camera_view.set_rejected_point(None, None)
         self._window.camera_view.set_aim_point(None, None)
         self._window.camera_view.set_status("lost")
 
