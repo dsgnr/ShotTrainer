@@ -52,6 +52,7 @@ class Tracker:
         self._frame_id = 0
         self._last_sample: TrackingSample | None = None
         self._last_radius_px: float = 0.0
+        self._last_detection: Detection | None = None
         self._manual_px: tuple[float, float] | None = None
         self._zero_offset_mm: tuple[float, float] = (0.0, 0.0)
 
@@ -168,8 +169,10 @@ class Tracker:
             x_px, y_px = self._manual_px
             confidence = 0.0
             self._last_radius_px = 0.0
+            self._last_detection = None
         else:
             det: Detection = self.detector.detect(frame)
+            self._last_detection = det
             if not det.found:
                 self._last_radius_px = 0.0
                 return None
@@ -201,6 +204,15 @@ class Tracker:
     @property
     def last_radius_px(self) -> float:
         return self._last_radius_px
+
+    @property
+    def last_detection(self) -> Detection | None:
+        """The detector's most recent verdict, including misses.
+
+        Useful for surfacing rejection feedback (for example a blob seen
+        outside the tracking region) without abusing the sample stream.
+        """
+        return self._last_detection
 
     @property
     def last_sample(self) -> TrackingSample | None:
