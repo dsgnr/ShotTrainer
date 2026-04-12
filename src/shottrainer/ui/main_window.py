@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QFrame,
-    QLabel,
+    QHBoxLayout,
     QMainWindow,
     QPushButton,
     QSplitter,
@@ -21,12 +21,12 @@ from .app_header import AppHeader
 from .audio_meter import AudioMeter
 from .calibration_dialog import CalibrationDialog
 from .camera_view import CameraView
-from .card import Card
+from .hero_stats import HeroStats
 from .marker_sheet import MarkerSheetDialog
 from .preferences_dialog import Preferences, PreferencesDialog
 from .replay_controls import ReplayControls
 from .session_controls import SessionControls
-from .shot_list import ShotList
+from .shot_strip import ShotStrip
 from .stats_panel import StatsPanel
 from .target_view import TargetView
 from .zoom_controls import ZoomControls
@@ -52,16 +52,20 @@ class MainWindow(QMainWindow):
         self._target_faces_provider: Callable | None = None
         self._rings_lookup: Callable | None = None
 
-        # Header. Cross-cutting state and the only entry to settings.
         self.header = AppHeader()
         self.header.settings_button.clicked.connect(self._open_preferences_dialog)
 
-        # Core widgets
         self.session_controls = SessionControls()
         self.camera_view = CameraView()
         self.target_view = TargetView()
-        self.shot_list = ShotList()
-        self.stats_panel = StatsPanel()
+        self.shot_strip = ShotStrip()
+        # Keep a reference around so the controller's existing shot_list
+        # connections continue to work. HeroStats provides the visible
+        # numbers, the StatsPanel is no longer rendered but still serves
+        # as an internal sink if anyone listens.
+        self.shot_list = self.shot_strip
+        self.hero_stats = HeroStats()
+        self.stats_panel = StatsPanel()  # not displayed. Kept for the controller
         self.audio_meter = AudioMeter()
         self.zoom_controls = ZoomControls()
         self.zoom_controls.set_extent(self.target_view.extent_mm)
@@ -69,19 +73,19 @@ class MainWindow(QMainWindow):
         self.target_view.extent_changed.connect(self.zoom_controls.set_extent)
         self.replay_controls = ReplayControls()
 
-        # Manual aim toggle, used in the camera column.
-        self._manual_aim_button = QPushButton("Pick aim manually")
+        self._manual_aim_button = QPushButton("Manual aim")
         self._manual_aim_button.setCheckable(True)
         self._manual_aim_button.toggled.connect(self._on_manual_aim_toggled)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setHandleWidth(0)
         splitter.addWidget(self._build_left_column())
         splitter.addWidget(self._build_centre_column())
         splitter.addWidget(self._build_right_column())
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 3)
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 4)
         splitter.setStretchFactor(2, 1)
-        splitter.setSizes([320, 800, 320])
+        splitter.setSizes([260, 880, 300])
         self._main_splitter = splitter
 
         central = QWidget()
@@ -98,29 +102,32 @@ class MainWindow(QMainWindow):
         status.showMessage("Ready")
         self.setStatusBar(status)
 
-        self._calibration_label = QLabel("Uncalibrated")
-        status.addPermanentWidget(self._calibration_label)
-
-        self.shot_list.shot_selected.connect(self.target_view.set_selected_shot)
+        self.shot_strip.shot_selected.connect(self.target_view.set_selected_shot)
         self.camera_view.clicked_at.connect(self._on_camera_view_clicked)
 
     def _build_left_column(self) -> QWidget:
         col = QFrame()
         col.setObjectName("leftColumn")
+        col.setMinimumWidth(220)
+        col.setMaximumWidth(320)
         layout = QVBoxLayout(col)
-        layout.setContentsMargins(12, 12, 6, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(20, 24, 12, 24)
+        layout.setSpacing(20)
 
-        camera_card = Card("Camera")
-        self.camera_view.setMinimumSize(280, 200)
-        camera_card.add_widget(self.camera_view, stretch=1)
-        camera_card.add_widget(self._manual_aim_button)
-        layout.addWidget(camera_card, 2)
+        layout.addWidget(self._caption_label("CAMERA"))
+        self.camera_view.setMinimumSize(220, 165)
+        self.camera_view.setMaximumHeight(220)
+        layout.addWidget(self.camera_view)
 
-        mic_card = Card("Microphone")
-        mic_card.add_widget(self.audio_meter)
-        layout.addWidget(mic_card)
+        manual_row = QHBoxLayout()
+        manual_row.setContentsMargins(0, 0, 0, 0)
+        manual_row.addWidget(self._manual_aim_button)
+        manual_row.addStretch(1)
+        layout.addLayout(manual_row)
 
+        layout.addSpacing(12)
+        layout.addWidget(self._caption_label("MIC LEVEL"))
+        layout.addWidget(self.audio_meter)
         layout.addStretch(1)
         return col
 
@@ -128,41 +135,51 @@ class MainWindow(QMainWindow):
         col = QFrame()
         col.setObjectName("centreColumn")
         layout = QVBoxLayout(col)
-        layout.setContentsMargins(6, 12, 6, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(12, 24, 12, 16)
+        layout.setSpacing(16)
 
-        target_card = Card()
-        target_card.add_widget(self.target_view, stretch=1)
-        layout.addWidget(target_card, 1)
+        layout.addWidget(self.target_view, 1)
 
-        controls_card = Card(compact=True)
-        controls_card.add_widget(self.zoom_controls)
-        controls_card.add_widget(self.replay_controls)
-        layout.addWidget(controls_card)
+        # Compact zoom + replay row sits directly under the target. No
+        # surrounding chrome. Spacing alone groups them with the target.
+        controls_row = QHBoxLayout()
+        controls_row.setContentsMargins(8, 0, 8, 0)
+        controls_row.setSpacing(20)
+        controls_row.addWidget(self.zoom_controls, 1)
+        controls_row.addSpacing(8)
+        controls_row.addWidget(self.replay_controls, 1)
+        layout.addLayout(controls_row)
+
+        layout.addWidget(self.shot_strip)
         return col
 
     def _build_right_column(self) -> QWidget:
         col = QFrame()
         col.setObjectName("rightColumn")
+        col.setMinimumWidth(240)
+        col.setMaximumWidth(360)
         layout = QVBoxLayout(col)
-        layout.setContentsMargins(6, 12, 12, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(12, 24, 24, 24)
+        layout.setSpacing(20)
 
-        session_card = Card("Session")
-        session_card.add_widget(self.session_controls)
-        layout.addWidget(session_card)
+        layout.addWidget(self._caption_label("RESULTS"))
+        layout.addWidget(self.hero_stats)
 
-        shots_card = Card("Shots")
-        shots_card.add_widget(self.shot_list, stretch=1)
-        layout.addWidget(shots_card, 1)
+        layout.addStretch(1)
 
-        stats_card = Card("Stats")
-        stats_card.add_widget(self.stats_panel)
-        layout.addWidget(stats_card)
+        layout.addWidget(self._caption_label("SESSION"))
+        layout.addWidget(self.session_controls)
         return col
 
+    def _caption_label(self, text: str):
+        from PySide6.QtWidgets import QLabel
+
+        label = QLabel(text)
+        label.setObjectName("columnCaption")
+        return label
+
     def set_calibration_status(self, text: str) -> None:
-        self._calibration_label.setText(text)
+        self.header.set_calibration_text(text)
 
     def main_splitter_sizes(self) -> list[int]:
         return list(self._main_splitter.sizes())
@@ -175,11 +192,9 @@ class MainWindow(QMainWindow):
         self._calibration_corner_detector = fn
 
     def set_device_options_provider(self, fn: Callable) -> None:
-        """Provider returns ``(cameras, microphones)`` to populate the dialog."""
         self._device_options_provider = fn
 
     def set_target_faces_provider(self, fn: Callable) -> None:
-        """Provider returns a list of ``(key, label)`` for target face choices."""
         self._target_faces_provider = fn
 
     def set_rings_lookup(self, fn: Callable) -> None:
@@ -251,10 +266,10 @@ class MainWindow(QMainWindow):
 
     def _on_manual_aim_toggled(self, checked: bool) -> None:
         if checked:
-            self._manual_aim_button.setText("Manual aim ON (click image)")
+            self._manual_aim_button.setText("Manual aim ON")
             self.statusBar().showMessage("Click the camera view to set the aim point", 4000)
         else:
-            self._manual_aim_button.setText("Pick aim manually")
+            self._manual_aim_button.setText("Manual aim")
             self.manual_aim_cleared.emit()
 
     def _on_camera_view_clicked(self, x: float, y: float) -> None:
