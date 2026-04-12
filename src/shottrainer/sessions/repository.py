@@ -1,7 +1,7 @@
 """Repository for sessions, traces and shots.
 
 Hides SQLAlchemy from the rest of the app. Anything that wants
-to read or to read or to read or to read or to read or to read or to read or to read or to read or to read or to read or write persistence goes through here.
+to read or to write persistence goes through here.
 """
 
 from __future__ import annotations
@@ -13,7 +13,6 @@ from datetime import datetime
 from sqlalchemy import func, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session as OrmSession
-from sqlalchemy.orm import noload
 
 from shottrainer.services.scoring import label_to_value
 from shottrainer.tracking.models import TrackingSample
@@ -76,28 +75,32 @@ class SessionRepository:
             session.commit()
 
     def list_sessions(self) -> list[SessionSummary]:
-        """Return one :class:`SessionSummary` per row in ``sessions``.
+        """Return a :class:`SessionSummary` for every row in ``sessions``.
 
-        Resolves shot counts and total scores for every session in two
-        SQL queries regardless of how many sessions exist: one ``SELECT``
-        for the sessions themselves, one for the shots that belong to
-        them. Avoids the obvious-but-slow N+1 pattern of issuing a
-        per-session shot query.
+        Resolves shot counts and total scores in two queries
+        regardless of how many sessions exist. One ``SELECT``
+        for the sessions, one for the shots that belong to
+        them. Avoids the N+1 pattern of issuing a per-session
+        shot query.
+
+        The session query selects only the columns the summary
+        cares about, which skips the ORM identity-map and
+        instrumented-attribute work that would fire on every row
+        otherwise. Months of sessions load noticeably faster.
         """
         with OrmSession(self._engine, future=True) as session:
-            sessions = (
-                session.execute(
-                    select(Session)
-                    .options(noload(Session.shots))
-                    .order_by(Session.started_at.desc())
-                )
-                .scalars()
-                .all()
-            )
-            if not sessions:
+            session_rows = session.execute(
+                select(
+                    Session.id,
+                    Session.name,
+                    Session.started_at,
+                    Session.ended_at,
+                ).order_by(Session.started_at.desc())
+            ).all()
+            if not session_rows:
                 return []
 
-            session_ids = [int(s.id) for s in sessions]
+            session_ids = [int(row.id) for row in session_rows]
             shot_rows = session.execute(
                 select(Shot.session_id, Shot.score).where(
                     Shot.session_id.in_(session_ids)
@@ -114,14 +117,14 @@ class SessionRepository:
 
             return [
                 SessionSummary(
-                    id=int(s.id),
-                    name=s.name,
-                    started_at=s.started_at,
-                    ended_at=s.ended_at,
-                    shot_count=counts[int(s.id)],
-                    total_score=totals[int(s.id)],
+                    id=int(row.id),
+                    name=row.name,
+                    started_at=row.started_at,
+                    ended_at=row.ended_at,
+                    shot_count=counts[int(row.id)],
+                    total_score=totals[int(row.id)],
                 )
-                for s in sessions
+                for row in session_rows
             ]
 
     def get_session(self, session_id: int) -> Session | None:
