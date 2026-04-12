@@ -17,7 +17,7 @@ import numpy as np
 from shottrainer.services.session_recorder import SessionRecorder
 from shottrainer.services.trace_buffer import TraceBuffer
 from shottrainer.tracking.frame_ops import transform_frame
-from shottrainer.tracking.models import TrackingSample
+from shottrainer.tracking.models import Detection, TrackingSample
 from shottrainer.tracking.tracker import Tracker
 
 log = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ class CapturePipeline:
         recorder: SessionRecorder,
         on_frame: Callable[[np.ndarray], None],
         on_detection: Callable[[TrackingSample, float], None],
-        on_no_detection: Callable[[], None],
+        on_no_detection: Callable[[Detection | None], None],
         on_default_calibration_installed: Callable[[], None] = lambda: None,
     ) -> None:
         self._tracker = tracker
@@ -80,7 +80,7 @@ class CapturePipeline:
 
         sample = self._tracker.process(frame, ts, frame_id)
         if sample is None:
-            self._on_no_detection()
+            self._on_no_detection(self._tracker.last_detection)
             return None
 
         self._buffer.append(sample)
