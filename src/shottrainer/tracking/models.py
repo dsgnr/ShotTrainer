@@ -36,6 +36,12 @@ class Detection:
 
     ``found`` is ``False`` when nothing circular enough was located. The
     other fields are zero in that case.
+
+    There's a special case for blobs that look like the target but
+    sit outside the tracking region. ``rejected_outside_region``
+    flags those, with the pixel coordinates pointing at the blob,
+    so the preview can show "saw something but ignored it" without
+    ``found`` going true.
     """
 
     found: bool
@@ -43,6 +49,7 @@ class Detection:
     y_px: float = 0.0
     radius_px: float = 0.0
     confidence: float = 0.0
+    rejected_outside_region: bool = False
 
 
 @dataclass(frozen=True, slots=True)
