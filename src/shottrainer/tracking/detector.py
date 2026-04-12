@@ -36,13 +36,38 @@ class DetectorSettings:
     # restrict the search to a centred box and reject blobs near
     # the edges.
     region_fraction: float = 0.7
+    # Soft lock. Once we've found a target the detector prefers
+    # candidates close to where it last sat. Inside
+    # ``lock_radius_px`` the score gets a boost. Further out the
+    # score gets damped, so a different blob has to be very stable
+    # or very close to take the lock.
+    lock_radius_px: float = 80.0
+    lock_boost: float = 1.5
+    # If the detector misses (or only sees off-region candidates)
+    # for this many frames in a row, the lock is dropped so a
+    # fresh acquisition can happen anywhere on the frame.
+    lock_release_after_misses: int = 8
 
 
 class CircleTargetDetector:
-    """Locate the most circle-like dark blob in a frame."""
+    """Pick out the most circle-like dark blob in a frame.
+
+    The detector keeps a soft lock on the last accepted centroid.
+    Blobs near it get a score bump, blobs further away get a
+    penalty. A short noise blob can't snatch the tracker mid-trace
+    that way, but a real new target still acquires after a few
+    consistent frames.
+    """
 
     def __init__(self, settings: DetectorSettings | None = None) -> None:
         self.settings = settings or DetectorSettings()
+        self._lock_px: tuple[float, float] | None = None
+        self._consecutive_misses: int = 0
+
+    def reset_lock(self) -> None:
+        """Drop any soft lock so the next frame is treated as a fresh start."""
+        self._lock_px = None
+        self._consecutive_misses = 0
 
     def detect(self, frame_bgr: np.ndarray) -> Detection:
         """Return the best detection in ``frame_bgr``, or one with ``found=False``."""
@@ -110,6 +135,23 @@ class CircleTargetDetector:
             fill = area / (np.pi * enclosing_r * enclosing_r)
             score = float(circularity * fill)
 
+            # Soft-lock score adjustment. Inside
+            # ``lock_radius_px`` the boost is strongest at the
+            # lock centre. Outside the radius the score is damped
+            # so a far-away blob has to be a lot more convincing
+            # to take the lock.
+            if self._lock_px is not None:
+                lx, ly = self._lock_px
+                d = float(np.hypot(cx - lx, cy - ly))
+                radius = max(1.0, s.lock_radius_px)
+                if d <= radius:
+                    score *= 1.0 + (s.lock_boost - 1.0) * (1.0 - d / radius)
+                else:
+                    # Quadratic damping past the lock radius. At
+                    # two lock radii away the score is roughly
+                    # halved.
+                    score *= 1.0 / (1.0 + ((d - radius) / radius) ** 2)
+
             if score > best_score:
                 best_score = score
                 best = Detection(
@@ -119,5 +161,16 @@ class CircleTargetDetector:
                     radius_px=float(enclosing_r),
                     confidence=score,
                 )
+
+        if best.found:
+            self._lock_px = (best.x_px, best.y_px)
+            self._consecutive_misses = 0
+        else:
+            self._consecutive_misses += 1
+            if (
+                self._lock_px is not None
+                and self._consecutive_misses >= s.lock_release_after_misses
+            ):
+                self._lock_px = None
 
         return best

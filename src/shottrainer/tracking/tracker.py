@@ -104,6 +104,9 @@ class Tracker:
             self._manual_px = None
         else:
             self._manual_px = (float(x_px), float(y_px))
+        # Either entering or leaving manual aim invalidates the soft lock;
+        # the detector should re-acquire from scratch.
+        self.detector.reset_lock()
 
     @property
     def manual_point(self) -> tuple[float, float] | None:
