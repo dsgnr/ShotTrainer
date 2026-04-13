@@ -62,6 +62,7 @@ from .detector_store import (
     save_detector_settings,
 )
 from .settings import load_preferences, save_preferences
+from .settings_watcher import SettingsWatcher
 
 log = logging.getLogger(__name__)
 
@@ -120,6 +121,9 @@ class AppController(QObject):
         self._calibration_watcher = CalibrationWatcher(parent=self)
         self._calibration_watcher.changed.connect(self._on_calibration_file_changed)
 
+        self._settings_watcher = SettingsWatcher(parent=self)
+        self._settings_watcher.changed.connect(self._on_settings_file_changed)
+
         self._calibration_controller = CalibrationController(
             tracker=self._tracker,
             on_status=self._window.set_calibration_status,
@@ -140,6 +144,7 @@ class AppController(QObject):
 
         self._calibration_controller.restore_saved()
         self._calibration_watcher.start()
+        self._settings_watcher.start()
 
         # Restore any saved zero offset and surface it in the UI.
         saved_offset = load_zero_offset()
@@ -179,6 +184,7 @@ class AppController(QObject):
         if self._recorder.is_recording:
             self._recorder.stop()
         self._calibration_watcher.stop()
+        self._settings_watcher.stop()
         self._stop_camera()
         self._audio.stop()
 
@@ -441,7 +447,7 @@ class AppController(QObject):
         self._refresh_stats()
         self._window.statusBar().showMessage("Display cleared", 2000)
 
-    def _apply_preferences(self, prefs: Preferences) -> None:
+    def _apply_preferences(self, prefs: Preferences, *, persist: bool = True) -> None:
         previous = getattr(self, "_preferences", None)
         self._preferences = prefs
         self._coordinator.update_settings(
@@ -477,12 +483,15 @@ class AppController(QObject):
             self._persist_camera_selection(prefs.camera_id)
 
         # Only persist when the change came from the user. The initial load
-        # of saved preferences should not rewrite the file.
-        if previous is not None and previous != prefs:
+        # of saved preferences should not rewrite the file. Reloads from
+        # disk also skip the save and refresh the watcher baseline so we
+        # don't bounce.
+        if previous is not None and previous != prefs and persist:
             try:
                 save_preferences(prefs)
             except OSError as exc:
                 log.warning("Could not save preferences: %s", exc)
+            self._settings_watcher.mark_seen()
 
     def _open_session_browser(self) -> None:
         dialog = SessionBrowserDialog(self._repo, parent=self._window)
@@ -611,6 +620,18 @@ class AppController(QObject):
             mm_per_px = calibration.diagnostic_mm_per_pixel()
         self._window.set_calibration_status(f"Calibrated: {mm_per_px:.3f} mm/px")
         self._window.statusBar().showMessage("Calibration updated from disk", 3000)
+
+    def _on_settings_file_changed(self, prefs: Preferences) -> None:
+        """Handle preferences edited externally on disk.
+
+        Apply the new preferences without re-saving the file. Refresh
+        the watcher's baseline so the next external write retriggers.
+        """
+        previous = getattr(self, "_preferences", None)
+        if previous == prefs:
+            return
+        self._apply_preferences(prefs, persist=False)
+        self._window.statusBar().showMessage("Preferences updated from disk", 3000)
 
     def _register_frame_mirror(self, dialog) -> None:
         self._frame_mirrors.append(dialog)
