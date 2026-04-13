@@ -1,4 +1,10 @@
-"""Session control bar with a name field, a start/stop action and a summary."""
+"""Session control panel.
+
+Holds a compact stack of widgets. A session name field, a primary
+action that swaps between Start and Stop, a secondary clear button,
+and a small summary line. Designed to fit a narrow side column
+without truncating.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +15,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QSizePolicy,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -20,39 +27,50 @@ class SessionControls(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 6, 8, 6)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
-        layout.addWidget(QLabel("Session"))
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
 
         self._name = QLineEdit()
-        self._name.setPlaceholderText("e.g. 50m prone")
-        self._name.setMaximumWidth(240)
+        self._name.setPlaceholderText("Session name")
         layout.addWidget(self._name)
 
-        self._start = QPushButton("Start")
-        self._stop = QPushButton("Stop")
+        # Primary action: one button that toggles its own meaning.
+        self._primary = QPushButton("Start session")
+        self._primary.setObjectName("primaryButton")
+        self._primary.clicked.connect(self._on_primary)
+        layout.addWidget(self._primary)
+
+        secondary_row = QHBoxLayout()
+        secondary_row.setContentsMargins(0, 0, 0, 0)
+        secondary_row.setSpacing(8)
         self._clear = QPushButton("Clear shots")
-        self._stop.setEnabled(False)
-        layout.addWidget(self._start)
-        layout.addWidget(self._stop)
-        layout.addWidget(self._clear)
-
-        self._summary = QLabel("No active session")
-        self._summary.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        layout.addWidget(self._summary, 1)
-
-        self._start.clicked.connect(self._on_start)
-        self._stop.clicked.connect(self._on_stop)
         self._clear.clicked.connect(self.clear_shots_requested)
+        secondary_row.addWidget(self._clear)
+        layout.addLayout(secondary_row)
+
+        self._summary = QLabel("Not recording")
+        self._summary.setObjectName("sessionSummary")
+        self._summary.setWordWrap(True)
+        layout.addWidget(self._summary)
+
+        self._active = False
 
     def set_active(self, active: bool) -> None:
-        self._start.setEnabled(not active)
-        self._stop.setEnabled(active)
+        self._active = active
         self._name.setEnabled(not active)
-        # Clearing the view while recording would let the live display drift
-        # from what's stored in the database, which is confusing.
         self._clear.setEnabled(not active)
+        if active:
+            self._primary.setText("Stop session")
+            self._primary.setProperty("variant", "stop")
+        else:
+            self._primary.setText("Start session")
+            self._primary.setProperty("variant", "")
+        # Re-polish so the [variant] selector picks up the change.
+        self._primary.style().unpolish(self._primary)
+        self._primary.style().polish(self._primary)
 
     def set_summary(self, text: str) -> None:
         self._summary.setText(text)
@@ -60,8 +78,8 @@ class SessionControls(QWidget):
     def session_name(self) -> str:
         return self._name.text().strip()
 
-    def _on_start(self) -> None:
-        self.start_requested.emit(self.session_name())
-
-    def _on_stop(self) -> None:
-        self.stop_requested.emit()
+    def _on_primary(self) -> None:
+        if self._active:
+            self.stop_requested.emit()
+        else:
+            self.start_requested.emit(self.session_name())

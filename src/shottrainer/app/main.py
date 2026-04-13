@@ -6,7 +6,7 @@ import logging
 import sys
 
 from PySide6.QtCore import QByteArray
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QFont, QIcon
 from PySide6.QtWidgets import QApplication
 
 from shottrainer import __version__
@@ -35,6 +35,17 @@ def main(argv: list[str] | None = None) -> int:
     app = QApplication(argv if argv is not None else sys.argv)
     app.setApplicationName("ShotTrainer")
     app.setOrganizationName("ShotTrainer")
+
+    # Set an application font explicitly so Qt doesn't have to
+    # resolve the generic "Sans Serif" alias on every style
+    # lookup. The family is per-platform. Qt picks the closest
+    # match if it's missing.
+    if sys.platform == "darwin":
+        app.setFont(QFont(".AppleSystemUIFont", 13))
+    elif sys.platform == "win32":
+        app.setFont(QFont("Segoe UI", 9))
+    else:
+        app.setFont(QFont("Noto Sans", 10))
 
     icon = QIcon()
     for size in (16, 32, 48, 64, 128, 256, 512):

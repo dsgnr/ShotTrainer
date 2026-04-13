@@ -32,7 +32,7 @@ def test_session_controls_emit_start_with_name(qtbot):
     qtbot.addWidget(bar)
     bar._name.setText("standing 10m")
     with qtbot.waitSignal(bar.start_requested, timeout=500) as blocker:
-        bar._start.click()
+        bar._primary.click()
     assert blocker.args == ["standing 10m"]
 
 
@@ -40,13 +40,23 @@ def test_session_controls_active_state_toggles_buttons(qtbot):
     bar = SessionControls()
     qtbot.addWidget(bar)
     bar.set_active(True)
-    assert not bar._start.isEnabled()
-    assert bar._stop.isEnabled()
+    # While active, the primary becomes Stop and the destructive
+    # secondary actions are disabled to avoid drift from the database.
+    assert bar._primary.text().lower().startswith("stop")
+    assert not bar._name.isEnabled()
     assert not bar._clear.isEnabled()
     bar.set_active(False)
-    assert bar._start.isEnabled()
-    assert not bar._stop.isEnabled()
+    assert bar._primary.text().lower().startswith("start")
+    assert bar._name.isEnabled()
     assert bar._clear.isEnabled()
+
+
+def test_session_controls_primary_emits_stop_when_active(qtbot):
+    bar = SessionControls()
+    qtbot.addWidget(bar)
+    bar.set_active(True)
+    with qtbot.waitSignal(bar.stop_requested, timeout=500):
+        bar._primary.click()
 
 
 def test_replay_controls_progress_clamps(qtbot):
