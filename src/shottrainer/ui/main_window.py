@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QSplitter,
     QStatusBar,
@@ -53,6 +54,7 @@ class MainWindow(QMainWindow):
         self._device_options_provider: Callable | None = None
         self._target_faces_provider: Callable | None = None
         self._rings_lookup: Callable | None = None
+        self._is_recording_check: Callable[[], bool] = lambda: False
 
         self.header = AppHeader()
         self.header.settings_button.clicked.connect(self._open_preferences_dialog)
@@ -200,7 +202,11 @@ class MainWindow(QMainWindow):
     def set_calibration_status(self, text: str) -> None:
         self.header.set_calibration_text(text)
 
-    def set_zero_offset_state(self, has_offset: bool, offset_mm: tuple[float, float] | None = None) -> None:
+    def set_zero_offset_state(
+        self,
+        has_offset: bool,
+        offset_mm: tuple[float, float] | None = None,
+    ) -> None:
         """Reflect the current zero offset in the UI.
 
         ``has_offset`` enables the "Clear zero" button.
@@ -237,6 +243,15 @@ class MainWindow(QMainWindow):
 
     def set_rings_lookup(self, fn: Callable) -> None:
         self._rings_lookup = fn
+
+    def set_recording_check(self, fn: Callable[[], bool]) -> None:
+        """Hook for the controller to tell the window whether a session is live.
+
+        Used by the close prompt. Defaults to "not recording"
+        so the window can be tested in isolation without a
+        controller.
+        """
+        self._is_recording_check = fn
 
     def current_preferences(self) -> Preferences:
         return self._prefs
@@ -349,3 +364,37 @@ class MainWindow(QMainWindow):
         # Toggle play / pause on the replay controls.
         if self.replay_controls.isEnabled():
             self.replay_controls.play_clicked.emit()
+
+    def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        """Prompt before closing if a session is in progress.
+
+        The user can choose to stop and save the session, discard the
+        close, or quit anyway (which lets the controller's shutdown hook
+        flush whatever's in flight).
+        """
+        if not self._is_recording_check():
+            super().closeEvent(event)
+            return
+
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle("Session in progress")
+        box.setText("A recording session is still active.")
+        box.setInformativeText(
+            "Stop and save the session before quitting, or quit anyway "
+            "and let the controller flush whatever's in flight."
+        )
+        stop_btn = box.addButton("Stop and quit", QMessageBox.ButtonRole.AcceptRole)
+        quit_btn = box.addButton("Quit anyway", QMessageBox.ButtonRole.DestructiveRole)
+        cancel_btn = box.addButton("Keep recording", QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(cancel_btn)
+        box.exec()
+
+        clicked = box.clickedButton()
+        if clicked is stop_btn:
+            self.session_controls.stop_requested.emit()
+            super().closeEvent(event)
+        elif clicked is quit_btn:
+            super().closeEvent(event)
+        else:
+            event.ignore()
