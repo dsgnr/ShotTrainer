@@ -136,6 +136,7 @@ class AppController(QObject):
         self._window.set_target_faces_provider(list_target_faces)
         self._window.set_rings_lookup(rings_for_face)
         self._window.set_calibration_corner_detector(detect_sheet_corners)
+        self._window.set_recording_check(lambda: self._recorder.is_recording)
         self._apply_preferences(load_preferences())
 
         saved_detector = load_detector_settings()

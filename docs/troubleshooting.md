@@ -65,7 +65,8 @@ restarts; **Clear zero** reverts to the calibrated origin.
 The session is written to the local SQLite database when you press Stop.
 If you closed the app via the OS instead of stopping the session first,
 the trace and shots are still saved but the session is marked as not
-ended.
+ended. ShotTrainer warns you when you try to quit while a session is
+in progress. Pick **Stop and quit** for a clean save.
 
 **Replay scrubber is greyed out.**
 Replay only enables once you select a shot from the shot list. If a
