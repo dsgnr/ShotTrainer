@@ -389,7 +389,7 @@ class AppController(QObject):
 
     def _render_shots(self) -> None:
         markers = [
-            ShotMarker(s.x_mm, s.y_mm, label=str(i + 1))
+            ShotMarker(s.x_mm, s.y_mm, label=str(i + 1), score=s.score or "")
             for i, s in enumerate(self._shots_in_view)
         ]
         self._window.target_view.set_shots(markers)
