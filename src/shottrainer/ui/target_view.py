@@ -39,6 +39,47 @@ class ShotMarker:
     x_mm: float
     y_mm: float
     label: str = ""
+    score: str = ""
+
+
+# Colour ramp for scoring shots. Tens and inner-tens are
+# bright gold, the mid-rings are warm, low rings are dim, and
+# misses (or unscored shots) come out neutral red so they're
+# still visible. Anything we don't recognise falls through to
+# the miss colour.
+_SCORE_COLOURS: dict[str, str] = {
+    "X": "#f1c40f",
+    "10": "#f1c40f",
+    "9": "#f39c12",
+    "8": "#e67e22",
+    "7": "#d35400",
+    "6": "#c0392b",
+    "5": "#a33223",
+    "4": "#8a2a1d",
+    "3": "#732417",
+    "2": "#5c1d12",
+    "1": "#451609",
+}
+_MISS_COLOUR = "#7f8c8d"
+
+
+def colour_for_score(score: str) -> str:
+    """Return a hex colour for a ring label.
+
+    Federation labels (1..10, X) and decimal sub-rings come out
+    on a warm-to-bright ramp. Anything else (empty labels,
+    custom strings, misses) falls back to a neutral grey so it
+    stays visible without looking like a high-value shot.
+    """
+    if not score:
+        return _MISS_COLOUR
+    upper = score.upper()
+    if upper in _SCORE_COLOURS:
+        return _SCORE_COLOURS[upper]
+    # Decimal labels like "10.5" or "9.7" use the colour of
+    # their integer part.
+    head = upper.split(".", 1)[0]
+    return _SCORE_COLOURS.get(head, _MISS_COLOUR)
 
 
 class TargetView(QWidget):
@@ -244,9 +285,10 @@ class TargetView(QWidget):
             x = cx + shot.x_mm * scale
             y = cy + shot.y_mm * scale
             selected = i == self._selected_shot
-            colour = QColor("#c0392b") if selected else QColor("#e74c3c")
+            base = QColor(colour_for_score(shot.score))
+            colour = base.darker(115) if selected else base
             painter.setBrush(colour)
-            pen = QPen(QColor("#7b1f15"))
+            pen = QPen(base.darker(170))
             pen.setWidth(2 if selected else 1)
             painter.setPen(pen)
             r = radius_px * (1.2 if selected else 1.0)
