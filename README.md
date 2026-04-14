@@ -170,7 +170,7 @@ time-in-ring percentages over the pre-shot window of the selected shot. See
 
 ## Requirements
 
-- Python 3.11 or newer (only for source installs, not for the packaged builds).
+- Python 3.13 or newer (only for source installs, not for the packaged builds).
 - A webcam, ideally with manual focus and decent zoom.
 - A microphone within hearing range of the firing point.
 - Operating system: Windows, macOS, or Linux.
