@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 from shottrainer.app.target_faces import TargetRing
@@ -89,6 +89,15 @@ class TargetView(QWidget):
         self._rings: tuple[TargetRing, ...] = DEFAULT_RINGS
         self._extent_mm: float = 90.0
         self._trace: deque[tuple[float, float]] = deque(maxlen=600)
+        # Mirror of ``_trace`` split into the three replay phases.
+        # Stored in target-space mm. The painter applies the
+        # zoom and centre offset at draw time, so a resize or a
+        # zoom doesn't need a rebuild. ``append_trace_point``
+        # keeps these in step with the deque so the per-paint
+        # work stays a single ``drawPolyline`` per phase.
+        self._trace_approach: QPolygonF = QPolygonF()
+        self._trace_release: QPolygonF = QPolygonF()
+        self._trace_follow: QPolygonF = QPolygonF()
         self._shots: list[ShotMarker] = []
         self._selected_shot: int | None = None
         self._live_aim: tuple[float, float] | None = None
@@ -123,17 +132,52 @@ class TargetView(QWidget):
         return self._extent_mm
 
     def set_trace_capacity(self, n: int) -> None:
-        self._trace = deque(self._trace, maxlen=max(1, n))
+        capacity = max(1, n)
+        self._trace = deque(self._trace, maxlen=capacity)
+        self._rebuild_trace_polygons()
 
     def append_trace_point(self, x_mm: float, y_mm: float) -> None:
+        # Drop points well outside the visible target. A noisy
+        # detection (a sliver-of-a-pixel ellipse fit, the camera
+        # being swept past the target) can land hundreds of mm
+        # off-screen. Keeping those points makes every paint
+        # walk huge off-widget line segments.
+        clip_mm = self._extent_mm * 4.0
+        if abs(x_mm) > clip_mm or abs(y_mm) > clip_mm:
+            return
+        # The deque has a fixed capacity. Once it's full a new
+        # point pushes the oldest one out, and the matching
+        # polygon needs the same trim. The dropped point always
+        # sits at the head of the approach polygon, since phase
+        # boundaries shift via ``set_trace_segments`` rather than
+        # because of trace age.
+        if (
+            self._trace.maxlen is not None
+            and len(self._trace) >= self._trace.maxlen
+        ):
+            if self._trace_approach.size() > 0:
+                self._trace_approach.remove(0)
+            else:
+                # Replay segmentation can leave the approach run
+                # empty. A full rebuild is the simplest way back
+                # to a consistent state.
+                self._rebuild_trace_polygons()
         self._trace.append((x_mm, y_mm))
         self._live_aim = (x_mm, y_mm)
+        polygon = self._polygon_for_index(
+            len(self._trace) - 1,
+            self._trace_approach,
+            self._trace_release,
+            self._trace_follow,
+        )
+        polygon.append(QPointF(x_mm, y_mm))
         self.update()
 
     def set_trace(self, points: Iterable[tuple[float, float]]) -> None:
         self._trace = deque(points, maxlen=self._trace.maxlen)
         self._live_aim = self._trace[-1] if self._trace else None
         self._playhead_index = None
+        self._rebuild_trace_polygons()
         self.update()
 
     def set_trace_segments(
@@ -152,6 +196,7 @@ class TargetView(QWidget):
         """
         self._release_index = release_index
         self._shot_index = shot_index
+        self._rebuild_trace_polygons()
         self.update()
 
     def set_isolate_selected_shot(self, isolate: bool) -> None:
@@ -185,7 +230,27 @@ class TargetView(QWidget):
     def clear_trace(self) -> None:
         self._trace.clear()
         self._live_aim = None
+        self._rebuild_trace_polygons()
         self.update()
+
+    def _rebuild_trace_polygons(self) -> None:
+        """Rebuild the per-phase polygons from the current ``_trace``.
+
+        The append path keeps the polygons in step with the
+        deque on its own. This helper covers everything else.
+        A wholesale trace replacement, a phase boundary moving,
+        the deque capacity changing, or the empty-approach
+        case in ``append_trace_point``.
+        """
+        approach = QPolygonF()
+        release = QPolygonF()
+        follow = QPolygonF()
+        for i, (x_mm, y_mm) in enumerate(self._trace):
+            polygon = self._polygon_for_index(i, approach, release, follow)
+            polygon.append(QPointF(x_mm, y_mm))
+        self._trace_approach = approach
+        self._trace_release = release
+        self._trace_follow = follow
 
     def set_shots(self, shots: Iterable[ShotMarker]) -> None:
         self._shots = list(shots)
@@ -274,41 +339,38 @@ class TargetView(QWidget):
         painter.drawLine(int(cx), int(cy - size / 2), int(cx), int(cy + size / 2))
 
     def _draw_trace(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
-        if len(self._trace) < 2:
+        if (
+            self._trace_approach.isEmpty()
+            and self._trace_release.isEmpty()
+            and self._trace_follow.isEmpty()
+        ):
             return
-
-        # The trace splits into up to three phases (approach,
-        # release, follow-through). Each phase becomes its own
-        # ``QPainterPath`` so the painter strokes each colour in
-        # a single call rather than swapping pens between every
-        # line segment. With 600-sample traces and three pens
-        # that turns roughly 600 setPen+drawLine calls into
-        # three.
-        approach = QPainterPath()
-        release = QPainterPath()
-        follow = QPainterPath()
-
-        prev: QPointF | None = None
-        for i, (x_mm, y_mm) in enumerate(self._trace):
-            point = QPointF(cx + x_mm * scale, cy + y_mm * scale)
-            if prev is not None:
-                path = self._path_for_index(i, approach, release, follow)
-                path.moveTo(prev)
-                path.lineTo(point)
-            prev = point
 
         approach_pen = self._segment_pen(QColor(60, 120, 200, 220))
         release_pen = self._segment_pen(QColor(243, 156, 18, 230))
         follow_pen = self._segment_pen(QColor(40, 160, 90, 230))
+
+        # The polygons are in target-space mm. The painter does
+        # the conversion to widget pixels in C++, which is much
+        # cheaper than walking the trace in Python every paint.
+        painter.save()
+        # Antialiasing the trace stroke gets expensive once the
+        # polyline has hundreds of vertices. The 3-pixel pen
+        # weight hides any aliasing at video rate, so the trade
+        # is invisible to the eye.
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        for path, pen in (
-            (approach, approach_pen),
-            (release, release_pen),
-            (follow, follow_pen),
+        painter.translate(cx, cy)
+        painter.scale(scale, scale)
+        for polygon, pen in (
+            (self._trace_approach, approach_pen),
+            (self._trace_release, release_pen),
+            (self._trace_follow, follow_pen),
         ):
-            if not path.isEmpty():
+            if not polygon.isEmpty():
                 painter.setPen(pen)
-                painter.drawPath(path)
+                painter.drawPolyline(polygon)
+        painter.restore()
 
     @staticmethod
     def _segment_pen(colour: QColor) -> QPen:
@@ -319,14 +381,14 @@ class TargetView(QWidget):
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         return pen
 
-    def _path_for_index(
+    def _polygon_for_index(
         self,
         i: int,
-        approach: QPainterPath,
-        release: QPainterPath,
-        follow: QPainterPath,
-    ) -> QPainterPath:
-        """Pick the path for the trace segment ending at sample ``i``.
+        approach: QPolygonF,
+        release: QPolygonF,
+        follow: QPolygonF,
+    ) -> QPolygonF:
+        """Pick the polygon for the trace segment at sample ``i``.
 
         Falls back to the approach colour when no segmentation
         is in force, so a live trace reads as a single colour.
