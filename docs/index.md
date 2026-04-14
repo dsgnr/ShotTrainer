@@ -17,6 +17,8 @@ what hasn't with various cameras.
 - Live target tracking from any USB or built-in camera.
 - A4 sheet calibration that converts pixels to millimetres on the target.
 - Audio shot detection with adjustable sensitivity and a refractory window.
+- Automatic ring scoring against your selected target face, with a
+  running session total.
 - Session recording to local SQLite, with full pre/post-shot trace.
 - Replay with a colour-coded pre-shot / post-shot trace and stats.
 - CSV export of shots and trace data.
