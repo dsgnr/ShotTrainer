@@ -80,6 +80,22 @@ circular, dark blob in the frame. On a standard target that's the
 black aiming circle. The scoring rings drawn on the target view are
 purely for your reference. They have no effect on detection.
 
+## How shots are scored
+
+When a shot is detected, ShotTrainer reads its (x, y) position on the
+target plane and walks the active face's rings from inside outward.
+The shot scores the innermost ring whose disc the shot circle
+overlaps, using the configured shot diameter (Preferences > Target >
+Shot diameter). A shot that touches a ring counts as the higher value,
+matching how paper targets are scored. The label shown is taken
+verbatim from the face JSON, so federation labels (1..10, X) and
+custom labels both work.
+
+A label of `X` is treated as 10 for the running total, mirroring the
+common federation rule that the inner ten counts the same as a 10
+unless tied. Labels that don't parse as numbers contribute zero to the
+total, so mixed-discipline labels still produce a sensible figure.
+
 ## Black-target faces
 
 Targets with a large black field (some pistol distances) can defeat
