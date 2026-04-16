@@ -30,6 +30,24 @@ class CameraConfig:
     height: int | None = None
     fps: float | None = None
     backend: int = cv2.CAP_ANY
+    # Optional hardware-side image controls. None means leave the device
+    # default. Ranges depend on the camera. OpenCV typically maps them
+    # to 0..1 on macOS and 0..255 on Linux/Windows, so the UI exposes a
+    # normalised 0..1 slider.
+    brightness: float | None = None
+    contrast: float | None = None
+    saturation: float | None = None
+    gain: float | None = None
+    exposure: float | None = None
+
+
+_PROPERTIES = {
+    "brightness": cv2.CAP_PROP_BRIGHTNESS,
+    "contrast": cv2.CAP_PROP_CONTRAST,
+    "saturation": cv2.CAP_PROP_SATURATION,
+    "gain": cv2.CAP_PROP_GAIN,
+    "exposure": cv2.CAP_PROP_EXPOSURE,
+}
 
 
 def list_available_cameras(max_index: int = 5) -> list[tuple[int, str]]:
@@ -96,6 +114,24 @@ class CameraCapture(QObject):
             log.warning("Camera config changed while running. Restart to apply")
         self._config = config
 
+    def set_property(self, name: str, value: float | None) -> bool:
+        """Adjust a hardware property on a running capture.
+
+        Returns ``True`` when the call succeeded. Pass ``None`` to leave
+        the property at the camera default the next time capture starts.
+        """
+        if name not in _PROPERTIES:
+            raise ValueError(f"Unknown camera property: {name}")
+        setattr(self._config, name, value)
+        cap = self._cap
+        if cap is None or value is None:
+            return False
+        try:
+            return bool(cap.set(_PROPERTIES[name], float(value)))
+        except Exception as exc:  # pragma: no cover - driver dependent
+            log.debug("Could not set %s: %s", name, exc)
+            return False
+
     def _run(self) -> None:
         cfg = self._config
         cap = cv2.VideoCapture(cfg.device_index, cfg.backend)
@@ -110,6 +146,18 @@ class CameraCapture(QObject):
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, float(cfg.height))
         if cfg.fps:
             cap.set(cv2.CAP_PROP_FPS, float(cfg.fps))
+
+        # Apply optional hardware image controls. These often have driver
+        # specific ranges. Ignore failures and let the user retry from
+        # preferences if a value is out of range.
+        for name, prop in _PROPERTIES.items():
+            value = getattr(cfg, name)
+            if value is None:
+                continue
+            try:
+                cap.set(prop, float(value))
+            except Exception as exc:  # pragma: no cover - driver dependent
+                log.debug("Failed to set %s on camera: %s", name, exc)
 
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
