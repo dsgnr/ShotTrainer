@@ -27,7 +27,13 @@ from shottrainer.services.shot_stats import (
 
 
 class _HeroFigure(QWidget):
-    def __init__(self, caption: str, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        caption: str,
+        *,
+        subcaption: str | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -40,6 +46,12 @@ class _HeroFigure(QWidget):
         self.caption.setAlignment(Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(self.value)
         layout.addWidget(self.caption)
+        self.subcaption: QLabel | None = None
+        if subcaption is not None:
+            self.subcaption = QLabel(subcaption)
+            self.subcaption.setObjectName("heroSubcaption")
+            self.subcaption.setAlignment(Qt.AlignmentFlag.AlignLeft)
+            layout.addWidget(self.subcaption)
 
 
 class HeroStats(QWidget):
@@ -52,8 +64,8 @@ class HeroStats(QWidget):
         layout.setSpacing(20)
 
         self._total = _HeroFigure("Total score")
-        self._group = _HeroFigure("Group size")
-        self._tremor = _HeroFigure("Hold tremor")
+        self._group = _HeroFigure("Group size", subcaption="extreme spread")
+        self._tremor = _HeroFigure("Hold tremor", subcaption="RMS deviation")
         self._inner = _HeroFigure("Time on target")
         layout.addWidget(self._total)
         layout.addWidget(self._group)
@@ -70,9 +82,16 @@ class HeroStats(QWidget):
     def update_from_stats(self, stats: ShotStats) -> None:
         if stats.count == 0:
             self._group.value.setText("-")
+            self._group.value.setToolTip("")
             return
         # Extreme spread is the most relatable group measure for shooters.
+        # Mean radius is the more typical statistical measure of grouping.
+        # Show it on the tooltip so the alternative is one hover away.
         self._group.value.setText(f"{stats.extreme_spread_mm:.1f}\u202fmm")
+        self._group.value.setToolTip(
+            f"Extreme spread: {stats.extreme_spread_mm:.1f} mm\n"
+            f"Mean radius from group centre: {stats.mean_radius_mm:.1f} mm"
+        )
 
     def set_scores(self, scores: list[str]) -> None:
         """Set the per-shot scores. Recomputes the total."""
