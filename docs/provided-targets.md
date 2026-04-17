@@ -96,6 +96,16 @@ common federation rule that the inner ten counts the same as a 10
 unless tied. Labels that don't parse as numbers contribute zero to the
 total, so mixed-discipline labels still produce a sensible figure.
 
+### Re-scoring a loaded session
+
+Scores are captured at recording time against whatever face was
+active. If you open a saved session and switch to a different face
+(say to compare a 50 m smallbore session against a different ring
+layout), the on-screen scores still reflect the original face. Use
+**Tools > Re-score with current face** to refresh the displayed
+scores against the active face. The change is in-memory only.
+Re-opening the session reloads the originally captured scores.
+
 ## Black-target faces
 
 Targets with a large black field (some pistol distances) can defeat
