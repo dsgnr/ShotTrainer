@@ -224,6 +224,7 @@ class AppController(QObject):
         self._window.manual_aim_cleared.connect(self._on_manual_aim_cleared)
         self._window.zero_on_aim_requested.connect(self._on_zero_on_aim_requested)
         self._window.zero_cleared.connect(self._on_zero_cleared)
+        self._window.rescore_requested.connect(self._on_rescore_requested)
 
         self._audio.level.connect(self._on_audio_level)
 
@@ -346,6 +347,31 @@ class AppController(QObject):
             save_zero_offset(offset)
         except OSError as exc:
             log.warning("Could not save zero offset: %s", exc)
+
+    def _on_rescore_requested(self) -> None:
+        """Re-score every visible shot against the active target face.
+
+        Useful after switching face on a loaded session. We don't write
+        the new scores back to the database. The score there belongs
+        with whatever face was active when the shot was recorded.
+        Re-scoring affects only what's currently on screen.
+        """
+        if not self._shots_in_view:
+            self._window.statusBar().showMessage("No shots in view to re-score", 3000)
+            return
+        rescored = 0
+        for entry in self._shots_in_view:
+            new_score = self._score_for(entry.x_mm, entry.y_mm)
+            entry.score = new_score or None
+            if new_score:
+                rescored += 1
+        self._render_shots()
+        self._refresh_stats()
+        face = self._preferences.target_face
+        self._window.statusBar().showMessage(
+            f"Re-scored {rescored}/{len(self._shots_in_view)} shots against {face}",
+            4000,
+        )
 
     def _on_shot_detected(self, event: ShotEvent) -> None:
         result = self._coordinator.handle_shot(event)
