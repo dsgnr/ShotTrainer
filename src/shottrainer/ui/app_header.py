@@ -75,6 +75,11 @@ class AppHeader(QWidget):
 
         self._status_hint = QLabel("Acquiring target...")
         self._status_hint.setObjectName("appHeaderHint")
+        self._status_hint.setToolTip(
+            "Live mm-per-pixel reading. Lower means the camera is "
+            "further from the target. The trace is correct in mm "
+            "as soon as this number stabilises."
+        )
         layout.addWidget(self._status_hint)
 
         self.settings_button = QToolButton()
