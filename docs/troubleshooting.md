@@ -74,6 +74,6 @@ ShotTrainer keeps everything in a per-user data directory:
 - Windows: `%APPDATA%\ShotTrainer\`
 
 Inside you'll find `sessions.db` (sessions and shot data), `settings.json`,
-`calibration.json`, and `ui_state.json`. Deleting any of them resets the
-relevant state to defaults. Deleting `sessions.db` wipes recorded shots so
-keep a backup if you care about the history.
+`calibration.json`, `detector_settings.json`, and `ui_state.json`. Deleting
+any of them resets the relevant state to defaults. Deleting `sessions.db`
+wipes recorded shots so keep a backup if you care about the history.
