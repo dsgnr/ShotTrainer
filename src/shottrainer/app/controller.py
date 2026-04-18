@@ -819,6 +819,7 @@ class AppController(QObject):
         self._render_shots()
         self._refresh_stats()
         self._window.replay_controls.set_enabled(False)
+        self._window.replay_controls.set_window_duration_ms(None)
 
     def _on_shot_selected(self, index: int) -> None:
         """Load the chosen shot's window into the replay UI.
@@ -848,6 +849,9 @@ class AppController(QObject):
         self._window.target_view.set_isolate_selected_shot(True)
         points = [(s.x_mm or 0.0, s.y_mm or 0.0) for s in window.samples if s.x_mm is not None]
         self._window.target_view.set_trace(points)
+        self._window.replay_controls.set_window_duration_ms(
+            int(prefs.pre_shot_ms) + int(prefs.post_shot_ms)
+        )
         # Trace stats use the pre-shot portion of the window only.
         # That's the part where the shooter was holding rather than
         # reacting to recoil.
