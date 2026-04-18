@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QSizePolicy,
     QSlider,
     QToolTip,
     QWidget,
@@ -29,36 +30,54 @@ class ReplayControls(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        # ``Preferred`` width so the row's stretch element pushes
+        # the controls toward the right rather than blowing the
+        # transport buttons out across the full width.
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 4, 8, 4)
 
-        # The transport row is three buttons in a fixed order. Build
-        # them from a table so the binding (signal, glyph, tooltip,
-        # accessible name) lives in one place rather than spread
-        # across three near-identical blocks.
-        button_specs: tuple[tuple[str, Signal, str, str], ...] = (
-            ("⏮", self.reset_clicked, "Reset to the start of the shot window", "Reset replay"),
-            ("▶", self.play_clicked, "Play (Space)", "Play replay"),
-            ("⏸", self.pause_clicked, "Pause (Space)", "Pause replay"),
+        # defaults
+        self._default_stamp = "0:00.0 / 0:00.0"
+
+        # The transport row is a reset button and a single
+        # play/pause button that swaps glyph based on whether
+        # the player is currently running. ``set_playing``
+        # keeps the button in sync.
+        self._reset = self._make_button(
+            "⏮",
+            tooltip="Reset to the start of the shot window",
+            accessible_name="Reset replay",
         )
-        buttons: list[QPushButton] = []
-        for glyph, signal, tooltip, accessible_name in button_specs:
-            button = self._make_button(
-                glyph, tooltip=tooltip, accessible_name=accessible_name
-            )
-            button.clicked.connect(signal)
-            buttons.append(button)
-            layout.addWidget(button)
-        self._reset, self._play, self._pause = buttons
+        self._reset.clicked.connect(self.reset_clicked)
+        layout.addWidget(self._reset)
+
+        self._play_pause = self._make_button(
+            "▶", tooltip="Play (Space)", accessible_name="Play replay"
+        )
+        self._play_pause.clicked.connect(self._on_play_pause_clicked)
+        self._is_playing = False
+        layout.addWidget(self._play_pause)
 
         self._slider = QSlider(Qt.Orientation.Horizontal)
         self._slider.setRange(0, 1000)
+        self._slider.setFixedWidth(150)
+        self._slider.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        # Stop the slider widget filling its content rectangle with the
+        # palette background.
+        self._slider.setAutoFillBackground(False)
+        self._slider.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
         self._slider.setToolTip("Scrub through the shot window")
         self._slider.setAccessibleName("Replay scrubber")
-        layout.addWidget(self._slider, 1)
+        layout.addWidget(self._slider)
 
-        self._time_label = QLabel("--:--")
-        self._time_label.setFixedWidth(60)
+        self._time_label = QLabel(self._default_stamp)
+        self._time_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
+        # Reserve room for the running readout so the cluster
+        # doesn't jump as the label grows from the placeholder.
+        self._time_label.setMinimumWidth(
+            self._time_label.fontMetrics().horizontalAdvance(self._default_stamp) + 12
+        )
         layout.addWidget(self._time_label)
 
         # Total duration of the loaded replay window in
@@ -92,7 +111,7 @@ class ReplayControls(QWidget):
         return button
 
     def set_enabled(self, enabled: bool) -> None:
-        for w in (self._play, self._pause, self._reset, self._slider):
+        for w in (self._play_pause, self._reset, self._slider, self._time_label):
             w.setEnabled(enabled)
 
     def set_window_duration_ms(self, duration_ms: int | None) -> None:
@@ -104,7 +123,7 @@ class ReplayControls(QWidget):
         """
         self._window_duration_ms = duration_ms
         if duration_ms is None:
-            self._time_label.setText("--:--")
+            self._time_label.setText(self._default_stamp)
         else:
             self._refresh_time_label(self._slider.value() / 1000.0)
 
@@ -134,6 +153,39 @@ class ReplayControls(QWidget):
         self._time_label.setText(
             f"{_format_seconds(offset_ms)} / {_format_seconds(duration)}"
         )
+
+    def set_playing(self, playing: bool) -> None:
+        """Tell the controls whether the player is currently running.
+
+        Updates the play/pause button's glyph and tooltip so the
+        user sees the state at a glance. The controller calls
+        this on every progress tick.
+        """
+        if playing == self._is_playing:
+            return
+        self._is_playing = playing
+        if playing:
+            self._play_pause.setText("⏸")
+            self._play_pause.setToolTip("Pause (Space)")
+            self._play_pause.setAccessibleName("Pause replay")
+        else:
+            self._play_pause.setText("▶")
+            self._play_pause.setToolTip("Play (Space)")
+            self._play_pause.setAccessibleName("Play replay")
+
+    def toggle_play_pause(self) -> None:
+        """Trigger play or pause depending on the current state.
+
+        Used by the Space shortcut so one key drives both
+        directions of the toggle.
+        """
+        self._on_play_pause_clicked()
+
+    def _on_play_pause_clicked(self) -> None:
+        if self._is_playing:
+            self.pause_clicked.emit()
+        else:
+            self.play_clicked.emit()
 
     def _on_slider_moved(self, value: int) -> None:
         fraction = value / 1000.0
