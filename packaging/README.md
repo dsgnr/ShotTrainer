@@ -1,76 +1,90 @@
 # Packaging
 
-PyInstaller is the chosen packager. A single spec file works on Windows,
-macOS and Linux with platform-specific tweaks for permissions and signing.
+PyInstaller produces the platform binaries. Per-platform tooling
+wraps them into a `.dmg` (macOS) or `.exe` installer (Windows).
 
 ## Build
 
+The simplest path is `make` from the repo root:
+
 ```
-make package
+make package        # one-folder PyInstaller build for the current platform
+make dmg            # macOS only: wraps dist/ShotTrainer.app in a .dmg
+make installer      # Windows only: runs Inno Setup over dist/ShotTrainer
 ```
 
-That target runs `uv sync --extra package` to install PyInstaller and
-then builds with `packaging/shottrainer.spec`. If you'd rather drive
-PyInstaller directly:
+Each higher-level target depends on `make package`, so a single command
+gets you a distributable artefact.
+
+The raw folder lives at `dist/ShotTrainer/`. On macOS PyInstaller also
+emits `dist/ShotTrainer.app` with the bundle's `Info.plist` populated
+from `Info.plist.in`.
+
+If you'd rather drive PyInstaller directly:
 
 ```
 uv sync --extra package
 uv run pyinstaller packaging/shottrainer.spec --noconfirm
 ```
 
-The output lands in `dist/ShotTrainer/`. Run the binary from there to
-sanity-check before signing or packaging into an installer.
+## macOS
+
+The spec produces both a one-folder build and a `ShotTrainer.app`
+bundle. The bundle's `Info.plist` is read from
+`packaging/Info.plist.in` so camera and microphone usage descriptions
+are populated and macOS shows the permission prompts on first launch.
+
+The icon is generated from the PNG sources by `build_icns.sh`. The
+`make package` target runs that script automatically. If you ever
+invoke PyInstaller without going through Make, run
+`bash packaging/build_icns.sh` first so PyInstaller can embed the
+icon.
+
+`make dmg` calls `make_dmg.sh`, which uses the system `hdiutil` to
+build `dist/ShotTrainer-macOS.dmg` containing the `.app` and a
+shortcut to `/Applications`.
+
+For signing and notarising:
+
+```
+codesign --deep --force --options runtime \
+    --sign "Developer ID Application: ..." dist/ShotTrainer.app
+xcrun notarytool submit dist/ShotTrainer-macOS.dmg --keychain-profile <profile> --wait
+xcrun stapler staple dist/ShotTrainer-macOS.dmg
+```
+
+If the user denies camera or microphone access, the relevant subsystem
+surfaces an error in the status bar and recording stops gracefully.
 
 ## Windows
 
-PyInstaller produces a directory with `ShotTrainer.exe`. Wrap it in an
-installer of your choice (Inno Setup, NSIS) for distribution. No special
-permissions handling is required for the camera or microphone.
+`make installer` runs `make_installer.ps1`, which invokes Inno Setup 6
+over `packaging/shottrainer.iss`. The installer lands at
+`dist/ShotTrainer-Setup.exe`.
+
+Install Inno Setup 6 first (Chocolatey: `choco install innosetup`).
+The PowerShell wrapper looks for `iscc` on PATH and falls back to the
+default install location.
 
 If antivirus tooling flags the bootloader, build with
 `--bootloader-ignore-signals` removed and consider code-signing the
 executable.
 
-## macOS
-
-The `.app` bundle needs an `Info.plist` that declares camera and microphone
-usage descriptions, otherwise macOS will reject the permission prompts.
-Use `packaging/Info.plist.in` as a starting point.
-
-To build a `.icns` for the bundle:
-
-```
-mkdir -p icon.iconset
-for s in 16 32 64 128 256 512. Do
-  cp src/shottrainer/ui/assets/icon_$s.png icon.iconset/icon_${s}x${s}.png
-done
-iconutil -c icns icon.iconset -o packaging/icon.icns
-```
-
-After PyInstaller finishes:
-
-1. Copy `Info.plist.in` into `dist/ShotTrainer.app/Contents/Info.plist`,
-   merging with the file PyInstaller wrote.
-2. Sign the bundle:
-   `codesign --deep --force --options runtime --sign "Developer ID Application: ..." dist/ShotTrainer.app`
-3. Notarise via `notarytool submit ... --wait` and `xcrun stapler staple`.
-
-If the user denies camera or microphone access, the relevant subsystem
-will surface an error in the status bar. Recording stops gracefully.
-
 ## Linux
 
-The output directory works as-is on most distributions. For wider reach
-package it as an AppImage with `appimagetool` or build a `.deb` / `.rpm`
-with `fpm`.
+The PyInstaller folder works as-is on most distributions. For wider
+reach package it as an AppImage with `appimagetool`, or build a `.deb`
+or `.rpm` with `fpm`. Neither is set up in the project yet because
+distro packaging conventions vary. Reports and PRs welcome.
 
 The user must have access to `/dev/video*` (usually via the `video`
-group) and to PortAudio via PulseAudio or ALSA. Wayland users may need
-the X11 plugin if PySide6 cannot find a working Wayland platform plugin
-on their system.
+group) and to PortAudio via PulseAudio or ALSA. Wayland users may
+need the X11 plugin if PySide6 cannot find a working Wayland platform
+plugin on their system.
 
 ## Reproducible builds
 
-PyInstaller is not deterministic out of the box. For closer-to-reproducible
-builds set `SOURCE_DATE_EPOCH` and pin all dependencies with hashes. This
-is best handled in the CI workflow rather than in this spec.
+PyInstaller is not deterministic out of the box. For closer-to-
+reproducible builds set `SOURCE_DATE_EPOCH` and pin all dependencies
+with hashes. This is best handled in the CI workflow rather than in
+this spec.
