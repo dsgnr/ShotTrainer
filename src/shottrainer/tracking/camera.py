@@ -132,6 +132,27 @@ class CameraCapture(QObject):
             log.debug("Could not set %s: %s", name, exc)
             return False
 
+    def get_property(self, name: str) -> float | None:
+        """Read back the current camera value for a property.
+
+        Returns ``None`` when the property is unsupported or the device
+        isn't open. Useful for showing the user what the driver actually
+        accepted, which is sometimes different from what was requested.
+        """
+        if name not in _PROPERTIES:
+            raise ValueError(f"Unknown camera property: {name}")
+        cap = self._cap
+        if cap is None:
+            return None
+        try:
+            value = cap.get(_PROPERTIES[name])
+        except Exception:  # pragma: no cover - driver dependent
+            return None
+        # OpenCV returns 0.0 for unsupported properties on some drivers,
+        # but also for properties that genuinely sit at zero. The two
+        # cases are indistinguishable, so return whatever was reported.
+        return float(value)
+
     def _run(self) -> None:
         cfg = self._config
         cap = cv2.VideoCapture(cfg.device_index, cfg.backend)

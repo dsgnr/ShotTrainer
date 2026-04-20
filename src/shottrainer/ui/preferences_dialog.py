@@ -132,6 +132,23 @@ class PreferencesDialog(QDialog):
         v = round(min(1.0, max(0.0, level)) * 100)
         self._audio_meter.setValue(v)
 
+    def set_camera_property_actual(self, name: str, value: float | None) -> None:
+        """Surface the camera's reported value for a property.
+
+        OpenCV reports a normalised value back. We pass it on as-is so
+        the user can see what the driver actually accepted. The value is
+        appended to the slider's tooltip. The slider position itself
+        is the user's request.
+        """
+        slider = getattr(self, f"_{name}", None)
+        if slider is None:
+            return
+        if value is None:
+            slider.setToolTip(slider.toolTip().split("\n")[0])
+            return
+        base = slider.toolTip().split("\n")[0]
+        slider.setToolTip(f"{base}\nCamera reports: {value:.2f}")
+
     def _build_camera_tab(
         self,
         prefs: Preferences,
