@@ -54,6 +54,11 @@ class Tracker:
     # that an actual change in distance follows on without lag.
     _RADIUS_EMA_ALPHA = 0.1
 
+    # Centroid smoothing. Same alpha as radius so both settle at
+    # the same rate. Damps the frame-to-frame pixel jitter that
+    # makes the trace "crawl" even when the rifle is still.
+    _CENTROID_EMA_ALPHA = 0.1
+
     # Anything smaller than this is treated as noise and doesn't
     # update the running average.
     _MIN_INFORMATIVE_RADIUS_PX = 4.0
@@ -73,6 +78,11 @@ class Tracker:
         self._last_sample: TrackingSample | None = None
         self._last_detection: Detection | None = None
         self._last_radius_px: float = 0.0
+
+        # Running average of the centroid in pixels. Smooths out
+        # the sub-pixel jitter that causes visible crawl.
+        self._smoothed_cx_px: float | None = None
+        self._smoothed_cy_px: float | None = None
 
         # Running average of the circle's two axes in pixels. The
         # detector falls back to setting both to the enclosing-
@@ -100,6 +110,8 @@ class Tracker:
         self._diameter_mm = float(diameter_mm)
         self._smoothed_major_px = None
         self._smoothed_minor_px = None
+        self._smoothed_cx_px = None
+        self._smoothed_cy_px = None
 
     def set_trace_inversion(self, invert_x: bool, invert_y: bool) -> None:
         """Flip the sign of one or both aim axes.
@@ -180,10 +192,13 @@ class Tracker:
         self._last_radius_px = det.radius_px
         major_px, minor_px = self._update_smoothed_axes(det)
 
+        # Smooth the centroid to damp sub-pixel jitter.
+        cx_px, cy_px = self._update_smoothed_centroid(det.x_px, det.y_px)
+
         h, w = frame.shape[:2]
         x_mm, y_mm = self._aim_in_mm(
-            det.x_px,
-            det.y_px,
+            cx_px,
+            cy_px,
             major_px,
             minor_px,
             self._last_angle_rad,
@@ -193,8 +208,8 @@ class Tracker:
 
         sample = TrackingSample(
             timestamp=timestamp,
-            x_px=det.x_px,
-            y_px=det.y_px,
+            x_px=cx_px,
+            y_px=cy_px,
             x_mm=x_mm,
             y_mm=y_mm,
             confidence=det.confidence,
@@ -288,6 +303,23 @@ class Tracker:
             self._smoothed_minor_px = (1.0 - a) * self._smoothed_minor_px + a * minor_in
 
         return (self._smoothed_major_px, self._smoothed_minor_px)
+
+    def _update_smoothed_centroid(
+        self, cx_px: float, cy_px: float
+    ) -> tuple[float, float]:
+        """Fold a fresh centroid into the running average.
+
+        Same EMA as the radius smoothing. First detection
+        initialises the average, subsequent ones blend in.
+        """
+        a = self._CENTROID_EMA_ALPHA
+        if self._smoothed_cx_px is None:
+            self._smoothed_cx_px = cx_px
+            self._smoothed_cy_px = cy_px
+        else:
+            self._smoothed_cx_px = (1.0 - a) * self._smoothed_cx_px + a * cx_px
+            self._smoothed_cy_px = (1.0 - a) * self._smoothed_cy_px + a * cy_px  # type: ignore[operator]
+        return (self._smoothed_cx_px, self._smoothed_cy_px)  # type: ignore[return-value]
 
     def _fallback_axes(self, radius_px: float) -> tuple[float, float]:
         """Pick a sensible axis pair when the current detection is too noisy.
