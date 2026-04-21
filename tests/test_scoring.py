@@ -65,6 +65,50 @@ def test_empty_rings_return_empty():
     assert score_shot(0.0, 0.0, []) == ""
 
 
+def test_outward_scoring_awards_smallest_ring_shot_is_inside():
+    """For outward-scored targets, the ring labels assign higher
+    values to larger rings. The scoring algorithm still picks the
+    smallest ring the shot fits inside. The label scheme makes
+    centre shots low and edge shots high.
+
+    With outward scoring, a shot touching a ring boundary scores
+    the ring it's leaving (the larger one) rather than the one
+    it's entering (the smaller one). This is the opposite of
+    inward scoring where touching a boundary scores the inner ring.
+    """
+    rings = [
+        ScoringRing(10.0, "1"),   # centre, low value
+        ScoringRing(25.0, "5"),
+        ScoringRing(50.0, "10"),  # edge, high value
+    ]
+    # Shot at 40mm from centre is outside 25mm ring, inside 50mm.
+    # With outward scoring, the ring boundary the shot is between
+    # (25-50) scores the outer ring's label.
+    assert score_shot(40.0, 0.0, rings, scoring_direction="outward") == "10"
+    # Shot at 20mm is between 10mm and 25mm boundaries.
+    # With outward scoring, the outer ring (25mm) gives "5".
+    assert score_shot(20.0, 0.0, rings, scoring_direction="outward") == "5"
+    # Shot dead centre is inside 10mm ring. Scores "1".
+    assert score_shot(0.0, 0.0, rings, scoring_direction="outward") == "1"
+    # Shot outside all rings is a miss.
+    assert score_shot(60.0, 0.0, rings, scoring_direction="outward") == ""
+
+
+def test_outward_scoring_with_shot_diameter():
+    """Shot edge touching the ring counts for the outer ring."""
+    rings = [
+        ScoringRing(10.0, "1"),
+        ScoringRing(30.0, "5"),
+    ]
+    # Shot centre at 12mm with 4mm diameter has its edge at 10mm,
+    # which touches the 10mm ring boundary. With outward scoring,
+    # the shot is between 10mm and 30mm, so it scores "5".
+    # But edge at 10mm means it touches the 10mm boundary...
+    # With outward scoring, touching the inner boundary means
+    # you're still in the outer zone.
+    assert score_shot(12.0, 0.0, rings, shot_diameter_mm=4.0, scoring_direction="outward") == "5"
+
+
 def test_label_to_value_handles_x_and_numbers():
     assert label_to_value("X") == 10.0
     assert label_to_value("x") == 10.0
