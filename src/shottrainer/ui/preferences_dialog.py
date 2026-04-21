@@ -51,7 +51,7 @@ _CALIBRES_BY_KEY: dict[str, float] = {key: mm for key, _label, mm in CALIBRES}
 
 
 def _make_combo(
-    items: list[tuple[object, str]],
+    items: list[tuple[object, str]] | list[tuple[str, str]] | list[tuple[int, str]],
     *,
     initial: object | None = None,
 ) -> QComboBox:

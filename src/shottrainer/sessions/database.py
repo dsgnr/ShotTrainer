@@ -36,7 +36,7 @@ def _enable_sqlite_foreign_keys(engine: Engine) -> None:
     tables wouldn't fire when a session is deleted.
     """
     @event.listens_for(engine, "connect")
-    def _fk_pragma_on_connect(dbapi_conn, _):  # type: ignore[no-untyped-def]
+    def _fk_pragma_on_connect(dbapi_conn, _):
         cursor = dbapi_conn.cursor()
         try:
             cursor.execute("PRAGMA foreign_keys=ON")
