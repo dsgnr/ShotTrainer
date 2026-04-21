@@ -100,6 +100,12 @@ shottrainer
 # or: python -m shottrainer.app.main
 ```
 
+### Keyboard shortcuts
+
+- `Ctrl+S` (`Cmd+S` on macOS): start or stop the current session.
+- `Ctrl+R` (`Cmd+R`): clear the displayed shots (only when not recording).
+- `Space`: play / pause replay when a shot is selected.
+
 ## Development workflow
 
 The Makefile wraps the common commands:
