@@ -139,7 +139,10 @@ class CameraCapture(QObject):
         if thread is None:
             return
         thread.quit()
-        thread.wait(2000)
+        if not thread.wait(5000):
+            log.warning("Camera thread did not stop within 5s, terminating")
+            thread.terminate()
+            thread.wait(1000)
         self._thread = None
 
     def update_config(self, config: CameraConfig) -> None:

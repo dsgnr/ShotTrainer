@@ -140,7 +140,37 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._caption_label("CAMERA"))
         self.camera_view.setMinimumSize(220, 165)
         self.camera_view.setMaximumHeight(220)
-        layout.addWidget(self.camera_view)
+
+        # Wrap camera view in a container so we can overlay the expand button.
+        camera_container = QWidget()
+        camera_container.setMaximumHeight(220)
+        camera_layout = QVBoxLayout(camera_container)
+        camera_layout.setContentsMargins(0, 0, 0, 0)
+        camera_layout.addWidget(self.camera_view)
+
+        self._expand_button = QPushButton(camera_container)
+        self._expand_button.setFixedSize(26, 26)
+        self._expand_button.setToolTip("Enlarge camera preview")
+        self._expand_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._expand_button.setStyleSheet(
+            "QPushButton {"
+            "  background: rgba(0, 0, 0, 160);"
+            "  border: none;"
+            "  border-radius: 4px;"
+            "  padding: 4px;"
+            "}"
+            "QPushButton:hover {"
+            "  background: rgba(60, 60, 60, 200);"
+            "}"
+        )
+        self._expand_button.setIcon(self._make_expand_icon())
+        self._expand_button.setIconSize(self._expand_button.size())
+        # Position in top-right corner. Repositioned on resize via eventFilter.
+        self._expand_button.move(camera_container.width() - 34, 8)
+        self._expand_button.raise_()
+        camera_container.installEventFilter(self)
+
+        layout.addWidget(camera_container)
 
         zero_row = QHBoxLayout()
         zero_row.setContentsMargins(0, 0, 0, 0)
@@ -204,6 +234,41 @@ class MainWindow(QMainWindow):
         label = QLabel(text)
         label.setObjectName("columnCaption")
         return label
+
+    def eventFilter(self, obj, event):  # noqa: N802
+        """Reposition the expand button when the camera container resizes."""
+        from PySide6.QtCore import QEvent
+
+        if event.type() == QEvent.Type.Resize and hasattr(self, "_expand_button"):
+            self._expand_button.move(obj.width() - 34, 8)
+        return super().eventFilter(obj, event)
+
+    @staticmethod
+    def _make_expand_icon():
+        """Create a simple expand icon as a QIcon (two outward-pointing corners)."""
+        from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
+
+        pm = QPixmap(18, 18)
+        pm.fill(QColor(0, 0, 0, 0))
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        pen = QPen(QColor(255, 255, 255, 220))
+        pen.setWidth(2)
+        p.setPen(pen)
+        # Top-left corner
+        p.drawLine(2, 6, 2, 2)
+        p.drawLine(2, 2, 6, 2)
+        # Top-right corner
+        p.drawLine(11, 2, 15, 2)
+        p.drawLine(15, 2, 15, 6)
+        # Bottom-left corner
+        p.drawLine(2, 11, 2, 15)
+        p.drawLine(2, 15, 6, 15)
+        # Bottom-right corner
+        p.drawLine(11, 15, 15, 15)
+        p.drawLine(15, 15, 15, 11)
+        p.end()
+        return QIcon(pm)
 
     def set_tracking_status(self, text: str) -> None:
         """Update the header's secondary status line (live mm/px and so on)."""
@@ -389,9 +454,7 @@ class MainWindow(QMainWindow):
 
     def _on_preferences_saved(self, prefs: Preferences) -> None:
         self._prefs = prefs
-        cam_text = (
-            "no camera" if prefs.camera_id is None else f"camera {prefs.camera_id}"
-        )
+        cam_text = "no camera" if prefs.camera_id is None else f"camera {prefs.camera_id}"
         self.statusBar().showMessage(f"Saved preferences: {cam_text}", 3000)
         self.preferences_changed.emit(prefs)
 

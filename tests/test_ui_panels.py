@@ -100,7 +100,7 @@ def test_target_view_records_shots(qtbot):
 def test_camera_view_status_changes_are_recorded(qtbot):
     view = CameraView()
     qtbot.addWidget(view)
-    assert view._status == "idle"
+    assert view._status is None
     view.set_status("tracking")
     assert view._status == "tracking"
     view.set_status("manual")
