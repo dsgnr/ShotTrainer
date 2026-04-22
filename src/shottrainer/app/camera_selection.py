@@ -60,9 +60,7 @@ def load_camera_selection(path: Path | None = None) -> CameraSelection:
     )
 
 
-def save_camera_selection(
-    selection: CameraSelection, path: Path | None = None
-) -> None:
+def save_camera_selection(selection: CameraSelection, path: Path | None = None) -> None:
     """Write the user's camera choice to disk."""
     p = path or camera_selection_path()
     p.parent.mkdir(parents=True, exist_ok=True)

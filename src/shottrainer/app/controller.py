@@ -169,9 +169,7 @@ class AppController(QObject):
 
         self._connect_signals()
         self._window.set_device_options_provider(self._device_options)
-        self._window.set_saved_camera_name_provider(
-            lambda: load_camera_selection().name
-        )
+        self._window.set_saved_camera_name_provider(lambda: load_camera_selection().name)
         self._window.set_target_faces_provider(list_target_faces)
         self._window.set_rings_lookup(rings_for_face)
         self._window.set_face_lookup(face_for_name)
@@ -384,7 +382,9 @@ class AppController(QObject):
             emit_buffer = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             owns_copy = True
         opts = self._frame_transform
-        if opts is not None and (opts.rotation_degrees or opts.flip_horizontal or opts.flip_vertical):
+        if opts is not None and (
+            opts.rotation_degrees or opts.flip_horizontal or opts.flip_vertical
+        ):
             transformed = transform_frame(
                 emit_buffer,
                 rotation_degrees=opts.rotation_degrees,
@@ -403,9 +403,7 @@ class AppController(QObject):
             emit_buffer if owns_copy else np.ascontiguousarray(emit_buffer)
         )
         if opts is not None and (opts.brightness != 0.0 or opts.contrast != 1.0):
-            adjusted = adjust_image(
-                emit_buffer, brightness=opts.brightness, contrast=opts.contrast
-            )
+            adjusted = adjust_image(emit_buffer, brightness=opts.brightness, contrast=opts.contrast)
             if adjusted is not emit_buffer:
                 emit_buffer = adjusted
                 owns_copy = True
@@ -454,9 +452,7 @@ class AppController(QObject):
             self._window.camera_view.set_status("lost")
             return
 
-        self._window.camera_view.set_aim_point(
-            sample.x_px, sample.y_px, radius_px=last_radius_px
-        )
+        self._window.camera_view.set_aim_point(sample.x_px, sample.y_px, radius_px=last_radius_px)
         self._window.camera_view.set_rejected_point(None, None)
         self._window.camera_view.set_status("tracking")
         if sample.x_mm is not None and sample.y_mm is not None:
@@ -755,10 +751,7 @@ class AppController(QObject):
         )
         self._window.camera_view.set_region_fraction(prefs.tracking_region_fraction)
 
-        if (
-            previous is not None
-            and previous.camera_id != prefs.camera_id
-        ):
+        if previous is not None and previous.camera_id != prefs.camera_id:
             if prefs.camera_id is None:
                 self._stop_camera()
             else:
@@ -912,9 +905,7 @@ class AppController(QObject):
         dialog.camera_property_changed.connect(self._on_camera_property_changed)
         dialog.camera_transform_changed.connect(self._on_camera_transform_changed)
         dialog.camera_changed.connect(self._on_camera_chosen_in_dialog)
-        dialog.refresh_devices_requested.connect(
-            lambda: self._refresh_dialog_devices(dialog)
-        )
+        dialog.refresh_devices_requested.connect(lambda: self._refresh_dialog_devices(dialog))
         dialog.optimise_requested.connect(self._on_optimise_requested)
         dialog.reset_detector_requested.connect(self._on_reset_detector_requested)
 
@@ -1056,9 +1047,7 @@ class AppController(QObject):
             return
         self._frame_transform = self._build_transform_options(self._preferences)
 
-    def _on_camera_transform_changed(
-        self, rotation: int, flip_h: bool, flip_v: bool
-    ) -> None:
+    def _on_camera_transform_changed(self, rotation: int, flip_h: bool, flip_v: bool) -> None:
         """Apply a rotation or flip change from the open Preferences dialog.
 
         Mirrors the brightness/contrast path. The controller's
@@ -1098,9 +1087,7 @@ class AppController(QObject):
         """
         source = self._latest_unadjusted_frame
         if source is None:
-            self._set_detector_status(
-                "No camera frame available to optimise from", kind="warning"
-            )
+            self._set_detector_status("No camera frame available to optimise from", kind="warning")
             return
 
         self._set_optimise_button_enabled(False)
@@ -1113,9 +1100,7 @@ class AppController(QObject):
 
         base_settings = self._tracker.detector.settings
         try:
-            new_settings, adjustment, score = optimise_detector_settings(
-                source, base_settings
-            )
+            new_settings, adjustment, score = optimise_detector_settings(source, base_settings)
         except Exception:
             log.exception("Auto-optimise failed")
             new_settings, adjustment, score = None, None, 0.0
@@ -1163,9 +1148,7 @@ class AppController(QObject):
         if dialog is not None:
             dialog.set_image_controls(adjustment.brightness, adjustment.contrast)
         if unchanged:
-            self._set_detector_status(
-                f"Already optimal (confidence {score:.2f})", kind="info"
-            )
+            self._set_detector_status(f"Already optimal (confidence {score:.2f})", kind="info")
         else:
             self._set_detector_status(
                 f"Tracking optimised (confidence {score:.2f})", kind="success"

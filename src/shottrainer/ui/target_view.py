@@ -151,10 +151,7 @@ class TargetView(QWidget):
         # sits at the head of the approach polygon, since phase
         # boundaries shift via ``set_trace_segments`` rather than
         # because of trace age.
-        if (
-            self._trace.maxlen is not None
-            and len(self._trace) >= self._trace.maxlen
-        ):
+        if self._trace.maxlen is not None and len(self._trace) >= self._trace.maxlen:
             if self._trace_approach.size() > 0:
                 self._trace_approach.remove(0)
             else:
@@ -329,7 +326,9 @@ class TargetView(QWidget):
             r = ring.diameter_mm / 2 * scale
             painter.drawEllipse(QPointF(cx, cy), r, r)
             if ring.label:
-                painter.drawText(QRectF(cx + r - 24, cy - 10, 22, 14), Qt.AlignmentFlag.AlignRight, ring.label)
+                painter.drawText(
+                    QRectF(cx + r - 24, cy - 10, 22, 14), Qt.AlignmentFlag.AlignRight, ring.label
+                )
 
     def _draw_crosshair(self, painter: QPainter, cx: float, cy: float, size: float) -> None:
         pen = QPen(QColor("#888888"))
@@ -435,7 +434,9 @@ class TargetView(QWidget):
             painter.drawEllipse(QPointF(x, y), r, r)
             if shot.label:
                 painter.setPen(QColor("#1f2228"))
-                painter.drawText(QRectF(x + r + 4, y - 16, 30, 14), Qt.AlignmentFlag.AlignLeft, shot.label)
+                painter.drawText(
+                    QRectF(x + r + 4, y - 16, 30, 14), Qt.AlignmentFlag.AlignLeft, shot.label
+                )
 
     def _playhead_has_reached_shot(self) -> bool:
         """Has the replay cursor arrived at (or past) the shot moment?

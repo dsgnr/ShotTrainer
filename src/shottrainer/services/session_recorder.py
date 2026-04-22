@@ -27,8 +27,8 @@ log = logging.getLogger(__name__)
 class RecorderConfig:
     """Knobs for how often the recorder flushes its buffer."""
 
-    flush_every: int = 60          # samples
-    flush_seconds: float = 1.0     # or this many seconds, whichever comes first
+    flush_every: int = 60  # samples
+    flush_seconds: float = 1.0  # or this many seconds, whichever comes first
 
 
 class SessionRecorder:

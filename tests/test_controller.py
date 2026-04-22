@@ -42,12 +42,8 @@ def controller(
     real camera thread inside a unit test invites flakiness, and
     none of the assertions here look at frames or audio.
     """
-    monkeypatch.setattr(
-        "shottrainer.app.controller.CameraCapture", _StubCameraCapture
-    )
-    monkeypatch.setattr(
-        "shottrainer.app.controller.AudioShotListener", _StubAudioListener
-    )
+    monkeypatch.setattr("shottrainer.app.controller.CameraCapture", _StubCameraCapture)
+    monkeypatch.setattr("shottrainer.app.controller.AudioShotListener", _StubAudioListener)
     # Persistent state files all live next to ``data_dir()``. Redirect
     # each module's path helper so the tests don't trample on the
     # user's real config. ``data_dir`` is bound at import time in
@@ -221,17 +217,11 @@ def test_revert_camera_after_dialog_does_nothing_if_unchanged(
     should leave the running capture alone."""
     starts: list[int] = []
     stops: list[bool] = []
-    monkeypatch.setattr(
-        AppController, "_start_camera", lambda self, idx: starts.append(idx)
-    )
-    monkeypatch.setattr(
-        AppController, "_stop_camera", lambda self: stops.append(True)
-    )
+    monkeypatch.setattr(AppController, "_start_camera", lambda self, idx: starts.append(idx))
+    monkeypatch.setattr(AppController, "_stop_camera", lambda self: stops.append(True))
     # Pretend the camera is already running on index 0 so the revert
     # logic sees the dialog's pre-open and post-close indices match.
-    controller._camera = _StubCameraCapture(
-        type("Cfg", (), {"device_index": 0})()
-    )
+    controller._camera = _StubCameraCapture(type("Cfg", (), {"device_index": 0})())
     controller._revert_camera_after_dialog(original_index=0, committed=False)
     assert starts == []
     assert stops == []
@@ -245,12 +235,8 @@ def test_revert_camera_after_dialog_committed_is_a_no_op(
     the change. The post-close revert path must keep its hands off."""
     starts: list[int] = []
     stops: list[bool] = []
-    monkeypatch.setattr(
-        AppController, "_start_camera", lambda self, idx: starts.append(idx)
-    )
-    monkeypatch.setattr(
-        AppController, "_stop_camera", lambda self: stops.append(True)
-    )
+    monkeypatch.setattr(AppController, "_start_camera", lambda self, idx: starts.append(idx))
+    monkeypatch.setattr(AppController, "_stop_camera", lambda self: stops.append(True))
     controller._revert_camera_after_dialog(original_index=0, committed=True)
     assert starts == []
     assert stops == []

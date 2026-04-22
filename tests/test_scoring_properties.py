@@ -19,9 +19,7 @@ from shottrainer.services.scoring import (
     total_score,
 )
 
-_finite_mm = st.floats(
-    min_value=-1000.0, max_value=1000.0, allow_nan=False, allow_infinity=False
-)
+_finite_mm = st.floats(min_value=-1000.0, max_value=1000.0, allow_nan=False, allow_infinity=False)
 _radii = st.lists(
     st.floats(min_value=0.5, max_value=200.0, allow_nan=False, allow_infinity=False),
     min_size=1,
@@ -113,7 +111,9 @@ def test_total_score_is_associative_under_concatenation(
 @settings(deadline=None)
 @given(_finite_mm, _finite_mm, _radii)
 def test_score_is_monotonic_in_distance(
-    x: float, y: float, radii: list[float],
+    x: float,
+    y: float,
+    radii: list[float],
 ):
     """Moving a shot strictly outward across a ring boundary cannot
     improve its score. The value never increases as distance grows."""

@@ -109,7 +109,9 @@ def test_list_sessions_query_count_does_not_grow_with_session_count(repo: Sessio
     for i in range(20):
         sid = repo.create_session(name=f"session {i}")
         for _ in range(3):
-            repo.add_shot(sid, ts=0.1, x_mm=0.0, y_mm=0.0, audio_level=0.5, confidence=0.9, score="9")
+            repo.add_shot(
+                sid, ts=0.1, x_mm=0.0, y_mm=0.0, audio_level=0.5, confidence=0.9, score="9"
+            )
 
     queries: list[str] = []
 
@@ -127,6 +129,8 @@ def test_list_sessions_query_count_does_not_grow_with_session_count(repo: Sessio
 
     assert len(summaries) == 20
     # One SELECT for sessions, one SELECT for the shots in those sessions.
-    assert len(queries) == 2, "list_sessions issued more SELECTs than expected:\n" + "\n".join(queries)
+    assert len(queries) == 2, "list_sessions issued more SELECTs than expected:\n" + "\n".join(
+        queries
+    )
     assert all(s.shot_count == 3 for s in summaries)
     assert all(s.total_score == pytest.approx(27.0) for s in summaries)

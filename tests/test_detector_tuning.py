@@ -31,9 +31,7 @@ def test_optimise_returns_none_when_nothing_visible():
 
 
 def test_optimise_handles_empty_frame():
-    settings, adjustment, score = optimise_detector_settings(
-        np.array([]), DetectorSettings()
-    )
+    settings, adjustment, score = optimise_detector_settings(np.array([]), DetectorSettings())
     assert settings is None
     assert adjustment == ImageAdjustment()
     assert score == 0.0

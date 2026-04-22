@@ -56,7 +56,6 @@ def test_diagnostic_rings_empty():
     assert diagnostic_rings(()) == []
 
 
-
 def test_custom_face_loaded_from_data_dir(tmp_path, monkeypatch):
     from pathlib import Path
 
@@ -67,7 +66,7 @@ def test_custom_face_loaded_from_data_dir(tmp_path, monkeypatch):
         '{"my_face": {"label": "My face", "rings": ['
         '{"diameter_mm": 100.0, "label": "1"},'
         '{"diameter_mm": 10.0, "label": "X"}'
-        ']}}'
+        "]}}"
     )
     monkeypatch.setattr(tf, "custom_faces_path", lambda: Path(custom_file))
 
