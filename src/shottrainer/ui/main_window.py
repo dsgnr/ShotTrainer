@@ -151,7 +151,6 @@ class MainWindow(QMainWindow):
         self._expand_button = QPushButton(camera_container)
         self._expand_button.setFixedSize(26, 26)
         self._expand_button.setToolTip("Enlarge camera preview")
-        self._expand_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._expand_button.setStyleSheet(
             "QPushButton {"
             "  background: rgba(0, 0, 0, 160);"
