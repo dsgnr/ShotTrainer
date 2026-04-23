@@ -26,7 +26,11 @@ A4_HEIGHT_MM = 297.0
 
 
 class MarkerSheetDialog(QDialog):
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        diameter_mm: float = 60.0,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Print marker sheet")
         self.resize(360, 220)
@@ -37,7 +41,7 @@ class MarkerSheetDialog(QDialog):
         self._diameter.setRange(5.0, 200.0)
         self._diameter.setSingleStep(1.0)
         self._diameter.setSuffix(" mm")
-        self._diameter.setValue(60.0)
+        self._diameter.setValue(float(diameter_mm))
         form.addRow("Circle diameter", self._diameter)
         layout.addLayout(form)
 
@@ -45,13 +49,14 @@ class MarkerSheetDialog(QDialog):
         self._save_pdf.clicked.connect(self._on_save_pdf)
         layout.addWidget(self._save_pdf)
 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Close
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         print_btn = buttons.addButton("Print...", QDialogButtonBox.ButtonRole.AcceptRole)
         print_btn.clicked.connect(self._on_print)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
+
+    def diameter_mm(self) -> float:
+        return float(self._diameter.value())
 
     def _on_save_pdf(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
