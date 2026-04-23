@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -25,11 +25,10 @@ from shottrainer.services.shot_stats import compute_trace_stats
 from shottrainer.services.trace_buffer import TraceBuffer
 from shottrainer.sessions.database import init_database, make_engine
 from shottrainer.sessions.repository import SessionRepository
-from shottrainer.tracking.calibration import LinearCalibration
 from shottrainer.tracking.camera import CameraCapture, CameraConfig, list_available_cameras
+from shottrainer.tracking.circle_detector import detect_calibration_circle
 from shottrainer.tracking.detector import DetectorSettings
 from shottrainer.tracking.detector_tuning import optimise_detector_settings
-from shottrainer.tracking.sheet_detector import detect_sheet_corners
 from shottrainer.tracking.tracker import Tracker
 from shottrainer.ui.main_window import MainWindow
 from shottrainer.ui.preferences_dialog import Preferences
@@ -66,6 +65,7 @@ log = logging.getLogger(__name__)
 @dataclass(slots=True)
 class _ShotEntry:
     """One shot in the current on-screen list."""
+
     timestamp: float
     x_mm: float
     y_mm: float
@@ -131,7 +131,7 @@ class AppController(QObject):
         self._window.set_device_options_provider(self._device_options)
         self._window.set_target_faces_provider(list_target_faces)
         self._window.set_rings_lookup(rings_for_face)
-        self._window.set_calibration_corner_detector(detect_sheet_corners)
+        self._window.set_calibration_circle_detector(detect_calibration_circle)
         self._window.set_recording_check(lambda: self._recorder.is_recording)
         self._apply_preferences(load_preferences())
 
@@ -212,9 +212,10 @@ class AppController(QObject):
 
         self._window.session_browser_requested.connect(self._open_session_browser)
         self._window.preferences_changed.connect(self._apply_preferences)
-        self._window.calibration_points_accepted.connect(self._calibration_controller.apply_image_points)
+        self._window.calibration_circle_accepted.connect(self._on_calibration_circle_accepted)
         self._window.calibration_dialog_opened.connect(self._on_calibration_dialog_opened)
         self._window.preferences_dialog_opened.connect(self._on_prefs_dialog_opened)
+        self._window.marker_diameter_changed.connect(self._on_marker_diameter_changed)
         self._window.manual_aim_requested.connect(self._on_manual_aim_requested)
         self._window.manual_aim_cleared.connect(self._on_manual_aim_cleared)
         self._window.zero_on_aim_requested.connect(self._on_zero_on_aim_requested)
@@ -432,9 +433,7 @@ class AppController(QObject):
             ]
         )
         self._window.header.set_shot_count(len(self._shots_in_view))
-        self._window.hero_stats.set_scores(
-            [s.score or "" for s in self._shots_in_view]
-        )
+        self._window.hero_stats.set_scores([s.score or "" for s in self._shots_in_view])
 
     def _refresh_stats(self) -> None:
         positions = [(s.x_mm, s.y_mm) for s in self._shots_in_view]
@@ -482,8 +481,7 @@ class AppController(QObject):
         confirm = QMessageBox.question(
             self._window,
             "Clear shots?",
-            "Remove all shots from the display? "
-            "This does not affect saved sessions.",
+            "Remove all shots from the display? This does not affect saved sessions.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -528,7 +526,11 @@ class AppController(QObject):
         self._tracker.set_region_fraction(prefs.tracking_region_fraction)
         self._window.camera_view.set_region_fraction(prefs.tracking_region_fraction)
 
-        if previous is not None and previous.camera_id != prefs.camera_id and self._camera is not None:
+        if (
+            previous is not None
+            and previous.camera_id != prefs.camera_id
+            and self._camera is not None
+        ):
             self._start_camera(prefs.camera_id)
             self._persist_camera_selection(prefs.camera_id)
 
@@ -609,6 +611,24 @@ class AppController(QObject):
     def _on_calibration_dialog_opened(self, dialog) -> None:
         self._register_frame_mirror(dialog)
 
+    def _on_calibration_circle_accepted(
+        self, cx: float, cy: float, r: float, diameter_mm: float
+    ) -> None:
+        self._calibration_controller.apply_circle(
+            centre_px=(cx, cy), radius_px=r, diameter_mm=diameter_mm
+        )
+        # Persist the diameter alongside the rest of the preferences
+        # so future calibrations and marker prints default to it.
+        if abs(diameter_mm - self._preferences.calibration_diameter_mm) > 1e-6:
+            updated = replace(self._preferences, calibration_diameter_mm=diameter_mm)
+            self._apply_preferences(updated)
+
+    def _on_marker_diameter_changed(self, diameter_mm: float) -> None:
+        if abs(diameter_mm - self._preferences.calibration_diameter_mm) <= 1e-6:
+            return
+        updated = replace(self._preferences, calibration_diameter_mm=diameter_mm)
+        self._apply_preferences(updated)
+
     def _on_prefs_dialog_opened(self, dialog) -> None:
         self._register_frame_mirror(dialog)
         if self._latest_frame is not None:
@@ -631,9 +651,7 @@ class AppController(QObject):
 
     def _on_optimise_requested(self) -> None:
         if self._latest_frame is None:
-            self._window.statusBar().showMessage(
-                "No camera frame available to optimise from", 4000
-            )
+            self._window.statusBar().showMessage("No camera frame available to optimise from", 4000)
             return
         new_settings, score = optimise_detector_settings(
             self._latest_frame, self._tracker.detector.settings
@@ -648,9 +666,7 @@ class AppController(QObject):
             save_detector_settings(new_settings)
         except OSError as exc:
             log.warning("Could not save detector settings: %s", exc)
-        self._window.statusBar().showMessage(
-            f"Tracking optimised (confidence {score:.2f})", 4000
-        )
+        self._window.statusBar().showMessage(f"Tracking optimised (confidence {score:.2f})", 4000)
 
     def _on_reset_detector_requested(self) -> None:
         defaults = DetectorSettings(region_fraction=self._preferences.tracking_region_fraction)
@@ -664,11 +680,9 @@ class AppController(QObject):
             self._window.set_calibration_status("Uncalibrated")
             return
         self._tracker.set_calibration(calibration)
-        if isinstance(calibration, LinearCalibration):
-            mm_per_px = calibration.mm_per_pixel
-        else:
-            mm_per_px = calibration.diagnostic_mm_per_pixel()
-        self._window.set_calibration_status(f"Calibrated: {mm_per_px:.3f} mm/px")
+        self._window.set_calibration_status(
+            f"Calibrated: {abs(calibration.mm_per_pixel):.3f} mm/px"
+        )
         self._window.statusBar().showMessage("Calibration updated from disk", 3000)
 
     def _on_settings_file_changed(self, prefs: Preferences) -> None:
