@@ -40,7 +40,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-shottrainer = ["py.typed", "ui/assets/*"]
+shottrainer = ["py.typed", "ui/assets/*", "ui/assets/target_faces/*"]
 
 [tool.ruff]
 line-length = 100
