@@ -1,0 +1,40 @@
+name: Bug report
+description: Something doesn't work the way it should.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Steps to reproduce, with the expected vs actual outcome.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: ShotTrainer version
+      description: From Tools > Preferences > About.
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Camera and microphone
+      description: Make / model. If the bug only happens with a specific device, mention it.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Paste any console output or attach screenshots.
