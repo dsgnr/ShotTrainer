@@ -28,9 +28,17 @@ from shottrainer.sessions.repository import SessionRepository, SessionSummary
 
 
 class SessionBrowserDialog(QDialog):
+    """Dialog listing previously recorded sessions for replay, export, or deletion."""
+
     open_session = Signal(int)
 
     def __init__(self, repository: SessionRepository, parent: QWidget | None = None) -> None:
+        """Initialise the browser dialog.
+
+        Args:
+            repository: The session repository to read from.
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         self.setWindowTitle("Sessions")
         self.resize(560, 460)

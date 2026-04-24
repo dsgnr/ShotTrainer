@@ -31,7 +31,14 @@ def _colour_for_level(level: float) -> QColor:
 
 
 class AudioMeter(QWidget):
+    """Compact live audio level meter with peak hold and threshold indicator."""
+
     def __init__(self, parent: QWidget | None = None) -> None:
+        """Initialise the meter with a 50ms decay timer.
+
+        Args:
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         self.setFixedHeight(14)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -44,6 +51,11 @@ class AudioMeter(QWidget):
         self._decay.start(50)
 
     def set_level(self, level: float) -> None:
+        """Push a new audio level reading into the meter.
+
+        Args:
+            level: Audio level between 0.0 and 1.0.
+        """
         v = max(0.0, min(1.0, float(level)))
         self._level = v
         if v > self._peak:
@@ -51,10 +63,16 @@ class AudioMeter(QWidget):
         self.update()
 
     def set_threshold(self, threshold: float) -> None:
+        """Set the shot-detection threshold marker position.
+
+        Args:
+            threshold: Threshold level between 0.0 and 1.0.
+        """
         self._threshold = max(0.0, min(1.0, float(threshold)))
         self.update()
 
     def _tick(self) -> None:
+        """Decay the level and peak values each timer tick."""
         self._level = max(0.0, self._level * 0.85)
         self._peak = max(0.0, self._peak * 0.97)
         self.update()

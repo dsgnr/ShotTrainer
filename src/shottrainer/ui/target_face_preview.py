@@ -12,15 +12,25 @@ from .target_view import TargetRing
 
 
 class TargetFacePreview(QWidget):
-    """Square widget that renders rings centred and scaled to fit."""
+    """Square widget that renders a target face's rings centred and scaled to fit."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
+        """Initialise the preview with no rings.
+
+        Args:
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMinimumHeight(160)
         self._rings: tuple[TargetRing, ...] = ()
 
     def set_rings(self, rings: Sequence[TargetRing]) -> None:
+        """Set the rings to render.
+
+        Args:
+            rings: Sequence of `TargetRing` objects defining the face.
+        """
         self._rings = tuple(rings)
         self.update()
 

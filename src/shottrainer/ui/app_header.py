@@ -30,6 +30,11 @@ class StatePill(QLabel):
     """Small coloured pill showing the current session state."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
+        """Initialise with the default idle state.
+
+        Args:
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         self.setObjectName("statePill")
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -37,6 +42,7 @@ class StatePill(QLabel):
         self.set_state("idle")
 
     def set_state(self, state: str) -> None:
+        """Update the pill's text and colour for the given state."""
         style = _STATE_STYLES.get(state, _STATE_STYLES["idle"])
         self.setText(style.text)
         self.setStyleSheet(
@@ -53,7 +59,14 @@ class StatePill(QLabel):
 
 
 class AppHeader(QWidget):
+    """Top-of-window status strip with app name, state pill, and settings cog."""
+
     def __init__(self, parent: QWidget | None = None) -> None:
+        """Initialise the header layout.
+
+        Args:
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         self.setObjectName("appHeader")
         self.setFixedHeight(48)
@@ -90,6 +103,7 @@ class AppHeader(QWidget):
         layout.addWidget(self.settings_button)
 
     def set_state(self, state: str) -> None:
+        """Delegate to the `StatePill` to update the session state display."""
         self._state.set_state(state)
 
     def set_status_text(self, text: str) -> None:

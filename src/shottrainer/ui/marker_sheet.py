@@ -26,11 +26,19 @@ A4_HEIGHT_MM = 297.0
 
 
 class MarkerSheetDialog(QDialog):
+    """Dialog for printing or saving a tracking-circle marker sheet to PDF."""
+
     def __init__(
         self,
         diameter_mm: float = 60.0,
         parent: QWidget | None = None,
     ) -> None:
+        """Initialise the marker sheet dialog.
+
+        Args:
+            diameter_mm: Initial circle diameter in millimetres.
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         self.setWindowTitle("Print marker sheet")
         self.resize(360, 220)
@@ -56,7 +64,7 @@ class MarkerSheetDialog(QDialog):
         layout.addWidget(buttons)
 
     def diameter_mm(self) -> float:
-        """The diameter the user currently has set, in mm."""
+        """Return the diameter the user currently has set, in mm."""
         return float(self._diameter.value())
 
     def _on_save_pdf(self) -> None:
