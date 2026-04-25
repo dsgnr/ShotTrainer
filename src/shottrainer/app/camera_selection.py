@@ -25,10 +25,16 @@ log = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class CameraSelection:
+    """The user's chosen camera, identified by display name and device index.
+
+    The name is the primary identifier because device indices shift
+    when USB devices attach in a different order. The index is kept
+    as a fallback. ``None`` means "no camera selected", persisted as
+    ``null`` in the JSON file. The loader treats a missing field as
+    ``0`` for backward compatibility with older files.
+    """
+
     name: str = ""
-    # ``None`` means "no camera selected". Persisted as ``null``
-    # in the JSON file. The loader treats a missing field as
-    # ``0`` for backward compatibility with older files.
     index: int | None = 0
 
 
