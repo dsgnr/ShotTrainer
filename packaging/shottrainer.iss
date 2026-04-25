@@ -4,7 +4,7 @@
 ;   iscc packaging\shottrainer.iss
 ;
 ; Inputs (relative to the repo root):
-;   dist\ShotTrainer\          PyInstaller's one-folder build
+;   dist\ShotTrainer\          Nuitka standalone folder build
 ;   src\shottrainer\ui\assets\icon.ico
 ;
 ; Output:

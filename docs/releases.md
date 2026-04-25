@@ -23,7 +23,7 @@ them to the GitHub release. The artefacts are:
 - **macOS.** A `.dmg` containing `ShotTrainer.app` and a shortcut to
   `/Applications`, plus a `ShotTrainer-macOS.tar.gz` of the raw folder
   build for advanced users.
-- **Linux.** A `ShotTrainer-Linux.tar.gz` of the PyInstaller folder.
+- **Linux.** A `ShotTrainer-Linux.tar.gz` of the standalone Nuitka folder.
 
 ## How a release happens
 
