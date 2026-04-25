@@ -42,7 +42,7 @@ def controller(
     real camera thread inside a unit test invites flakiness, and
     none of the assertions here look at frames or audio.
     """
-    monkeypatch.setattr("shottrainer.app.controller.CameraCapture", _StubCameraCapture)
+    monkeypatch.setattr("shottrainer.app.camera_manager.CameraCapture", _StubCameraCapture)
     monkeypatch.setattr("shottrainer.app.controller.AudioShotListener", _StubAudioListener)
     # Persistent state files all live next to ``data_dir()``. Redirect
     # each module's path helper so the tests don't trample on the
