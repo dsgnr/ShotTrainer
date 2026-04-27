@@ -111,7 +111,7 @@ scene.
 The thing that bothered me about v2 was that "calibration" was a
 stale snapshot of a relationship the app could measure live. If the
 same printed circle is found every frame and we know its diameter,
-we already have the mm/px scale. 
+we already have the mm/px scale.
 
 Trade-offs:
 

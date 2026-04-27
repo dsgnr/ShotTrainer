@@ -20,6 +20,7 @@ from .camera_selection import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from shottrainer.ui.camera_popout import CameraPopout
     from shottrainer.ui.main_window import MainWindow
 
 log = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ class CameraManager:
         self._on_frame_slot = on_frame_slot
         self._on_camera_error_slot = on_camera_error_slot
         self._camera: CameraCapture | None = None
-        self._camera_popout = None
+        self._camera_popout: CameraPopout | None = None
         self._frame_mirrors: list = []
         self._cached_camera_options: list[tuple[int, str]] = []
 
@@ -166,9 +167,7 @@ class CameraManager:
         """
         self._frame_mirrors.append(dialog)
         dialog.finished.connect(
-            lambda _r, d=dialog: (
-                self._frame_mirrors.remove(d) if d in self._frame_mirrors else None
-            )
+            lambda _r, d=dialog: self._frame_mirrors.remove(d) if d in self._frame_mirrors else None
         )
 
     def open_popout(self, latest_frame: np.ndarray | None) -> None:

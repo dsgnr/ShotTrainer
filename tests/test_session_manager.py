@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -36,9 +36,7 @@ def session_mgr() -> SessionManager:
 
 def test_on_start_requested_clears_state(session_mgr: SessionManager):
     """Starting a session clears the shot list and trace."""
-    session_mgr._shots_in_view = [
-        ShotEntry(timestamp=0.0, x_mm=1.0, y_mm=2.0, score="9")
-    ]
+    session_mgr._shots_in_view = [ShotEntry(timestamp=0.0, x_mm=1.0, y_mm=2.0, score="9")]
     session_mgr._recorder.is_recording = False
     session_mgr._recorder.start.return_value = 42
     session_mgr.on_start_requested("Test", app_version="1.0.0")

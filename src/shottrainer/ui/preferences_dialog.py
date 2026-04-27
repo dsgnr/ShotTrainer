@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 from shottrainer.app.preferences import Preferences
 from shottrainer.app.target_faces import TargetFace, TargetRing
 
+from .camera_popout import CameraPopout
 from .camera_view import CameraView
 from .target_face_preview import TargetFacePreview
 from .widgets import (
@@ -94,6 +95,7 @@ class PreferencesDialog(QDialog):
         self._rings_lookup = rings_lookup
         self._face_lookup = face_lookup
         self._saved_camera_name = saved_camera_name
+        self._prefs_popout: CameraPopout | None = None
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
@@ -131,7 +133,7 @@ class PreferencesDialog(QDialog):
         self._camera_preview.set_frame(frame)
         self._camera_preview.set_region_fraction(float(self._region.value()))
         # Mirror to the popout if open.
-        popout = getattr(self, "_prefs_popout", None)
+        popout = self._prefs_popout
         if popout is not None and popout.isVisible():
             popout.view.set_frame(frame)
             popout.view.set_region_fraction(float(self._region.value()))
@@ -142,13 +144,7 @@ class PreferencesDialog(QDialog):
 
     def _on_expand_preview(self) -> None:
         """Open the camera popout from the preferences pane."""
-        from .camera_popout import CameraPopout
-
-        if (
-            hasattr(self, "_prefs_popout")
-            and self._prefs_popout is not None
-            and self._prefs_popout.isVisible()
-        ):
+        if self._prefs_popout is not None and self._prefs_popout.isVisible():
             self._prefs_popout.raise_()
             self._prefs_popout.activateWindow()
             return
@@ -165,7 +161,7 @@ class PreferencesDialog(QDialog):
             h, w = frame.shape[:2]
             popout.set_resolution(w, h)
 
-        popout.finished.connect(lambda _r: setattr(self, "_prefs_popout", None))
+        popout.finished.connect(lambda _r: self._clear_popout())
         popout.show()
         popout.raise_()
         popout.activateWindow()
@@ -177,6 +173,10 @@ class PreferencesDialog(QDialog):
         if event.type() == QEvent.Type.Resize and hasattr(self, "_prefs_expand_button"):
             self._prefs_expand_button.move(obj.width() - 34, 8)
         return super().eventFilter(obj, event)
+
+    def _clear_popout(self) -> None:
+        """Reset the popout reference when the dialog closes."""
+        self._prefs_popout = None
 
     def _emit_transform_changed(self) -> None:
         """Tell the controller about a rotation or flip change.

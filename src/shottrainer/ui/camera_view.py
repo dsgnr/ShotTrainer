@@ -117,14 +117,20 @@ class RawCameraView(QWidget):
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "No camera")
             return
 
-        self._ensure_scaled_pixmap()
-        scaled = self._scaled_pixmap
+        scaled = self._ensure_scaled_pixmap()
         offset_x = (self.width() - scaled.width()) // 2
         offset_y = (self.height() - scaled.height()) // 2
         painter.drawPixmap(offset_x, offset_y, scaled)
 
-    def _ensure_scaled_pixmap(self) -> None:
-        """Rebuild the cached scaled pixmap if the widget size changed."""
+    def _ensure_scaled_pixmap(self) -> QPixmap:
+        """Rebuild the cached scaled pixmap if the widget size changed.
+
+        Must only be called when ``_pixmap`` is not None.
+
+        Returns:
+            The cached scaled pixmap.
+        """
+        assert self._pixmap is not None
         target_size = (self.width(), self.height())
         if self._scaled_pixmap is None or self._scaled_for_size != target_size:
             self._scaled_pixmap = self._pixmap.scaled(
@@ -133,6 +139,7 @@ class RawCameraView(QWidget):
                 Qt.TransformationMode.FastTransformation,
             )
             self._scaled_for_size = target_size
+        return self._scaled_pixmap
 
 
 class CameraView(RawCameraView):
@@ -153,9 +160,7 @@ class CameraView(RawCameraView):
         self._status: TrackingStatus | None = None
         self._region_fraction: float = 1.0
 
-    def set_aim_point(
-        self, x_px: float | None, y_px: float | None, radius_px: float = 0.0
-    ) -> None:
+    def set_aim_point(self, x_px: float | None, y_px: float | None, radius_px: float = 0.0) -> None:
         """Set or clear the detected aim point overlay.
 
         Args:
@@ -234,8 +239,7 @@ class CameraView(RawCameraView):
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "No camera")
             return
 
-        self._ensure_scaled_pixmap()
-        scaled = self._scaled_pixmap
+        scaled = self._ensure_scaled_pixmap()
         offset_x = (self.width() - scaled.width()) // 2
         offset_y = (self.height() - scaled.height()) // 2
         painter.drawPixmap(offset_x, offset_y, scaled)
@@ -260,9 +264,7 @@ class CameraView(RawCameraView):
             return
 
         pos = event.position()
-        scaled = self._pixmap.size().scaled(
-            self.size(), Qt.AspectRatioMode.KeepAspectRatio
-        )
+        scaled = self._pixmap.size().scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio)
         offset_x = (self.width() - scaled.width()) // 2
         offset_y = (self.height() - scaled.height()) // 2
 
@@ -276,9 +278,7 @@ class CameraView(RawCameraView):
         sy = (pos.y() - offset_y) * fh / scaled.height()
         self.clicked_at.emit(float(sx), float(sy))
 
-    def _draw_tracking_region(
-        self, painter: QPainter, scaled_size: _Size, offset: _Offset
-    ) -> None:
+    def _draw_tracking_region(self, painter: QPainter, scaled_size: _Size, offset: _Offset) -> None:
         """Draw a dashed rectangle showing the active tracking region."""
         sw, sh = scaled_size
         ox, oy = offset
@@ -294,9 +294,7 @@ class CameraView(RawCameraView):
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(int(x), int(y), int(rw), int(rh))
 
-    def _draw_centre_reticle(
-        self, painter: QPainter, scaled_size: _Size, offset: _Offset
-    ) -> None:
+    def _draw_centre_reticle(self, painter: QPainter, scaled_size: _Size, offset: _Offset) -> None:
         """Draw a crosshair reticle at the frame centre."""
         sw, sh = scaled_size
         ox, oy = offset
@@ -309,9 +307,7 @@ class CameraView(RawCameraView):
         pen.setWidth(1)
         painter.setPen(pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawEllipse(
-            int(cx - radius), int(cy - radius), int(radius * 2), int(radius * 2)
-        )
+        painter.drawEllipse(int(cx - radius), int(cy - radius), int(radius * 2), int(radius * 2))
         painter.drawLine(int(cx - radius - 6), int(cy), int(cx - gap), int(cy))
         painter.drawLine(int(cx + gap), int(cy), int(cx + radius + 6), int(cy))
         painter.drawLine(int(cx), int(cy - radius - 6), int(cx), int(cy - gap))
@@ -319,6 +315,7 @@ class CameraView(RawCameraView):
 
     def _draw_status_badge(self, painter: QPainter) -> None:
         """Draw the tracking status pill in the top-left corner."""
+        assert self._status is not None
         style = _STATUS_STYLES[self._status]
         margin = 8
         padding_x = 8
@@ -335,9 +332,7 @@ class CameraView(RawCameraView):
 
         dot_d = 8
         painter.setBrush(QColor(style.colour))
-        painter.drawEllipse(
-            margin + 6, margin + (rect_h - dot_d) // 2, dot_d, dot_d
-        )
+        painter.drawEllipse(margin + 6, margin + (rect_h - dot_d) // 2, dot_d, dot_d)
         painter.setPen(QColor("#f7f7f5"))
         painter.drawText(
             margin + dot_d + 12,
@@ -346,9 +341,7 @@ class CameraView(RawCameraView):
         )
         painter.restore()
 
-    def _draw_aim_overlay(
-        self, painter: QPainter, scaled_size: _Size, offset: _Offset
-    ) -> None:
+    def _draw_aim_overlay(self, painter: QPainter, scaled_size: _Size, offset: _Offset) -> None:
         """Draw the green aim-point circle with crosshair ticks."""
         assert self._aim_px is not None
         sx, sy, radius = self._to_widget_coords(
@@ -360,9 +353,7 @@ class CameraView(RawCameraView):
         pen = QPen(Qt.GlobalColor.green)
         pen.setWidth(2)
         painter.setPen(pen)
-        painter.drawEllipse(
-            int(sx - radius), int(sy - radius), int(radius * 2), int(radius * 2)
-        )
+        painter.drawEllipse(int(sx - radius), int(sy - radius), int(radius * 2), int(radius * 2))
         painter.drawLine(int(sx - radius - 6), int(sy), int(sx - radius + 2), int(sy))
         painter.drawLine(int(sx + radius - 2), int(sy), int(sx + radius + 6), int(sy))
         painter.drawLine(int(sx), int(sy - radius - 6), int(sx), int(sy - radius + 2))
@@ -385,13 +376,9 @@ class CameraView(RawCameraView):
         painter.save()
         painter.setPen(pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawEllipse(
-            int(sx - radius), int(sy - radius), int(radius * 2), int(radius * 2)
-        )
+        painter.drawEllipse(int(sx - radius), int(sy - radius), int(radius * 2), int(radius * 2))
         slash = radius * 0.7
-        painter.drawLine(
-            int(sx - slash), int(sy + slash), int(sx + slash), int(sy - slash)
-        )
+        painter.drawLine(int(sx - slash), int(sy + slash), int(sx + slash), int(sy - slash))
         painter.restore()
 
     def _to_widget_coords(
