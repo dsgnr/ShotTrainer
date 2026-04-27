@@ -212,10 +212,16 @@ class TargetView(QWidget):
     def _draw_trace(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
         if len(self._trace) < 2:
             return
-        pre_pen = QPen(QColor(60, 120, 200, 180))
-        pre_pen.setWidth(1)
-        post_pen = QPen(QColor(40, 160, 90, 200))
-        post_pen.setWidth(1)
+        pre_pen = QPen(QColor(60, 120, 200, 220))
+        pre_pen.setWidth(2)
+        pre_pen.setCosmetic(True)
+        pre_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pre_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        post_pen = QPen(QColor(40, 160, 90, 230))
+        post_pen.setWidth(2)
+        post_pen.setCosmetic(True)
+        post_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        post_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         split = self._split_index
 
         prev: QPointF | None = None
