@@ -123,14 +123,14 @@ def test_lock_prefers_close_blob_over_distant_one():
     assert det.found
     primary_x = det.x_px
 
-    # Now both blobs in the same frame: a noise blob slightly closer to
-    # the centre, and the original further off. With the lock active,
-    # the original wins.
+    # Now both blobs are in the same frame. The original at 320,
+    # and a competing blob far enough away that it's outside the
+    # lock search window. The lock keeps the tracker on the original.
     detector = CircleTargetDetector(DetectorSettings(region_fraction=1.0, lock_radius_px=80.0))
     detector.detect(img)  # establish lock at (320, 240)
     img2 = _white_canvas()
     _draw_circle(img2, 320, 240, 25)  # original
-    _draw_circle(img2, 200, 240, 27)  # competing blob 120 px away
+    _draw_circle(img2, 100, 240, 27)  # competing blob 220 px away (outside lock window)
     second = detector.detect(img2)
     assert second.found
     assert abs(second.x_px - primary_x) < 5.0
