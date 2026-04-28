@@ -426,6 +426,8 @@ class AppController(QObject):
         self._buffer.clear()
         self._shots_in_view.clear()
         self._window.target_view.clear_trace()
+        self._window.target_view.set_trace_segments(release_index=None, shot_index=None)
+        self._window.target_view.set_isolate_selected_shot(False)
         self._window.target_view.set_hold_zone(None)
         self._render_shots()
         self._refresh_stats()
@@ -466,6 +468,8 @@ class AppController(QObject):
 
         self._shots_in_view.clear()
         self._window.target_view.clear_trace()
+        self._window.target_view.set_trace_segments(release_index=None, shot_index=None)
+        self._window.target_view.set_isolate_selected_shot(False)
         self._window.target_view.set_hold_zone(None)
         self._render_shots()
         self._refresh_stats()
@@ -559,7 +563,8 @@ class AppController(QObject):
 
         self._current_view_session_id = session_id
         self._window.target_view.clear_trace()
-        self._window.target_view.set_split_index(None)
+        self._window.target_view.set_trace_segments(release_index=None, shot_index=None)
+        self._window.target_view.set_isolate_selected_shot(False)
         self._window.target_view.set_hold_zone(None)
         self._shots_in_view = [
             _ShotEntry(
@@ -589,7 +594,11 @@ class AppController(QObject):
             post_ms=prefs.post_shot_ms,
         )
         self._player.load(window.samples)
-        self._window.target_view.set_split_index(window.split_index)
+        self._window.target_view.set_trace_segments(
+            release_index=window.release_index,
+            shot_index=window.split_index,
+        )
+        self._window.target_view.set_isolate_selected_shot(True)
         points = [(s.x_mm or 0.0, s.y_mm or 0.0) for s in window.samples if s.x_mm is not None]
         self._window.target_view.set_trace(points)
         # Trace stats use the pre-shot portion of the window only.
