@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 
 from .camera_view import CameraView
 from .target_face_preview import TargetFacePreview
+from .target_faces import TargetFace
 from .target_view import TargetRing
 
 
@@ -140,6 +141,7 @@ class PreferencesDialog(QDialog):
         audio_options: list[str] | None = None,
         target_faces: list[tuple[str, str]] | None = None,
         rings_lookup: Callable[[str], tuple[TargetRing, ...]] | None = None,
+        face_lookup: Callable[[str], TargetFace | None] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -147,6 +149,7 @@ class PreferencesDialog(QDialog):
         self.resize(720, 560)
         self._prefs = prefs
         self._rings_lookup = rings_lookup
+        self._face_lookup = face_lookup
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
@@ -440,7 +443,6 @@ class PreferencesDialog(QDialog):
         face_items = list(target_faces or [("default", "Default rings")])
         self._target_face = _make_combo(face_items, initial=prefs.target_face)
         form.addRow("Face", self._target_face)
-
         # Preset combo for the most common calibres. Picking a preset
         # sets the diameter spinbox. Users can still type a custom value.
         self._calibre = _make_combo(
@@ -489,9 +491,37 @@ class PreferencesDialog(QDialog):
         self._face_preview = TargetFacePreview()
         layout.addWidget(self._face_preview, 1)
         self._target_face.currentIndexChanged.connect(self._refresh_face_preview)
+        # Populate the calibre and tracking-circle spinboxes from the
+        # face's metadata when the *user* changes the face. Connect
+        # this only after the spinboxes exist and after the dialog
+        # has been initialised with the saved preferences, so opening
+        # the dialog never overwrites what the user previously saved.
+        self._target_face.activated.connect(self._on_face_chosen)
         self._refresh_face_preview()
 
         return page
+
+    def _on_face_chosen(self, _index: int) -> None:
+        """Auto-fill the diameter fields from the chosen face.
+
+        Triggered only by the ``activated`` signal, which fires
+        on a deliberate user pick (not on programmatic
+        ``setCurrentIndex`` during dialog construction). Missing
+        metadata is left alone, so any values the user already
+        set stay put.
+        """
+        if self._face_lookup is None:
+            return
+        key = self._target_face.currentData()
+        if not isinstance(key, str):
+            return
+        face = self._face_lookup(key)
+        if face is None:
+            return
+        if face.shot_diameter_mm is not None:
+            self._shot_diameter.setValue(face.shot_diameter_mm)
+        if face.face_diameter_mm is not None:
+            self._circle_diameter.setValue(face.face_diameter_mm)
 
     def _refresh_face_preview(self) -> None:
         if self._rings_lookup is None:
