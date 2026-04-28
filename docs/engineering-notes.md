@@ -24,26 +24,109 @@ Alternatives considered:
 - **Manual selection.** Available as a fallback when automatic detection
   fails. The user clicks the centre of the target.
 
-## Calibration
+## Tracking
 
-Calibration uses a single circle of known diameter printed on the marker
-sheet. The user shows the circle to the camera, the app fits its centre
-and radius (either automatically with the same contour pipeline as the
-live detector, or by two manual clicks), and the printed diameter divided
-by the detected diameter in pixels gives a uniform mm-per-pixel scale.
-The circle's centre is taken as the image-space origin.
+Every frame, find the printed circle, divide its known diameter (mm)
+by twice its detected radius (px) to get a per-frame mm/px, and
+report the rifle's aim as frame-centre minus circle-centre, scaled to
+mm. The radius is smoothed with a short EMA (~20 frames) so half-pixel
+jitter doesn't bleed into the trace. There is no separate calibration
+step.
+
+This is the third design I tried. The first two each got something
+embarrassingly wrong in user testing, so it's worth writing down what
+went wrong and why.
+
+### v1: four-corner A4 sheet > homography
+
+The first attempt was the classic computer-vision approach. Print an
+A4 sheet, find the four corners, fit a homography
+(`cv2.findHomography`) that maps image pixels to target millimetres,
+persist it, reuse forever.
+
+The setup friction killed it on its own. Pinning the sheet, getting
+all four corners to detect reliably, and re-running the calibration
+every time anything moved was more ceremony than the rest of the app
+put together.
+
+It also drifted on tilt. A homography compensates for plane tilt at
+the moment of calibration, but moving the rifle into prone changed
+the camera-to-sheet relationship and the trace was wrong by a small
+but visible amount across the whole field.
+
+The worst part was that the failure mode was invisible. The
+calibration dialog only showed a single mm/px figure, which doesn't
+tell you whether the four image-space points actually round-trip back
+to the four target-space corners. One build shipped with a botched
+detector lock and the homography quietly embedded the wrong corner.
+The trace still looked believable. It was about 30% off.
+
+### v2: single circle > linear or homography calibration
+
+v2 dropped the four-corner sheet for a single printed circle of
+known diameter. The circle was easier to detect, easier to print
+(the marker-sheet dialog), and the calibration code shrank to a
+linear scale with origin at the circle's centre. When the imaged
+circle was visibly elliptical (off-axis camera) the calibration
+fitted an ellipse and built a homography from the four ellipse-
+axis points. The linear fit was the round-circle special case.
+
+This worked for the most part, but it surfaced a pile of secondary
+problems.
+
+The detector was easy to confuse. It would lock onto picture frames
+on the wall, dark turret cards on the scope, the bore opening of the
+camera lens itself. Each fix narrowed one failure mode and introduced
+the next. Radius variance to reject squares brought back picture
+frames. A centre-proximity gate to prefer the central blob caused it
+to ignore the real target if the camera was framed slightly off. A
+hard size floor helped indoors but failed at distance. Tests caught
+the symptoms. In practice users mostly just hit "Pick manually".
+
+There was also drift between calibration and use. Calibrating
+standing up and then dropping into prone shifted the camera-to-target
+distance by 10–30 cm. The persisted homography didn't know about
+that, so the trace was off by 5–10% during shooting. I added an
+auto-scale layer that compared the live target's pixel radius against
+the calibration-time radius and applied a corrective multiplier, with
+a "+4%" badge in the header so you could see when it was actually
+doing something.
+
+By the end the calibration flow had three preferences, two stored
+files, two dialogs and one in-line fallback path, mostly to paper
+over differences between the calibration scene and the shooting
+scene.
+
+### v3: live circle, no calibration
+
+The thing that bothered me about v2 was that "calibration" was a
+stale snapshot of a relationship the app could measure live. If the
+same printed circle is found every frame and we know its diameter,
+we already have the mm/px scale. 
 
 Trade-offs:
 
-- **Single circle vs four corners.** A single circle gives scale and an
-  origin but cannot recover perspective tilt. Acceptable here because the
-  camera is rail- or barrel-mounted and roughly square-on to the target;
-  if non-trivial tilt becomes a problem the upgrade path is to fit an
-  ellipse and recover plane pose from it.
-- **Manual point selection.** Always available as a fallback when the
-  detector can't find the circle (centre click + edge click).
-- **Camera intrinsics.** Lens distortion is a separate problem. Not
-  attempted here. The linear scale handles distance and zoom only.
+- **The circle has to stay in frame.** If the rifle pivots far
+  enough that the circle leaves the field of view there's no
+  scale signal and the trace pauses until it returns. Documented
+  as a limitation. Not papered over.
+- **Direction is image-plane, not rifle-plane.** A camera rolled
+  relative to the rifle bleeds horizontal aim into a small
+  vertical component, and vice versa. The trace's *magnitude* is
+  rotation-invariant. The *direction* isn't. The two `Invert
+  trace` toggles in Preferences cover full 90° / 180° flips.
+  Small roll angles (a few degrees) live with the trade-off
+  rather than a full image-rotation pipeline.
+- **Camera intrinsics.** Lens distortion is a separate problem,
+  still not attempted. The simple per-frame scale handles
+  distance and zoom only. If a future setup demands it, the
+  classic answer (chessboard-based `cv2.calibrateCamera`,
+  undistort every frame upstream of the detector) slots in
+  cleanly without touching anything in the tracker itself.
+
+The detector itself survived all three iterations roughly intact.
+The pipeline around it (calibration, persistence, the meaning of
+"mm/px") is what kept getting rewritten.
 
 ## Audio shot detection
 

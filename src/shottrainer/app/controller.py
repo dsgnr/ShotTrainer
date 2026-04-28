@@ -1,8 +1,8 @@
 """Glue between camera capture, tracking, audio, storage and the UI.
 
-Living in ``app/`` rather than ``services/`` because it bridges Qt signals
-between widgets and pure-Python services. The services themselves stay
-free of widget code.
+Lives in ``app/`` rather than ``services/`` because it bridges Qt
+signals between the widgets and the pure-Python services. The
+services themselves stay free of any widget code.
 """
 
 from __future__ import annotations
@@ -31,7 +31,6 @@ from shottrainer.services.trace_buffer import TraceBuffer
 from shottrainer.sessions.database import init_database, make_engine
 from shottrainer.sessions.repository import SessionRepository
 from shottrainer.tracking.camera import CameraCapture, CameraConfig, list_available_cameras
-from shottrainer.tracking.circle_detector import detect_calibration_circle
 from shottrainer.tracking.detector import DetectorSettings
 from shottrainer.tracking.detector_tuning import optimise_detector_settings
 from shottrainer.tracking.tracker import Tracker
@@ -42,13 +41,6 @@ from shottrainer.ui.shot_list import ShotListEntry
 from shottrainer.ui.target_faces import list_target_faces, rings_for_face
 from shottrainer.ui.target_view import ShotMarker
 
-from .calibration_controller import CalibrationController
-from .calibration_store import (
-    load_zero_offset,
-    save_zero_offset,
-    serialise_calibration,
-)
-from .calibration_watcher import CalibrationWatcher
 from .camera_selection import (
     CameraSelection,
     load_camera_selection,
@@ -63,6 +55,7 @@ from .detector_store import (
 )
 from .settings import load_preferences, save_preferences
 from .settings_watcher import SettingsWatcher
+from .zero_offset_store import load_zero_offset, save_zero_offset
 
 log = logging.getLogger(__name__)
 
@@ -80,11 +73,16 @@ class _ShotEntry:
 class AppController(QObject):
     """Connects UI signals to the underlying services.
 
-    Owns the camera capture thread, the audio listener, the tracker, and
-    the recorder/replay coordinators. Reacts to widget signals from
-    ``MainWindow`` and pushes results back via the same widgets. The
-    controller does not draw anything itself.
+    Owns the camera capture thread, the audio listener, the
+    tracker, and the recorder and replay coordinators. Reacts to
+    widget signals from :class:`MainWindow` and pushes results
+    back via the same widgets. The controller doesn't draw
+    anything itself.
     """
+
+    # The status banner refreshes at most every N frames so it
+    # doesn't repaint at the camera's full frame rate.
+    _STATUS_REFRESH_EVERY_N_FRAMES = 5
 
     def __init__(self, window: MainWindow, db_path: Path) -> None:
         super().__init__()
@@ -94,7 +92,8 @@ class AppController(QObject):
         init_database(engine)
         self._repo = SessionRepository(engine)
 
-        self._tracker = Tracker()
+        prefs = load_preferences()
+        self._tracker = Tracker(circle_diameter_mm=prefs.circle_diameter_mm)
         self._buffer = TraceBuffer(capacity=12000)
         self._recorder = SessionRecorder(self._repo)
         self._coordinator = ShotCoordinator(self._buffer)
@@ -110,7 +109,6 @@ class AppController(QObject):
             on_frame=self._on_pipeline_frame,
             on_detection=self._on_pipeline_detection,
             on_no_detection=self._on_pipeline_miss,
-            on_default_calibration_installed=self._on_default_calibration_installed,
         )
 
         self._player = TracePlayer(self)
@@ -119,33 +117,20 @@ class AppController(QObject):
         self._frame_mirrors: list[Any] = []  # dialogs that want live frames
         self._latest_frame: np.ndarray | None = None
 
-        self._calibration_watcher = CalibrationWatcher(parent=self)
-        self._calibration_watcher.changed.connect(self._on_calibration_file_changed)
-
         self._settings_watcher = SettingsWatcher(parent=self)
         self._settings_watcher.changed.connect(self._on_settings_file_changed)
-
-        self._calibration_controller = CalibrationController(
-            tracker=self._tracker,
-            on_status=self._window.set_calibration_status,
-            on_message=lambda msg: self._window.statusBar().showMessage(msg, 4000),
-            on_persisted=self._calibration_watcher.mark_seen,
-        )
 
         self._connect_signals()
         self._window.set_device_options_provider(self._device_options)
         self._window.set_target_faces_provider(list_target_faces)
         self._window.set_rings_lookup(rings_for_face)
-        self._window.set_calibration_circle_detector(detect_calibration_circle)
         self._window.set_recording_check(lambda: self._recorder.is_recording)
-        self._apply_preferences(load_preferences())
+        self._apply_preferences(prefs, persist=False)
 
         saved_detector = load_detector_settings()
         if saved_detector is not None:
             self._tracker.detector.settings = saved_detector
 
-        self._calibration_controller.restore_saved()
-        self._calibration_watcher.start()
         self._settings_watcher.start()
 
         # Restore any saved zero offset and surface it in the UI.
@@ -159,41 +144,16 @@ class AppController(QObject):
         self._start_camera(self._effective_camera_index())
         self._audio.start()
 
-    def _effective_camera_index(self) -> int:
-        """Resolve the camera to use given the persisted selection."""
-        try:
-            available = list_available_cameras() or [(0, "Camera 0")]
-        except Exception:  # pragma: no cover - driver dependent
-            available = [(0, "Camera 0")]
-        selection = load_camera_selection()
-        return resolve_camera_index(selection, available)
-
-    def _persist_camera_selection(self, index: int) -> None:
-        try:
-            available = list_available_cameras() or [(index, f"Camera {index}")]
-        except Exception:  # pragma: no cover
-            available = [(index, f"Camera {index}")]
-        name = next((n for i, n in available if i == index), f"Camera {index}")
-        try:
-            save_camera_selection(CameraSelection(name=name, index=index))
-        except OSError as exc:
-            log.warning("Could not save camera selection: %s", exc)
-
     def shutdown(self) -> None:
+        """Tear down threads and watchers in a sensible order."""
         # Stop the recorder first so anything still in flight (an
-        # in-progress shot batch) gets flushed against the database before
+        # in-progress shot batch, for example) gets flushed before
         # the audio listener stops emitting events.
         if self._recorder.is_recording:
             self._recorder.stop()
-        self._calibration_watcher.stop()
         self._settings_watcher.stop()
         self._stop_camera()
         self._audio.stop()
-
-    def _device_options(self) -> tuple[list[tuple[int, str]], list[str]]:
-        cameras = list_available_cameras() or [(0, "Camera 0")]
-        mics = list_audio_inputs()
-        return cameras, mics
 
     def _connect_signals(self) -> None:
         sc = self._window.session_controls
@@ -214,20 +174,35 @@ class AppController(QObject):
 
         self._audio.shot_detected.connect(self._on_shot_detected)
         self._audio.error.connect(self._on_audio_error)
+        self._audio.level.connect(self._on_audio_level)
 
         self._window.session_browser_requested.connect(self._open_session_browser)
         self._window.preferences_changed.connect(self._apply_preferences)
-        self._window.calibration_circle_accepted.connect(self._on_calibration_circle_accepted)
-        self._window.calibration_dialog_opened.connect(self._on_calibration_dialog_opened)
         self._window.preferences_dialog_opened.connect(self._on_prefs_dialog_opened)
-        self._window.marker_diameter_changed.connect(self._on_marker_diameter_changed)
-        self._window.manual_aim_requested.connect(self._on_manual_aim_requested)
-        self._window.manual_aim_cleared.connect(self._on_manual_aim_cleared)
+        self._window.circle_diameter_changed.connect(self._on_circle_diameter_changed)
         self._window.zero_on_aim_requested.connect(self._on_zero_on_aim_requested)
         self._window.zero_cleared.connect(self._on_zero_cleared)
         self._window.rescore_requested.connect(self._on_rescore_requested)
 
-        self._audio.level.connect(self._on_audio_level)
+    def _effective_camera_index(self) -> int:
+        """Resolve the camera to use given the persisted selection."""
+        try:
+            available = list_available_cameras() or [(0, "Camera 0")]
+        except Exception:  # pragma: no cover - driver dependent
+            available = [(0, "Camera 0")]
+        selection = load_camera_selection()
+        return resolve_camera_index(selection, available)
+
+    def _persist_camera_selection(self, index: int) -> None:
+        try:
+            available = list_available_cameras() or [(index, f"Camera {index}")]
+        except Exception:  # pragma: no cover
+            available = [(index, f"Camera {index}")]
+        name = next((n for i, n in available if i == index), f"Camera {index}")
+        try:
+            save_camera_selection(CameraSelection(name=name, index=index))
+        except OSError as exc:
+            log.warning("Could not save camera selection: %s", exc)
 
     def _start_camera(self, device_index: int) -> None:
         self._stop_camera()
@@ -256,6 +231,11 @@ class AppController(QObject):
             self._camera = None
             self._window.camera_view.set_status("idle")
 
+    def _device_options(self) -> tuple[list[tuple[int, str]], list[str]]:
+        cameras = list_available_cameras() or [(0, "Camera 0")]
+        mics = list_audio_inputs()
+        return cameras, mics
+
     def _on_frame(self, frame: np.ndarray, ts: float, frame_id: int) -> None:
         self._pipeline.process(frame, ts, frame_id)
 
@@ -270,11 +250,11 @@ class AppController(QObject):
     def _on_pipeline_detection(self, sample, radius_px: float) -> None:
         self._window.camera_view.set_aim_point(sample.x_px, sample.y_px, radius_px=radius_px)
         self._window.camera_view.set_rejected_point(None, None)
-        self._window.camera_view.set_status(
-            "manual" if self._tracker.manual_point is not None else "tracking"
-        )
+        self._window.camera_view.set_status("tracking")
         if sample.x_mm is not None and sample.y_mm is not None:
             self._window.target_view.append_trace_point(sample.x_mm, sample.y_mm)
+        if sample.frame_id % self._STATUS_REFRESH_EVERY_N_FRAMES == 0:
+            self._refresh_tracking_status()
 
     def _on_pipeline_miss(self, detection) -> None:
         if detection is not None and detection.rejected_outside_region:
@@ -288,8 +268,16 @@ class AppController(QObject):
         self._window.camera_view.set_aim_point(None, None)
         self._window.camera_view.set_status("lost")
 
-    def _on_default_calibration_installed(self) -> None:
-        self._window.set_calibration_status("Uncalibrated (preview)")
+    def _refresh_tracking_status(self) -> None:
+        """Update the header line with the current mm-per-pixel."""
+        mm_per_px = self._tracker.mm_per_pixel
+        if mm_per_px is None:
+            self._window.set_tracking_status("Acquiring target...")
+            return
+        diameter = self._tracker.circle_diameter_mm
+        self._window.set_tracking_status(
+            f"Tracking {diameter:.0f} mm circle - {mm_per_px:.3f} mm/px"
+        )
 
     def _on_camera_error(self, message: str) -> None:
         self._window.statusBar().showMessage(f"Camera: {message}", 5000)
@@ -305,18 +293,6 @@ class AppController(QObject):
             push = getattr(mirror, "push_audio_level", None)
             if push is not None:
                 push(scaled)
-
-    def _on_manual_aim_requested(self, x_px: float, y_px: float) -> None:
-        self._tracker.set_manual_point(x_px, y_px)
-        self._window.target_view.set_live_aim_manual(True)
-        self._window.statusBar().showMessage(
-            f"Manual aim point set at ({int(x_px)}, {int(y_px)})", 3000
-        )
-
-    def _on_manual_aim_cleared(self) -> None:
-        self._tracker.set_manual_point(None, None)
-        self._window.target_view.set_live_aim_manual(False)
-        self._window.statusBar().showMessage("Manual aim cleared", 2000)
 
     def _on_zero_on_aim_requested(self) -> None:
         if not self._tracker.zero_at_last_sample():
@@ -349,31 +325,6 @@ class AppController(QObject):
         except OSError as exc:
             log.warning("Could not save zero offset: %s", exc)
 
-    def _on_rescore_requested(self) -> None:
-        """Re-score every visible shot against the active target face.
-
-        Useful after switching face on a loaded session. We don't write
-        the new scores back to the database. The score there belongs
-        with whatever face was active when the shot was recorded.
-        Re-scoring affects only what's currently on screen.
-        """
-        if not self._shots_in_view:
-            self._window.statusBar().showMessage("No shots in view to re-score", 3000)
-            return
-        rescored = 0
-        for entry in self._shots_in_view:
-            new_score = self._score_for(entry.x_mm, entry.y_mm)
-            entry.score = new_score or None
-            if new_score:
-                rescored += 1
-        self._render_shots()
-        self._refresh_stats()
-        face = self._preferences.target_face
-        self._window.statusBar().showMessage(
-            f"Re-scored {rescored}/{len(self._shots_in_view)} shots against {face}",
-            4000,
-        )
-
     def _on_shot_detected(self, event: ShotEvent) -> None:
         result = self._coordinator.handle_shot(event)
         sample = result.sample
@@ -402,16 +353,38 @@ class AppController(QObject):
                 score=score,
             )
 
-    def _score_for(self, x_mm: float | None, y_mm: float | None) -> str:
-        """Score a shot against the currently selected target face.
+    def _on_rescore_requested(self) -> None:
+        """Re-score every visible shot against the active target face.
 
-        Returns an empty string if the shot has no calibrated position
-        or sits outside every ring of the active face.
+        Useful after switching face on a loaded session. The new
+        scores aren't written back to the database, because the
+        score there belongs with whatever face was active when the
+        shot was recorded. Re-scoring only changes what's
+        currently on screen.
         """
+        if not self._shots_in_view:
+            self._window.statusBar().showMessage("No shots in view to re-score", 3000)
+            return
+        rescored = 0
+        for entry in self._shots_in_view:
+            new_score = self._score_for(entry.x_mm, entry.y_mm)
+            entry.score = new_score or None
+            if new_score:
+                rescored += 1
+        self._render_shots()
+        self._refresh_stats()
+        face = self._preferences.target_face
+        self._window.statusBar().showMessage(
+            f"Re-scored {rescored}/{len(self._shots_in_view)} shots against {face}",
+            4000,
+        )
+
+    def _score_for(self, x_mm: float | None, y_mm: float | None) -> str:
+        """Score a shot against the current target face."""
         if x_mm is None or y_mm is None:
             return ""
         rings = rings_for_face(self._preferences.target_face)
-        scoring = [ScoringRing(r.radius_mm, r.label or "") for r in rings if r.label]
+        scoring = [ScoringRing(r.diameter_mm / 2, r.label or "") for r in rings if r.label]
         return score_shot(
             x_mm,
             y_mm,
@@ -457,10 +430,9 @@ class AppController(QObject):
         self._render_shots()
         self._refresh_stats()
 
-        calibration = serialise_calibration(self._tracker.calibration)
         sid = self._recorder.start(
             name=name,
-            calibration=calibration,
+            calibration=None,
             app_version=__version__,
         )
         self._window.session_controls.set_active(True)
@@ -478,7 +450,6 @@ class AppController(QObject):
         self._window.header.set_state("idle")
 
     def _on_clear_shots_requested(self) -> None:
-        # Don't bother prompting if there's nothing to lose.
         if not self._shots_in_view:
             return
         from PySide6.QtWidgets import QMessageBox
@@ -523,12 +494,19 @@ class AppController(QObject):
             )
         )
 
-        self._window.target_view.set_rings(rings_for_face(prefs.target_face))
+        rings = rings_for_face(prefs.target_face)
+        self._window.target_view.set_rings(rings)
         self._window.target_view.set_shot_diameter_mm(prefs.shot_diameter_mm)
-        self._window.hero_stats.set_rings(rings_for_face(prefs.target_face))
-        self._window.stats_panel.set_rings(rings_for_face(prefs.target_face))
+        self._window.hero_stats.set_rings(rings)
+        self._window.stats_panel.set_rings(rings)
         self._window.audio_meter.set_threshold(prefs.shot_threshold)
+
+        self._tracker.set_circle_diameter_mm(prefs.circle_diameter_mm)
         self._tracker.set_region_fraction(prefs.tracking_region_fraction)
+        self._tracker.set_trace_inversion(
+            invert_x=prefs.invert_trace_horizontal,
+            invert_y=prefs.invert_trace_vertical,
+        )
         self._window.camera_view.set_region_fraction(prefs.tracking_region_fraction)
 
         if (
@@ -539,16 +517,30 @@ class AppController(QObject):
             self._start_camera(prefs.camera_id)
             self._persist_camera_selection(prefs.camera_id)
 
-        # Only persist when the change came from the user. The initial load
-        # of saved preferences should not rewrite the file. Reloads from
-        # disk also skip the save and refresh the watcher baseline so we
-        # don't bounce.
+        # Only save when the change came from the user. The
+        # initial load and any reloads from disk should not
+        # rewrite the file.
         if previous is not None and previous != prefs and persist:
             try:
                 save_preferences(prefs)
             except OSError as exc:
                 log.warning("Could not save preferences: %s", exc)
             self._settings_watcher.mark_seen()
+
+    def _on_circle_diameter_changed(self, diameter_mm: float) -> None:
+        """The marker-sheet dialog or another widget changed the circle diameter."""
+        if abs(diameter_mm - self._preferences.circle_diameter_mm) <= 1e-6:
+            return
+        updated = replace(self._preferences, circle_diameter_mm=diameter_mm)
+        self._apply_preferences(updated)
+
+    def _on_settings_file_changed(self, prefs: Preferences) -> None:
+        """Apply preferences that were edited externally on disk."""
+        previous = getattr(self, "_preferences", None)
+        if previous == prefs:
+            return
+        self._apply_preferences(prefs, persist=False)
+        self._window.statusBar().showMessage("Preferences updated from disk", 3000)
 
     def _open_session_browser(self) -> None:
         dialog = SessionBrowserDialog(self._repo, parent=self._window)
@@ -559,9 +551,10 @@ class AppController(QObject):
         if self._recorder.is_recording:
             self._window.statusBar().showMessage("Stop recording before opening a session", 4000)
             return
-        # Load shots only here. The trace is loaded per-shot on selection.
-        # Full traces can be large and most users want the window around
-        # a specific shot, not the whole session.
+        # We only load shots here. Each shot's trace is loaded on
+        # selection. Full traces can be large, and most users want
+        # the window around a specific shot rather than the whole
+        # session.
         shots = self._repo.list_shots(session_id)
 
         self._current_view_session_id = session_id
@@ -599,8 +592,9 @@ class AppController(QObject):
         self._window.target_view.set_split_index(window.split_index)
         points = [(s.x_mm or 0.0, s.y_mm or 0.0) for s in window.samples if s.x_mm is not None]
         self._window.target_view.set_trace(points)
-        # Trace stats use the pre-shot portion of the window only. That's the
-        # part where the shooter was holding rather than reacting to recoil.
+        # Trace stats use the pre-shot portion of the window only.
+        # That's the part where the shooter was holding rather than
+        # reacting to recoil.
         pre_points = points[: window.split_index + 1] if window.split_index is not None else points
         self._window.hero_stats.set_trace_points(pre_points)
         self._window.stats_panel.set_trace_points(pre_points)
@@ -612,27 +606,6 @@ class AppController(QObject):
         else:
             self._window.target_view.set_hold_zone(None)
         self._window.replay_controls.set_enabled(bool(window.samples))
-
-    def _on_calibration_dialog_opened(self, dialog) -> None:
-        self._register_frame_mirror(dialog)
-
-    def _on_calibration_circle_accepted(
-        self, cx: float, cy: float, r: float, diameter_mm: float
-    ) -> None:
-        self._calibration_controller.apply_circle(
-            centre_px=(cx, cy), radius_px=r, diameter_mm=diameter_mm
-        )
-        # Persist the diameter alongside the rest of the preferences
-        # so future calibrations and marker prints default to it.
-        if abs(diameter_mm - self._preferences.calibration_diameter_mm) > 1e-6:
-            updated = replace(self._preferences, calibration_diameter_mm=diameter_mm)
-            self._apply_preferences(updated)
-
-    def _on_marker_diameter_changed(self, diameter_mm: float) -> None:
-        if abs(diameter_mm - self._preferences.calibration_diameter_mm) <= 1e-6:
-            return
-        updated = replace(self._preferences, calibration_diameter_mm=diameter_mm)
-        self._apply_preferences(updated)
 
     def _on_prefs_dialog_opened(self, dialog) -> None:
         self._register_frame_mirror(dialog)
@@ -656,7 +629,9 @@ class AppController(QObject):
 
     def _on_optimise_requested(self) -> None:
         if self._latest_frame is None:
-            self._window.statusBar().showMessage("No camera frame available to optimise from", 4000)
+            self._window.statusBar().showMessage(
+                "No camera frame available to optimise from", 4000
+            )
             return
         new_settings, score = optimise_detector_settings(
             self._latest_frame, self._tracker.detector.settings
@@ -671,7 +646,9 @@ class AppController(QObject):
             save_detector_settings(new_settings)
         except OSError as exc:
             log.warning("Could not save detector settings: %s", exc)
-        self._window.statusBar().showMessage(f"Tracking optimised (confidence {score:.2f})", 4000)
+        self._window.statusBar().showMessage(
+            f"Tracking optimised (confidence {score:.2f})", 4000
+        )
 
     def _on_reset_detector_requested(self) -> None:
         defaults = DetectorSettings(region_fraction=self._preferences.tracking_region_fraction)
@@ -679,30 +656,8 @@ class AppController(QObject):
         clear_detector_settings()
         self._window.statusBar().showMessage("Detector reset to defaults", 3000)
 
-    def _on_calibration_file_changed(self, calibration) -> None:
-        if calibration is None:
-            self._tracker.set_calibration(None)
-            self._window.set_calibration_status("Uncalibrated")
-            return
-        self._tracker.set_calibration(calibration)
-        self._window.set_calibration_status(
-            f"Calibrated: {abs(calibration.mm_per_pixel):.3f} mm/px"
-        )
-        self._window.statusBar().showMessage("Calibration updated from disk", 3000)
-
-    def _on_settings_file_changed(self, prefs: Preferences) -> None:
-        """Handle preferences edited externally on disk.
-
-        Apply the new preferences without re-saving the file. Refresh
-        the watcher's baseline so the next external write retriggers.
-        """
-        previous = getattr(self, "_preferences", None)
-        if previous == prefs:
-            return
-        self._apply_preferences(prefs, persist=False)
-        self._window.statusBar().showMessage("Preferences updated from disk", 3000)
-
     def _register_frame_mirror(self, dialog) -> None:
+        """Forward live frames and audio levels to ``dialog`` until it closes."""
         self._frame_mirrors.append(dialog)
         dialog.finished.connect(
             lambda _r, d=dialog: self._frame_mirrors.remove(d) if d in self._frame_mirrors else None

@@ -42,7 +42,7 @@ with various cameras people have tried.
   - [Workflow](#workflow)
   - [Pre-commit hooks (optional)](#pre-commit-hooks-optional)
   - [Project layout](#project-layout)
-- [Calibration](#calibration)
+- [Tracking](#tracking)
 - [Packaging](#packaging)
 - [Troubleshooting](#troubleshooting)
 - [Licence](#licence)
@@ -50,7 +50,8 @@ with various cameras people have tried.
 ## What it does
 
 - Live preview of what the barrel-mounted camera sees.
-- Calibration to convert pixels to millimetres on the target.
+- Live aim tracking against a known-diameter printed circle, with no
+  separate calibration step.
 - Audio shot detection from a microphone.
 - Automatic ring scoring against your selected target face.
 - Records the rifle's hold trace continuously while practising.
@@ -59,12 +60,14 @@ with various cameras people have tried.
 
 ## How it's set up
 
-1. Print and place a paper target at your shooting position.
+1. Print the marker sheet from `Tools > Print marker sheet` and pin it
+   at your shooting position.
 2. Mount a small USB webcam to the rifle barrel or stock so it looks
-   forward at the target.
-3. Calibrate once: ShotTrainer measures a printed circle of known
-   diameter and builds a millimetres-per-pixel mapping for the target
-   plane.
+   forward at the printed circle.
+3. In `Preferences > Target > Tracking circle`, set the diameter to
+   match the printed value. ShotTrainer derives the mm/px scale from
+   each frame's detected radius, so the trace is correct in millimetres
+   from the first sample on.
 4. Aim, shoot, repeat. The trace and hit position appear in real time.
 
 ## Documentation
@@ -75,7 +78,7 @@ with various cameras people have tried.
 - [Cameras tested](docs/cameras.md)
 - [Using federation targets (NSRA, ISSF)](docs/provided-targets.md)
 - [Architecture](docs/architecture.md)
-- [Calibration](docs/calibration.md)
+- [Tracking and the printed circle](docs/calibration.md)
 - [Engineering notes](docs/engineering-notes.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Releases and upgrades](docs/releases.md)
@@ -143,11 +146,12 @@ uv run shottrainer
 
 ## Status
 
-The app boots, runs the live preview, detects shots, records sessions, and
-replays the trace around each shot. Calibration uses a printed circle of
-known diameter and survives restarts. Preferences include camera rotation
-and mirroring, audio gain and sensitivity, target face selection, and
-pre/post-shot windows. The stats
+The app boots, runs the live preview, detects shots, records sessions,
+and replays the trace around each shot. Tracking measures pixel offsets
+against a printed circle of known diameter on every frame, so distance
+changes self-correct without a recalibration step. Preferences include
+camera rotation and mirroring, audio gain and sensitivity, target face
+selection, and pre/post-shot windows. The stats
 panel shows shot group metrics live, plus hold tremor, trace length, and
 time-in-ring percentages over the pre-shot window of the selected shot. See
 [`docs/troubleshooting.md`](docs/troubleshooting.md) for the rough edges and
@@ -250,7 +254,7 @@ Hooks then run on every `git commit`. Run them manually with
 src/shottrainer/
     app/         entry point, controller, settings, paths
     ui/          PySide6 widgets and dialogs
-    tracking/    camera capture, target detection, calibration
+    tracking/    camera capture, target detection, live tracker
     audio/       microphone input and shot detection
     sessions/    database, models, repository
     replay/      trace replay logic
@@ -262,16 +266,19 @@ tests/           pytest suite
 
 See [`docs/architecture.md`](docs/architecture.md) for a longer description.
 
-## Calibration
+## Tracking
 
-You aim a printed circle of known diameter at the camera. The application
-detects the circle and uses its physical size to compute a millimetres-per-
-pixel ratio, with the circle's centre as the image-space origin. The
-result is stored with the session so that hits can be reported in
-millimetres relative to the centre of the target.
+The live tracker measures the position and radius of a printed black
+circle every frame. The vector from the frame's centre to the circle's
+centre is the rifle's aim offset in pixels. Dividing by the detected
+radius and multiplying by the user-supplied diameter (set in
+**Preferences → Target → Tracking circle**) converts that to
+millimetres on the target plane. There is no separate calibration step.
 
-Calibration must be redone if the camera or target moves. See
-[`docs/calibration.md`](docs/calibration.md) for the workflow.
+If the camera moves slightly closer or further from the target between
+sessions, the circle's pixel size changes and the mm/px scale follows
+it automatically. See [`docs/calibration.md`](docs/calibration.md) for
+detail.
 
 ## Packaging
 
@@ -282,7 +289,7 @@ bundling, signing, DMG and Inno Setup installer).
 ## Troubleshooting
 
 See [`docs/troubleshooting.md`](docs/troubleshooting.md) for the common
-issues with cameras, microphones, calibration, and replay.
+issues with cameras, microphones, tracking, and replay.
 
 ## Licence
 
