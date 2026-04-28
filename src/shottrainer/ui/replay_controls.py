@@ -1,8 +1,10 @@
 """The replay transport buttons.
 
-Drives a player object (set via ``set_player``) but also works standalone for
-UI testing. Emits its own signals so the main window can keep the target
-view in sync without each control coupling to playback internals.
+Drives a player object (set via ``set_player``) but also works
+on its own for UI testing. Fires its own signals on every
+action so the main window can keep the target view in sync
+without each control needing to know about playback
+internals.
 """
 
 from __future__ import annotations
@@ -13,7 +15,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QSlider,
-    QStyle,
     QWidget,
 )
 
@@ -29,16 +30,28 @@ class ReplayControls(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 4, 8, 4)
 
-        style = self.style()
-        self._play = QPushButton(style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay), "")
-        self._pause = QPushButton(style.standardIcon(QStyle.StandardPixmap.SP_MediaPause), "")
-        self._reset = QPushButton(style.standardIcon(QStyle.StandardPixmap.SP_MediaSkipBackward), "")
+        self._reset = self._make_button(
+            "⏮",
+            tooltip="Reset to the start of the shot window",
+            accessible_name="Reset replay",
+        )
+        self._play = self._make_button(
+            "▶",
+            tooltip="Play (Space)",
+            accessible_name="Play replay",
+        )
+        self._pause = self._make_button(
+            "⏸",
+            tooltip="Pause (Space)",
+            accessible_name="Pause replay",
+        )
         for btn in (self._reset, self._play, self._pause):
-            btn.setFixedWidth(36)
             layout.addWidget(btn)
 
         self._slider = QSlider(Qt.Orientation.Horizontal)
         self._slider.setRange(0, 1000)
+        self._slider.setToolTip("Scrub through the shot window")
+        self._slider.setAccessibleName("Replay scrubber")
         layout.addWidget(self._slider, 1)
 
         self._time_label = QLabel("--:--")
@@ -51,6 +64,26 @@ class ReplayControls(QWidget):
         self._slider.sliderMoved.connect(self._on_slider_moved)
 
         self.set_enabled(False)
+
+    @staticmethod
+    def _make_button(glyph: str, *, tooltip: str, accessible_name: str) -> QPushButton:
+        """A small factory for the transport buttons.
+
+        We use a Unicode transport glyph rather than
+        ``QStyle.standardIcon`` so the button picks up the dark
+        theme's text colour. The tooltip and accessible name
+        are set together so screen readers and cursor hovers
+        see the same text.
+        """
+        button = QPushButton(glyph)
+        button.setFixedWidth(40)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        button.setToolTip(tooltip)
+        button.setAccessibleName(accessible_name)
+        font = button.font()
+        font.setPointSize(max(font.pointSize(), 14))
+        button.setFont(font)
+        return button
 
     def set_enabled(self, enabled: bool) -> None:
         for w in (self._play, self._pause, self._reset, self._slider):
