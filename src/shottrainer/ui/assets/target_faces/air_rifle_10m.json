@@ -1,5 +1,7 @@
 {
   "label": "10 m air rifle",
+  "shot_diameter_mm": 4.5,
+  "face_diameter_mm": 45.5,
   "rings": [
     { "diameter_mm": 45.5, "label": "1" },
     { "diameter_mm": 40.5, "label": "2" },
