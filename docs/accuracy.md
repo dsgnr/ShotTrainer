@@ -77,14 +77,14 @@ hold. That wobble is detector noise, not your hold.
 
 ## Diagnostic
 
-The header shows the current calibrated mm-per-pixel value. Multiply by
-the scoring ring tolerance you care about to see whether your setup
-can theoretically resolve it.
+The header shows the live mm-per-pixel value derived from the printed
+circle's detected radius. Multiply by the scoring ring tolerance you
+care about to see whether your setup can theoretically resolve it.
 
 For example, if you want to resolve the 10-ring of a 50 m smallbore
-target (roughly 10 mm diameter) and your calibration says 2 mm per
-pixel, you have about 5 pixels across the ring, which is too few for
-stable centroid estimation.
+target (roughly 10 mm diameter) and the header reads 2 mm per pixel,
+you have about 5 pixels across the ring, which is too few for stable
+centroid estimation.
 
 ## Time alignment
 

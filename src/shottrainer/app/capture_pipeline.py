@@ -19,6 +19,8 @@ log = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class FrameTransformOptions:
+    """Pre-tracker frame transforms covering rotation and mirror flips."""
+
     rotation_degrees: int = 0
     flip_horizontal: bool = False
     flip_vertical: bool = False
@@ -27,10 +29,9 @@ class FrameTransformOptions:
 class CapturePipeline:
     """Bind a camera frame to tracker, recorder and UI side effects.
 
-    The pipeline is a single small object so the controller can focus on
-    UI events and lifecycle. Each side effect (camera view, target view,
-    recorder, dialog mirrors) is supplied as a callback so tests can run
-    without a Qt window.
+    Each side effect (camera view update, target view trace append,
+    recorder write, dialog frame mirror) is supplied as a callback so
+    tests can run without a Qt window.
     """
 
     def __init__(
@@ -41,7 +42,6 @@ class CapturePipeline:
         on_frame: Callable[[np.ndarray], None],
         on_detection: Callable[[TrackingSample, float], None],
         on_no_detection: Callable[[Detection | None], None],
-        on_default_calibration_installed: Callable[[], None] = lambda: None,
     ) -> None:
         self._tracker = tracker
         self._buffer = buffer
@@ -49,13 +49,17 @@ class CapturePipeline:
         self._on_frame = on_frame
         self._on_detection = on_detection
         self._on_no_detection = on_no_detection
-        self._on_default_calibration_installed = on_default_calibration_installed
         self._transform = FrameTransformOptions()
 
     def set_transform(self, options: FrameTransformOptions) -> None:
         self._transform = options
 
-    def process(self, frame: np.ndarray, ts: float, frame_id: int | None = None) -> TrackingSample | None:
+    def process(
+        self,
+        frame: np.ndarray,
+        ts: float,
+        frame_id: int | None = None,
+    ) -> TrackingSample | None:
         """Apply transforms, run the tracker, dispatch side effects."""
         opts = self._transform
         frame = transform_frame(
@@ -65,12 +69,6 @@ class CapturePipeline:
             flip_vertical=opts.flip_vertical,
         )
         self._on_frame(frame)
-
-        # Install a placeholder calibration on the first frame so the trace
-        # and shot markers have meaningful mm coordinates even before the
-        # user explicitly calibrates.
-        if self._tracker.ensure_default_calibration(frame.shape[1], frame.shape[0]):
-            self._on_default_calibration_installed()
 
         sample = self._tracker.process(frame, ts, frame_id)
         if sample is None:

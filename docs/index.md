@@ -15,15 +15,15 @@ what hasn't with various cameras.
 ## What it does
 
 - Live target tracking from any USB or built-in camera.
-- Single-circle calibration that converts pixels to millimetres on the
-  target.
+- Per-frame mm/pixel scale from a printed circle of known diameter, no
+  separate calibration step.
 - Audio shot detection with adjustable sensitivity and a refractory window.
 - Automatic ring scoring against your selected target face, with a
   running session total.
 - Session recording to local SQLite, with full pre/post-shot trace.
 - Replay with a colour-coded pre-shot / post-shot trace and stats.
 - CSV export of shots and trace data.
-- Dark theme, tabbed preferences, persistent calibration and settings.
+- Dark theme, tabbed preferences, persistent settings.
 
 ## Get started
 

@@ -33,8 +33,8 @@ nothing blocks the event loop.
 
 ## Modules
 
-- `tracking/` Camera capture, target detection, calibration, coordinate
-  conversion, frame transforms (rotation, flip). Pure functions where
+- `tracking/` Camera capture, target detection, the live tracker that
+  converts detections into millimetre coordinates. Pure functions where
   possible so they can be tested with synthetic images.
 - `audio/` Microphone input and shot detection. Configurable threshold and
   refractory window.
@@ -45,7 +45,7 @@ nothing blocks the event loop.
 - `ui/` PySide6 widgets and dialogs. Thin layer. Widgets only render and
   expose signals.
 - `app/` Entry point, controller (the place Qt signals meet pure-Python
-  services), settings, calibration store, paths, persisted UI state.
+  services), settings, paths, persisted UI state.
 
 ## Persistent state files
 
@@ -56,7 +56,6 @@ These live under the platform-appropriate data directory (see
 - `settings.json` user preferences (camera id, rotation, flips, audio
   device, sensitivity, target face, recording windows). The file is
   watched while the app is running. External edits are picked up live.
-- `calibration.json` the most recent calibration, restored on launch.
 - `detector_settings.json` last auto-optimised detector parameters.
 - `zero_offset.json` user-set zero offset that shifts the trace origin
   to match the rifle's actual aim or zeroed group centre.
@@ -68,10 +67,10 @@ defaults rather than failing to start.
 ## Module boundaries
 
 The original sketch had everything inside the camera loop. Pulling
-calibration and coordinate conversion out of the capture loop makes them
-testable without OpenCV or a real camera, and means the same conversion
-logic is used at record time, replay time, and when re-analysing past
-sessions after a calibration tweak.
+detection and coordinate conversion out of the capture loop makes them
+testable without OpenCV or a real camera, and means the same
+conversion logic is used at record time, replay time, and when
+re-analysing past sessions.
 
 ## Replaceable parts
 
