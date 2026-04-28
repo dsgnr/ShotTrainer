@@ -1,8 +1,9 @@
 # Using federation targets (NSRA, ISSF)
 
-The detector tracks any black circular mark on a light background. That
-includes the printed scoring centres on standard NSRA and ISSF targets.
-You don't have to use the calibration sheet provided by ShotTrainer.
+The detector tracks any black circular mark on a light background.
+That includes the printed scoring centres on standard NSRA and ISSF
+targets. You don't have to use ShotTrainer's marker sheet. Any
+printed circle whose diameter you can measure works.
 
 ## How to set up
 
@@ -12,12 +13,11 @@ You don't have to use the calibration sheet provided by ShotTrainer.
    when you're on aim, at least 30 pixels across the centre, and small
    enough that natural hold motion doesn't push it out of the central
    tracked area. See [`accuracy.md`](accuracy.md) for sizing.
-3. Calibrate: print the marker sheet from `Tools > Print marker sheet`
-   and pin it in roughly the same plane as the target, either alongside
-   or in place of the target for the calibration step. Aim at the
-   printed circle, then run the automatic detector or pick the circle
-   manually. The calibration is independent of which face you're
-   tracking.
+3. Set the diameter under `Preferences > Target > Tracking circle`
+   and enter the diameter of the black aiming centre on your printed
+   target (or, if you'd rather use ShotTrainer's marker sheet, the
+   diameter you printed). The mm/px scale derives from this value
+   live. There is no calibration step.
 4. In Preferences > Target, pick the face that matches your discipline.
    The rings drawn on the target view will then match your printed face.
 
@@ -25,17 +25,17 @@ You don't have to use the calibration sheet provided by ShotTrainer.
 
 ShotTrainer ships with some standard target faces:
 
-- **10 m air rifle (ISSF).** Ten rings from 22.75 mm radius down to a
-  0.25 mm radius 10-ring (5 mm wide rings, 0.5 mm 10-ring).
-- **50 m smallbore (ISSF).** Ten rings from 77.2 mm radius down to a
-  5.2 mm radius 10-ring.
+- **10 m air rifle (ISSF).** Ten rings from 45.5 mm diameter down to a
+  0.5 mm diameter 10-ring (5 mm wide rings, 1.0 mm 10-ring).
+- **50 m smallbore (ISSF).** Ten rings from 154.4 mm diameter down to a
+  10.4 mm diameter 10-ring.
 - **Default rings.** Generic concentric rings for casual practice.
 
 The built-ins are JSON files under
 `src/shottrainer/ui/assets/target_faces/` in the source tree. Their
 format is identical to the user file described below. If you want to
 contribute a new built-in face, copy one of the existing files, tweak
-the radii, and open a pull request.
+the diameters, and open a pull request.
 
 ## Custom faces
 
@@ -50,9 +50,9 @@ faces keyed by their internal id:
   "my_face": {
     "label": "My discipline",
     "rings": [
-      { "radius_mm": 75.0, "label": "1" },
-      { "radius_mm": 30.0, "label": "5" },
-      { "radius_mm": 5.0, "label": "X" }
+      { "diameter_mm": 150.0, "label": "1" },
+      { "diameter_mm": 60.0, "label": "5" },
+      { "diameter_mm": 10.0, "label": "X" }
     ]
   }
 }
@@ -69,7 +69,7 @@ open an issue with:
 
 - The discipline and federation (ISSF, NSRA, NRA, CMP, BSSF, etc).
 - A link or photograph of the official target dimensions document.
-- The radii you want, in millimetres.
+- The diameters you want, in millimetres.
 
 Or send a pull request adding a JSON file to
 `src/shottrainer/ui/assets/target_faces/`. We're happy to take any
@@ -112,6 +112,5 @@ Re-opening the session reloads the originally captured scores.
 
 Targets with a large black field (some pistol distances) can defeat
 the contour detector because the entire target reads as one blob. For
-these, either swap to a longer lens / closer mount so the black field
-fills the frame and the detector locks onto its outer edge, or use
-the manual aim picker to set the centre yourself.
+these, swap to a longer lens or a closer mount so the black field
+fills the frame and the detector locks onto its outer edge.
