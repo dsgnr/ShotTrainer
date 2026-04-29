@@ -115,7 +115,7 @@ class PreferencesManager:
 
     def _refresh_dialog_devices(self, dialog) -> None:
         """Re-enumerate cameras and microphones for the open dialog."""
-        cameras, mics = self._camera_mgr.device_options()
+        cameras, mics = self._camera_mgr.device_options(force_refresh=True)
         dialog.set_camera_options(cameras)
         dialog.set_audio_options(mics)
 

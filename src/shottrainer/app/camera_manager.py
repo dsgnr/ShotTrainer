@@ -143,18 +143,25 @@ class CameraManager:
             return None
         return cam.device_index
 
-    def device_options(self) -> tuple[list[tuple[int, str]], list[str]]:
+    def device_options(
+        self, *, force_refresh: bool = False
+    ) -> tuple[list[tuple[int, str]], list[str]]:
         """List cameras and microphones for the Preferences dialog.
 
-        The camera list is cached so `persist_camera_selection` can
-        look up a label by index later without re-probing.
+        The camera list is cached for the process lifetime to avoid
+        slow OS-level enumeration on every call. Pass
+        ``force_refresh=True`` (typically when the user clicks the
+        Refresh button) to re-probe attached devices.
+
+        Args:
+            force_refresh: If True, ignore the cache and re-enumerate.
 
         Returns:
             A tuple of (camera_list, microphone_list).
         """
         from shottrainer.audio.input import list_audio_inputs
 
-        cameras = list_available_cameras() or [(0, "Camera 0")]
+        cameras = list_available_cameras(force_refresh=force_refresh) or [(0, "Camera 0")]
         mics = list_audio_inputs()
         self._cached_camera_options = cameras
         return cameras, mics

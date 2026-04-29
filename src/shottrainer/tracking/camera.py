@@ -45,22 +45,62 @@ class CameraConfig:
     backend: int = cv2.CAP_ANY
 
 
-def list_available_cameras(max_index: int = 5) -> list[tuple[int, str]]:
-    """Probe a small range of camera indices and return the ones that opened.
+_CACHED_CAMERAS: list[tuple[int, str]] | None = None
 
-    Names come back as plain ``Camera N`` labels. OpenCV doesn't
-    have a portable way to ask the OS for a device's real name,
-    and Qt's :class:`~PySide6.QtMultimedia.QMediaDevices` doesn't
-    necessarily list cameras in the same order, so mixing the two
-    would attach the wrong name to the wrong index.
 
-    Probing is noisy at the C level. OpenCV writes a line to
-    stderr for every index that fails to open, and on macOS
-    AVFoundation prints "out device of bound" before OpenCV's own
-    message. Neither makes it through Python's logging, so the
-    probe redirects file descriptor 2 to ``/dev/null`` for the
-    duration of the call. Restored on exit so later log lines
-    still reach the terminal.
+def list_available_cameras(
+    max_index: int = 5, *, force_refresh: bool = False
+) -> list[tuple[int, str]]:
+    """Return the list of available cameras as ``(index, name)`` pairs.
+
+    Tries Qt's `QMediaDevices` first since that queries the OS
+    device list without opening any device. Falls back to probing
+    OpenCV indices when Qt is unavailable or returns nothing.
+
+    The result is cached for the process lifetime because device
+    enumeration is slow on macOS (each `VideoCapture` call goes
+    through AVFoundation permission checks). Pass
+    ``force_refresh=True`` to re-enumerate after the user
+    plugs in or removes a device.
+
+    Args:
+        max_index: Maximum index to probe in the OpenCV fallback path.
+        force_refresh: If True, ignore the cache and re-enumerate.
+
+    Returns:
+        A list of ``(device_index, display_name)`` tuples.
+    """
+    global _CACHED_CAMERAS
+    if _CACHED_CAMERAS is not None and not force_refresh:
+        return list(_CACHED_CAMERAS)
+
+    cameras = _enumerate_via_qt()
+    if not cameras:
+        cameras = _enumerate_via_opencv(max_index)
+
+    _CACHED_CAMERAS = cameras
+    return list(cameras)
+
+
+def _enumerate_via_qt() -> list[tuple[int, str]]:
+    """Enumerate cameras via Qt's `QMediaDevices`. Fast on all platforms."""
+    try:
+        from PySide6.QtMultimedia import QMediaDevices
+    except ImportError:
+        return []
+    try:
+        inputs = QMediaDevices.videoInputs()
+    except Exception:  # pragma: no cover - platform dependent
+        log.warning("QMediaDevices.videoInputs() failed", exc_info=True)
+        return []
+    return [(idx, dev.description() or f"Camera {idx}") for idx, dev in enumerate(inputs)]
+
+
+def _enumerate_via_opencv(max_index: int) -> list[tuple[int, str]]:
+    """Probe OpenCV indices to find available cameras.
+
+    Slow on macOS because each `cv2.VideoCapture` call goes
+    through AVFoundation. Used only when Qt enumeration fails.
     """
     with _silenced_native_stderr():
         found: list[tuple[int, str]] = []
