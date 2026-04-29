@@ -25,7 +25,7 @@ sending a pull request along with photos in
 
 | Camera | Resolution | Range | Grade | Details |
 |--------|------------|-------|-------|---------|
-| _No reports yet, be the first to send one!_ | | | | |
+| [Arducam OV9281](cameras/arducam-ov9281.md) | 1280 x 800 (~1MP) | TBC | TBC | More to come |
 
 ## What hurts the most
 
