@@ -44,7 +44,6 @@ from shottrainer.ui.target_view import ShotMarker
 from .camera_selection import (
     CameraSelection,
     load_camera_selection,
-    resolve_camera_index,
     save_camera_selection,
 )
 from .capture_pipeline import CapturePipeline, FrameTransformOptions
@@ -116,6 +115,12 @@ class AppController(QObject):
         self._shots_in_view: list[_ShotEntry] = []
         self._frame_mirrors: list[Any] = []  # dialogs that want live frames
         self._latest_frame: np.ndarray | None = None
+        # The camera list as it was last enumerated. Refreshed
+        # lazily when the Preferences dialog opens. Consulted by
+        # ``_persist_camera_selection`` so saving the user's
+        # choice doesn't need to re-probe the device tree. Empty
+        # until Preferences has opened at least once.
+        self._cached_camera_options: list[tuple[int, str]] = []
 
         self._settings_watcher = SettingsWatcher(parent=self)
         self._settings_watcher.changed.connect(self._on_settings_file_changed)
@@ -186,20 +191,31 @@ class AppController(QObject):
         self._window.rescore_requested.connect(self._on_rescore_requested)
 
     def _effective_camera_index(self) -> int:
-        """Resolve the camera to use given the persisted selection."""
-        try:
-            available = list_available_cameras() or [(0, "Camera 0")]
-        except Exception:  # pragma: no cover - driver dependent
-            available = [(0, "Camera 0")]
+        """Pick the camera index to use given the saved selection.
+
+        Returns the saved index directly without enumerating attached
+        devices. Enumeration on macOS opens every USB camera in turn
+        which can take well over a second. Doing that on every launch
+        delays the first window paint. The :class:`CameraCapture`
+        worker reports an error if the saved index doesn't open, at
+        which point the user can pick a different one from
+        Preferences.
+        """
         selection = load_camera_selection()
-        return resolve_camera_index(selection, available)
+        return selection.index or 0
 
     def _persist_camera_selection(self, index: int) -> None:
-        try:
-            available = list_available_cameras() or [(index, f"Camera {index}")]
-        except Exception:  # pragma: no cover
-            available = [(index, f"Camera {index}")]
-        name = next((n for i, n in available if i == index), f"Camera {index}")
+        """Save the camera the user just picked.
+
+        Uses the cached enumeration from the most recent Preferences
+        dialog (where the change came from) so this path doesn't have
+        to probe the device tree again. Falls back to a generic
+        ``Camera N`` label when no cache is available.
+        """
+        name = next(
+            (n for i, n in self._cached_camera_options if i == index),
+            f"Camera {index}",
+        )
         try:
             save_camera_selection(CameraSelection(name=name, index=index))
         except OSError as exc:
@@ -235,6 +251,8 @@ class AppController(QObject):
     def _device_options(self) -> tuple[list[tuple[int, str]], list[str]]:
         cameras = list_available_cameras() or [(0, "Camera 0")]
         mics = list_audio_inputs()
+        # Cache so ``_persist_camera_selection`` doesn't re-probe.
+        self._cached_camera_options = cameras
         return cameras, mics
 
     def _on_frame(self, frame: np.ndarray, ts: float, frame_id: int) -> None:
