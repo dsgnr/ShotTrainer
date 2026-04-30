@@ -1,25 +1,39 @@
 # How tracking works
 
-A plain-language walkthrough of what happens between a frame leaving the
-camera and a sample being recorded against a session.
+This page explains how ShotTrainer turns camera images and microphone input into
+a recorded aiming trace and shot position.
+
+You do not need to understand the details to use the application, but the
+information here may be useful if you are interested in how tracking and shot
+registration work internally.
 
 ## What gets tracked
 
-The camera is mounted to the rifle, looking forward at a static paper
-target. As you aim around the target, the rifle (and so the camera)
-swings, which in turn moves where the target appears in the camera
-frame. Detecting the target's position in each frame and tracking it
-over time gives a trace of how the rifle is being held. The shot is
-detected separately from audio, and the trace position at the shot
-timestamp is the registered hit.
+The camera is mounted to the rifle and points towards a fixed target.
 
-The trace's coordinate system is centred on the target. Positive X is
-the rifle pointing right of centre, positive Y is below centre. That
-means the *target's image* moves opposite to the aim. The pixel-to-mm
-conversion accounts for that so the displayed trace matches the
-user's aim intuition.
+As the rifle moves, the target appears to move within the camera image. By
+measuring that movement frame by frame, ShotTrainer can calculate how the rifle
+was being aimed over time.
 
-## Pipeline at a glance
+Shots are detected independently using the microphone. When a shot is detected,
+ShotTrainer finds the trace position that corresponds to the shot timestamp and
+records it as the shot location.
+
+### Coordinate system
+
+The target view is centred on the aiming mark.
+
+- Positive **X** values are to the right of centre.
+- Positive **Y** values are below centre.
+
+Because the target appears to move in the opposite direction to the rifle,
+ShotTrainer automatically compensates for this so the displayed trace matches
+the shooter's perspective.
+
+For example, moving the rifle right produces a trace movement to the right, even
+though the target itself moves left in the camera image.
+
+## Tracking pipeline
 
 ```mermaid
 flowchart LR
@@ -34,78 +48,140 @@ flowchart LR
     Coord --> UI[UI<br/>target view]
 ```
 
-## Pipeline
+## Step 1: Capture
 
-1. **Capture.** `tracking/camera.py` runs a camera worker on its own thread.
-   It reads frames from OpenCV, stamps each one with a monotonic clock
-   timestamp at the moment the frame becomes available, and emits a
-   `frame_ready` Qt signal. Capture is decoupled from rendering so the UI
-   thread is never blocked waiting for a frame.
+ShotTrainer continuously receives images from the camera and timestamps each
+frame as it arrives.
 
-2. **Transform.** The controller applies the user's chosen rotation and
-   mirroring (`tracking/frame_ops.py`). This is the only place these
-   transforms live so the displayed frame, the tracked frame, and any
-   recorded artefacts agree.
+Camera capture runs independently of the user interface so that recording
+continues smoothly even when the application is busy updating the display.
 
-3. **Detect.** `tracking/detector.py` finds the printed circle in the
-   frame. It tries Hough circle detection first (`cv2.HoughCircles`),
-   which works directly on the image gradients and is stable even when
-   the target has scoring rings or internal white lines that would
-   fragment a thresholded binary. If Hough doesn't find a circle in the
-   allowed radius range (small targets, poor contrast), the detector
-   falls back to adaptive thresholding, morphological closing to fill
-   ring gaps, contour extraction, and scoring by circularity and fill.
-   Either path produces a centre and radius in pixels.
+## Step 2: Apply camera transforms
 
-4. **Track.** `tracking/tracker.py` converts the detection into a
-   ``TrackingSample`` with both pixel and millimetre coordinates. The
-   Diameter (mm) divided by detected diameter (px) gives a per-frame
-   mm/px scale, and frame-centre minus circle-centre is the rifle's
-   aim offset. The mapping is set up so a rifle aim to the right (which
-   moves the target left in the frame) reads as a positive-X
-   displacement on the target view, matching how a shooter thinks
-   about their hold. The detector's confidence travels with the
-   sample so downstream consumers can drop low-quality detections.
+Before tracking begins, any user-configured rotation or mirroring is applied.
 
-5. **Buffer.** Samples are stored in a `TraceBuffer` (a bounded deque)
-   so the shot coordinator can find the nearest sample by timestamp
-   when a shot fires.
+These settings ensure that:
 
-6. **Detect shots.** Concurrently, `audio/shot_detector.py` computes
-   short-term RMS energy from microphone blocks, applies a one-pole DC
-   blocker, and fires when the level crosses the user's threshold. A
-   refractory window suppresses echoes. The shot timestamp is pinned to
-   the loudest sample inside the block, then offset by the audio block
-   start time.
+- The live preview matches the tracked image.
+- Recorded traces match what was displayed during the session.
+- Replays remain consistent with the original recording.
 
-7. **Coordinate.** When a shot event arrives, the shot coordinator looks
-   up the nearest tracking sample by timestamp, slices a window of
-   pre/post samples around it, and returns the result.
+## Step 3: Detect the target
 
-8. **Record.** The session recorder batches tracking samples into the
-   SQLite database to keep IO out of the hot path. The shot row points at
-   that timeline so replay can recover the exact window the shot
-   coordinator used.
+ShotTrainer searches each frame for the circular aiming mark.
 
-## Threads in one sentence
+Depending on image quality and contrast, it may use different detection
+techniques internally, but the result is always the same:
 
-Camera capture and audio capture each run on their own thread. Detection,
-buffering, and storage happen in those threads. Anything UI-facing crosses
-back to the main thread via Qt's queued signals.
+- The centre of the aiming mark
+- The diameter of the aiming mark
+- A confidence value describing the quality of the detection
 
-## Out of scope
+## Step 4: Convert to real-world coordinates
 
-- No compensation for camera lens distortion or perspective tilt.
-  The per-frame scale derived from the printed circle handles distance
-  and zoom only. It assumes a roughly square-on, rail- or barrel-
-  mounted camera.
-- No synchronisation between the audio clock and the video clock to
-  better than a few milliseconds. PortAudio gives no useful time stamp
-  here.
-- No filtering or smoothing of the trace coordinates between frames.
-  Samples land as the detector produced them so analysis sees the raw
-  signal. (The *radius* used for scaling is smoothed, separately.)
-- No model of camera-bore parallax. With a rifle-mounted camera the
-  optical axis isn't the bore axis, so there's a fixed offset between
-  what the camera "aims at" and where the bullet goes. The "Zero on
-  aim" button absorbs this when you zero against a known aim point.
+Once the aiming mark has been detected, ShotTrainer calculates a scale factor
+using:
+
+```text
+Tracking circle diameter (mm)
+÷
+Detected circle diameter (pixels)
+```
+
+This produces a live millimetres-per-pixel conversion.
+
+Using that scale, the software calculates the rifle's aim position relative to
+the centre of the target and stores the result in both pixel and millimetre
+coordinates.
+
+## Step 5: Build the trace
+
+Each position measurement becomes a tracking sample.
+
+Samples are added to a rolling buffer that represents the rifle's movement over
+time.
+
+This buffer is continuously updated while recording.
+
+## Step 6: Detect shots
+
+At the same time, the microphone is monitored for shot sounds.
+
+When the audio level exceeds the configured threshold:
+
+1. A shot event is created.
+2. The shot is timestamped.
+3. A short lockout period prevents echoes from being counted as additional
+   shots.
+
+The threshold and lockout period can be adjusted in **Preferences > Audio**.
+
+## Step 7: Match shots to trace data
+
+When a shot is detected, ShotTrainer searches the trace buffer for the tracking
+sample closest to the shot timestamp.
+
+It then gathers the configured pre-shot and post-shot trace windows around that
+point.
+
+This produces the data used for:
+
+- Shot placement
+- Replay
+- Hold analysis
+- Tremor calculations
+- Time-on-target statistics
+
+## Step 8: Save the session
+
+Tracking samples and shot events are written to the session database in the
+background.
+
+This allows recording to continue without waiting for disk operations.
+
+The recorded data can later be used for replay, analysis, export, and
+statistics.
+
+## Threading
+
+ShotTrainer performs camera capture and audio capture on separate worker
+threads.
+
+User interface updates are handled on the main application thread.
+
+Keeping acquisition and display separate helps maintain smooth tracking and
+responsive controls during recording.
+
+## Current limitations
+
+### Lens distortion and perspective
+
+ShotTrainer does not currently compensate for camera lens distortion or
+perspective effects.
+
+For best results, the camera should be mounted approximately square to the
+target.
+
+### Timing precision
+
+Audio and video devices do not share a common hardware clock.
+
+ShotTrainer aligns the two streams as closely as practical, but timing
+differences of a few milliseconds are normal.
+
+### Trace smoothing
+
+Tracking samples are stored exactly as they are produced by the detector.
+
+No smoothing or filtering is applied to the recorded trace, allowing replay and
+analysis tools to work from the original signal.
+
+### Camera-to-bore offset
+
+A rifle-mounted camera is not perfectly aligned with the bore axis.
+
+As a result, there is usually a fixed offset between the camera's centre point
+and the actual point of impact.
+
+Use **Zero on aim** to compensate for this offset when shooting against a known
+aiming point.

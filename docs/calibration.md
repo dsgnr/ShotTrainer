@@ -1,65 +1,136 @@
 # Tracking and the printed circle
 
-ShotTrainer doesn't have a calibration step. The trace is computed from
-each frame independently using the printed circle's known diameter,
-set once in **Preferences > Target > Tracking circle**, no separate menu
-item or workflow to run. The same number is used by the marker-sheet
-print dialog so what you print and what you tell the app are guaranteed
-to agree.
+ShotTrainer uses a known circle diameter to convert camera measurements into
+real-world millimetres.
 
-## What's actually being measured
+Unlike many target-tracking systems, there is no separate calibration procedure.
+The scale is calculated continuously from the detected size of the tracking
+circle, so every frame effectively calibrates itself.
 
-The camera is mounted on the rifle and looks forward at the target. The
-detector finds the printed black circle every frame and reports
+The tracking circle diameter is configured in:
 
-- the circle's centre in image pixels, and
-- its radius in image pixels.
+**Preferences > Target > Tracking circle**
 
-The frame's centre is "where the rifle is pointing". The vector from
-the circle's centre to the frame's centre is the rifle's aim offset in
-pixels. Convert pixels to millimetres using the live radius
+The same value is used by the marker sheet printing tool, helping ensure that
+the printed marker and tracking settings remain consistent.
 
-`mm/pixel = diameter_mm / (2 * radius_px)`
+## How scaling works
 
-and you have the offset in millimetres on the target plane. No
-separate calibration step is needed because every frame
-self-calibrates. If the camera moves closer the imaged circle grows,
-the radius is larger, the mm/px scale is smaller, and the trace
-continues to read the right millimetre offset.
+The camera is mounted to the rifle and points towards the target.
 
-## Workflow
+For each frame, ShotTrainer detects the tracking circle and measures:
 
-1. Print the marker sheet from `Tools > Print marker sheet`. The
-   diameter you choose there (60 mm by default) is the value the live
-   tracker uses.
-2. Pin the printed sheet at your target distance, in the same plane
-   the target will sit in.
-3. Set the same diameter under **Preferences > Target > Tracking
-   circle**. The marker-sheet dialog updates this for you when you
-   close it.
-4. Aim at the printed circle from your shooting position.
+- The circle centre in image pixels
+- The circle radius in image pixels
 
-That's it. There is no "Calibrate" button to press.
+The centre of the camera image represents the current pointing direction of the
+rifle.
+
+The difference between the image centre and the detected circle centre gives the
+rifle's offset from the target centre.
+
+To convert that offset into millimetres, ShotTrainer calculates a scale factor
+using the known diameter of the tracking circle:
+
+```text
+mm per pixel =
+tracking circle diameter (mm)
+÷
+detected circle diameter (pixels)
+```
+
+Because the detector measures the circle size continuously, the scale updates
+automatically if the apparent size of the circle changes.
+
+For example:
+
+- Moving the camera closer makes the circle appear larger.
+- Moving the camera further away makes the circle appear smaller.
+
+In both cases, ShotTrainer automatically adjusts the scale calculation to
+compensate.
+
+## Setup workflow
+
+Using a marker sheet only requires a few steps.
+
+### 1. Print a marker sheet
+
+Open:
+
+**Tools > Print marker sheet**
+
+Choose the diameter you want to use.
+
+The default value of **60 mm** works well for general-purpose testing.
+
+### 2. Mount the marker
+
+Place the marker sheet at the target location and secure it so that it remains
+flat.
+
+Ideally, the marker should be positioned in the same plane as the target you
+intend to shoot.
+
+### 3. Check the tracking circle setting
+
+Open:
+
+**Preferences > Target > Tracking circle**
+
+Ensure the value matches the diameter of the printed marker.
+
+The marker sheet dialog updates this value automatically when the marker is
+generated.
+
+### 4. Start aiming
+
+Once the camera can see the marker, tracking begins automatically.
+
+There is no separate calibration button or setup wizard.
 
 ## Zero on aim
 
-The camera's optical axis isn't the rifle's bore axis, so the trace's
-"0" (the printed circle's centre, in image space) isn't where the rifle
-is pointing when you're holding on aim. The **Zero on aim** button in
-the left column locks the current aim point as the trace's (0, 0). The
-offset is saved across restarts. Use **Clear zero** to revert to the
-circle's centre as origin.
+The centre of the tracking circle is not necessarily the same as the rifle's
+actual point of aim.
 
-## When to recheck the diameter
+This is because the camera's optical axis is offset from the bore axis.
 
-- You changed the size of the printed circle.
-- Hits aren't reading at the millimetre offsets you'd expect across the
-  whole circle (the per-frame mm/px reported in the header should
-  closely match a ruler measurement of pixel-to-mm at the target).
+To compensate, use **Zero on aim**.
+
+When pressed, the current aim position becomes the new `(0, 0)` reference point
+for the trace.
+
+This allows the displayed trace to be centred on your actual aiming point rather
+than the geometric centre of the marker.
+
+The zero offset is saved and restored automatically between sessions.
+
+To remove the adjustment and return to the marker centre, use **Clear zero**.
+
+## When to check the tracking circle diameter
+
+The tracking circle diameter rarely needs changing, but it is worth verifying
+if:
+
+- You print a marker sheet with a different diameter.
+- You switch to a target with a different aiming mark size.
+- Measured offsets appear consistently larger or smaller than expected.
+
+If the configured diameter does not match the real diameter of the tracked
+circle, all millimetre measurements will be scaled incorrectly.
 
 ## Limitations
 
-The detector has to keep finding the circle every frame. If you swing
-the rifle far enough that the circle leaves the field of view there's
-nothing to measure and the trace pauses until the circle is in frame
-again.
+Tracking depends on the detector being able to see the tracking circle.
+
+If the circle leaves the camera's field of view, tracking cannot continue and
+the trace will pause until the circle becomes visible again.
+
+For best results:
+
+- Keep the tracking circle fully visible.
+- Ensure good contrast between the circle and its background.
+- Avoid glare and reflections on the target surface.
+- Use a camera position that keeps the circle comfortably within the tracking
+  region during normal aiming movement.

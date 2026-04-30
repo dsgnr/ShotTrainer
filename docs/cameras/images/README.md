@@ -17,7 +17,11 @@ Lowercase, hyphenated, no spaces.
 ## What's worth a photo
 
 - The rifle-side mount, so others can copy the rig.
-- The live preview during a session, so people can see how much frame the printed circle should fill. Short screen recordings of it in action are even better!
-- The camera by itself, if it's an unusual model that's hard to identify from a manufacturer link alone.
+- The live preview during a session, so people can see how much frame the
+  printed circle should fill. Short screen recordings of it in action are even
+  better!
+- The camera by itself, if it's an unusual model that's hard to identify from a
+  manufacturer link alone.
 
-Avoid photos and videos that include identifying information about the shooter or the venue.
+Avoid photos and videos that include identifying information about the shooter
+or the venue.

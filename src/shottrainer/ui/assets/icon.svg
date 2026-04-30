@@ -1,10 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <rect width="256" height="256" rx="40" fill="#1f1f24"/>
-  <circle cx="128" cy="128" r="100" fill="#f7f5ee" stroke="#0e0e10" stroke-width="3"/>
-  <circle cx="128" cy="128" r="80" fill="none" stroke="#1d1d20" stroke-width="2"/>
-  <circle cx="128" cy="128" r="60" fill="none" stroke="#1d1d20" stroke-width="2"/>
-  <circle cx="128" cy="128" r="40" fill="none" stroke="#1d1d20" stroke-width="2"/>
-  <circle cx="128" cy="128" r="22" fill="#1d1d20"/>
-  <circle cx="128" cy="128" r="6" fill="#f7f5ee"/>
-  <circle cx="170" cy="96" r="9" fill="#d83a2a" stroke="#7a1d12" stroke-width="2"/>
-</svg>
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><rect fill="#1f1f24" height="256" rx="40" width="256"/><circle cx="128" cy="128" fill="#f7f5ee" r="100" stroke="#0e0e10" stroke-width="3"/><g fill="none" stroke="#1d1d20"><circle cx="128" cy="128" r="80" stroke-width="2"/><circle cx="128" cy="128" r="60" stroke-width="2"/><circle cx="128" cy="128" r="40" stroke-width="2"/></g><circle cx="128" cy="128" fill="#1d1d20" r="22"/><circle cx="128" cy="128" fill="#f7f5ee" r="6"/><circle cx="170" cy="96" fill="#d83a2a" r="9" stroke="#7a1d12" stroke-width="2"/></svg>
