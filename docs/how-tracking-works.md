@@ -19,6 +19,21 @@ means the *target's image* moves opposite to the aim, which we account
 for in calibration so the displayed trace matches the user's aim
 intuition.
 
+## Pipeline at a glance
+
+```mermaid
+flowchart LR
+    Cam[Camera<br/>frame] --> Tx[Rotate/<br/>mirror]
+    Tx --> Det[Detect<br/>target]
+    Det --> Cal[Pixels to<br/>millimetres]
+    Cal --> Buf[(Trace<br/>buffer)]
+    Mic[Microphone] --> Sd[Shot<br/>detector]
+    Sd --> Coord[Shot<br/>coordinator]
+    Buf --> Coord
+    Coord --> Rec[(Session<br/>database)]
+    Coord --> UI[UI<br/>target view]
+```
+
 ## Pipeline
 
 1. **Capture.** `tracking/camera.py` runs a camera worker on its own thread.
