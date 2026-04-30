@@ -62,6 +62,7 @@ class SessionManager:
         player: TracePlayer,
         buffer: TraceBuffer,
         get_preferences: Callable[[], Preferences],
+        set_target_face: Callable[[str], None] | None = None,
     ) -> None:
         self._window = window
         self._repo = repo
@@ -71,6 +72,7 @@ class SessionManager:
         self._player = player
         self._buffer = buffer
         self._get_preferences = get_preferences
+        self._set_target_face = set_target_face
         self._current_view_session_id: int | None = None
         self._shots_in_view: list[ShotEntry] = []
 
@@ -115,7 +117,11 @@ class SessionManager:
         self._render_shots()
         self._refresh_stats()
 
-        sid = self._recorder.start(name=name, app_version=app_version)
+        sid = self._recorder.start(
+            name=name,
+            app_version=app_version,
+            target_profile=self._get_preferences().target_face,
+        )
         self._window.session_controls.set_active(True)
         self._window.session_controls.set_summary(f"Recording session {sid}")
         self._window.header.set_state("recording")
@@ -290,12 +296,24 @@ class SessionManager:
     def _load_session_for_replay(self, session_id: int) -> None:
         """Load a saved session's shots into the view for replay.
 
+        Automatically switches the active target face to match the
+        one that was in use when the session was recorded.
+
         Args:
             session_id: Database ID of the session to load.
         """
         if self._recorder.is_recording:
             self._window.statusBar().showMessage("Stop recording before opening a session", 4000)
             return
+
+        # Switch to the session's target face if it differs from the current one
+        session_row = self._repo.get_session(session_id)
+        if session_row is not None and self._set_target_face is not None:
+            session_face = session_row.target_profile
+            current_face = self._get_preferences().target_face
+            if session_face and session_face != current_face:
+                self._set_target_face(session_face)
+
         shots = self._repo.list_shots(session_id)
 
         self._current_view_session_id = session_id
