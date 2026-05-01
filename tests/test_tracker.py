@@ -110,3 +110,50 @@ def test_set_calibration_clears_placeholder_flag():
     assert tracker.calibration_is_placeholder
     tracker.set_calibration(LinearCalibration(mm_per_pixel=0.25))
     assert not tracker.calibration_is_placeholder
+
+
+def test_zero_offset_shifts_reported_position():
+    tracker = Tracker(
+        calibration=LinearCalibration(mm_per_pixel=0.5, origin_px=(320.0, 240.0))
+    )
+    tracker.set_zero_offset(10.0, 0.0)
+    sample = tracker.process(_frame_with_circle(360, 240), timestamp=0.0)
+    assert sample is not None
+    # Without offset, target 40 px right of centre would map to 20 mm at
+    # 0.5 mm/px. With a 10 mm offset, the reported value is shifted to 10.
+    assert sample.x_mm == pytest.approx(10.0, abs=1.0)
+    assert sample.y_mm == pytest.approx(0.0, abs=1.0)
+
+
+def test_zero_at_last_sample_pins_current_aim_to_origin():
+    tracker = Tracker(
+        calibration=LinearCalibration(mm_per_pixel=0.5, origin_px=(320.0, 240.0))
+    )
+    # Aim that maps to (20, 0) mm before zeroing.
+    sample = tracker.process(_frame_with_circle(360, 240), timestamp=0.0)
+    assert sample is not None
+    assert sample.x_mm == pytest.approx(20.0, abs=1.0)
+
+    assert tracker.zero_at_last_sample()
+    # Same aim point should now read as (0, 0).
+    sample = tracker.process(_frame_with_circle(360, 240), timestamp=0.1)
+    assert sample is not None
+    assert sample.x_mm == pytest.approx(0.0, abs=1.0)
+    assert sample.y_mm == pytest.approx(0.0, abs=1.0)
+
+
+def test_zero_at_last_sample_returns_false_with_no_sample():
+    tracker = Tracker(calibration=LinearCalibration(mm_per_pixel=1.0))
+    assert not tracker.zero_at_last_sample()
+
+
+def test_clear_zero_offset_restores_original_origin():
+    tracker = Tracker(
+        calibration=LinearCalibration(mm_per_pixel=0.5, origin_px=(320.0, 240.0))
+    )
+    tracker.set_zero_offset(10.0, 5.0)
+    tracker.clear_zero_offset()
+    assert tracker.zero_offset_mm == (0.0, 0.0)
+    sample = tracker.process(_frame_with_circle(340, 240), timestamp=0.0)
+    assert sample is not None
+    assert sample.x_mm == pytest.approx(10.0, abs=1.0)
