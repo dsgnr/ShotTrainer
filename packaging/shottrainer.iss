@@ -3,6 +3,13 @@
 ; Build with:
 ;   iscc packaging\shottrainer.iss
 ;
+; The version is normally passed in by ``make_installer.ps1``, which
+; reads it from ``pyproject.toml``. Direct invocation falls back to a
+; ``0.0.0+dev`` marker so it's obvious when an installer was built
+; outside the wrapper.
+;
+;   iscc /DMyAppVersion=1.2.3 packaging\shottrainer.iss
+;
 ; Inputs (relative to the repo root):
 ;   dist\ShotTrainer\          Nuitka standalone folder build
 ;   src\shottrainer\ui\assets\icon.ico
@@ -11,7 +18,9 @@
 ;   dist\ShotTrainer-Setup.exe
 
 #define MyAppName "ShotTrainer"
-#define MyAppVersion "0.1.0"
+#ifndef MyAppVersion
+  #define MyAppVersion "0.0.0+dev"
+#endif
 #define MyAppPublisher "dsgnr"
 #define MyAppURL "https://github.com/dsgnr/ShotTrainer"
 #define MyAppExeName "ShotTrainer.exe"
