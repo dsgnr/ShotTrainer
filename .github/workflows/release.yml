@@ -83,10 +83,10 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          # The .dmg is the user-facing artefact. The raw folder build
-          # is kept as a tarball for users who prefer to run unsigned.
+          # The .dmg is the user-facing artefact. The .app bundle is
+          # kept as a tarball for users who prefer to run unsigned.
           cd dist
-          tar -czf ShotTrainer-macOS.tar.gz ShotTrainer
+          tar -czf ShotTrainer-macOS.tar.gz ShotTrainer.app
 
       - uses: actions/upload-artifact@v4
         with:
