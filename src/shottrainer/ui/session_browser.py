@@ -3,11 +3,16 @@
 Lists previously recorded sessions, lets the user open one
 for replay or delete it. The dialog reads from a
 :class:`SessionRepository` that it doesn't own.
+
+The list is loaded after the dialog has had a chance to render so
+the window appears immediately even when the database holds many
+sessions. While the load is running a small "Loading..."
+placeholder is shown.
 """
 
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QSize, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -43,13 +48,17 @@ class SessionBrowserDialog(QDialog):
         self.setWindowTitle("Sessions")
         self.resize(560, 460)
         self._repo = repository
+        # A monotonically increasing token so a deferred load that
+        # arrives after the user closed and reopened the dialog can
+        # detect that it's stale and bail out.
+        self._refresh_token = 0
 
         layout = QVBoxLayout(self)
 
-        # Either the list or the empty-state placeholder is shown
-        # at any one time. Keeping them in a stacked widget means
-        # ``refresh`` only flips the visible page rather than
-        # rebuilding the layout.
+        # Three pages: the session list, the empty-state placeholder,
+        # and a "Loading..." page shown while the deferred read runs.
+        # The stack keeps ``refresh`` to a single page-flip rather
+        # than rebuilding the layout.
         self._stack = QStackedWidget()
         self._list = QListWidget()
         self._list.setObjectName("sessionList")
@@ -61,8 +70,12 @@ class SessionBrowserDialog(QDialog):
         self._empty.setObjectName("sessionListEmpty")
         self._empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._empty.setWordWrap(True)
+        self._loading = QLabel("Loading sessions...")
+        self._loading.setObjectName("sessionListLoading")
+        self._loading.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._stack.addWidget(self._list)
         self._stack.addWidget(self._empty)
+        self._stack.addWidget(self._loading)
         layout.addWidget(self._stack, 1)
 
         actions = QHBoxLayout()
@@ -94,9 +107,42 @@ class SessionBrowserDialog(QDialog):
         self.refresh()
 
     def refresh(self) -> None:
-        """Re-read the session list from the repository and rebuild the rows."""
+        """Re-read the session list from the database.
+
+        The actual query runs on the next event-loop tick so the
+        dialog can paint itself first. Users opening the browser see
+        the window appear immediately with a "Loading..." placeholder
+        while the read is in progress, instead of a frozen mouse
+        cursor on a database with thousands of sessions.
+
+        Calling ``refresh`` while a previous deferred load is still
+        pending invalidates the older one through a token check.
+        """
+        self._refresh_token += 1
+        token = self._refresh_token
+        self._stack.setCurrentWidget(self._loading)
+        self._refresh_action_buttons()
+        # ``singleShot(0, ...)`` schedules the load for the next event
+        # loop iteration, after the dialog's first paint event.
+        QTimer.singleShot(0, lambda: self._populate(token))
+
+    def _populate(self, token: int) -> None:
+        """Run the session query and rebuild the rows.
+
+        Args:
+            token: The refresh token captured when this load was
+                scheduled. If a newer refresh has been requested in
+                the meantime the result is discarded.
+        """
+        if token != self._refresh_token:
+            return
+        try:
+            sessions = list(self._repo.list_sessions())
+        except Exception as exc:  # pragma: no cover - exercised by integration use
+            self._loading.setText(f"Could not load sessions: {exc}")
+            self._stack.setCurrentWidget(self._loading)
+            return
         self._list.clear()
-        sessions = self._repo.list_sessions()
         for s in sessions:
             row = _SessionRow(s)
             item = QListWidgetItem()

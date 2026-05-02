@@ -9,6 +9,7 @@ from sqlalchemy import create_engine, event, select, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from shottrainer import __version__
 
@@ -21,9 +22,26 @@ def make_engine(db_path: str | Path) -> Engine:
     """Build a SQLAlchemy engine that points at ``db_path``.
 
     Pass ``":memory:"`` to use an in-memory database.
+
+    ``check_same_thread=False`` lets the engine be reused across
+    threads when needed. SQLAlchemy still hands out one connection
+    per thread from its pool, so SQLite-level transactions remain
+    serialised.
+
+    For ``:memory:`` we additionally swap to ``StaticPool`` so every
+    connection sees the same in-memory database. Without that, each
+    new connection from the default pool gets its own empty database
+    and rows written through one connection are invisible to the next.
     """
-    url = f"sqlite:///{db_path}" if str(db_path) != ":memory:" else "sqlite:///:memory:"
-    engine = create_engine(url, future=True)
+    is_memory = str(db_path) == ":memory:"
+    url = "sqlite:///:memory:" if is_memory else f"sqlite:///{db_path}"
+    kwargs: dict[str, object] = {
+        "future": True,
+        "connect_args": {"check_same_thread": False},
+    }
+    if is_memory:
+        kwargs["poolclass"] = StaticPool
+    engine = create_engine(url, **kwargs)
     _enable_sqlite_foreign_keys(engine)
     return engine
 
