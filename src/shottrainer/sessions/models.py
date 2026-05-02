@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
 
 from sqlalchemy import (
     DateTime,
@@ -88,8 +87,3 @@ class Shot(Base):
     score: Mapped[str] = mapped_column(String(16), nullable=False, default="")
 
     session: Mapped[Session] = relationship(back_populates="shots")
-
-
-def to_dict(model: Any) -> dict[str, Any]:
-    """Tiny helper for serialising a model row to a dict (debug, tests)."""
-    return {c.key: getattr(model, c.key) for c in model.__table__.columns}

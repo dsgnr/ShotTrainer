@@ -67,8 +67,3 @@ class AudioMeter(QWidget):
 
         p.setPen(QColor("#2c303a"))
         p.drawRect(rect.adjusted(0, 0, -1, -1))
-
-    def hide_event(self, _event) -> None:
-        # Keep the timer running. The cost is trivial and the meter looks
-        # alive when re-shown.
-        pass
