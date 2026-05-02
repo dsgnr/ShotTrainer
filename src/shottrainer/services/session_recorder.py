@@ -15,9 +15,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any
 
+from shottrainer.sessions.models import utc_now
 from shottrainer.sessions.repository import SessionRepository
 from shottrainer.tracking.models import TrackingSample
 
@@ -114,7 +114,7 @@ class SessionRecorder:
             return None
         self._flush(self._last_flush_ts)
         sid = self._session_id
-        self._repo.end_session(sid, ended_at=datetime.utcnow())
+        self._repo.end_session(sid, ended_at=utc_now())
         self._session_id = None
         log.info("Stopped session %d", sid)
         return sid
