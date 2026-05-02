@@ -55,17 +55,21 @@ _PROPERTIES = {
 
 
 def list_available_cameras(max_index: int = 5) -> list[tuple[int, str]]:
-    """Probe a small range of camera indices.
+    """Probe a small range of camera indices and return the ones that opened.
 
-    OpenCV does not give names on all platforms, so this returns generic
-    labels. Good enough for a device picker.
+    Names come back as plain ``Camera N`` labels. OpenCV doesn't
+    have a portable way to ask the OS for a device's real name,
+    and Qt's :class:`~PySide6.QtMultimedia.QMediaDevices` doesn't
+    necessarily list cameras in the same order, so mixing the two
+    would attach the wrong name to the wrong index.
 
-    Probing prints noisily on stderr at the C level: OpenCV emits a
-    line per failed index, and on macOS AVFoundation emits "out device
-    of bound" before OpenCV's own message. Neither is reachable
-    through the Python logging API, so the probe runs with stderr
-    redirected to ``/dev/null`` (or the OS equivalent) for the
-    duration of the call.
+    Probing is noisy at the C level. OpenCV writes a line to
+    stderr for every index that fails to open, and on macOS
+    AVFoundation prints "out device of bound" before OpenCV's own
+    message. Neither makes it through Python's logging, so the
+    probe redirects file descriptor 2 to ``/dev/null`` for the
+    duration of the call. Restored on exit so later log lines
+    still reach the terminal.
     """
     with _silenced_native_stderr():
         found: list[tuple[int, str]] = []
@@ -154,6 +158,11 @@ class CameraCapture(QObject):
         if self._running:
             log.warning("Camera config changed while running. Restart to apply")
         self._config = config
+
+    @property
+    def device_index(self) -> int:
+        """The device index this capture was built against."""
+        return self._config.device_index
 
     def set_property(self, name: str, value: float | None) -> bool:
         """Adjust a hardware property on a running capture.
