@@ -103,6 +103,33 @@ class ShotList(QWidget):
         if 0 <= index < self._list.count():
             self._list.setCurrentRow(index)
 
+    def step_selection(self, delta: int) -> bool:
+        """Move the current selection by ``delta`` rows.
+
+        Used by the Up/Down keyboard shortcuts so the user can step
+        through shots without touching the mouse. With nothing yet
+        selected, a positive delta picks the first shot and a
+        negative delta picks the last.
+
+        Args:
+            delta: Number of rows to step. Positive moves down the
+                list, negative moves up.
+
+        Returns:
+            ``True`` when a shot was selected, ``False`` if the list
+            is empty.
+        """
+        count = self._list.count()
+        if count == 0:
+            return False
+        current = self._list.currentRow()
+        if current < 0:
+            new_row = 0 if delta > 0 else count - 1
+        else:
+            new_row = max(0, min(count - 1, current + delta))
+        self._list.setCurrentRow(new_row)
+        return True
+
     def _on_selection_changed(self) -> None:
         """Emit `shot_selected` when the user clicks a row."""
         items = self._list.selectedItems()
