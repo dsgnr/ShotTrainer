@@ -191,7 +191,7 @@ class MainWindow(QMainWindow):
 
     def set_tracking_status(self, text: str) -> None:
         """Update the header's secondary status line (live mm/px and so on)."""
-        self.header.set_calibration_text(text)
+        self.header.set_status_text(text)
 
     def set_zero_offset_state(
         self,

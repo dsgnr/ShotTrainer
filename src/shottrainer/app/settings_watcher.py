@@ -1,9 +1,8 @@
 """Reloads preferences from disk while the app is running.
 
-Mirrors :mod:`calibration_watcher`: polls ``settings.json`` for
-modification time changes and emits a signal when it sees one. Useful
-when an external editor or another tool rewrites preferences while the
-app is running.
+Watches ``settings.json`` for changes to its modification time
+and fires a signal when it spots one. Handy when an external
+editor or another tool rewrites the file while the app is open.
 """
 
 from __future__ import annotations
