@@ -34,7 +34,10 @@ from .target_view import TargetRing
 
 @dataclass(slots=True)
 class Preferences:
-    camera_id: int = 0
+    # ``None`` means "no camera selected". Used when the previously
+    # saved device is no longer attached. Live preview is paused until
+    # the user picks one in the dialog.
+    camera_id: int | None = 0
     camera_rotation: int = 0  # 0, 90, 180 or 270 degrees, clockwise
     camera_flip_h: bool = False
     camera_flip_v: bool = False
@@ -133,6 +136,17 @@ class PreferencesDialog(QDialog):
     optimise_requested = Signal()
     reset_detector_requested = Signal()
     camera_property_changed = Signal(str, object)
+    # Emitted as soon as the user picks a different camera in the
+    # combo. Carries the new index, or ``None`` for "no camera". The
+    # controller uses this to swap the live capture immediately so
+    # the embedded preview reflects the new device without waiting
+    # for Save.
+    camera_changed = Signal(object)
+    # Emitted when the user clicks the "Refresh" button next to the
+    # camera combo. The controller responds by re-enumerating the
+    # device list and calling :meth:`set_camera_options` /
+    # :meth:`set_audio_options`.
+    refresh_devices_requested = Signal()
 
     def __init__(
         self,
@@ -142,6 +156,7 @@ class PreferencesDialog(QDialog):
         target_faces: list[tuple[str, str]] | None = None,
         rings_lookup: Callable[[str], tuple[TargetRing, ...]] | None = None,
         face_lookup: Callable[[str], TargetFace | None] | None = None,
+        saved_camera_name: str = "",
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -150,6 +165,7 @@ class PreferencesDialog(QDialog):
         self._prefs = prefs
         self._rings_lookup = rings_lookup
         self._face_lookup = face_lookup
+        self._saved_camera_name = saved_camera_name
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
@@ -205,6 +221,72 @@ class PreferencesDialog(QDialog):
         v = round(min(1.0, max(0.0, level)) * 100)
         self._audio_meter.setValue(v)
 
+    def set_camera_options(self, options: list[tuple[int, str]]) -> None:
+        """Rebuild the camera combo from a fresh enumeration.
+
+        Keeps the selection by the *displayed name*, not by
+        index. Plugging in a new device can shift the indices.
+        What used to be index 0 (the built-in FaceTime HD)
+        becomes index 1 when a USB camera lands at index 0.
+        Matching by name keeps the user on the same physical
+        device after a refresh. If the device they had selected
+        is gone, the combo falls back to "No camera".
+
+        Fires :attr:`camera_changed` when the integer index
+        attached to the user's selected device has shifted, so
+        the controller can restart the live preview on the new
+        index. Without this the preview would silently end up
+        showing whichever physical device sat at the old index.
+        """
+        previous_name = self._camera.currentText()
+        previous_index = self._camera.currentData()
+        items: list[tuple[object, str]] = list(options or [(0, "Camera 0")])
+        names = {label for _, label in items}
+        if previous_name in names:
+            new_initial: object = next(idx for idx, label in items if label == previous_name)
+        else:
+            items.insert(0, (None, "No camera"))
+            new_initial = None
+        self._camera.blockSignals(True)
+        try:
+            self._camera.clear()
+            for value, label in items:
+                self._camera.addItem(label, value)
+            target = self._camera.findData(new_initial)
+            if target >= 0:
+                self._camera.setCurrentIndex(target)
+        finally:
+            self._camera.blockSignals(False)
+        if new_initial != previous_index:
+            self.camera_changed.emit(
+                new_initial if isinstance(new_initial, int) else None
+            )
+
+    def set_audio_options(self, options: list[str]) -> None:
+        """Rebuild the audio-input combo with a fresh device list."""
+        previous = self._audio.currentText()
+        names = list(options or ["default"])
+        self._audio.blockSignals(True)
+        try:
+            self._audio.clear()
+            for name in names:
+                self._audio.addItem(name, name)
+            target = self._audio.findText(previous)
+            if target >= 0:
+                self._audio.setCurrentIndex(target)
+        finally:
+            self._audio.blockSignals(False)
+
+    def selected_camera_index(self) -> int | None:
+        """The integer index currently selected in the combo, or ``None``.
+
+        ``None`` for the "No camera" entry. The controller uses
+        this to keep the live capture in sync with whatever the
+        dialog has chosen.
+        """
+        value = self._camera.currentData()
+        return value if isinstance(value, int) else None
+
     def set_camera_property_actual(self, name: str, value: float | None) -> None:
         """Hook for the controller to report what the camera driver actually accepted.
 
@@ -227,9 +309,40 @@ class PreferencesDialog(QDialog):
         form = QFormLayout()
         form.setHorizontalSpacing(16)
         form.setVerticalSpacing(12)
-        cam_items = list(camera_options or [(0, "Camera 0")])
-        self._camera = _make_combo(cam_items, initial=prefs.camera_id)
-        form.addRow("Device", self._camera)
+        cam_items: list[tuple[object, str]] = list(camera_options or [(0, "Camera 0")])
+        # Pick the saved camera by *name* first, falling back to the
+        # saved index. Names are stable across reboots and across
+        # newly-attached devices that shift the integer indices.
+        # Indices alone are not. If neither matches, prepend a "No
+        # camera" entry so the user has to make an explicit choice.
+        names = {label: idx for idx, label in cam_items if isinstance(idx, int)}
+        saved_indices = set(names.values())
+        initial_camera: object
+        if self._saved_camera_name and self._saved_camera_name in names:
+            initial_camera = names[self._saved_camera_name]
+        elif prefs.camera_id is not None and prefs.camera_id in saved_indices:
+            initial_camera = prefs.camera_id
+        else:
+            cam_items.insert(0, (None, "No camera"))
+            initial_camera = None
+        self._camera = _make_combo(cam_items, initial=initial_camera)
+        self._camera.activated.connect(self._on_camera_chosen)
+
+        # Refresh button next to the combo so a camera plugged in
+        # after launch can be picked up without restarting the app.
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.setToolTip(
+            "Re-enumerate attached cameras and microphones. Use this "
+            "after plugging in a new camera."
+        )
+        refresh_btn.clicked.connect(self.refresh_devices_requested)
+        device_row = QWidget()
+        device_layout = QHBoxLayout(device_row)
+        device_layout.setContentsMargins(0, 0, 0, 0)
+        device_layout.setSpacing(8)
+        device_layout.addWidget(self._camera, 1)
+        device_layout.addWidget(refresh_btn)
+        form.addRow("Device", device_row)
 
         self._rotation = _make_combo(list(ROTATION_OPTIONS), initial=prefs.camera_rotation)
         self._rotation.currentIndexChanged.connect(lambda _i: self._refresh_preview_frame())
@@ -532,6 +645,21 @@ class PreferencesDialog(QDialog):
         rings = self._rings_lookup(key)
         self._face_preview.set_rings(rings)
 
+    def _on_camera_chosen(self, _index: int) -> None:
+        """Tell the controller as soon as the user picks a different camera.
+
+        Fires on explicit selection only (``activated``), so
+        opening the dialog with the saved camera preselected
+        doesn't trigger a needless capture restart. ``None``
+        propagates through as the new camera id, meaning
+        "stop the live capture".
+        """
+        new_id = self._camera.currentData()
+        self.camera_changed.emit(new_id if isinstance(new_id, int) else None)
+        # The image controls are reapplied to the new device on
+        # the next capture cycle by the controller. The slider values
+        # themselves stay where the user had them.
+
     def _calibre_for_diameter(self, mm: float) -> str:
         for key, value in CALIBRES_MM.items():
             if abs(value - mm) < 0.05:
@@ -655,7 +783,7 @@ class PreferencesDialog(QDialog):
             return slider.value() / 100.0
 
         updated = Preferences(
-            camera_id=int(cam_id) if cam_id is not None else 0,
+            camera_id=int(cam_id) if isinstance(cam_id, int) else None,
             camera_rotation=int(rotation) if rotation is not None else 0,
             camera_flip_h=self._flip_h.isChecked(),
             camera_flip_v=self._flip_v.isChecked(),

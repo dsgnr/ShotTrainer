@@ -44,6 +44,7 @@ from shottrainer.ui.target_view import ShotMarker
 from .camera_selection import (
     CameraSelection,
     load_camera_selection,
+    resolve_camera_index,
     save_camera_selection,
 )
 from .capture_pipeline import CapturePipeline, FrameTransformOptions
@@ -127,6 +128,9 @@ class AppController(QObject):
 
         self._connect_signals()
         self._window.set_device_options_provider(self._device_options)
+        self._window.set_saved_camera_name_provider(
+            lambda: load_camera_selection().name
+        )
         self._window.set_target_faces_provider(list_target_faces)
         self._window.set_rings_lookup(rings_for_face)
         self._window.set_face_lookup(face_for_name)
@@ -147,7 +151,9 @@ class AppController(QObject):
 
     def start(self) -> None:
         """Start live preview. The camera and microphone run for as long as the app is open."""
-        self._start_camera(self._effective_camera_index())
+        index = self._effective_camera_index()
+        if index is not None:
+            self._start_camera(index)
         self._audio.start()
 
     def shutdown(self) -> None:
@@ -190,28 +196,45 @@ class AppController(QObject):
         self._window.zero_cleared.connect(self._on_zero_cleared)
         self._window.rescore_requested.connect(self._on_rescore_requested)
 
-    def _effective_camera_index(self) -> int:
+    def _effective_camera_index(self) -> int | None:
         """Pick the camera index to use given the saved selection.
 
-        Returns the saved index directly without enumerating attached
-        devices. Enumeration on macOS opens every USB camera in turn
-        which can take well over a second. Doing that on every launch
-        delays the first window paint. The :class:`CameraCapture`
-        worker reports an error if the saved index doesn't open, at
-        which point the user can pick a different one from
-        Preferences.
+        Lists the attached devices (cheap via Qt's media stack)
+        and prefers a match by name, so the saved camera follows
+        the user across reboots even when USB devices renumber.
+        Falls back to the saved index, then to ``0``. Returns
+        ``None`` only when the user has explicitly chosen "no
+        camera" and nothing is attached.
         """
         selection = load_camera_selection()
-        return selection.index or 0
+        if selection.index is None and not selection.name:
+            # Explicit "no camera" choice. Honour it.
+            return None
+        try:
+            available = list_available_cameras()
+        except Exception:  # pragma: no cover - driver dependent
+            available = []
+        if not available:
+            return selection.index if selection.index is not None else None
+        return resolve_camera_index(selection, available)
 
-    def _persist_camera_selection(self, index: int) -> None:
+    def _persist_camera_selection(self, index: int | None) -> None:
         """Save the camera the user just picked.
 
-        Uses the cached enumeration from the most recent Preferences
-        dialog (where the change came from) so this path doesn't have
-        to probe the device tree again. Falls back to a generic
-        ``Camera N`` label when no cache is available.
+        Uses the cached enumeration from the most recent
+        Preferences dialog (which is where the change comes from)
+        so this path doesn't have to probe the device tree
+        again. Falls back to a plain ``Camera N`` label when no
+        cache is available. ``None`` saves as "no camera" so the
+        next launch doesn't try to open whatever device landed
+        at index 0.
         """
+        if index is None:
+            try:
+                save_camera_selection(CameraSelection(name="", index=None))
+            except OSError as exc:
+                log.warning("Could not save camera selection: %s", exc)
+            return
         name = next(
             (n for i, n in self._cached_camera_options if i == index),
             f"Camera {index}",
@@ -497,6 +520,11 @@ class AppController(QObject):
     def _apply_preferences(self, prefs: Preferences, *, persist: bool = True) -> None:
         previous = getattr(self, "_preferences", None)
         self._preferences = prefs
+        # Keep the window's cached copy in sync so the
+        # Preferences dialog opens against what's actually
+        # loaded, not the ``Preferences()`` defaults the window
+        # started with.
+        self._window.set_current_preferences(prefs)
         self._coordinator.update_settings(
             ShotCoordinatorSettings(pre_shot_ms=prefs.pre_shot_ms, post_shot_ms=prefs.post_shot_ms)
         )
@@ -535,9 +563,11 @@ class AppController(QObject):
         if (
             previous is not None
             and previous.camera_id != prefs.camera_id
-            and self._camera is not None
         ):
-            self._start_camera(prefs.camera_id)
+            if prefs.camera_id is None:
+                self._stop_camera()
+            else:
+                self._start_camera(prefs.camera_id)
             self._persist_camera_selection(prefs.camera_id)
 
         # Only save when the change came from the user. The
@@ -640,8 +670,100 @@ class AppController(QObject):
         if self._latest_frame is not None:
             dialog.push_frame(self._latest_frame)
         dialog.camera_property_changed.connect(self._on_camera_property_changed)
+        dialog.camera_changed.connect(self._on_camera_chosen_in_dialog)
+        dialog.refresh_devices_requested.connect(
+            lambda: self._refresh_dialog_devices(dialog)
+        )
         dialog.optimise_requested.connect(self._on_optimise_requested)
         dialog.reset_detector_requested.connect(self._on_reset_detector_requested)
+
+        # Remember which camera was running before the dialog
+        # opened so we can revert if the user cancels. The saved
+        # state only changes when the dialog emits ``saved`` (the
+        # Save button). Any other close path (Cancel, the OS close
+        # button, Escape) restores the previous capture.
+        original_index = self._preferences.camera_id
+        saved = {"committed": False}
+
+        dialog.saved.connect(lambda _prefs: saved.__setitem__("committed", True))
+        dialog.finished.connect(
+            lambda _r: self._revert_camera_after_dialog(original_index, saved["committed"])
+        )
+
+        # Sync the live capture to whatever the dialog ended up
+        # pre-selecting. The dialog matches the saved camera by
+        # *name* against the live list of devices, which can
+        # resolve to a different integer index than
+        # ``prefs.camera_id`` if a new USB device shifted the
+        # order. Without this sync the preview would silently
+        # show whichever device sits at the stale saved index.
+        dialog_index = dialog.selected_camera_index()
+        if dialog_index != self._camera_device_index():
+            if dialog_index is None:
+                self._stop_camera()
+            else:
+                self._start_camera(dialog_index)
+
+    def _refresh_dialog_devices(self, dialog) -> None:
+        """Re-enumerate cameras and microphones for the open Preferences dialog.
+
+        Called when the user clicks "Refresh" in the dialog.
+        ``QMediaDevices`` picks up devices plugged in after
+        launch, which the cached enumeration wouldn't otherwise
+        reflect.
+        """
+        cameras, mics = self._device_options()
+        dialog.set_camera_options(cameras)
+        dialog.set_audio_options(mics)
+
+    def _revert_camera_after_dialog(
+        self,
+        original_index: int | None,
+        committed: bool,
+    ) -> None:
+        """Undo any camera change the user made if the dialog wasn't saved.
+
+        While the dialog is open, picking a different camera in
+        the combo replaces the running capture so the preview
+        reflects the choice. If the user clicks Cancel (or
+        closes the dialog any other way), the capture has to
+        revert to whatever was running when the dialog opened.
+        """
+        if committed:
+            return
+        current_index = self._camera_device_index() if self._camera else None
+        if current_index == original_index:
+            return
+        if original_index is None:
+            self._stop_camera()
+        else:
+            self._start_camera(original_index)
+
+    def _camera_device_index(self) -> int | None:
+        """Return the device index of the running capture, or ``None``."""
+        cam = self._camera
+        if cam is None:
+            return None
+        return cam.device_index
+
+    def _on_camera_chosen_in_dialog(self, new_index: object) -> None:
+        """Swap the live capture so the embedded preview shows the chosen camera.
+
+        Save isn't required. The dialog emits this on every user
+        pick so the preview reacts immediately. ``None`` means
+        "no camera", which stops the running capture so the
+        preview goes blank rather than continuing to show frames
+        from the previous device.
+        """
+        if new_index is None:
+            self._stop_camera()
+            self._window.set_tracking_status("No camera selected")
+            return
+        try:
+            index = int(new_index)
+        except (TypeError, ValueError):
+            return
+        self._start_camera(index)
 
     def _on_camera_property_changed(self, name: str, value: object) -> None:
         if self._camera is None:
