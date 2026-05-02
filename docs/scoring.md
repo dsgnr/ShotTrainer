@@ -80,9 +80,9 @@ All shots currently loaded in the main window are re-evaluated using the active
 target face, and the updated scores are shown immediately in the shot list and
 statistics panel.
 
-Re-scoring only affects the current view. The original session data stored in
-the database is not modified, so reopening the session later restores the
-original scores.
+The new scores are also written back to the database, so reopening the session
+later shows the re-scored values rather than the originals. If you change your
+mind, switch back to the original face and re-score again.
 
 ## When no target face is available
 

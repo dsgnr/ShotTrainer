@@ -380,7 +380,8 @@ class MainWindow(QMainWindow):
         rescore_action = QAction("&Re-score with current face", self)
         rescore_action.setToolTip(
             "Re-evaluate every shot in view against the currently selected "
-            "target face. Useful after switching faces on a loaded session."
+            "target face and save the new scores. Useful after switching "
+            "faces on a loaded session."
         )
         rescore_action.triggered.connect(self.rescore_requested)
         tools_menu.addAction(rescore_action)

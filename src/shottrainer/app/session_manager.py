@@ -35,13 +35,17 @@ class ShotEntry:
     """One shot in the current on-screen list.
 
     Holds the position, timestamp, and optional score string for
-    display in the shot list and target view.
+    display in the shot list and target view. ``shot_id`` is the
+    database row id when the shot has been persisted (during a live
+    session or when loaded from a saved session) and ``None``
+    otherwise. Re-scoring uses it to write updated scores back.
     """
 
     timestamp: float
     x_mm: float
     y_mm: float
     score: str | None = None
+    shot_id: int | None = None
 
 
 class SessionManager:
@@ -181,19 +185,12 @@ class SessionManager:
         y_mm = sample.y_mm if sample else None
         score = self._score_for(x_mm, y_mm)
 
-        self._shots_in_view.append(
-            ShotEntry(
-                timestamp=event.timestamp,
-                x_mm=x_mm or 0.0,
-                y_mm=y_mm or 0.0,
-                score=score or None,
-            )
-        )
-        self._render_shots()
-        self._refresh_stats()
-
+        # Save to the database first so we can stamp the row id onto
+        # the on-screen entry. The id lets re-scoring write updated
+        # values back to the same row later.
+        shot_id: int | None = None
         if self._recorder.is_recording:
-            self._recorder.add_shot(
+            shot_id = self._recorder.add_shot(
                 ts=event.timestamp,
                 x_mm=x_mm,
                 y_mm=y_mm,
@@ -202,30 +199,57 @@ class SessionManager:
                 score=score,
             )
 
+        self._shots_in_view.append(
+            ShotEntry(
+                timestamp=event.timestamp,
+                x_mm=x_mm or 0.0,
+                y_mm=y_mm or 0.0,
+                score=score or None,
+                shot_id=shot_id,
+            )
+        )
+        self._render_shots()
+        self._refresh_stats()
+
     def on_rescore_requested(self) -> None:
         """Re-score every visible shot against the active target face.
 
-        The new scores aren't written back to the database. Re-scoring
-        only changes what's currently on screen.
+        Updated scores are written back to the database for any shot
+        that has a database id (every shot in a live session, plus
+        every shot in a session loaded from the browser). Shots that
+        haven't been persisted yet stay in-memory only.
         """
         if not self._shots_in_view:
             self._window.statusBar().showMessage("No shots in view to re-score", 3000)
             return
         rescored = 0
         new_entries: list[ShotEntry] = []
+        score_updates: dict[int, str] = {}
         for entry in self._shots_in_view:
             new_score = self._score_for(entry.x_mm, entry.y_mm)
             new_entries.append(replace(entry, score=new_score or None))
             if new_score:
                 rescored += 1
+            if entry.shot_id is not None:
+                score_updates[entry.shot_id] = new_score
         self._shots_in_view = new_entries
+
+        persisted = self._repo.update_shot_scores(score_updates) if score_updates else 0
+
         self._render_shots()
         self._refresh_stats()
         face = self._get_preferences().target_face
-        self._window.statusBar().showMessage(
-            f"Re-scored {rescored}/{len(self._shots_in_view)} shots against {face}",
-            4000,
-        )
+        total = len(self._shots_in_view)
+        if persisted:
+            self._window.statusBar().showMessage(
+                f"Re-scored {rescored}/{total} shots against {face} ({persisted} saved)",
+                4000,
+            )
+        else:
+            self._window.statusBar().showMessage(
+                f"Re-scored {rescored}/{total} shots against {face}",
+                4000,
+            )
 
     def open_session_browser(self) -> None:
         """Open the session-browser dialog, modal to the main window."""
@@ -327,6 +351,7 @@ class SessionManager:
                 x_mm=s.x_mm or 0.0,
                 y_mm=s.y_mm or 0.0,
                 score=s.score or None,
+                shot_id=int(s.id),
             )
             for s in shots
         ]

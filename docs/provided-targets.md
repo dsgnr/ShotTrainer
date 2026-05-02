@@ -140,16 +140,15 @@ Sessions are scored using the target face that was active when they were
 recorded.
 
 If you load a session and select a different target face, the original scores
-remain unchanged.
+remain unchanged until you ask ShotTrainer to recalculate.
 
 To calculate scores using the currently selected face, choose:
 
 **Tools > Re-score with current face**
 
-The updated scores are shown immediately in the shot list and statistics panel.
-
-Re-scoring only affects the currently loaded session view. The original session
-data stored in the database is not modified.
+The updated scores are shown immediately in the shot list and statistics panel,
+and are saved back to the database so they persist when the session is
+reopened later.
 
 ## When a target face cannot be loaded
 

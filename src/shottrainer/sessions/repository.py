@@ -233,6 +233,33 @@ class SessionRepository:
                 ).scalars()
             )
 
+    def update_shot_scores(self, scores: dict[int, str]) -> int:
+        """Update the ``score`` column for the given shot ids.
+
+        Used by the re-score action so a session opened later picks up
+        the recalculated scores. Empty score strings are stored as ``""``
+        (the column default), matching how unscored shots are recorded
+        in the first place.
+
+        Args:
+            scores: Mapping of shot id to its new score label.
+
+        Returns:
+            The number of rows that actually changed.
+        """
+        if not scores:
+            return 0
+        changed = 0
+        with OrmSession(self._engine, future=True) as session:
+            rows = session.execute(select(Shot).where(Shot.id.in_(list(scores.keys())))).scalars()
+            for row in rows:
+                new_score = scores[int(row.id)]
+                if row.score != new_score:
+                    row.score = new_score
+                    changed += 1
+            session.commit()
+        return changed
+
 
 def _row_to_sample(r: TraceSample) -> TrackingSample:
     """Convert a database row to a domain-level tracking sample."""
