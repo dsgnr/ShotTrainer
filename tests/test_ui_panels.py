@@ -291,3 +291,203 @@ def test_preferences_dialog_autofills_diameters_from_face(qtbot):
 
     assert dialog._shot_diameter.value() == 5.6
     assert dialog._circle_diameter.value() == 112.5
+
+
+def test_preferences_dialog_inserts_no_camera_when_saved_is_missing(qtbot):
+    """If the saved camera isn't in the enumerated list, the combo
+    prepends a "No camera" entry and selects it. Saving from this
+    state propagates ``camera_id=None`` so the controller stops
+    capture rather than silently picking some other device."""
+    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+
+    dialog = PreferencesDialog(
+        Preferences(camera_id=2),  # saved cam, but not in the list below
+        camera_options=[(0, "Camera 0"), (1, "Camera 1")],
+    )
+    qtbot.addWidget(dialog)
+
+    assert dialog._camera.currentText() == "No camera"
+    assert dialog._camera.currentData() is None
+
+
+def test_preferences_dialog_emits_camera_changed_on_user_pick(qtbot):
+    """Selecting a different camera fires ``camera_changed`` with the
+    new index so the controller can swap the live preview without
+    waiting for Save."""
+    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+
+    dialog = PreferencesDialog(
+        Preferences(camera_id=0),
+        camera_options=[(0, "Camera 0"), (1, "Camera 1")],
+    )
+    qtbot.addWidget(dialog)
+
+    received: list[object] = []
+    dialog.camera_changed.connect(received.append)
+
+    target = dialog._camera.findData(1)
+    dialog._camera.setCurrentIndex(target)
+    dialog._on_camera_chosen(target)  # simulate the activated signal
+
+    assert received == [1]
+
+
+def test_preferences_dialog_emits_none_when_no_camera_chosen(qtbot):
+    """Picking the "No camera" entry emits ``None`` so the controller
+    can stop the running capture."""
+    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+
+    dialog = PreferencesDialog(
+        Preferences(camera_id=2),  # forces "No camera" insertion
+        camera_options=[(0, "Camera 0")],
+    )
+    qtbot.addWidget(dialog)
+
+    received: list[object] = []
+    dialog.camera_changed.connect(received.append)
+
+    # Already on "No camera". Pick Camera 0 then back to "No camera".
+    dialog._camera.setCurrentIndex(dialog._camera.findData(0))
+    dialog._on_camera_chosen(dialog._camera.findData(0))
+    dialog._camera.setCurrentIndex(0)  # "No camera" item
+    dialog._on_camera_chosen(0)
+
+    assert received == [0, None]
+
+
+def test_preferences_dialog_emits_refresh_devices_request(qtbot):
+    """Clicking Refresh asks the controller to re-enumerate devices."""
+    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+
+    dialog = PreferencesDialog(
+        Preferences(camera_id=0),
+        camera_options=[(0, "FaceTime HD")],
+    )
+    qtbot.addWidget(dialog)
+
+    received: list[bool] = []
+    dialog.refresh_devices_requested.connect(lambda: received.append(True))
+
+    # Find the refresh button by its text and click it.
+    from PySide6.QtWidgets import QPushButton
+
+    refresh = next(
+        b for b in dialog.findChildren(QPushButton) if b.text() == "Refresh"
+    )
+    refresh.click()
+    assert received == [True]
+
+
+def test_preferences_dialog_set_camera_options_replaces_combo(qtbot):
+    """``set_camera_options`` rebuilds the combo and keeps the user's
+    previously selected camera if it's still in the new list."""
+    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+
+    dialog = PreferencesDialog(
+        Preferences(camera_id=0),
+        camera_options=[(0, "FaceTime HD")],
+    )
+    qtbot.addWidget(dialog)
+
+    dialog.set_camera_options([(0, "FaceTime HD"), (1, "Logitech BRIO")])
+    assert dialog._camera.count() == 2
+    assert dialog._camera.currentData() == 0  # preserved
+
+
+def test_preferences_dialog_set_camera_options_falls_back_to_no_camera(qtbot):
+    """If the previously selected camera vanishes from the refreshed
+    list, the combo falls back to "No camera"."""
+    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+
+    dialog = PreferencesDialog(
+        Preferences(camera_id=0),
+        camera_options=[(0, "FaceTime HD")],
+    )
+    qtbot.addWidget(dialog)
+
+    dialog.set_camera_options([(2, "USB camera")])
+    assert dialog._camera.currentData() is None
+    assert dialog._camera.itemText(0) == "No camera"
+
+
+def test_preferences_dialog_picks_saved_camera_by_name(qtbot):
+    """When the saved camera's index has shifted (a new device landed
+    at a lower index), the dialog still selects the right camera by
+    matching its name. The saved index alone would point at the
+    wrong device after the shift."""
+    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+
+    # The user previously saved index=0 / name="FaceTime HD". A new
+    # USB camera was plugged in. QMediaDevices now returns it at
+    # index 0, pushing FaceTime HD to index 1.
+    dialog = PreferencesDialog(
+        Preferences(camera_id=0),
+        camera_options=[(0, "USB Webcam"), (1, "FaceTime HD")],
+        saved_camera_name="FaceTime HD",
+    )
+    qtbot.addWidget(dialog)
+
+    assert dialog._camera.currentText() == "FaceTime HD"
+    assert dialog._camera.currentData() == 1
+
+
+def test_preferences_dialog_set_camera_options_keeps_selection_by_name(qtbot):
+    """Refreshing while a camera is selected must keep the same
+    *physical* camera selected, even if its index changes because a
+    new device was plugged in at a lower index."""
+    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+
+    dialog = PreferencesDialog(
+        Preferences(camera_id=0),
+        camera_options=[(0, "FaceTime HD")],
+    )
+    qtbot.addWidget(dialog)
+    assert dialog._camera.currentText() == "FaceTime HD"
+
+    # Plug in a USB camera that lands at index 0.
+    dialog.set_camera_options([(0, "USB Webcam"), (1, "FaceTime HD")])
+
+    # Selection follows the name, not the integer index.
+    assert dialog._camera.currentText() == "FaceTime HD"
+    assert dialog._camera.currentData() == 1
+
+
+def test_set_camera_options_emits_camera_changed_when_index_shifts(qtbot):
+    """When a refresh assigns the same camera a different index, the
+    dialog must emit ``camera_changed`` so the controller restarts
+    the live preview on the new index. Without this the preview
+    would keep streaming from whatever device now sits at the old
+    integer index."""
+    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+
+    dialog = PreferencesDialog(
+        Preferences(camera_id=0),
+        camera_options=[(0, "FaceTime HD")],
+    )
+    qtbot.addWidget(dialog)
+
+    received: list[object] = []
+    dialog.camera_changed.connect(received.append)
+
+    # New USB camera lands at index 0. FaceTime HD shifts to index 1.
+    dialog.set_camera_options([(0, "USB Webcam"), (1, "FaceTime HD")])
+
+    assert received == [1]
+
+
+def test_set_camera_options_no_emit_when_selection_index_unchanged(qtbot):
+    """A refresh that returns the same list shouldn't restart the
+    live capture."""
+    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+
+    dialog = PreferencesDialog(
+        Preferences(camera_id=0),
+        camera_options=[(0, "FaceTime HD")],
+    )
+    qtbot.addWidget(dialog)
+
+    received: list[object] = []
+    dialog.camera_changed.connect(received.append)
+
+    dialog.set_camera_options([(0, "FaceTime HD")])
+    assert received == []

@@ -26,7 +26,10 @@ log = logging.getLogger(__name__)
 @dataclass(slots=True)
 class CameraSelection:
     name: str = ""
-    index: int = 0
+    # ``None`` means "no camera selected". Persisted as ``null``
+    # in the JSON file. The loader treats a missing field as
+    # ``0`` for backward compatibility with older files.
+    index: int | None = 0
 
 
 def camera_selection_path() -> Path:
@@ -42,9 +45,10 @@ def load_camera_selection(path: Path | None = None) -> CameraSelection:
     except (OSError, json.JSONDecodeError) as exc:
         log.warning("Could not read %s: %s", p, exc)
         return CameraSelection()
+    raw_index = raw.get("index")
     return CameraSelection(
         name=str(raw.get("name", "")),
-        index=int(raw.get("index", 0)),
+        index=int(raw_index) if isinstance(raw_index, int) else None,
     )
 
 
@@ -66,14 +70,19 @@ def resolve_camera_index(
     matching name. Failing that, the saved index when it is
     still in the list. Failing that, the first available
     index, which is usually 0.
+
+    Falls back to ``0`` when ``available`` is empty and the saved
+    selection has no usable index. Callers that want to respect a
+    "no camera" choice should check ``selection.index is None``
+    themselves first.
     """
     if not available:
-        return selection.index or 0
+        return selection.index if selection.index is not None else 0
     if selection.name:
         for idx, name in available:
             if name == selection.name:
                 return idx
     indices = {idx for idx, _ in available}
-    if selection.index in indices:
+    if selection.index is not None and selection.index in indices:
         return selection.index
     return available[0][0]
