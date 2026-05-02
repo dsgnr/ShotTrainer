@@ -452,7 +452,6 @@ class AppController(QObject):
                 for i, s in enumerate(self._shots_in_view)
             ]
         )
-        self._window.header.set_shot_count(len(self._shots_in_view))
         self._window.hero_stats.set_scores([s.score or "" for s in self._shots_in_view])
 
     def _refresh_stats(self) -> None:
