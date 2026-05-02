@@ -770,11 +770,6 @@ class AppController(QObject):
         # ``value`` is float | None at runtime. The dialog's signal types
         # it loosely so Qt can carry None.
         self._camera.set_property(name, value if value is not None else None)
-        actual = self._camera.get_property(name)
-        for mirror in self._frame_mirrors:
-            push = getattr(mirror, "set_camera_property_actual", None)
-            if push is not None:
-                push(name, actual)
 
     def _on_optimise_requested(self) -> None:
         if self._latest_frame is None:
