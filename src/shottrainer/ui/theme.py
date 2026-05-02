@@ -456,12 +456,6 @@ QScrollBar::add-line, QScrollBar::sub-line {
 QScrollBar::add-page, QScrollBar::sub-page {
     background: none;
 }
-
-QLabel#calibrationIntro {
-    color: #c8ccd4;
-    font-size: 12px;
-    padding: 4px 0 8px 0;
-}
 """
 
 

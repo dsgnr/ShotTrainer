@@ -13,7 +13,6 @@ _STATE_COLOURS: dict[str, tuple[str, str]] = {
     "idle": ("Idle", "#7a8090"),
     "recording": ("Recording", "#e74c3c"),
     "replay": ("Replay", "#2d6cdf"),
-    "calibrating": ("Calibrating", "#f39c12"),
 }
 
 
@@ -64,9 +63,9 @@ class AppHeader(QWidget):
 
         layout.addStretch(1)
 
-        self._calibration = QLabel("Uncalibrated")
-        self._calibration.setObjectName("appHeaderHint")
-        layout.addWidget(self._calibration)
+        self._status_hint = QLabel("Acquiring target...")
+        self._status_hint.setObjectName("appHeaderHint")
+        layout.addWidget(self._status_hint)
 
         self.settings_button = QToolButton()
         self.settings_button.setText("\u2699")
@@ -78,15 +77,10 @@ class AppHeader(QWidget):
     def set_state(self, state: str) -> None:
         self._state.set_state(state)
 
-    def set_calibration_text(self, text: str) -> None:
-        self._calibration.setText(text)
+    def set_status_text(self, text: str) -> None:
+        """Update the secondary hint shown next to the state pill.
 
-    # Legacy API kept so the controller can ignore the redesign:
-    def set_shot_count(self, _n: int) -> None:
-        pass
-
-    def set_score(self, _value: str) -> None:
-        pass
-
-    def set_best(self, _value: str) -> None:
-        pass
+        Used for the live "Tracking N mm circle - X.YZ mm/px" readout
+        the controller refreshes a few times per second.
+        """
+        self._status_hint.setText(text)
