@@ -7,9 +7,8 @@ import logging
 from dataclasses import asdict, fields
 from pathlib import Path
 
-from shottrainer.ui.preferences_dialog import Preferences
-
 from .paths import data_dir
+from .preferences import Preferences
 
 log = logging.getLogger(__name__)
 
