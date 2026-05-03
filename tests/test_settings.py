@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from shottrainer.app.preferences import Preferences
 from shottrainer.app.settings import load_preferences, save_preferences
-from shottrainer.ui.preferences_dialog import Preferences
 
 
 def test_returns_defaults_when_missing(tmp_path: Path):

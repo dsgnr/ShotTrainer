@@ -12,7 +12,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from shottrainer.ui.preferences_dialog import Preferences
+from shottrainer.app.preferences import Preferences
 
 from .settings import load_preferences, settings_path
 

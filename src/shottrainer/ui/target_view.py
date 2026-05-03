@@ -16,12 +16,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
-
-@dataclass(frozen=True, slots=True)
-class TargetRing:
-    diameter_mm: float
-    label: str | None = None
-
+from shottrainer.app.target_faces import TargetRing
 
 # Default rings are a generic concentric set. Real disciplines configure their own.
 DEFAULT_RINGS: tuple[TargetRing, ...] = (

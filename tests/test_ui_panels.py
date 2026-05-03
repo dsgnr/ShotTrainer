@@ -244,8 +244,9 @@ def test_preferences_dialog_autofills_diameters_from_face(qtbot):
     tracking-circle spinboxes from the face's metadata. Only the
     user's explicit choice triggers this. The values present when the
     dialog opens are left alone so saved preferences aren't clobbered."""
-    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
-    from shottrainer.ui.target_faces import TargetFace
+    from shottrainer.app.preferences import Preferences
+    from shottrainer.app.target_faces import TargetFace
+    from shottrainer.ui.preferences_dialog import PreferencesDialog
     from shottrainer.ui.target_view import TargetRing
 
     rich = TargetFace(
@@ -298,7 +299,8 @@ def test_preferences_dialog_inserts_no_camera_when_saved_is_missing(qtbot):
     prepends a "No camera" entry and selects it. Saving from this
     state propagates ``camera_id=None`` so the controller stops
     capture rather than silently picking some other device."""
-    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+    from shottrainer.app.preferences import Preferences
+    from shottrainer.ui.preferences_dialog import PreferencesDialog
 
     dialog = PreferencesDialog(
         Preferences(camera_id=2),  # saved cam, but not in the list below
@@ -314,7 +316,8 @@ def test_preferences_dialog_emits_camera_changed_on_user_pick(qtbot):
     """Selecting a different camera fires ``camera_changed`` with the
     new index so the controller can swap the live preview without
     waiting for Save."""
-    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+    from shottrainer.app.preferences import Preferences
+    from shottrainer.ui.preferences_dialog import PreferencesDialog
 
     dialog = PreferencesDialog(
         Preferences(camera_id=0),
@@ -335,7 +338,8 @@ def test_preferences_dialog_emits_camera_changed_on_user_pick(qtbot):
 def test_preferences_dialog_emits_none_when_no_camera_chosen(qtbot):
     """Picking the "No camera" entry emits ``None`` so the controller
     can stop the running capture."""
-    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+    from shottrainer.app.preferences import Preferences
+    from shottrainer.ui.preferences_dialog import PreferencesDialog
 
     dialog = PreferencesDialog(
         Preferences(camera_id=2),  # forces "No camera" insertion
@@ -357,7 +361,8 @@ def test_preferences_dialog_emits_none_when_no_camera_chosen(qtbot):
 
 def test_preferences_dialog_emits_refresh_devices_request(qtbot):
     """Clicking Refresh asks the controller to re-enumerate devices."""
-    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+    from shottrainer.app.preferences import Preferences
+    from shottrainer.ui.preferences_dialog import PreferencesDialog
 
     dialog = PreferencesDialog(
         Preferences(camera_id=0),
@@ -381,7 +386,8 @@ def test_preferences_dialog_emits_refresh_devices_request(qtbot):
 def test_preferences_dialog_set_camera_options_replaces_combo(qtbot):
     """``set_camera_options`` rebuilds the combo and keeps the user's
     previously selected camera if it's still in the new list."""
-    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+    from shottrainer.app.preferences import Preferences
+    from shottrainer.ui.preferences_dialog import PreferencesDialog
 
     dialog = PreferencesDialog(
         Preferences(camera_id=0),
@@ -397,7 +403,8 @@ def test_preferences_dialog_set_camera_options_replaces_combo(qtbot):
 def test_preferences_dialog_set_camera_options_falls_back_to_no_camera(qtbot):
     """If the previously selected camera vanishes from the refreshed
     list, the combo falls back to "No camera"."""
-    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+    from shottrainer.app.preferences import Preferences
+    from shottrainer.ui.preferences_dialog import PreferencesDialog
 
     dialog = PreferencesDialog(
         Preferences(camera_id=0),
@@ -415,7 +422,8 @@ def test_preferences_dialog_picks_saved_camera_by_name(qtbot):
     at a lower index), the dialog still selects the right camera by
     matching its name. The saved index alone would point at the
     wrong device after the shift."""
-    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+    from shottrainer.app.preferences import Preferences
+    from shottrainer.ui.preferences_dialog import PreferencesDialog
 
     # The user previously saved index=0 / name="FaceTime HD". A new
     # USB camera was plugged in. QMediaDevices now returns it at
@@ -435,7 +443,8 @@ def test_preferences_dialog_set_camera_options_keeps_selection_by_name(qtbot):
     """Refreshing while a camera is selected must keep the same
     *physical* camera selected, even if its index changes because a
     new device was plugged in at a lower index."""
-    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+    from shottrainer.app.preferences import Preferences
+    from shottrainer.ui.preferences_dialog import PreferencesDialog
 
     dialog = PreferencesDialog(
         Preferences(camera_id=0),
@@ -458,7 +467,8 @@ def test_set_camera_options_emits_camera_changed_when_index_shifts(qtbot):
     the live preview on the new index. Without this the preview
     would keep streaming from whatever device now sits at the old
     integer index."""
-    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+    from shottrainer.app.preferences import Preferences
+    from shottrainer.ui.preferences_dialog import PreferencesDialog
 
     dialog = PreferencesDialog(
         Preferences(camera_id=0),
@@ -478,7 +488,8 @@ def test_set_camera_options_emits_camera_changed_when_index_shifts(qtbot):
 def test_set_camera_options_no_emit_when_selection_index_unchanged(qtbot):
     """A refresh that returns the same list shouldn't restart the
     live capture."""
-    from shottrainer.ui.preferences_dialog import Preferences, PreferencesDialog
+    from shottrainer.app.preferences import Preferences
+    from shottrainer.ui.preferences_dialog import PreferencesDialog
 
     dialog = PreferencesDialog(
         Preferences(camera_id=0),
