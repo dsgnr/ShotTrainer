@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any
 
 from shottrainer.sessions.models import utc_now
 from shottrainer.sessions.repository import SessionRepository
@@ -55,7 +54,6 @@ class SessionRecorder:
         *,
         name: str = "",
         notes: str = "",
-        calibration: dict[str, Any] | None = None,
         target_profile: str = "default",
         app_version: str = "",
     ) -> int:
@@ -64,7 +62,6 @@ class SessionRecorder:
         sid = self._repo.create_session(
             name=name,
             notes=notes,
-            calibration=calibration,
             target_profile=target_profile,
             app_version=app_version,
         )

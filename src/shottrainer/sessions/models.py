@@ -20,7 +20,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def utc_now() -> datetime:
@@ -52,7 +52,6 @@ class Session(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utc_now)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     notes: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    calibration_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     target_profile: Mapped[str] = mapped_column(String(64), nullable=False, default="default")
     app_version: Mapped[str] = mapped_column(String(32), nullable=False, default="")
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=SCHEMA_VERSION)
