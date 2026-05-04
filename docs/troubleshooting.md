@@ -12,9 +12,10 @@ groups | tr ' ' '\n' | grep video
 ```
 
 **Image is upside-down or mirrored.** Most cameras ship with a default
-orientation that doesn't match a barrel-mounted setup. The app does not yet
-apply rotation. Mount the camera the right way up or open the camera's vendor
-utility to flip the image.
+orientation that doesn't match a barrel-mounted setup. Open
+**Tools > Preferences > Camera** and pick a rotation (0, 90, 180, or 270
+degrees) and/or toggle the horizontal or vertical mirror until the live preview
+matches what your eye sees through the sights.
 
 **Frame rate looks low.** Check the camera's native resolution and FPS in its
 vendor utility. The controller currently uses default settings. You can tune via
@@ -22,19 +23,29 @@ vendor utility. The controller currently uses default settings. You can tune via
 
 ## Microphone
 
-**No shots are detected.** Open Tools > Preferences and lower the shot
-threshold. Make a clap or sharp noise near the mic to verify. The level meter is
-not surfaced in the UI yet, so try threshold values around 0.05 to 0.1 for
-indoor use.
+**No shots are detected.** Open Tools > Preferences > Audio and watch the level
+meter while you clap or make a sharp noise near the microphone. The blue marker
+shows the threshold. If your peaks don't pass that marker, lower the threshold
+or raise the **Volume** slider. The same meter is available in the left column
+of the main window during a session.
 
 **Every loud noise registers as a shot.** Increase the threshold and the
 refractory window. Persistent room noise (fan, AC) raises the noise floor. Try a
 directional mic placed close to the firing point.
 
-**macOS does not show the microphone permission prompt.** The packaged app needs
-`NSMicrophoneUsageDescription` in its Info.plist. See `packaging/Info.plist.in`.
-When running from source via Python, macOS prompts for the _Terminal_ (or your
-IDE) the first time, not for ShotTrainer itself.
+**"Could not open microphone" or "PortAudio unavailable".** Another app is
+holding the device, the device was unplugged, or the system audio service is
+not running. Close any other apps using the mic, then open Preferences > Audio
+and pick a different input. On Linux, make sure PulseAudio or PipeWire is
+running (`pactl info` should respond). After plugging in a USB mic press the
+**Refresh** button in the Audio tab to re-enumerate devices.
+
+**macOS does not show the microphone permission prompt.** The packaged app asks
+for permission on first launch through its bundled
+`NSMicrophoneUsageDescription`. When running from source via Python, macOS
+prompts for the _Terminal_ (or your IDE) the first time, not for ShotTrainer
+itself. If you denied it by accident, toggle the permission off and on again
+under **System Settings > Privacy & Security > Microphone**.
 
 ## Tracking
 
