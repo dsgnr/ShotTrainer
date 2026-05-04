@@ -151,3 +151,35 @@ def test_lock_released_after_consecutive_misses():
     for _ in range(3):
         detector.detect(blank)
     assert detector._lock_px is None
+
+
+def test_off_region_blob_is_reported_as_rejected():
+    img = _white_canvas()
+    _draw_circle(img, 50, 50, 20)  # outside the central region
+    det = CircleTargetDetector(DetectorSettings(region_fraction=0.5)).detect(img)
+    assert not det.found
+    assert det.rejected_outside_region
+    assert det.x_px == pytest.approx(50.0, abs=2.0)
+    assert det.y_px == pytest.approx(50.0, abs=2.0)
+    assert det.radius_px > 0.0
+
+
+def test_blank_frame_does_not_set_rejected_flag():
+    img = _white_canvas()
+    det = CircleTargetDetector().detect(img)
+    assert not det.found
+    assert not det.rejected_outside_region
+
+
+def test_rejected_flag_clears_when_blob_returns_to_region():
+    detector = CircleTargetDetector(DetectorSettings(region_fraction=0.5))
+    out = _white_canvas()
+    _draw_circle(out, 50, 50, 20)
+    rej = detector.detect(out)
+    assert rej.rejected_outside_region
+
+    inside = _white_canvas()
+    _draw_circle(inside, 320, 240, 20)
+    accepted = detector.detect(inside)
+    assert accepted.found
+    assert not accepted.rejected_outside_region
