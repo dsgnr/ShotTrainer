@@ -139,6 +139,29 @@ class SessionRepository:
             session.delete(row)
             session.commit()
 
+    def delete_shot(self, shot_id: int) -> bool:
+        """Delete a single shot row and return whether anything was removed.
+
+        Used by the "remove this shot" action in the main window so the
+        user can drop a stray shot the microphone picked up by mistake
+        (another shooter on the line, a knock on the microphone). The
+        session itself, its other shots, and the trace stay intact.
+
+        Args:
+            shot_id: Database id of the shot to remove.
+
+        Returns:
+            ``True`` when the row existed and was deleted, ``False``
+            when no shot with that id was found.
+        """
+        with OrmSession(self._engine, future=True) as session:
+            row = session.get(Shot, shot_id)
+            if row is None:
+                return False
+            session.delete(row)
+            session.commit()
+            return True
+
     def append_trace(self, session_id: int, samples: Iterable[TrackingSample]) -> int:
         """Bulk-insert tracking samples for a session and return the count.
 

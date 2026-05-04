@@ -7,6 +7,7 @@
 | Space | Play or pause replay (when a shot is selected) |
 | Up | Select the previous shot in the list |
 | Down | Select the next shot in the list |
+| Delete (or Backspace) | Remove the selected shot after confirmation |
 | Ctrl+O | Open the session browser |
 | Ctrl+, | Open Preferences |
 | Ctrl++ (or Ctrl+=) | Zoom the target view in |

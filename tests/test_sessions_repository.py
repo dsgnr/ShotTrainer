@@ -83,6 +83,24 @@ def test_update_shot_scores_ignores_empty_dict(repo: SessionRepository):
     assert repo.update_shot_scores({}) == 0
 
 
+def test_delete_shot_removes_only_the_target_row(repo: SessionRepository):
+    """``delete_shot`` removes one row and leaves siblings intact."""
+    sid = repo.create_session()
+    a = repo.add_shot(sid, ts=1.0, x_mm=0.0, y_mm=0.0, audio_level=0.5, confidence=1.0, score="9")
+    b = repo.add_shot(sid, ts=2.0, x_mm=1.0, y_mm=1.0, audio_level=0.5, confidence=1.0, score="8")
+    assert repo.delete_shot(a) is True
+    remaining = list(repo.list_shots(sid))
+    assert len(remaining) == 1
+    assert int(remaining[0].id) == b
+
+
+def test_delete_shot_returns_false_for_missing_id(repo: SessionRepository):
+    """Deleting a row that isn't there is a no-op that reports the miss."""
+    sid = repo.create_session()
+    repo.add_shot(sid, ts=1.0, x_mm=0.0, y_mm=0.0, audio_level=0.5, confidence=1.0)
+    assert repo.delete_shot(999_999) is False
+
+
 def test_session_summary_includes_total_score(repo: SessionRepository):
     sid = repo.create_session(name="qual")
     repo.add_shot(sid, ts=0.1, x_mm=0.0, y_mm=0.0, audio_level=0.4, confidence=0.9, score="10")

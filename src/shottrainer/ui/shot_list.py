@@ -10,7 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QSize, Qt, Signal
+from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -35,6 +36,7 @@ class ShotList(QWidget):
     """Vertical shot list panel showing each shot's number, score, and offset."""
 
     shot_selected = Signal(int)  # entry index
+    shot_deletion_requested = Signal(int)  # entry index
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialise the shot list with an empty-state placeholder.
@@ -52,6 +54,11 @@ class ShotList(QWidget):
         self._list.setObjectName("shotList")
         self._list.setSpacing(2)
         self._list.itemSelectionChanged.connect(self._on_selection_changed)
+        # The list watches its own key events so Delete (or
+        # Backspace on macOS) requests removal of the highlighted
+        # shot. The main window confirms with the user before
+        # actually deleting.
+        self._list.installEventFilter(self)
         layout.addWidget(self._list)
 
         # Shown in place of the list while there are no shots to
@@ -65,6 +72,20 @@ class ShotList(QWidget):
         self._empty.setWordWrap(True)
         layout.addWidget(self._empty)
         self._list.hide()
+
+    def eventFilter(self, source, event) -> bool:  # noqa: N802 (Qt naming)
+        """Forward Delete/Backspace key presses as deletion requests."""
+        if source is self._list and event.type() == QEvent.Type.KeyPress:
+            assert isinstance(event, QKeyEvent)
+            if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+                idx = self._list.currentRow()
+                if idx >= 0:
+                    item = self._list.item(idx)
+                    entry_index = item.data(Qt.ItemDataRole.UserRole)
+                    if isinstance(entry_index, int):
+                        self.shot_deletion_requested.emit(entry_index)
+                return True
+        return super().eventFilter(source, event)
 
     def set_shots(self, entries) -> None:
         """Replace the shot list with the given entries.
