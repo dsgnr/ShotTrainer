@@ -18,13 +18,14 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QImage, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
-TrackingStatus = Literal["idle", "tracking", "lost", "manual"]
+TrackingStatus = Literal["idle", "tracking", "lost", "manual", "rejected"]
 
 _STATUS_LABELS: dict[str, tuple[str, str]] = {
     "idle": ("Idle", "#888888"),
     "tracking": ("Tracking", "#27ae60"),
     "lost": ("No target", "#e67e22"),
     "manual": ("Manual aim", "#f39c12"),
+    "rejected": ("Outside region", "#d35400"),
 }
 
 
@@ -41,6 +42,8 @@ class CameraView(QWidget):
         self._frame_size: tuple[int, int] = (0, 0)
         self._aim_px: tuple[float, float] | None = None
         self._aim_radius_px: float = 0.0
+        self._rejected_px: tuple[float, float] | None = None
+        self._rejected_radius_px: float = 0.0
         self._show_overlay: bool = True
         self._status: TrackingStatus = "idle"
         self._region_fraction: float = 1.0
@@ -63,6 +66,23 @@ class CameraView(QWidget):
         else:
             self._aim_px = (x_px, y_px)
             self._aim_radius_px = radius_px
+        self.update()
+
+    def set_rejected_point(
+        self, x_px: float | None, y_px: float | None, radius_px: float = 0.0
+    ) -> None:
+        """Show or hide a marker for a candidate the region rejected.
+
+        Drawn separately from the main aim overlay so the user
+        can see that the detector found something circular but
+        ignored it because it sat outside the central tracking
+        region.
+        """
+        if x_px is None or y_px is None:
+            self._rejected_px = None
+        else:
+            self._rejected_px = (x_px, y_px)
+            self._rejected_radius_px = radius_px
         self.update()
 
     def set_overlay_visible(self, visible: bool) -> None:
@@ -90,6 +110,7 @@ class CameraView(QWidget):
     def clear(self) -> None:
         self._pixmap = None
         self._aim_px = None
+        self._rejected_px = None
         self.update()
 
     def paintEvent(self, event) -> None:  # noqa: N802 (Qt naming)
@@ -114,6 +135,10 @@ class CameraView(QWidget):
 
         if self._show_overlay and self._aim_px is not None:
             self._draw_aim_overlay(painter, scaled.size().toTuple(), (offset_x, offset_y))
+        if self._show_overlay and self._rejected_px is not None:
+            self._draw_rejected_overlay(
+                painter, scaled.size().toTuple(), (offset_x, offset_y)
+            )
 
         # Centre reticle: a fixed crosshair at the middle of the visible
         # frame so the user has a stable aim reference.
@@ -220,6 +245,39 @@ class CameraView(QWidget):
         painter.drawLine(int(sx + radius - 2), int(sy), int(sx + radius + 6), int(sy))
         painter.drawLine(int(sx), int(sy - radius - 6), int(sx), int(sy - radius + 2))
         painter.drawLine(int(sx), int(sy + radius - 2), int(sx), int(sy + radius + 6))
+
+    def _draw_rejected_overlay(
+        self,
+        painter: QPainter,
+        scaled_size: tuple[int, int],
+        offset: tuple[int, int],
+    ) -> None:
+        assert self._rejected_px is not None
+        fw, fh = self._frame_size
+        if fw == 0 or fh == 0:
+            return
+        sw, sh = scaled_size
+        ox, oy = offset
+        sx = ox + self._rejected_px[0] * sw / fw
+        sy = oy + self._rejected_px[1] * sh / fh
+        radius = max(6.0, self._rejected_radius_px * sw / fw)
+
+        # Dashed amber circle with a slash through it: clear visual cue
+        # for "something circular was seen here but ignored".
+        pen = QPen(QColor("#d35400"))
+        pen.setWidth(2)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        painter.save()
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(
+            int(sx - radius), int(sy - radius), int(radius * 2), int(radius * 2)
+        )
+        slash = radius * 0.7
+        painter.drawLine(
+            int(sx - slash), int(sy + slash), int(sx + slash), int(sy - slash)
+        )
+        painter.restore()
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         if self._pixmap is None or event.button() != Qt.MouseButton.LeftButton:
