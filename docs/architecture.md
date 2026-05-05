@@ -54,7 +54,8 @@ These live under the platform-appropriate data directory (see
 
 - `sessions.db` SQLite database with sessions, shots, and trace samples.
 - `settings.json` user preferences (camera id, rotation, flips, audio
-  device, sensitivity, target face, recording windows).
+  device, sensitivity, target face, recording windows). The file is
+  watched while the app is running. External edits are picked up live.
 - `calibration.json` the most recent calibration, restored on launch.
 - `detector_settings.json` last auto-optimised detector parameters.
 - `zero_offset.json` user-set zero offset that shifts the trace origin
