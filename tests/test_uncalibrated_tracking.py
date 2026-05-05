@@ -36,7 +36,7 @@ def test_uncalibrated_pipeline_still_produces_mm_coordinates():
         recorder,
         on_frame=lambda _f: None,
         on_detection=lambda s, _r: samples_seen.append((s.x_mm, s.y_mm)),
-        on_no_detection=lambda: None,
+        on_no_detection=lambda _det: None,
     )
 
     pipe.process(_frame_with_circle(400, 240), ts=0.0)
