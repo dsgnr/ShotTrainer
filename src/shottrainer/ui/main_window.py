@@ -250,6 +250,7 @@ class MainWindow(QMainWindow):
         the user can see what's being applied.
         """
         self._clear_zero_button.setEnabled(has_offset)
+        self.camera_view.set_manual_zero_active(has_offset)
         if has_offset and offset_mm is not None:
             self._zero_button.setToolTip(
                 f"Current zero offset: ({offset_mm[0]:.1f}, {offset_mm[1]:.1f}) mm. "

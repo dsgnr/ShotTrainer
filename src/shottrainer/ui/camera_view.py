@@ -159,6 +159,8 @@ class CameraView(RawCameraView):
         self._rejected_radius_px: float = 0.0
         self._status: TrackingStatus | None = None
         self._region_fraction: float = 1.0
+        self._zero_marker_px: tuple[float, float] | None = None
+        self._manual_zero_active: bool = False
 
     def set_aim_point(self, x_px: float | None, y_px: float | None, radius_px: float = 0.0) -> None:
         """Set or clear the detected aim point overlay.
@@ -223,6 +225,25 @@ class CameraView(RawCameraView):
             self._region_fraction = f
             self.update()
 
+    def set_zero_marker(self, x_px: float | None, y_px: float | None) -> None:
+        """Show a marker at the user's chosen zero point in frame pixels.
+
+        Pass ``None`` to either argument to remove the marker. The
+        controller works the position out from the current detected
+        circle and the saved zero offset, so the marker tracks the
+        target as the camera moves.
+        """
+        new = None if x_px is None or y_px is None else (float(x_px), float(y_px))
+        if new != self._zero_marker_px:
+            self._zero_marker_px = new
+            self.update()
+
+    def set_manual_zero_active(self, active: bool) -> None:
+        """Show or hide the "Manual zero" indicator."""
+        if active != self._manual_zero_active:
+            self._manual_zero_active = active
+            self.update()
+
     def clear(self) -> None:
         """Clear overlays and the frame."""
         self._aim_px = None
@@ -253,10 +274,14 @@ class CameraView(RawCameraView):
             self._draw_rejected_overlay(painter, size, offset)
 
         self._draw_centre_reticle(painter, size, offset)
+        if self._zero_marker_px is not None:
+            self._draw_zero_marker(painter, size, offset)
         if self._region_fraction < 0.999:
             self._draw_tracking_region(painter, size, offset)
         if self._status is not None:
             self._draw_status_badge(painter)
+        if self._manual_zero_active:
+            self._draw_manual_zero_badge(painter)
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         """Emit ``clicked_at`` with image-space coordinates on left click."""
@@ -338,6 +363,51 @@ class CameraView(RawCameraView):
             margin + dot_d + 12,
             margin + padding_y // 2 + metrics.ascent(),
             style.label,
+        )
+        painter.restore()
+
+    def _draw_zero_marker(self, painter: QPainter, scaled_size: _Size, offset: _Offset) -> None:
+        """Draw a small magenta cross at the user's chosen zero point."""
+        assert self._zero_marker_px is not None
+        sx, sy, _ = self._to_widget_coords(self._zero_marker_px, 0.0, scaled_size, offset)
+        outline = QPen(QColor(0, 0, 0, 200))
+        outline.setWidth(3)
+        line = QPen(QColor("#ff1493"))
+        line.setWidth(2)
+        arm = 9.0
+        painter.save()
+        for pen in (outline, line):
+            painter.setPen(pen)
+            painter.drawLine(int(sx - arm), int(sy), int(sx + arm), int(sy))
+            painter.drawLine(int(sx), int(sy - arm), int(sx), int(sy + arm))
+        painter.restore()
+
+    def _draw_manual_zero_badge(self, painter: QPainter) -> None:
+        """Draw a small "Manual zero" badge in the bottom-left corner."""
+        text = "Manual zero"
+        margin = 8
+        padding_x = 8
+        padding_y = 4
+        metrics = painter.fontMetrics()
+        text_w = metrics.horizontalAdvance(text)
+        rect_w = text_w + padding_x * 2
+        rect_h = metrics.height() + padding_y
+        x = margin
+        y = self.height() - margin - rect_h
+
+        painter.save()
+        painter.setBrush(QColor(0, 0, 0, 160))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRoundedRect(x, y, rect_w, rect_h, 4, 4)
+
+        dot_d = 8
+        painter.setBrush(QColor("#ff1493"))
+        painter.drawEllipse(x + 6, y + (rect_h - dot_d) // 2, dot_d, dot_d)
+        painter.setPen(QColor("#f7f7f5"))
+        painter.drawText(
+            x + dot_d + 12,
+            y + padding_y // 2 + metrics.ascent(),
+            text,
         )
         painter.restore()
 

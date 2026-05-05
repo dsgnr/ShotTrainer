@@ -73,7 +73,9 @@ rifle's bore axis, so there's a fixed offset between "where the camera sees the
 centre" and "where the rifle is pointing". Hold the rifle on the target's centre
 (or your zeroing group's centre) and click **Zero on aim** in the left column.
 That locks the current aim point as (0, 0). The offset persists across restarts.
-**Clear zero** reverts to the circle's centre as origin.
+While it's in force the camera preview shows a magenta cross at the chosen zero
+and a "Manual zero" badge in the bottom-left. **Clear zero** reverts to the
+circle's centre as origin.
 
 ## Sessions and replay
 

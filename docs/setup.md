@@ -165,8 +165,12 @@ Two ways to use it:
 If you ever want to revert the origin to the printed circle's centre (for
 example if you re-mount the camera), press **Clear zero**. The button is enabled
 only while an offset is in effect. The tooltip on **Zero on aim** shows the
-current offset value when one is set. shows the current offset values so you can
-sanity check them.
+current offset value when one is set, so you can sanity check it.
+
+While a zero offset is in force the camera preview adds two visual cues. A
+small magenta cross marks the chosen zero point on the live frame and tracks
+the printed circle as the camera moves, and a "Manual zero" badge appears in
+the bottom-left of the preview. Both disappear once you press **Clear zero**.
 
 For dry-fire practice the bullet-impact part of the second workflow doesn't
 apply. Just zero to your aim and the trace will read in "distance from intended

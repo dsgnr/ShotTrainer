@@ -169,6 +169,29 @@ class Tracker:
         self._zero_offset_mm = (sample.x_mm + ox, sample.y_mm + oy)
         return True
 
+    def zero_pixel(self) -> tuple[float, float] | None:
+        """Pixel position of the chosen zero in the current camera frame.
+
+        Returns ``None`` when no zero offset is set, no detection has
+        come through yet, or the radius is too small to derive a scale.
+        Uses a round-circle approximation, which is accurate enough for
+        positioning a marker.
+        """
+        if self._zero_offset_mm == (0.0, 0.0):
+            return None
+        sample = self._last_sample
+        if sample is None or self._last_radius_px <= 0:
+            return None
+        radius_mm = self._diameter_mm / 2.0
+        mm_per_px = radius_mm / self._last_radius_px
+        if mm_per_px <= 0:
+            return None
+        ox, oy = self._zero_offset_mm
+        sx, sy = self._trace_signs
+        dx_px = -ox / (sx * mm_per_px)
+        dy_px = -oy / (sy * mm_per_px)
+        return (sample.x_px + dx_px, sample.y_px + dy_px)
+
     def process(
         self,
         frame: np.ndarray,
