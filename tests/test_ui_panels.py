@@ -132,3 +132,58 @@ def test_zoom_controls_set_extent_clamps(qtbot):
     assert z._slider.value() == 0
     z.set_extent(1000.0)  # above maximum
     assert z._slider.value() == 1000
+
+
+def test_main_window_close_skips_prompt_when_idle(qtbot):
+    from shottrainer.ui.main_window import MainWindow
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_recording_check(lambda: False)
+    assert window.close()
+
+
+def test_main_window_close_prompts_during_recording(qtbot, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    from shottrainer.ui.main_window import MainWindow
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_recording_check(lambda: True)
+
+    # Pretend the user clicked "Keep recording" (the reject button).
+    captured: dict[str, object] = {}
+
+    def fake_exec(self) -> int:
+        captured["box"] = self
+        # The reject button is the last one added. Return its role.
+        for btn in self.buttons():
+            if self.buttonRole(btn) == QMessageBox.ButtonRole.RejectRole:
+                self.setProperty("clicked_button_id", id(btn))
+                self._fake_clicked = btn  # type: ignore[attr-defined]
+                return 0
+        return 0
+
+    monkeypatch.setattr(QMessageBox, "exec", fake_exec)
+    monkeypatch.setattr(
+        QMessageBox, "clickedButton", lambda self: getattr(self, "_fake_clicked", None)
+    )
+
+    assert not window.close()
+    assert "box" in captured
+
+    # Now choose Stop and quit.
+    stop_signals: list[bool] = []
+    window.session_controls.stop_requested.connect(lambda: stop_signals.append(True))
+
+    def fake_exec_stop(self) -> int:
+        for btn in self.buttons():
+            if self.buttonRole(btn) == QMessageBox.ButtonRole.AcceptRole:
+                self._fake_clicked = btn  # type: ignore[attr-defined]
+                return 0
+        return 0
+
+    monkeypatch.setattr(QMessageBox, "exec", fake_exec_stop)
+    assert window.close()
+    assert stop_signals == [True]
