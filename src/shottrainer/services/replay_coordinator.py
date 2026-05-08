@@ -10,7 +10,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from shottrainer.replay.timeline import index_of_nearest
-from shottrainer.sessions.models import Shot
 from shottrainer.sessions.repository import SessionRepository
 from shottrainer.tracking.models import TrackingSample
 
@@ -38,12 +37,12 @@ class ReplayCoordinator:
     def shot_window(
         self,
         session_id: int,
-        shot: Shot,
+        shot_ts: float,
         *,
         pre_ms: int,
         post_ms: int,
     ) -> ShotWindow:
-        """Return the trace window around ``shot`` plus its phase indices.
+        """Return the trace around ``shot_ts`` and its phase boundaries.
 
         ``split_index`` is the sample whose timestamp sits closest
         to the shot. ``release_index`` is the start of the short
@@ -51,11 +50,11 @@ class ReplayCoordinator:
         is ``None`` if no sample is far enough back to mark it
         (which happens with very short pre-windows).
         """
-        start = shot.ts - pre_ms / 1000.0
-        end = shot.ts + post_ms / 1000.0
+        start = shot_ts - pre_ms / 1000.0
+        end = shot_ts + post_ms / 1000.0
         samples = self._repo.load_trace(session_id, start_ts=start, end_ts=end)
-        split = index_of_nearest(samples, shot.ts)
-        release = self._release_index(samples, shot.ts)
+        split = index_of_nearest(samples, shot_ts)
+        release = self._release_index(samples, shot_ts)
         return ShotWindow(samples=samples, split_index=split, release_index=release)
 
     @staticmethod

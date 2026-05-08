@@ -629,13 +629,12 @@ class AppController(QObject):
         self._window.target_view.set_selected_shot(index)
         if self._current_view_session_id is None:
             return
-        shots = self._repo.list_shots(self._current_view_session_id)
-        if index < 0 or index >= len(shots):
+        if index < 0 or index >= len(self._shots_in_view):
             return
         prefs = self._preferences
         window = self._replay.shot_window(
             self._current_view_session_id,
-            shots[index],
+            self._shots_in_view[index].timestamp,
             pre_ms=prefs.pre_shot_ms,
             post_ms=prefs.post_shot_ms,
         )
