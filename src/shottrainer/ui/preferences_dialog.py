@@ -39,14 +39,15 @@ ROTATION_OPTIONS: tuple[tuple[int, str], ...] = (
 )
 
 
-CALIBRES_MM: dict[str, float] = {
-    "177": 4.5,
-    "20": 5.0,
-    "22": 5.6,
-    "25": 6.35,
-    "9mm": 9.0,
-    "45": 11.43,
-}
+CALIBRES: tuple[tuple[str, str, float], ...] = (
+    ("177", ".177 air pellet (4.5 mm)", 4.5),
+    ("20", ".20 air pellet (5.0 mm)", 5.0),
+    ("22", ".22 (5.6 mm)", 5.6),
+    ("25", ".25 (6.35 mm)", 6.35),
+    ("9mm", "9 mm", 9.0),
+    ("45", ".45 (11.43 mm)", 11.43),
+)
+_CALIBRES_BY_KEY: dict[str, float] = {key: mm for key, _label, mm in CALIBRES}
 
 
 def _make_combo(
@@ -537,16 +538,10 @@ class PreferencesDialog(QDialog):
 
         # Dropdown of the most common calibres. Picking a preset
         # sets the diameter spinbox. Users can still type a custom value.
+        calibre_items: list[tuple[object, str]] = [("custom", "Custom")]
+        calibre_items.extend((key, label) for key, label, _mm in CALIBRES)
         self._calibre = _make_combo(
-            [
-                ("custom", "Custom"),
-                ("177", ".177 air pellet (4.5 mm)"),
-                ("20", ".20 air pellet (5.0 mm)"),
-                ("22", ".22 (5.6 mm)"),
-                ("25", ".25 (6.35 mm)"),
-                ("9mm", "9 mm"),
-                ("45", ".45 (11.43 mm)"),
-            ],
+            calibre_items,
             initial=self._calibre_for_diameter(prefs.shot_diameter_mm),
         )
         self._calibre.currentIndexChanged.connect(self._on_calibre_changed)
@@ -639,18 +634,18 @@ class PreferencesDialog(QDialog):
         # themselves stay where the user had them.
 
     def _calibre_for_diameter(self, mm: float) -> str:
-        for key, value in CALIBRES_MM.items():
+        for key, value in _CALIBRES_BY_KEY.items():
             if abs(value - mm) < 0.05:
                 return key
         return "custom"
 
     def _on_calibre_changed(self, _index: int) -> None:
         key = self._calibre.currentData()
-        if isinstance(key, str) and key in CALIBRES_MM:
+        if isinstance(key, str) and key in _CALIBRES_BY_KEY:
             # Block signals during the spinbox update so the change
             # doesn't flip the dropdown back to "Custom".
             self._shot_diameter.blockSignals(True)
-            self._shot_diameter.setValue(CALIBRES_MM[key])
+            self._shot_diameter.setValue(_CALIBRES_BY_KEY[key])
             self._shot_diameter.blockSignals(False)
 
     def _on_shot_diameter_changed(self, value: float) -> None:
