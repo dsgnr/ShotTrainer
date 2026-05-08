@@ -423,7 +423,10 @@ class AppController(QObject):
         if x_mm is None or y_mm is None:
             return ""
         rings = rings_for_face(self._preferences.target_face)
-        scoring = [ScoringRing(r.diameter_mm / 2, r.label or "") for r in rings if r.label]
+        scoring = sorted(
+            (ScoringRing(r.diameter_mm / 2, r.label or "") for r in rings if r.label),
+            key=lambda r: r.radius_mm,
+        )
         return score_shot(
             x_mm,
             y_mm,

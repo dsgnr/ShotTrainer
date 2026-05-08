@@ -29,9 +29,13 @@ def score_shot(
 ) -> str:
     """Return the label of the smallest ring this shot scores in.
 
+    ``rings`` has to come in sorted by radius, smallest first. We
+    walk them in order and return the label of the first ring the
+    shot's circle overlaps. Sorting once when the face is loaded
+    is cheaper than sorting on every shot.
+
     Returns an empty string if the shot misses every ring or no
-    rings were supplied. Rings can be passed in any order. This
-    function does not mutate the input.
+    rings were supplied.
 
     The shot is treated as a circle of ``shot_diameter_mm``. With
     ``shot_diameter_mm == 0`` we fall back to "is the centre
@@ -45,9 +49,7 @@ def score_shot(
     distance = math.hypot(x_mm - cx, y_mm - cy)
     margin = shot_diameter_mm / 2.0
 
-    # Walk from inside outward. The first ring whose disc the shot
-    # touches wins. Sort defensively in case the caller hasn't.
-    for ring in sorted(rings, key=lambda r: r.radius_mm):
+    for ring in rings:
         if distance - margin <= ring.radius_mm:
             return ring.label
     return ""
