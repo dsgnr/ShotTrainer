@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       release_name:
-        description: "Release name (e.g. 0.4.0, 0.4.0-rc1). A tag v<name> will be created."
+        description: "Release version, PEP 440 style (e.g. 0.1.0, 0.1.0rc1, 0.2.0a1). A tag v<name> will be created."
         required: true
         type: string
 
@@ -15,8 +15,41 @@ permissions:
   contents: write
 
 jobs:
+  verify-version:
+    name: verify pyproject version matches release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: determine release version
+        id: tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ inputs.release_name }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+            version="${tag#v}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: check pyproject.toml version matches release
+        shell: bash
+        run: |
+          pyproject_version=$(grep -E '^version[[:space:]]*=[[:space:]]*"' pyproject.toml \
+            | head -n 1 \
+            | sed -E 's/.*"([^"]+)".*/\1/')
+          release_version="${{ steps.tag.outputs.version }}"
+          if [ "$pyproject_version" != "$release_version" ]; then
+            echo "::error::pyproject.toml version ($pyproject_version) does not match release version ($release_version)."
+            echo "Update [project] version in pyproject.toml to '$release_version' before tagging or running the workflow."
+            exit 1
+          fi
+          echo "pyproject.toml and release agree on version $pyproject_version"
+
   build:
     name: build on ${{ matrix.os }}
+    needs: verify-version
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -115,14 +148,22 @@ jobs:
 
       - name: determine release tag
         id: tag
+        shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "name=v${{ inputs.release_name }}" >> "$GITHUB_OUTPUT"
-            echo "prerelease=${{ contains(inputs.release_name, '-') }}" >> "$GITHUB_OUTPUT"
+            name="v${{ inputs.release_name }}"
           else
-            echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-            echo "prerelease=${{ contains(github.ref_name, '-') }}" >> "$GITHUB_OUTPUT"
+            name="${GITHUB_REF_NAME}"
           fi
+          # A PEP 440 version with any alphabetic suffix (rc1, a1, b2, dev3, etc.)
+          # is treated as a pre-release. Plain dotted-digit versions ship as final.
+          if echo "$name" | grep -Eq '[a-zA-Z]+[0-9]*$'; then
+            prerelease=true
+          else
+            prerelease=false
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@v4
         with:
