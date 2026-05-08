@@ -199,3 +199,10 @@ The amount of trace data retained after a shot is detected.
 This data is used for follow-through analysis and replay.
 
 Range: **0 to 10,000 ms**
+
+### Show hold zone on replay
+
+When this is on, the target view draws an amber dashed circle during shot
+replay. Its centre is the mean position of the pre-shot trace and its radius
+is the hold tremor, so the circle shows roughly where the rifle was settled
+before the shot broke. Turn it off to see the trace without the overlay.

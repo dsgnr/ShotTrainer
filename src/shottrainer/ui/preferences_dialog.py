@@ -758,6 +758,14 @@ class PreferencesDialog(QDialog):
             "Trace kept after each shot for follow-through review.",
         )
         layout.addLayout(form)
+
+        self._show_hold_zone = QCheckBox("Show hold zone on replay")
+        self._show_hold_zone.setChecked(prefs.show_hold_zone)
+        self._show_hold_zone.setToolTip(
+            "Draws the amber dashed circle on the target view that marks "
+            "the mean pre-shot position and tremor radius."
+        )
+        layout.addWidget(self._show_hold_zone)
         layout.addStretch(1)
         return page
 
@@ -841,6 +849,7 @@ class PreferencesDialog(QDialog):
             circle_diameter_mm=float(self._circle_diameter.value()),
             invert_trace_horizontal=self._invert_h.isChecked(),
             invert_trace_vertical=self._invert_v.isChecked(),
+            show_hold_zone=self._show_hold_zone.isChecked(),
         )
         self.saved.emit(updated)
         self.accept()
