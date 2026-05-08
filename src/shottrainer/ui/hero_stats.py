@@ -15,6 +15,7 @@ from collections.abc import Sequence
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 
+from shottrainer.services.scoring import total_score
 from shottrainer.services.shot_stats import (
     ShotStats,
     TraceStats,
@@ -52,14 +53,17 @@ class HeroStats(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(20)
 
+        self._total = _HeroFigure("Total score")
         self._group = _HeroFigure("Group size")
         self._tremor = _HeroFigure("Hold tremor")
         self._inner = _HeroFigure("Time on target")
+        layout.addWidget(self._total)
         layout.addWidget(self._group)
         layout.addWidget(self._tremor)
         layout.addWidget(self._inner)
 
         self._rings: tuple[TargetRing, ...] = ()
+        self._scores: list[str] = []
         self._last_trace: list[tuple[float, float]] | None = None
 
     def update_from_positions(self, positions: list[tuple[float, float]]) -> None:
@@ -71,6 +75,19 @@ class HeroStats(QWidget):
             return
         # Extreme spread is the most relatable group measure for shooters.
         self._group.value.setText(f"{stats.extreme_spread_mm:.1f}\u202fmm")
+
+    def set_scores(self, scores: list[str]) -> None:
+        """Set the per-shot scores. Recomputes the total."""
+        self._scores = list(scores)
+        if not self._scores:
+            self._total.value.setText("-")
+            return
+        total = total_score(self._scores)
+        if total <= 0:
+            # Nothing parsed, or all misses. Show shot count instead.
+            self._total.value.setText(f"{len(self._scores)} shots")
+            return
+        self._total.value.setText(f"{total:g}")
 
     def set_trace_stats(self, stats: TraceStats | None) -> None:
         if stats is None or stats.samples == 0:

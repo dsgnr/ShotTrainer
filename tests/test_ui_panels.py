@@ -187,3 +187,33 @@ def test_main_window_close_prompts_during_recording(qtbot, monkeypatch):
     monkeypatch.setattr(QMessageBox, "exec", fake_exec_stop)
     assert window.close()
     assert stop_signals == [True]
+
+
+def test_hero_stats_total_score_sums_scores(qtbot):
+    from shottrainer.ui.hero_stats import HeroStats
+
+    hero = HeroStats()
+    qtbot.addWidget(hero)
+    hero.set_scores(["10", "X", "9"])
+    # 10 + 10 (X) + 9 = 29
+    assert "29" in hero._total.value.text()
+
+
+def test_hero_stats_total_score_handles_misses(qtbot):
+    from shottrainer.ui.hero_stats import HeroStats
+
+    hero = HeroStats()
+    qtbot.addWidget(hero)
+    hero.set_scores(["", ""])
+    # No numeric scores parsed. The panel falls back to a shot-count message.
+    assert "shots" in hero._total.value.text().lower()
+
+
+def test_hero_stats_total_resets_when_empty(qtbot):
+    from shottrainer.ui.hero_stats import HeroStats
+
+    hero = HeroStats()
+    qtbot.addWidget(hero)
+    hero.set_scores(["10"])
+    hero.set_scores([])
+    assert hero._total.value.text() == "-"
