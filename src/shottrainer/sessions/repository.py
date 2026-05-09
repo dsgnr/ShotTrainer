@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session as OrmSession
 from shottrainer.services.scoring import label_to_value
 from shottrainer.tracking.models import TrackingSample
 
-from .models import Session, Shot, TraceSample, utc_now
+from .models import DEFAULT_SESSION_CATEGORY, Session, Shot, TraceSample, utc_now
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +30,7 @@ class SessionSummary:
     ended_at: datetime | None
     shot_count: int
     total_score: float = 0.0
+    category: str = DEFAULT_SESSION_CATEGORY
 
 
 class SessionRepository:
@@ -52,6 +53,7 @@ class SessionRepository:
         notes: str = "",
         target_profile: str = "default",
         app_version: str = "",
+        category: str = DEFAULT_SESSION_CATEGORY,
     ) -> int:
         """Insert a new session row and return its id."""
         with OrmSession(self._engine, future=True) as session:
@@ -60,6 +62,7 @@ class SessionRepository:
                 notes=notes,
                 target_profile=target_profile,
                 app_version=app_version,
+                category=category,
             )
             session.add(row)
             session.commit()
@@ -100,6 +103,32 @@ class SessionRepository:
             session.commit()
             return True
 
+    def update_session_category(self, session_id: int, category: str) -> bool:
+        """Change the category label on an existing session.
+
+        Used by the category action in the session browser so a
+        user can re-tag a session as practice, sighter, or match
+        after the fact.
+
+        Args:
+            session_id: Database id of the session to update.
+            category: One of the values in
+                :data:`shottrainer.sessions.models.SESSION_CATEGORIES`.
+                Unknown values are stored verbatim so that older
+                code paths continue to round-trip cleanly.
+
+        Returns:
+            ``True`` when the row existed and was updated, ``False``
+            when no session with that id was found.
+        """
+        with OrmSession(self._engine, future=True) as session:
+            row = session.get(Session, session_id)
+            if row is None:
+                return False
+            row.category = category
+            session.commit()
+            return True
+
     def list_sessions(self) -> list[SessionSummary]:
         """Return a :class:`SessionSummary` for every row in ``sessions``.
 
@@ -121,6 +150,7 @@ class SessionRepository:
                     Session.name,
                     Session.started_at,
                     Session.ended_at,
+                    Session.category,
                 ).order_by(Session.started_at.desc())
             ).all()
             if not session_rows:
@@ -147,6 +177,7 @@ class SessionRepository:
                     ended_at=row.ended_at,
                     shot_count=counts[int(row.id)],
                     total_score=totals[int(row.id)],
+                    category=row.category,
                 )
                 for row in session_rows
             ]

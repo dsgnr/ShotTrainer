@@ -196,6 +196,7 @@ def create_session_with_date(
     num_shots: int,
     skill_spread_mm: float,
     tremor_range: tuple[float, float],
+    category: str = "practice",
 ) -> None:
     """Create a demo session with a specific date and shooting profile."""
 
@@ -206,6 +207,7 @@ def create_session_with_date(
             started_at=started_at,
             target_profile="nsra_25yd_prone_rifle_2510_BM8918",
             app_version="0.0.0-demo",
+            category=category,
         )
         orm.add(row)
         orm.commit()
@@ -328,6 +330,7 @@ def main() -> None:
             "shots": 10,
             "spread": 3.0,
             "tremor": (2.5, 4.0),
+            "category": "practice",
         },
         {
             "name": "Demo session - Quick sighters",
@@ -336,6 +339,7 @@ def main() -> None:
             "shots": 5,
             "spread": 4.0,
             "tremor": (3.0, 5.0),
+            "category": "sighter",
         },
         {
             "name": "Demo session - Full card practice",
@@ -344,6 +348,7 @@ def main() -> None:
             "shots": 20,
             "spread": 2.5,
             "tremor": (2.0, 3.5),
+            "category": "practice",
         },
         {
             "name": "Demo session - Morning session",
@@ -352,6 +357,7 @@ def main() -> None:
             "shots": 10,
             "spread": 2.0,
             "tremor": (1.8, 3.0),
+            "category": "practice",
         },
         {
             "name": "Demo session - Club night",
@@ -360,6 +366,7 @@ def main() -> None:
             "shots": 15,
             "spread": 3.5,
             "tremor": (2.5, 4.5),
+            "category": "match",
         },
         {
             "name": "Demo session - Steady session",
@@ -368,6 +375,7 @@ def main() -> None:
             "shots": 10,
             "spread": 1.5,
             "tremor": (1.5, 2.5),
+            "category": "practice",
         },
     ]
 
@@ -381,6 +389,7 @@ def main() -> None:
             num_shots=s["shots"],
             skill_spread_mm=s["spread"],
             tremor_range=s["tremor"],
+            category=s["category"],
         )
 
     print("\nDone. All sessions injected.")

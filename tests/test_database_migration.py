@@ -77,3 +77,67 @@ def test_init_database_drops_calibration_column(legacy_db: Path):
         rows = list(conn.exec_driver_sql("SELECT name FROM sessions").fetchall())
     assert "calibration_json" not in columns
     assert [r[0] for r in rows] == ["legacy"]
+
+
+def _create_v2_schema(db_path: Path) -> None:
+    """Build a v2 sessions database without the category column.
+
+    Used to verify the v2 -> v3 migration adds the column with the
+    expected default for existing rows.
+    """
+    engine = make_engine(db_path)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE schema_meta (
+                    id INTEGER PRIMARY KEY,
+                    version INTEGER NOT NULL,
+                    app_version VARCHAR(32) NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sessions (
+                    id INTEGER PRIMARY KEY,
+                    name VARCHAR(120) NOT NULL DEFAULT '',
+                    started_at DATETIME NOT NULL,
+                    ended_at DATETIME,
+                    notes TEXT NOT NULL DEFAULT '',
+                    target_profile VARCHAR(64) NOT NULL DEFAULT 'default',
+                    app_version VARCHAR(32) NOT NULL DEFAULT '',
+                    schema_version INTEGER NOT NULL DEFAULT 2
+                )
+                """
+            )
+        )
+        conn.execute(text("INSERT INTO schema_meta (version, app_version) VALUES (2, '0.0.0')"))
+        conn.execute(
+            text("INSERT INTO sessions (name, started_at) VALUES ('older', '2025-06-01 00:00:00')")
+        )
+    engine.dispose()
+
+
+@pytest.fixture()
+def v2_db(tmp_path: Path) -> Path:
+    db = tmp_path / "v2.db"
+    _create_v2_schema(db)
+    return db
+
+
+def test_init_database_adds_category_column(v2_db: Path):
+    """Upgrading a v2 database adds the new ``category`` column.
+
+    Existing rows inherit the ``"practice"`` default so the browser
+    can show a category badge straight away.
+    """
+    engine = make_engine(v2_db)
+    init_database(engine)
+    with engine.connect() as conn:
+        columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(sessions)")}
+        rows = list(conn.exec_driver_sql("SELECT name, category FROM sessions").fetchall())
+    assert "category" in columns
+    assert rows == [("older", "practice")]

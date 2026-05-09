@@ -99,6 +99,8 @@ def migrate(engine: Engine, from_version: int) -> None:
     """
     if from_version < 2:
         _drop_legacy_calibration_column(engine)
+    if from_version < 3:
+        _add_session_category_column(engine)
 
 
 def _drop_legacy_calibration_column(engine: Engine) -> None:
@@ -116,3 +118,22 @@ def _drop_legacy_calibration_column(engine: Engine) -> None:
         if "calibration_json" in existing:
             conn.execute(text("ALTER TABLE sessions DROP COLUMN calibration_json"))
             log.info("Dropped legacy column sessions.calibration_json")
+
+
+def _add_session_category_column(engine: Engine) -> None:
+    """Add the ``sessions.category`` column to a v2 database.
+
+    Existing rows default to ``"practice"`` so the browser can show
+    them with a category badge straight away. Future writes go
+    through the ORM column default.
+    """
+    with engine.begin() as conn:
+        existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(sessions)")}
+        if "category" not in existing:
+            conn.execute(
+                text(
+                    "ALTER TABLE sessions ADD COLUMN category VARCHAR(16) "
+                    "NOT NULL DEFAULT 'practice'"
+                )
+            )
+            log.info("Added column sessions.category")
