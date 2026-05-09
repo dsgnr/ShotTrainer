@@ -16,12 +16,14 @@ from PySide6.QtCore import QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
     QHBoxLayout,
     QInputDialog,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMessageBox,
@@ -86,8 +88,29 @@ class SessionBrowserDialog(QDialog):
         # arrives after the user closed and reopened the dialog can
         # detect that it's stale and bail out.
         self._refresh_token = 0
+        # Raw list of summaries from the most recent load. Filtering
+        # works against this cache so typing in the search field
+        # doesn't trigger another database query.
+        self._all_sessions: list[SessionSummary] = []
 
         layout = QVBoxLayout(self)
+
+        # Search and category filter row at the top of the dialog.
+        # Both inputs filter the list in-memory against ``_all_sessions``
+        # so the user gets instant feedback while typing.
+        filter_row = QHBoxLayout()
+        filter_row.setContentsMargins(0, 0, 0, 0)
+        filter_row.setSpacing(8)
+        self._search = QLineEdit()
+        self._search.setPlaceholderText("Search session names...")
+        self._search.setClearButtonEnabled(True)
+        filter_row.addWidget(self._search, 1)
+        self._category_filter = QComboBox()
+        self._category_filter.addItem("All categories", "")
+        for value in SESSION_CATEGORIES:
+            self._category_filter.addItem(value.capitalize(), value)
+        filter_row.addWidget(self._category_filter)
+        layout.addLayout(filter_row)
 
         # Three pages: the session list, the empty-state placeholder,
         # and a "Loading..." page shown while the deferred read runs.
@@ -144,6 +167,11 @@ class SessionBrowserDialog(QDialog):
         self._list.itemDoubleClicked.connect(lambda _item: self._on_open())
         self._list.currentItemChanged.connect(lambda *_: self._refresh_action_buttons())
 
+        # Filtering re-renders the list against the cached summaries
+        # without going back to the database.
+        self._search.textChanged.connect(lambda *_: self._apply_filter())
+        self._category_filter.currentIndexChanged.connect(lambda *_: self._apply_filter())
+
         self.refresh()
 
     def refresh(self) -> None:
@@ -182,15 +210,45 @@ class SessionBrowserDialog(QDialog):
             self._loading.setText(f"Could not load sessions: {exc}")
             self._stack.setCurrentWidget(self._loading)
             return
+        self._all_sessions = sessions
+        self._apply_filter()
+
+    def _apply_filter(self) -> None:
+        """Render the cached session list under the current filters.
+
+        Called both after a fresh database read and when the user
+        types in the search field or picks a different category.
+        """
+        query = self._search.text().strip().lower()
+        category = self._category_filter.currentData() or ""
+        matches = [
+            s
+            for s in self._all_sessions
+            if (not query or query in s.name.lower()) and (not category or s.category == category)
+        ]
+
         self._list.clear()
-        for s in sessions:
+        for s in matches:
             row = _SessionRow(s)
             item = QListWidgetItem()
             item.setSizeHint(row.sizeHint())
             item.setData(Qt.ItemDataRole.UserRole, s.id)
             self._list.addItem(item)
             self._list.setItemWidget(item, row)
-        self._stack.setCurrentWidget(self._list if sessions else self._empty)
+
+        if matches:
+            self._stack.setCurrentWidget(self._list)
+        else:
+            if not self._all_sessions:
+                self._empty.setText(
+                    "No saved sessions yet.\nStart one with the green button on "
+                    "the main window or with Ctrl+S."
+                )
+            else:
+                self._empty.setText(
+                    "No sessions match your filter.\nTry a different name or category."
+                )
+            self._stack.setCurrentWidget(self._empty)
         self._refresh_action_buttons()
 
     def _refresh_action_buttons(self) -> None:
