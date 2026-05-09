@@ -111,7 +111,13 @@ class SessionBrowserDialog(QDialog):
 
 def _make_item(summary: SessionSummary) -> QListWidgetItem:
     started = summary.started_at.strftime("%Y-%m-%d %H:%M")
-    label = f"{started}   {summary.name or '(unnamed)'}   ({summary.shot_count} shots)"
+    name = summary.name or "(unnamed)"
+    score = (
+        f"   {summary.total_score:g} pts"
+        if summary.shot_count and summary.total_score > 0
+        else ""
+    )
+    label = f"{started}   {name}   ({summary.shot_count} shots){score}"
     item = QListWidgetItem(label)
     item.setData(0x0100, summary.id)
     return item
