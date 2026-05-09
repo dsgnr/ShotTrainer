@@ -74,6 +74,32 @@ class SessionRepository:
             row.ended_at = ended_at or utc_now()
             session.commit()
 
+    def rename_session(self, session_id: int, name: str) -> bool:
+        """Replace the name of an existing session.
+
+        Used by the rename action in the session browser so a user
+        can fix a typo, label a session as a match, or clear an
+        accidental autosaved name. Empty strings are stored as the
+        column default, which makes the browser fall back to the
+        ``Session #N`` placeholder.
+
+        Args:
+            session_id: Database id of the session to rename.
+            name: New name. Whitespace-only values are stored as
+                the empty string.
+
+        Returns:
+            ``True`` when the row existed and was updated, ``False``
+            when no session with that id was found.
+        """
+        with OrmSession(self._engine, future=True) as session:
+            row = session.get(Session, session_id)
+            if row is None:
+                return False
+            row.name = name.strip()
+            session.commit()
+            return True
+
     def list_sessions(self) -> list[SessionSummary]:
         """Return a :class:`SessionSummary` for every row in ``sessions``.
 

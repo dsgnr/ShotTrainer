@@ -76,6 +76,17 @@ Contains the full recorded trace for the session, including:
 Numeric values are written using fixed decimal precision to ensure they display
 cleanly in spreadsheet applications.
 
+## Renaming a session
+
+To change the name of a saved session:
+
+1. Select the session.
+2. Click **Rename...**
+3. Type the new name and press OK.
+
+Leaving the field blank clears the name back to the default **Session #N**
+display. The change is saved immediately.
+
 ## Deleting a session
 
 To permanently remove a session:
