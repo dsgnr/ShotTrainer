@@ -11,6 +11,8 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+import numpy as np
+
 
 @dataclass(frozen=True, slots=True)
 class ShotStats:
@@ -39,27 +41,36 @@ class TraceStats:
 
 
 def compute_stats(positions: Sequence[tuple[float, float]]) -> ShotStats:
+    """Group statistics for a list of shot positions in mm.
+
+    ``extreme_spread_mm`` is the largest centre-to-centre
+    distance between any two shots. The pairwise distance grid
+    runs in numpy so a session that ends up with hundreds of
+    shots doesn't slow the repaint loop down with a Python loop.
+    """
     if not positions:
         return ShotStats(0, 0.0, 0.0, 0.0, 0.0)
 
-    xs = [p[0] for p in positions]
-    ys = [p[1] for p in positions]
-    cx = sum(xs) / len(xs)
-    cy = sum(ys) / len(ys)
+    points = np.asarray(positions, dtype=np.float64)
+    cx, cy = points.mean(axis=0)
 
-    radii = [math.hypot(x - cx, y - cy) for x, y in positions]
-    mean_r = sum(radii) / len(radii)
+    radii = np.hypot(points[:, 0] - cx, points[:, 1] - cy)
+    mean_r = float(radii.mean())
 
-    spread = 0.0
-    for i, (xi, yi) in enumerate(positions):
-        for xj, yj in positions[i + 1 :]:
-            d = math.hypot(xi - xj, yi - yj)
-            spread = max(spread, d)
+    if len(points) >= 2:
+        # Pairwise distances via broadcasting. The spread is the
+        # max over the full square. The matrix is symmetric and
+        # the diagonal is zero, so ``np.max`` over the whole
+        # thing gives the right answer.
+        deltas = points[:, None, :] - points[None, :, :]
+        spread = float(np.max(np.hypot(deltas[..., 0], deltas[..., 1])))
+    else:
+        spread = 0.0
 
     return ShotStats(
-        count=len(positions),
-        mean_x_mm=cx,
-        mean_y_mm=cy,
+        count=len(points),
+        mean_x_mm=float(cx),
+        mean_y_mm=float(cy),
         extreme_spread_mm=spread,
         mean_radius_mm=mean_r,
     )
