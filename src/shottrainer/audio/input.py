@@ -26,13 +26,13 @@ def list_audio_inputs() -> list[str]:
     """
     try:
         import sounddevice as sd
-    except Exception as exc:  # pragma: no cover - environment dependent
+    except (ImportError, OSError) as exc:  # pragma: no cover - environment dependent
         log.warning("sounddevice unavailable: %s", exc)
         return ["default"]
 
     try:
         devices = sd.query_devices()
-    except Exception as exc:  # pragma: no cover
+    except (sd.PortAudioError, OSError) as exc:  # pragma: no cover
         log.warning("Could not enumerate audio devices: %s", exc)
         return ["default"]
 
@@ -101,7 +101,7 @@ class AudioShotListener(QObject):
             return
         try:
             import sounddevice as sd
-        except Exception as exc:
+        except (ImportError, OSError) as exc:
             self.error.emit(f"sounddevice unavailable: {exc}")
             return
 
@@ -118,7 +118,9 @@ class AudioShotListener(QObject):
             self._stream.start()
             self._detector.reset()
             self.started.emit()
-        except Exception as exc:
+        except (sd.PortAudioError, OSError, ValueError) as exc:
+            # PortAudio for hardware issues, OSError for backend
+            # failures, ValueError for invalid sample rate or block size.
             self._stream = None
             self.error.emit(f"Could not open microphone: {exc}")
 

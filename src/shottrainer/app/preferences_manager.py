@@ -7,6 +7,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
+import cv2
 from PySide6.QtWidgets import QApplication
 
 from shottrainer.tracking.detector import DetectorSettings
@@ -226,7 +227,7 @@ class PreferencesManager:
         base_settings = self._tracker.detector.settings
         try:
             new_settings, adjustment, score = optimise_detector_settings(source, base_settings)
-        except Exception:
+        except (cv2.error, ValueError, RuntimeError):
             log.exception("Auto-optimise failed")
             new_settings, adjustment, score = None, None, 0.0
 
