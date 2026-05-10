@@ -1,5 +1,13 @@
 # Arducam OV9281 (USB, Global Shutter)
 
+!!! note "Superseded by the Waveshare OV9281"
+    This was the first board I tested. The
+    [Waveshare OV9281](./waveshare-ov9281.md) uses the same OV9281 sensor
+    but in a much smaller form factor and with a USB-C connector directly
+    on the board (detachable cable, no PH connectors to source). That's
+    what I'm using going forward. The sensor notes, lens tests, and
+    detection reasoning on this page still apply to both boards.
+
 | Field               | Value                                                 |
 | ------------------- | ----------------------------------------------------- |
 | Manufacturer        | Arducam                                               |
