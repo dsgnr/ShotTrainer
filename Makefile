@@ -1,4 +1,4 @@
-.PHONY: install sync test lint format run package clean pylint
+.PHONY: install sync test lint format run package package-deps clean pylint
 
 install:
 	uv sync
@@ -22,8 +22,11 @@ format:
 run:
 	uv run shottrainer
 
-package:
-	uv run pyinstaller packaging/shottrainer.spec --noconfirm
+package-deps:
+	uv sync --extra package
+
+package: package-deps
+	uv run --extra package pyinstaller packaging/shottrainer.spec --noconfirm
 
 clean:
 	rm -rf build dist .pytest_cache .ruff_cache .mypy_cache

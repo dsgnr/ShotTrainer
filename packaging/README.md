@@ -6,6 +6,14 @@ macOS and Linux with platform-specific tweaks for permissions and signing.
 ## Build
 
 ```
+make package
+```
+
+That target runs `uv sync --extra package` to install PyInstaller and
+then builds with `packaging/shottrainer.spec`. If you'd rather drive
+PyInstaller directly:
+
+```
 uv sync --extra package
 uv run pyinstaller packaging/shottrainer.spec --noconfirm
 ```
