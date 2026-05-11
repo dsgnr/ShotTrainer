@@ -9,8 +9,12 @@
 #   directory still ends up bundled.
 # - opencv-python ships its own native libs and a small numpy import path.
 #   ``collect_dynamic_libs`` makes sure the .so/.dylib/.dll come along.
-# - sounddevice depends on PortAudio. PortAudio is bundled inside the
-#   sounddevice wheel on the platforms we care about.
+# - sounddevice is a single-file module that statically links PortAudio
+#   inside its wheel, so PyInstaller picks it up via the standard import
+#   graph; no extra ``collect_*`` calls are needed.
+# - SQLAlchemy advertises optional database dialects (psycopg2, MySQLdb,
+#   pysqlite2). PyInstaller warns about each; they're fine to leave
+#   missing because we only use the stdlib sqlite3 driver.
 
 # ruff: noqa
 from PyInstaller.utils.hooks import (
@@ -23,11 +27,9 @@ block_cipher = None
 
 binaries = []
 binaries += collect_dynamic_libs("cv2")
-binaries += collect_dynamic_libs("sounddevice")
 
 datas = []
 datas += collect_data_files("cv2")
-datas += collect_data_files("sounddevice")
 datas += collect_data_files("shottrainer", subdir="ui/assets")
 
 hiddenimports = []
