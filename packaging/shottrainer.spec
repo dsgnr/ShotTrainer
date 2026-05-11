@@ -15,8 +15,16 @@
 # - SQLAlchemy advertises optional database dialects (psycopg2, MySQLdb,
 #   pysqlite2). PyInstaller warns about each; they're fine to leave
 #   missing because we only use the stdlib sqlite3 driver.
+# - On macOS the spec also produces a ``ShotTrainer.app`` bundle next to
+#   the one-folder build via the ``BUNDLE`` step. The bundle's
+#   Info.plist is read from ``packaging/Info.plist.in`` so camera and
+#   microphone usage descriptions are present.
 
 # ruff: noqa
+import platform
+import plistlib
+from pathlib import Path
+
 from PyInstaller.utils.hooks import (
     collect_dynamic_libs,
     collect_data_files,
@@ -24,6 +32,38 @@ from PyInstaller.utils.hooks import (
 )
 
 block_cipher = None
+
+SPEC_DIR = Path(SPECPATH).resolve()
+PROJECT_ROOT = SPEC_DIR.parent
+ASSETS_DIR = PROJECT_ROOT / "src" / "shottrainer" / "ui" / "assets"
+ICNS_PATH = SPEC_DIR / "icon.icns"
+ICO_PATH = ASSETS_DIR / "icon.ico"
+
+
+def _read_plist() -> dict:
+    plist_path = SPEC_DIR / "Info.plist.in"
+    if not plist_path.exists():
+        return {}
+    with plist_path.open("rb") as fh:
+        try:
+            return plistlib.load(fh)
+        except Exception:
+            return {}
+
+
+def _icon_for_platform():
+    """Return the icon path PyInstaller should embed.
+
+    Windows takes the ``.ico``; macOS prefers an ``.icns`` if one has
+    been generated next to this spec (``packaging/icon.icns``).
+    Otherwise PyInstaller falls back to its default icon.
+    """
+    if platform.system() == "Darwin" and ICNS_PATH.exists():
+        return str(ICNS_PATH)
+    if platform.system() == "Windows" and ICO_PATH.exists():
+        return str(ICO_PATH)
+    return None
+
 
 binaries = []
 binaries += collect_dynamic_libs("cv2")
@@ -36,8 +76,8 @@ hiddenimports = []
 hiddenimports += collect_submodules("shottrainer")
 
 a = Analysis(
-    ["../src/shottrainer/app/main.py"],
-    pathex=["../src"],
+    [str(PROJECT_ROOT / "src" / "shottrainer" / "app" / "main.py")],
+    pathex=[str(PROJECT_ROOT / "src")],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
@@ -69,7 +109,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon="../src/shottrainer/ui/assets/icon.ico",
+    icon=_icon_for_platform(),
 )
 
 coll = COLLECT(
@@ -82,3 +122,15 @@ coll = COLLECT(
     upx_exclude=[],
     name="ShotTrainer",
 )
+
+if platform.system() == "Darwin":
+    plist_overrides = _read_plist()
+    app = BUNDLE(
+        coll,
+        name="ShotTrainer.app",
+        icon=str(ICNS_PATH) if ICNS_PATH.exists() else None,
+        bundle_identifier=plist_overrides.get(
+            "CFBundleIdentifier", "org.shottrainer.app"
+        ),
+        info_plist=plist_overrides or None,
+    )
