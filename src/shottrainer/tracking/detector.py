@@ -93,6 +93,14 @@ class CircleTargetDetector:
         # cache it. The detector reuses the same kernel for every
         # frame while ``opening_kernel_px`` doesn't change.
         self._cached_kernel: tuple[int, np.ndarray] | None = None
+        # Mask buffers reused by the Hough scoring path so the
+        # per-frame hot loop doesn't allocate three uint8 frames
+        # per candidate. Resized lazily when the frame shape
+        # changes.
+        self._mask_inner: np.ndarray | None = None
+        self._mask_outer: np.ndarray | None = None
+        self._mask_interior: np.ndarray | None = None
+        self._mask_shape: tuple[int, int] | None = None
 
     def reset_lock(self) -> None:
         """Drop any soft lock so the next frame is treated as a fresh start."""
@@ -262,8 +270,7 @@ class CircleTargetDetector:
             confidence=confidence,
         )
 
-    @staticmethod
-    def _hough_edge_confidence(grey: np.ndarray, cx: float, cy: float, r: float) -> float:
+    def _hough_edge_confidence(self, grey: np.ndarray, cx: float, cy: float, r: float) -> float:
         """Score a Hough detection by edge contrast and interior uniformity.
 
         Combines two signals:
@@ -290,18 +297,32 @@ class CircleTargetDetector:
         """
         h, w = grey.shape[:2]
 
-        inner_band = np.zeros((h, w), dtype=np.uint8)
+        # Reuse the cached mask buffers between calls. Resized only
+        # when the frame shape changes; zeroed each call before the
+        # circle draws so the previous frame's bands don't leak in.
+        if self._mask_shape != (h, w) or self._mask_inner is None:
+            self._mask_inner = np.zeros((h, w), dtype=np.uint8)
+            self._mask_outer = np.zeros((h, w), dtype=np.uint8)
+            self._mask_interior = np.zeros((h, w), dtype=np.uint8)
+            self._mask_shape = (h, w)
+        else:
+            self._mask_inner.fill(0)
+            self._mask_outer.fill(0)
+            self._mask_interior.fill(0)
+
+        inner_band = self._mask_inner
+        outer_band = self._mask_outer
+        interior = self._mask_interior
+
         cv2.circle(inner_band, (int(cx), int(cy)), int(r * 0.99), 255, -1)
         cv2.circle(inner_band, (int(cx), int(cy)), int(r * 0.85), 0, -1)
 
-        outer_band = np.zeros((h, w), dtype=np.uint8)
         cv2.circle(outer_band, (int(cx), int(cy)), int(r * 1.15), 255, -1)
         cv2.circle(outer_band, (int(cx), int(cy)), int(r * 1.01), 0, -1)
 
         # Solid interior region for uniformity check. Use 90% of
         # radius to include pixels right up to the edge so internal
         # detail (scoring rings) actually shows up in the variance.
-        interior = np.zeros((h, w), dtype=np.uint8)
         cv2.circle(interior, (int(cx), int(cy)), max(1, int(r * 0.9)), 255, -1)
 
         if (
