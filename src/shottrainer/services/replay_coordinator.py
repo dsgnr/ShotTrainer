@@ -15,9 +15,9 @@ class ShotWindow:
     """A slice of trace samples around a single shot, with phase boundaries.
 
     ``split_index`` is the sample nearest the shot timestamp.
-    ``release_index`` marks where the short release window starts
-    (typically 250 ms before the shot). The replay UI draws the
-    release phase in a different colour from the longer approach.
+    ``release_index`` marks where the short release window starts.
+    The replay UI draws the release phase in a different colour
+    from the longer approach.
     """
 
     samples: list[TrackingSample]
@@ -25,13 +25,11 @@ class ShotWindow:
     release_index: int | None = None
 
 
-# How long the "release" window is, immediately before the shot.
-# This is the moment-of-truth phase, drawn in a different colour
-# from the longer approach the trace shows beforehand. 250 ms is
-# enough to cover a typical settle-and-release in precision rifle
-# disciplines without bleeding into the longer hold pattern that
-# comes earlier.
-_RELEASE_WINDOW_MS = 250
+# Default duration of the "release" window. Roughly the
+# settle-and-release that a precision rifle shooter does in the
+# last quarter-second before the trigger breaks. Exposed as a
+# preference so users can tune it for their discipline.
+DEFAULT_RELEASE_WINDOW_MS = 250
 
 
 class ReplayCoordinator:
@@ -51,6 +49,7 @@ class ReplayCoordinator:
         *,
         pre_ms: int,
         post_ms: int,
+        release_ms: int = DEFAULT_RELEASE_WINDOW_MS,
     ) -> ShotWindow:
         """Return the trace around ``shot_ts`` and its phase boundaries.
 
@@ -64,18 +63,19 @@ class ReplayCoordinator:
         end = shot_ts + post_ms / 1000.0
         samples = self._repo.load_trace(session_id, start_ts=start, end_ts=end)
         split = index_of_nearest(samples, shot_ts)
-        release = self._release_index(samples, shot_ts)
+        release = self._release_index(samples, shot_ts, release_ms)
         return ShotWindow(samples=samples, split_index=split, release_index=release)
 
     @staticmethod
     def _release_index(
         samples: Sequence[TrackingSample],
         shot_ts: float,
+        release_ms: int,
     ) -> int | None:
         """Find the first sample inside the release window before ``shot_ts``."""
         if not samples:
             return None
-        threshold = shot_ts - _RELEASE_WINDOW_MS / 1000.0
+        threshold = shot_ts - release_ms / 1000.0
         for i, sample in enumerate(samples):
             if sample.timestamp >= threshold:
                 return i

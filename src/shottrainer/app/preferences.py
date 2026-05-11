@@ -39,6 +39,7 @@ class Preferences:
     shot_refractory_ms: int = 400
     pre_shot_ms: int = 1500
     post_shot_ms: int = 800
+    release_window_ms: int = 250
     target_face: str = "default"
     shot_diameter_mm: float = 4.5  # air pellet by default. .22 ~= 5.6 mm
     tracking_region_fraction: float = 0.7

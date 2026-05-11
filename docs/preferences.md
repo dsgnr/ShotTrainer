@@ -200,6 +200,19 @@ This data is used for follow-through analysis and replay.
 
 Range: **0 to 10,000 ms**
 
+### Release window
+
+How much of the pre-shot trace is shown as the release phase
+(drawn in amber on replay). The longer approach before this point
+is drawn in blue.
+
+A short release window keeps the amber band tight to the moment
+of trigger break, which suits precision rifle. A longer one is
+useful for disciplines where the settle is slower, like benchrest
+or pistol.
+
+Range: **50 to 2,000 ms**
+
 ### Show hold zone on replay
 
 When this is on, the target view draws an amber dashed circle during shot
