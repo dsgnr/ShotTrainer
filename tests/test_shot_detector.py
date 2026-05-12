@@ -142,7 +142,7 @@ def test_reset_always_lets_the_next_loud_block_through(refractory_ms: int) -> No
     assert blocked is None
 
     det.reset()
-    # After a reset the next loud block fires straight away, even when
-    # it comes right on top of the previous one.
+    # After a reset the next loud block goes through straight away,
+    # even when it comes right on top of the previous one.
     again = det.process_block(_impulse(512, 100), block_start_ts=0.001)
     assert again is not None
