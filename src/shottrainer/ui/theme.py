@@ -17,14 +17,14 @@ class Palette:
     text: str = "#e6e6e6"
     text_heading: str = "#d6dae3"
     text_muted: str = "#8a93a4"
-    text_dim: str = "#6c7689"
-    text_soft: str = "#5a6478"
+    text_dim: str = "#929cab"
+    text_soft: str = "#84909f"
     text_disabled: str = "#4a5260"
     text_bright: str = "#f6f7f8"
     white: str = "#ffffff"
 
-    accent: str = "#2d6cdf"
-    accent_hover: str = "#4a8cf0"
+    accent: str = "#239b75"
+    accent_hover: str = "#2bb88a"
     danger: str = "#c0392b"
     danger_hover: str = "#e64a3a"
 
@@ -181,7 +181,7 @@ QLabel#heroSubcaption {{
     font-size: 10px;
     letter-spacing: 0.4px;
     padding-top: 1px;
-    font-style: italic;
+    font-style: normal;
 }}
 
 QLabel#aboutTitle {{
@@ -276,6 +276,28 @@ QListWidget::item:selected,
 QListView::item:selected {{
     background-color: {p.accent};
     color: {p.white};
+}}
+
+
+QFrame#leftColumn, QFrame#rightColumn {{
+    background: {p.bg_panel};
+}}
+QFrame#analysisCard {{
+    background-color: {p.bg_panel_2};
+    border: 1px solid {p.bg_border};
+    border-radius: 10px;
+}}
+QLabel#shotRowScore {{
+    color: #62d7ac;
+    font-size: 15px;
+    font-weight: 600;
+}}
+QListWidget#shotList::item:selected {{
+    background-color: #203c35;
+    border-left: 2px solid #62d7ac;
+}}
+QPushButton:focus, QToolButton:focus {{
+    border: 1px solid {p.accent_hover};
 }}
 
 /* Status bar */

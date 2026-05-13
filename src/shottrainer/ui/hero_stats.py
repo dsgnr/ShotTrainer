@@ -13,7 +13,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from shottrainer.app.target_faces import TargetRing, diagnostic_rings
 from shottrainer.services.scoring import total_score
@@ -26,7 +26,7 @@ from shottrainer.services.shot_stats import (
 )
 
 
-class _HeroFigure(QWidget):
+class _HeroFigure(QFrame):
     """A single big-number display with a caption and optional subcaption."""
 
     def __init__(
@@ -37,17 +37,18 @@ class _HeroFigure(QWidget):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        self.setObjectName("analysisCard")
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(4)
         self.value = QLabel("-")
         self.value.setObjectName("heroValue")
         self.value.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.caption = QLabel(caption.upper())
         self.caption.setObjectName("heroCaption")
         self.caption.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(self.value)
         layout.addWidget(self.caption)
+        layout.addWidget(self.value)
         self.subcaption: QLabel | None = None
         if subcaption is not None:
             self.subcaption = QLabel(subcaption)
@@ -70,7 +71,7 @@ class HeroStats(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(20)
+        layout.setSpacing(10)
 
         self._total = _HeroFigure("Total score")
         self._group = _HeroFigure("Group size", subcaption="extreme spread")

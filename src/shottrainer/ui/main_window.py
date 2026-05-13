@@ -110,7 +110,7 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 4)
         splitter.setStretchFactor(2, 1)
-        splitter.setSizes([260, 880, 300])
+        splitter.setSizes([290, 850, 300])
         self._main_splitter = splitter
 
         central = QWidget()
@@ -131,15 +131,17 @@ class MainWindow(QMainWindow):
         self._install_shortcuts()
 
     def _build_left_column(self) -> QWidget:
-        """Assemble the left column: camera preview, zero buttons, audio meter."""
+        """Assemble the left column: shot history, camera preview, and input controls."""
         col = QFrame()
         col.setObjectName("leftColumn")
-        col.setMinimumWidth(220)
+        col.setMinimumWidth(290)
         col.setMaximumWidth(320)
         layout = QVBoxLayout(col)
-        layout.setContentsMargins(20, 24, 12, 24)
-        layout.setSpacing(20)
+        layout.setContentsMargins(16, 20, 16, 20)
+        layout.setSpacing(12)
 
+        layout.addWidget(self._caption_label("SHOT HISTORY"))
+        layout.addWidget(self.shot_list, 1)
         layout.addWidget(self._caption_label("CAMERA"))
         self.camera_view.setMinimumSize(220, 165)
         self.camera_view.setMaximumHeight(220)
@@ -170,7 +172,6 @@ class MainWindow(QMainWindow):
         layout.addSpacing(12)
         layout.addWidget(self._caption_label("MIC LEVEL"))
         layout.addWidget(self.audio_meter)
-        layout.addStretch(1)
         return col
 
     def _build_centre_column(self) -> QWidget:
@@ -178,41 +179,33 @@ class MainWindow(QMainWindow):
         col = QFrame()
         col.setObjectName("centreColumn")
         layout = QVBoxLayout(col)
-        layout.setContentsMargins(12, 24, 12, 16)
+        layout.setContentsMargins(20, 20, 20, 16)
         layout.setSpacing(16)
 
+        layout.addWidget(self._caption_label("TARGET  /  AIM TRACE"))
         layout.addWidget(self.target_view, 1)
 
-        # Compact zoom + replay row sits directly under the target. No
-        # surrounding chrome. Spacing alone groups them with the target.
-        # The zoom controls take any spare width so the replay
-        # transport, slider and time readout float against the
-        # right edge.
         controls_row = QHBoxLayout()
-        controls_row.setContentsMargins(8, 0, 8, 0)
-        controls_row.setSpacing(20)
-        controls_row.addWidget(self.zoom_controls)
-        controls_row.addStretch(1)
+        controls_row.setSpacing(16)
+        controls_row.addWidget(self.zoom_controls, 1)
         controls_row.addWidget(self.replay_controls)
         layout.addLayout(controls_row)
         return col
 
     def _build_right_column(self) -> QWidget:
-        """Assemble the right column: stats, shot list, session controls."""
+        """Assemble the right column: analysis cards and session controls."""
         col = QFrame()
         col.setObjectName("rightColumn")
         col.setMinimumWidth(280)
         col.setMaximumWidth(380)
         layout = QVBoxLayout(col)
-        layout.setContentsMargins(12, 24, 24, 24)
+        layout.setContentsMargins(16, 20, 16, 20)
         layout.setSpacing(20)
 
-        layout.addWidget(self._caption_label("RESULTS"))
+        layout.addWidget(self._caption_label("ANALYSIS"))
         layout.addWidget(self.hero_stats)
 
-        layout.addSpacing(12)
-        layout.addWidget(self._caption_label("SHOTS"))
-        layout.addWidget(self.shot_list, 1)
+        layout.addStretch(1)
 
         layout.addWidget(self._caption_label("SESSION"))
         layout.addWidget(self.session_controls)

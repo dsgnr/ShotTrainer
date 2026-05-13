@@ -54,7 +54,7 @@ class ZoomControls(QWidget):
         self._readout = QLabel("- mm")
         self._readout.setObjectName("zoomReadout")
         self._readout.setMinimumWidth(72)
-        self._readout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self._readout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(self._readout)
 
         self._slider.valueChanged.connect(self._on_slider)
