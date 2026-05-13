@@ -9,7 +9,10 @@ from __future__ import annotations
 from typing import NamedTuple
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QToolButton, QWidget
+
+from .assets import asset_path
 
 
 class _StateStyle(NamedTuple):
@@ -68,9 +71,17 @@ class AppHeader(QWidget):
         layout.setContentsMargins(20, 8, 16, 8)
         layout.setSpacing(16)
 
+        brand = QHBoxLayout()
+        brand.setSpacing(10)
+        self._logo = QLabel()
+        self._logo.setFixedSize(32, 32)
+        self._logo.setPixmap(QIcon(str(asset_path("icon.svg"))).pixmap(32, 32))
+        brand.addWidget(self._logo)
+
         self._title = QLabel("ShotTrainer")
         self._title.setObjectName("appHeaderTitle")
-        layout.addWidget(self._title)
+        brand.addWidget(self._title)
+        layout.addLayout(brand)
 
         layout.addSpacing(8)
         self._state = StatePill()
