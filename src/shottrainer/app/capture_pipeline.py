@@ -22,6 +22,10 @@ from shottrainer.tracking.tracker import Tracker
 
 log = logging.getLogger(__name__)
 
+OnFrame = Callable[[np.ndarray], None]
+OnDetection = Callable[[TrackingSample, float], None]
+OnNoDetection = Callable[[Detection | None], None]
+
 
 @dataclass(slots=True)
 class FrameTransformOptions:
@@ -33,11 +37,14 @@ class FrameTransformOptions:
 
 
 class CapturePipeline:
-    """Bind a camera frame to tracker, recorder and UI side effects.
+    """Tie a camera frame to the tracker, recorder and UI side effects.
 
-    Each side effect (camera view update, target view trace append,
-    recorder write, dialog frame mirror) is supplied as a callback so
-    tests can run without a Qt window.
+    Each side effect (camera view update, target trace append,
+    recorder write, dialog frame mirror) is passed in as a
+    callback so the tests can run without a Qt window. The three
+    callback aliases (:data:`OnFrame`, :data:`OnDetection`,
+    :data:`OnNoDetection`) document what shape the controller
+    connects up.
     """
 
     def __init__(
@@ -45,9 +52,9 @@ class CapturePipeline:
         tracker: Tracker,
         buffer: TraceBuffer,
         recorder: SessionRecorder,
-        on_frame: Callable[[np.ndarray], None],
-        on_detection: Callable[[TrackingSample, float], None],
-        on_no_detection: Callable[[Detection | None], None],
+        on_frame: OnFrame,
+        on_detection: OnDetection,
+        on_no_detection: OnNoDetection,
     ) -> None:
         self._tracker = tracker
         self._buffer = buffer
