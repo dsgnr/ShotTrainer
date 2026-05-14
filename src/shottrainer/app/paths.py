@@ -17,6 +17,13 @@ APP_NAME = "ShotTrainer"
 
 
 def data_dir() -> Path:
+    """Return the app's writable data directory, creating it if needed.
+
+    Picks the platform-standard location.
+    ``%APPDATA%/ShotTrainer`` on Windows,
+    ``~/Library/Application Support/ShotTrainer`` on macOS, and
+    ``$XDG_DATA_HOME/shottrainer`` (or its default) on Linux.
+    """
     if sys.platform == "win32":
         base = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
         path = Path(base) / APP_NAME
@@ -30,4 +37,5 @@ def data_dir() -> Path:
 
 
 def database_path() -> Path:
+    """Path to the SQLite database file inside :func:`data_dir`."""
     return data_dir() / "sessions.db"

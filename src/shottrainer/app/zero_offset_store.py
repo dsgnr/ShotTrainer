@@ -20,6 +20,7 @@ log = logging.getLogger(__name__)
 
 
 def zero_offset_path() -> Path:
+    """The on-disk path for ``zero_offset.json``."""
     return data_dir() / "zero_offset.json"
 
 
