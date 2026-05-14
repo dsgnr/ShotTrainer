@@ -10,7 +10,7 @@ a real camera.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, NamedTuple
 
 import cv2
 import numpy as np
@@ -20,12 +20,20 @@ from PySide6.QtWidgets import QSizePolicy, QWidget
 
 TrackingStatus = Literal["idle", "tracking", "lost", "manual", "rejected"]
 
-_STATUS_LABELS: dict[str, tuple[str, str]] = {
-    "idle": ("Idle", "#888888"),
-    "tracking": ("Tracking", "#27ae60"),
-    "lost": ("No target", "#e67e22"),
-    "manual": ("Manual aim", "#f39c12"),
-    "rejected": ("Outside region", "#d35400"),
+
+class _StatusStyle(NamedTuple):
+    """Badge label and colour for one :data:`TrackingStatus` value."""
+
+    label: str
+    colour: str
+
+
+_STATUS_STYLES: dict[str, _StatusStyle] = {
+    "idle": _StatusStyle("Idle", "#888888"),
+    "tracking": _StatusStyle("Tracking", "#27ae60"),
+    "lost": _StatusStyle("No target", "#e67e22"),
+    "manual": _StatusStyle("Manual aim", "#f39c12"),
+    "rejected": _StatusStyle("Outside region", "#d35400"),
 }
 
 
@@ -85,7 +93,7 @@ class CameraView(QWidget):
         self.update()
 
     def set_status(self, status: TrackingStatus) -> None:
-        if status not in _STATUS_LABELS:
+        if status not in _STATUS_STYLES:
             raise ValueError(f"Unknown tracking status: {status}")
         if status != self._status:
             self._status = status
@@ -187,13 +195,13 @@ class CameraView(QWidget):
         painter.drawLine(int(cx), int(cy + gap), int(cx), int(cy + radius + 6))
 
     def _draw_status_badge(self, painter: QPainter) -> None:
-        text, colour_hex = _STATUS_LABELS[self._status]
+        style = _STATUS_STYLES[self._status]
         # Background pill in the top-left corner of the widget.
         margin = 8
         padding_x = 8
         padding_y = 4
         metrics = painter.fontMetrics()
-        text_w = metrics.horizontalAdvance(text)
+        text_w = metrics.horizontalAdvance(style.label)
         text_h = metrics.height()
         rect_w = text_w + padding_x * 2
         rect_h = text_h + padding_y
@@ -206,13 +214,13 @@ class CameraView(QWidget):
         painter.drawRoundedRect(x, y, rect_w, rect_h, 4, 4)
         # A coloured dot to make the state pop without relying on text alone.
         dot_d = 8
-        painter.setBrush(QColor(colour_hex))
+        painter.setBrush(QColor(style.colour))
         painter.drawEllipse(x + 6, y + (rect_h - dot_d) // 2, dot_d, dot_d)
         painter.setPen(QColor("#f7f7f5"))
         painter.drawText(
             x + dot_d + 12,
             y + padding_y // 2 + metrics.ascent(),
-            text,
+            style.label,
         )
         painter.restore()
 

@@ -6,13 +6,23 @@ live in the right column where they have room to breathe.
 
 from __future__ import annotations
 
+from typing import NamedTuple
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QToolButton, QWidget
 
-_STATE_COLOURS: dict[str, tuple[str, str]] = {
-    "idle": ("Idle", "#7a8090"),
-    "recording": ("Recording", "#e74c3c"),
-    "replay": ("Replay", "#2d6cdf"),
+
+class _StateStyle(NamedTuple):
+    """Display attributes for one entry in the state pill."""
+
+    text: str
+    colour: str
+
+
+_STATE_STYLES: dict[str, _StateStyle] = {
+    "idle": _StateStyle("Idle", "#7a8090"),
+    "recording": _StateStyle("Recording", "#e74c3c"),
+    "replay": _StateStyle("Replay", "#2d6cdf"),
 }
 
 
@@ -27,12 +37,12 @@ class StatePill(QLabel):
         self.set_state("idle")
 
     def set_state(self, state: str) -> None:
-        text, colour = _STATE_COLOURS.get(state, _STATE_COLOURS["idle"])
-        self.setText(text)
+        style = _STATE_STYLES.get(state, _STATE_STYLES["idle"])
+        self.setText(style.text)
         self.setStyleSheet(
             "QLabel#statePill {"
-            f"  color: {colour};"
-            f"  border: 1px solid {colour};"
+            f"  color: {style.colour};"
+            f"  border: 1px solid {style.colour};"
             "  border-radius: 12px;"
             "  padding: 4px 12px;"
             "  font-size: 11px;"
