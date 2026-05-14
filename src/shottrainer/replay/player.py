@@ -10,6 +10,15 @@ from shottrainer.tracking.models import TrackingSample
 
 
 class TracePlayer(QObject):
+    """Plays a trace back at its original sample timing, or by scrubbing.
+
+    Uses a single-shot ``QTimer`` whose interval is the gap
+    between the current sample and the next, so playback
+    respects the original cadence even when frames weren't
+    evenly spaced. ``speed`` is a multiplier, where ``2.0``
+    plays back at half the gap and ``0.5`` at double.
+    """
+
     point = Signal(float, float)  # x_mm, y_mm
     index_changed = Signal(int)
     progress = Signal(float)       # 0.0..1.0
@@ -26,6 +35,12 @@ class TracePlayer(QObject):
         self._timer.timeout.connect(self._step)
 
     def load(self, samples: Sequence[TrackingSample]) -> None:
+        """Replace the loaded trace, dropping samples without mm coordinates.
+
+        Resets the playhead to the first sample and fires an
+        initial ``index_changed`` so the view can position
+        itself before the user presses play.
+        """
         self.stop()
         self._samples = [s for s in samples if s.x_mm is not None and s.y_mm is not None]
         self._index = 0
@@ -33,9 +48,17 @@ class TracePlayer(QObject):
         self.progress.emit(0.0)
 
     def set_speed(self, speed: float) -> None:
+        """Scale the playback rate. Clamped to a minimum of 0.1x."""
         self._speed = max(0.1, speed)
 
     def play(self) -> None:
+        """Start (or resume) playback from the current playhead.
+
+        Does nothing when no trace is loaded, or when playback
+        is already running. Reaching the end and pressing play
+        again rewinds to the start, so the play button can
+        replay without an explicit reset.
+        """
         if not self._samples or self._playing:
             return
         if self._index >= len(self._samples) - 1:
@@ -44,10 +67,12 @@ class TracePlayer(QObject):
         self._schedule_next()
 
     def pause(self) -> None:
+        """Stop the timer in place. The playhead stays where it is."""
         self._playing = False
         self._timer.stop()
 
     def stop(self) -> None:
+        """Pause and rewind to the start of the trace."""
         self.pause()
         self._index = 0
         if self._samples:
@@ -55,6 +80,12 @@ class TracePlayer(QObject):
         self.progress.emit(0.0)
 
     def seek_fraction(self, f: float) -> None:
+        """Jump the playhead to ``f`` (0.0..1.0) along the trace.
+
+        Out-of-range values are clamped. Seeking doesn't
+        auto-resume playback, so the user can scrub without
+        losing their pause state.
+        """
         if not self._samples:
             return
         f = max(0.0, min(1.0, f))
@@ -64,13 +95,20 @@ class TracePlayer(QObject):
 
     @property
     def is_playing(self) -> bool:
+        """``True`` while the timer is actively advancing the playhead."""
         return self._playing
 
     @property
     def length(self) -> int:
+        """Number of samples in the loaded trace."""
         return len(self._samples)
 
     def _schedule_next(self) -> None:
+        """Set the timer to fire when the next sample's timestamp would arrive.
+
+        Fires ``finished`` and stops playing once the playhead
+        reaches the last sample.
+        """
         if self._index >= len(self._samples) - 1:
             self._playing = False
             self.finished.emit()
@@ -81,6 +119,7 @@ class TracePlayer(QObject):
         self._timer.start(delay_ms)
 
     def _step(self) -> None:
+        """Advance one sample. Called by the timer's ``timeout`` signal."""
         if not self._playing:
             return
         self._index += 1
@@ -89,6 +128,7 @@ class TracePlayer(QObject):
         self._schedule_next()
 
     def _emit_current(self) -> None:
+        """Notify listeners about the sample at ``self._index``."""
         if not self._samples:
             return
         s = self._samples[self._index]
