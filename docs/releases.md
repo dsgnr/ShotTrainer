@@ -13,9 +13,17 @@ note that in the release notes when it happens.
 - **Major releases (`x.0.0`)** Reserved for breaking changes once the
   project hits `1.0`.
 
-Releases are tagged in git as `vMAJOR.MINOR.PATCH`. The release workflow
-builds binaries for Linux, macOS and Windows and attaches them to the
-GitHub release.
+Releases are tagged in git as `vMAJOR.MINOR.PATCH`. The release
+workflow builds binaries for Linux, macOS and Windows and attaches
+them to the GitHub release. The artefacts are:
+
+- **Windows.** A signed-once-you-sign-it `ShotTrainer-Setup.exe` built
+  with Inno Setup, plus a portable `ShotTrainer-Windows.zip` for users
+  who'd rather run without installing.
+- **macOS.** A `.dmg` containing `ShotTrainer.app` and a shortcut to
+  `/Applications`, plus a `ShotTrainer-macOS.tar.gz` of the raw folder
+  build for advanced users.
+- **Linux.** A `ShotTrainer-Linux.tar.gz` of the PyInstaller folder.
 
 ## How a release happens
 
