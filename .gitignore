@@ -17,6 +17,7 @@ site/
 *.egg
 *.spec
 !packaging/*.spec
+packaging/icon.icns
 
 # Test / coverage
 .pytest_cache/

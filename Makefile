@@ -1,4 +1,4 @@
-.PHONY: install sync test lint format run package package-deps clean pylint
+.PHONY: install sync test lint format run package package-deps clean pylint dmg installer
 
 install:
 	uv sync
@@ -26,8 +26,17 @@ package-deps:
 	uv sync --extra package
 
 package: package-deps
+ifeq ($(shell uname -s),Darwin)
+	bash packaging/build_icns.sh
+endif
 	uv run --extra package pyinstaller packaging/shottrainer.spec --noconfirm
 
+dmg: package
+	bash packaging/make_dmg.sh
+
+installer: package
+	pwsh packaging/make_installer.ps1
+
 clean:
-	rm -rf build dist .pytest_cache .ruff_cache .mypy_cache
+	rm -rf build dist .pytest_cache .ruff_cache .mypy_cache packaging/icon.icns
 	find . -type d -name __pycache__ -exec rm -rf {} +
