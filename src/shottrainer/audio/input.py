@@ -65,13 +65,33 @@ class AudioShotListener(QObject):
         self._stream = None  # type: ignore[assignment]
 
     def update_settings(self, settings: ShotDetectorSettings) -> None:
+        """Swap in new shot-detector settings.
+
+        Forwards the change to the inner :class:`ShotDetector`.
+        The listener itself doesn't keep settings of its own.
+        """
         self._settings = settings
         self._detector.update_settings(settings)
 
     def set_device(self, device: str | int | None) -> None:
+        """Pick the input device for the next ``start()``.
+
+        Accepts a numeric sounddevice index, a substring of a
+        device name, or ``None`` / ``"default"`` for the system
+        default. Takes effect on the next start. A live stream
+        won't move to the new device on its own.
+        """
         self._device = device
 
     def start(self) -> None:
+        """Open the audio stream and start emitting events.
+
+        Calling ``start`` a second time when a stream is already
+        running is a no-op. Errors opening PortAudio land on the
+        :attr:`error` signal rather than being raised, so the rest
+        of the app keeps working when the user hasn't granted
+        microphone access yet.
+        """
         if self._stream is not None:
             return
         try:
@@ -98,6 +118,7 @@ class AudioShotListener(QObject):
             self.error.emit(f"Could not open microphone: {exc}")
 
     def stop(self) -> None:
+        """Close the audio stream if one is open. Always safe to call."""
         stream = self._stream
         self._stream = None
         if stream is None:
@@ -109,6 +130,12 @@ class AudioShotListener(QObject):
             self.stopped.emit()
 
     def _on_block(self, indata: np.ndarray, frames: int, time_info, status) -> None:
+        """Run the detector and emit Qt signals. Called by sounddevice for each block.
+
+        This callback runs on PortAudio's own thread. Qt queues
+        the ``shot_detected`` and ``level`` deliveries to the GUI
+        thread so receivers don't need to be thread-safe.
+        """
         if status:
             log.debug("audio status: %s", status)
 
