@@ -18,6 +18,10 @@ log = logging.getLogger(__name__)
 
 
 def make_engine(db_path: str | Path) -> Engine:
+    """Build a SQLAlchemy engine that points at ``db_path``.
+
+    Pass ``":memory:"`` to use an in-memory database.
+    """
     url = f"sqlite:///{db_path}" if str(db_path) != ":memory:" else "sqlite:///:memory:"
     engine = create_engine(url, future=True)
     _enable_sqlite_foreign_keys(engine)
@@ -25,6 +29,12 @@ def make_engine(db_path: str | Path) -> Engine:
 
 
 def _enable_sqlite_foreign_keys(engine: Engine) -> None:
+    """Turn on ``PRAGMA foreign_keys=ON`` for every fresh connection.
+
+    SQLite leaves foreign keys off by default. Without this, the
+    ``ON DELETE CASCADE`` declarations on the trace and shot
+    tables wouldn't fire when a session is deleted.
+    """
     @event.listens_for(engine, "connect")
     def _fk_pragma_on_connect(dbapi_conn, _):  # type: ignore[no-untyped-def]
         cursor = dbapi_conn.cursor()
@@ -35,6 +45,7 @@ def _enable_sqlite_foreign_keys(engine: Engine) -> None:
 
 
 def make_session_factory(engine: Engine) -> sessionmaker[OrmSession]:
+    """Return a configured ``sessionmaker`` bound to ``engine``."""
     return sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
 
