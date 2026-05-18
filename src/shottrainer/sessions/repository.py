@@ -1,7 +1,7 @@
 """Repository for sessions, traces and shots.
 
 Hides SQLAlchemy from the rest of the app. Anything that wants
-to read or to read or to read or to read or to read or to read or to read or to read or to read or to read or write persistence goes through here.
+to read or to read or to read or to read or to read or to read or to read or to read or to read or to read or to read or write persistence goes through here.
 """
 
 from __future__ import annotations
@@ -54,6 +54,7 @@ class SessionRepository:
         target_profile: str = "default",
         app_version: str = "",
     ) -> int:
+        """Insert a new session row and return its id."""
         with OrmSession(self._engine, future=True) as session:
             row = Session(
                 name=name,
@@ -66,6 +67,7 @@ class SessionRepository:
             return int(row.id)
 
     def end_session(self, session_id: int, ended_at: datetime | None = None) -> None:
+        """Stamp ``ended_at`` on a session. No-op when the row's already gone."""
         with OrmSession(self._engine, future=True) as session:
             row = session.get(Session, session_id)
             if row is None:
@@ -123,10 +125,12 @@ class SessionRepository:
             ]
 
     def get_session(self, session_id: int) -> Session | None:
+        """Fetch a session row by id, or ``None`` if it doesn't exist."""
         with OrmSession(self._engine, future=True) as session:
             return session.get(Session, session_id)
 
     def delete_session(self, session_id: int) -> None:
+        """Delete a session and cascade-delete its trace and shots."""
         with OrmSession(self._engine, future=True) as session:
             row = session.get(Session, session_id)
             if row is None:
@@ -135,6 +139,11 @@ class SessionRepository:
             session.commit()
 
     def append_trace(self, session_id: int, samples: Iterable[TrackingSample]) -> int:
+        """Bulk-insert tracking samples for a session and return the count.
+
+        Uses a Core-level ``insert(values=...)`` so we don't build
+        an ORM object per sample on the recorder's hot path.
+        """
         rows = [
             {
                 "session_id": session_id,
@@ -162,6 +171,12 @@ class SessionRepository:
         start_ts: float | None = None,
         end_ts: float | None = None,
     ) -> list[TrackingSample]:
+        """Return a session's trace samples, optionally clipped to a window.
+
+        ``start_ts`` and ``end_ts`` are inclusive monotonic seconds.
+        Either or both may be ``None`` to leave that side open.
+        Results come back ordered by timestamp.
+        """
         with OrmSession(self._engine, future=True) as session:
             stmt = select(TraceSample).where(TraceSample.session_id == session_id)
             if start_ts is not None:
@@ -173,6 +188,7 @@ class SessionRepository:
             return [_row_to_sample(r) for r in rows]
 
     def trace_count(self, session_id: int) -> int:
+        """How many trace samples are stored for a session."""
         with OrmSession(self._engine, future=True) as session:
             result = session.execute(
                 select(func.count())
@@ -192,6 +208,7 @@ class SessionRepository:
         confidence: float,
         score: str = "",
     ) -> int:
+        """Save a single shot and return its database id."""
         with OrmSession(self._engine, future=True) as session:
             shot = Shot(
                 session_id=session_id,
@@ -207,6 +224,7 @@ class SessionRepository:
             return int(shot.id)
 
     def list_shots(self, session_id: int) -> Sequence[Shot]:
+        """Return a session's shots in timestamp order."""
         with OrmSession(self._engine, future=True) as session:
             return list(
                 session.execute(
