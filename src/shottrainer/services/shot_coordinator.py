@@ -26,18 +26,30 @@ log = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class ShotCoordinatorSettings:
+    """How much of the trace to capture around each shot, expressed in milliseconds."""
+
     pre_shot_ms: int = 1500
     post_shot_ms: int = 800
 
 
 @dataclass(frozen=True, slots=True)
 class ShotResult:
+    """A shot event plus the nearest sample and the trace around it."""
+
     event: ShotEvent
     sample: TrackingSample | None
     trace: list[TrackingSample]
 
 
 class ShotCoordinator:
+    """Match each :class:`ShotEvent` up with the trace it belongs to.
+
+    Holds a reference to the trace buffer and a settings object.
+    Doesn't write anything to the database itself. The recorder
+    and the UI are the ones that act on the resulting
+    :class:`ShotResult`.
+    """
+
     def __init__(
         self,
         buffer: TraceBuffer,
@@ -47,9 +59,18 @@ class ShotCoordinator:
         self._settings = settings or ShotCoordinatorSettings()
 
     def update_settings(self, settings: ShotCoordinatorSettings) -> None:
+        """Swap in new pre/post window values when the user edits them."""
         self._settings = settings
 
     def handle_shot(self, event: ShotEvent) -> ShotResult:
+        """Bind a shot event to the trace.
+
+        Looks up the sample whose timestamp is closest to
+        ``event.timestamp`` and grabs the pre/post window around
+        it. When the buffer is empty (audio fired before any
+        tracking samples arrived) the result still carries the
+        event but ``sample`` is ``None``.
+        """
         nearest = self._buffer.nearest(event.timestamp)
         s = self._settings
         start = event.timestamp - s.pre_shot_ms / 1000.0
