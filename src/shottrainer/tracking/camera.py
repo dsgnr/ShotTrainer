@@ -128,6 +128,12 @@ class CameraCapture(QObject):
         self._frame_id = 0
 
     def start(self) -> None:
+        """Spin up the worker thread and start capturing.
+
+        Each ``CameraCapture`` is single-use. To restart capture
+        the caller builds a new instance. Calling ``start`` twice
+        on the same instance is a no-op.
+        """
         if self._thread is not None:
             return
         thread = QThread()
@@ -205,6 +211,7 @@ class CameraCapture(QObject):
         return float(value)
 
     def _run(self) -> None:
+        """Open the camera and emit frames until stopped. Runs on the worker thread."""
         cfg = self._config
         cap = cv2.VideoCapture(cfg.device_index, cfg.backend)
         if not cap.isOpened():
