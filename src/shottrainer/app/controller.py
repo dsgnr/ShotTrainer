@@ -182,6 +182,13 @@ class AppController(QObject):
         self._audio.stop()
 
     def _connect_signals(self) -> None:
+        """Connect every UI signal to its controller slot.
+
+        Centralising the connections here means the controller
+        is a single place to look for who reacts to what.
+        Subclasses and tests can audit the connections at a
+        glance.
+        """
         sc = self._window.session_controls
         sc.start_requested.connect(self._on_start_requested)
         sc.stop_requested.connect(self._on_stop_requested)
@@ -259,6 +266,15 @@ class AppController(QObject):
             log.warning("Could not save camera selection: %s", exc)
 
     def _start_camera(self, device_index: int) -> None:
+        """Tear down any running capture and bring up a fresh one.
+
+        Always recreates the :class:`CameraCapture` instance because
+        the worker is single-use. Reusing it would risk a stale
+        thread reference. Hardware property values from
+        :attr:`_preferences` are copied into the new config so the
+        camera comes up at the user's preferred brightness, gain
+        and so on.
+        """
         self._stop_camera()
         cam = CameraCapture(self._camera_config_from_prefs(device_index))
         cam.frame_ready.connect(self._on_frame)
@@ -267,6 +283,12 @@ class AppController(QObject):
         self._camera = cam
 
     def _camera_config_from_prefs(self, device_index: int) -> CameraConfig:
+        """Build a :class:`CameraConfig` from preferences for ``device_index``.
+
+        Falls back to a bare config if preferences haven't loaded
+        yet (the very first call, before ``_apply_preferences``
+        runs).
+        """
         prefs = getattr(self, "_preferences", None)
         if prefs is None:
             return CameraConfig(device_index=device_index)
@@ -280,12 +302,19 @@ class AppController(QObject):
         )
 
     def _stop_camera(self) -> None:
+        """Stop the worker thread and reset the camera view's status pill."""
         if self._camera is not None:
             self._camera.stop()
             self._camera = None
             self._window.camera_view.set_status("idle")
 
     def _device_options(self) -> tuple[list[tuple[int, str]], list[str]]:
+        """List cameras and microphones for the Preferences dialog.
+
+        The camera list is cached so
+        :meth:`_persist_camera_selection` can look up a label by
+        index later without going to the device tree again.
+        """
         cameras = list_available_cameras() or [(0, "Camera 0")]
         mics = list_audio_inputs()
         # Cache so ``_persist_camera_selection`` doesn't re-probe.
@@ -293,15 +322,18 @@ class AppController(QObject):
         return cameras, mics
 
     def _on_frame(self, frame: np.ndarray, ts: float, frame_id: int) -> None:
+        """Feed every frame from the camera signal into the capture pipeline."""
         self._pipeline.process(frame, ts, frame_id)
 
     def _on_pipeline_frame(self, frame: np.ndarray) -> None:
+        """Update the live preview and frame mirrors."""
         self._latest_frame = frame
         self._window.camera_view.set_frame(frame)
         for mirror in self._frame_mirrors:
             mirror.push_frame(frame)
 
     def _on_pipeline_detection(self, sample, radius_px: float) -> None:
+        """Append the new sample to the live trace."""
         self._window.camera_view.set_aim_point(sample.x_px, sample.y_px, radius_px=radius_px)
         self._window.camera_view.set_rejected_point(None, None)
         self._window.camera_view.set_status("tracking")
@@ -311,6 +343,12 @@ class AppController(QObject):
             self._refresh_tracking_status()
 
     def _on_pipeline_miss(self, detection) -> None:
+        """Surface "lost" or "rejected" status appropriately.
+
+        A detection rejected for sitting outside the tracking
+        region gets a distinct visual cue so the user can see
+        that something circular was found and ignored.
+        """
         if detection is not None and detection.rejected_outside_region:
             self._window.camera_view.set_rejected_point(
                 detection.x_px, detection.y_px, radius_px=detection.radius_px
@@ -364,6 +402,7 @@ class AppController(QObject):
         )
 
     def _on_zero_cleared(self) -> None:
+        """Drop the zero offset, save it, and refresh the UI."""
         self._tracker.clear_zero_offset()
         self._persist_zero_offset((0.0, 0.0))
         self._window.set_zero_offset_state(False, (0.0, 0.0))
@@ -372,12 +411,20 @@ class AppController(QObject):
         self._window.statusBar().showMessage("Zero offset cleared", 2000)
 
     def _persist_zero_offset(self, offset: tuple[float, float]) -> None:
+        """Save the zero offset to disk. Log and carry on if it fails."""
         try:
             save_zero_offset(offset)
         except OSError as exc:
             log.warning("Could not save zero offset: %s", exc)
 
     def _on_shot_detected(self, event: ShotEvent) -> None:
+        """Handle a detected shot. Save it if a session is recording and update the screen.
+
+        Asks :class:`ShotCoordinator` for the trace sample
+        nearest the shot's timestamp, scores it against the
+        active face, adds it to ``_shots_in_view``, and (if a
+        recording is in progress) saves it to the database.
+        """
         result = self._coordinator.handle_shot(event)
         sample = result.sample
         x_mm = sample.x_mm if sample else None
@@ -450,6 +497,7 @@ class AppController(QObject):
         )
 
     def _render_shots(self) -> None:
+        """Push the in-memory shot list out to every widget that shows it."""
         markers = [
             ShotMarker(s.x_mm, s.y_mm, label=str(i + 1), score=s.score or "")
             for i, s in enumerate(self._shots_in_view)
@@ -470,11 +518,19 @@ class AppController(QObject):
         self._window.hero_stats.set_scores([s.score or "" for s in self._shots_in_view])
 
     def _refresh_stats(self) -> None:
+        """Recompute group statistics for the current shot list."""
         positions = [(s.x_mm, s.y_mm) for s in self._shots_in_view]
         self._window.hero_stats.update_from_positions(positions)
         self._window.hero_stats.set_trace_points(None)
 
     def _on_start_requested(self, name: str) -> None:
+        """Open a new recording session.
+
+        Resets the trace buffer, the on-screen shot list and the
+        replay overlays so the new session starts clean. Ignored
+        when a recording is already in progress. The caller is
+        expected to ``stop`` first.
+        """
         if self._recorder.is_recording:
             return
         self._buffer.clear()
@@ -495,6 +551,7 @@ class AppController(QObject):
         self._window.header.set_state("recording")
 
     def _on_stop_requested(self) -> None:
+        """Stop the current recording, if any."""
         if not self._recorder.is_recording:
             return
         sid = self._recorder.stop()
@@ -505,6 +562,12 @@ class AppController(QObject):
         self._window.header.set_state("idle")
 
     def _on_clear_shots_requested(self) -> None:
+        """Confirm with the user, then drop the on-screen shot list.
+
+        Saved sessions aren't touched. This only clears what's
+        currently rendered. The confirmation prompt is the only
+        guard against an accidental click.
+        """
         if not self._shots_in_view:
             return
         from PySide6.QtWidgets import QMessageBox
@@ -606,11 +669,19 @@ class AppController(QObject):
         self._window.statusBar().showMessage("Preferences updated from disk", 3000)
 
     def _open_session_browser(self) -> None:
+        """Open the session-browser dialog, modal to the main window."""
         dialog = SessionBrowserDialog(self._repo, parent=self._window)
         dialog.open_session.connect(self._load_session_for_replay)
         dialog.exec()
 
     def _load_session_for_replay(self, session_id: int) -> None:
+        """Load a saved session's shots into the view for replay.
+
+        The trace itself is loaded one shot at a time when the
+        user picks a shot, rather than eagerly. A whole
+        session's trace can be megabytes, where one shot's window
+        is a few KB.
+        """
         if self._recorder.is_recording:
             self._window.statusBar().showMessage("Stop recording before opening a session", 4000)
             return
@@ -639,6 +710,13 @@ class AppController(QObject):
         self._window.replay_controls.set_enabled(False)
 
     def _on_shot_selected(self, index: int) -> None:
+        """Load the chosen shot's window into the replay UI.
+
+        Pulls the trace samples bracketing the shot, isolates the
+        shot's marker, configures the three-colour ramp around
+        the release window, and updates the hold-zone overlay
+        from the pre-shot statistics.
+        """
         self._window.target_view.set_selected_shot(index)
         if self._current_view_session_id is None:
             return
@@ -774,6 +852,7 @@ class AppController(QObject):
         self._start_camera(index)
 
     def _on_camera_property_changed(self, name: str, value: object) -> None:
+        """Push a slider change into the live camera in real time."""
         if self._camera is None:
             return
         # ``value`` is float | None at runtime. The dialog's signal types
@@ -781,6 +860,12 @@ class AppController(QObject):
         self._camera.set_property(name, value if value is not None else None)
 
     def _on_optimise_requested(self) -> None:
+        """Run the auto-tuner against the latest frame and persist the result.
+
+        Surfaces a status message either way: success reports the
+        confidence score. Failure tells the user why nothing
+        changed.
+        """
         if self._latest_frame is None:
             self._window.statusBar().showMessage(
                 "No camera frame available to optimise from", 4000
@@ -804,6 +889,7 @@ class AppController(QObject):
         )
 
     def _on_reset_detector_requested(self) -> None:
+        """Reset the detector to defaults and delete the saved file."""
         defaults = DetectorSettings(region_fraction=self._preferences.tracking_region_fraction)
         self._tracker.detector.settings = defaults
         clear_detector_settings()
