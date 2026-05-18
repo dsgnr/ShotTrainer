@@ -25,11 +25,24 @@ log = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class RecorderConfig:
+    """Knobs for how often the recorder flushes its buffer."""
+
     flush_every: int = 60          # samples
     flush_seconds: float = 1.0     # or this many seconds, whichever comes first
 
 
 class SessionRecorder:
+    """Persists a single session's trace and shots while it's running.
+
+    Owns no threads. The caller feeds it samples and shots from
+    whichever signal handler is doing the work. Samples are
+    queued up and written in batches so the database isn't
+    hammered with one transaction per frame. A batch flushes
+    after ``flush_every`` samples arrive or once ``flush_seconds``
+    of trace time has gone by since the last flush, whichever
+    comes first.
+    """
+
     def __init__(
         self,
         repository: SessionRepository,
@@ -43,10 +56,12 @@ class SessionRecorder:
 
     @property
     def session_id(self) -> int | None:
+        """The current session's database id. ``None`` between recordings."""
         return self._session_id
 
     @property
     def is_recording(self) -> bool:
+        """``True`` while a session is live and accepting samples."""
         return self._session_id is not None
 
     def start(
@@ -57,6 +72,12 @@ class SessionRecorder:
         target_profile: str = "default",
         app_version: str = "",
     ) -> int:
+        """Open a new session in the database and return its id.
+
+        Raises ``RuntimeError`` if a session is already running.
+        The caller has to ``stop()`` first before starting
+        another one.
+        """
         if self._session_id is not None:
             raise RuntimeError("Session already in progress")
         sid = self._repo.create_session(
@@ -72,6 +93,12 @@ class SessionRecorder:
         return sid
 
     def add_sample(self, sample: TrackingSample) -> None:
+        """Queue a sample, flushing if we've hit a batch threshold.
+
+        Drops the sample silently when no session is running, so
+        the controller can connect this slot unconditionally
+        without guarding every call site.
+        """
         if self._session_id is None:
             return
         self._pending.append(sample)
@@ -91,6 +118,12 @@ class SessionRecorder:
         confidence: float,
         score: str = "",
     ) -> int | None:
+        """Save a shot, flushing any pending samples up to its timestamp first.
+
+        We flush first so the saved trace doesn't have a gap right
+        where the shot lands. That way the replay window query
+        returns samples that bracket the shot cleanly.
+        """
         if self._session_id is None:
             return None
         # Flush so every sample up to the shot is persisted before
@@ -107,6 +140,10 @@ class SessionRecorder:
         )
 
     def stop(self) -> int | None:
+        """Flush, mark the session ended, return its id.
+
+        Returns ``None`` if no session was running.
+        """
         if self._session_id is None:
             return None
         self._flush(self._last_flush_ts)
@@ -117,6 +154,7 @@ class SessionRecorder:
         return sid
 
     def _flush(self, now_ts: float) -> None:
+        """Write the pending samples to the database in one batch."""
         if not self._pending or self._session_id is None:
             return
         self._repo.append_trace(self._session_id, self._pending)
