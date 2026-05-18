@@ -24,6 +24,14 @@ from shottrainer.ui.theme import apply_dark_theme
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Boot the Qt app and the controller, returning Qt's exit code.
+
+    Handles all the lifecycle bits that don't belong to the
+    controller. Logging setup, the Qt application, the icon
+    set, the dark theme, and the saved window geometry. The
+    controller is built last so the rest of the scaffolding
+    is in place by the time it starts pulling frames.
+    """
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -65,6 +73,7 @@ def main(argv: list[str] | None = None) -> int:
     window.restore_main_splitter_sizes(state.main_splitter_sizes)
 
     def _persist_state() -> None:
+        """Save the window geometry and splitter sizes on quit."""
         try:
             save_ui_state(
                 UiState(
