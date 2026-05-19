@@ -43,20 +43,28 @@ def load_ui_state(path: Path | None = None) -> UiState:
     if not p.exists():
         return UiState()
     try:
-        raw = json.loads(p.read_text())
-    except (OSError, json.JSONDecodeError) as exc:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         log.warning("Could not read %s: %s. Using defaults", p, exc)
+        return UiState()
+    if not isinstance(raw, dict):
         return UiState()
     geometry = raw.get("window_geometry_b64", "")
     sizes = raw.get("main_splitter_sizes", [])
     if not isinstance(geometry, str) or not isinstance(sizes, list):
         return UiState()
-    return UiState(
-        window_geometry_b64=geometry,
-        main_splitter_sizes=[
-            int(s) for s in sizes if isinstance(s, int) or str(s).lstrip("-").isdigit()
-        ],
-    )
+    valid_sizes = []
+    for size in sizes:
+        if isinstance(size, bool) or not isinstance(size, (int, str)):
+            continue
+        try:
+            value = int(size)
+        except ValueError:
+            continue
+        # Qt expects non-negative signed 32-bit integers for pane sizes.
+        if 0 <= value <= 2**31 - 1:
+            valid_sizes.append(value)
+    return UiState(window_geometry_b64=geometry, main_splitter_sizes=valid_sizes)
 
 
 def save_ui_state(state: UiState, path: Path | None = None) -> None:
