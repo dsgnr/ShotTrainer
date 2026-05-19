@@ -1,3 +1,7 @@
+---
+description: "Use NSRA, ISSF and other federation targets with ShotTrainer. Configure the aiming circle diameter and select a target face for tracking and scoring."
+---
+
 # Using federation targets (NSRA, ISSF, and others)
 
 ShotTrainer can track standard competition targets as well as the supplied

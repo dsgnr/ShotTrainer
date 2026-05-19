@@ -1,3 +1,7 @@
+---
+description: "Share a camera test report with the ShotTrainer community using this template for specifications, mounting, lenses and tracking results."
+---
+
 # Camera Submission Template
 
 > Replace this entire file with notes about the camera. Copy it to

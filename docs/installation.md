@@ -1,3 +1,8 @@
+---
+title: "Install on Windows, macOS and Linux"
+description: "Download and install ShotTrainer on Windows, macOS or Linux. Follow platform-specific setup steps for the free, open-source optical shooting trainer."
+---
+
 # Installation
 
 Pre-built versions of ShotTrainer are available from the project's

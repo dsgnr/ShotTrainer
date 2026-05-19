@@ -1,3 +1,8 @@
+---
+title: "Shot replay and aim trace analysis"
+description: "Replay your aim trace before, during and after each shot in ShotTrainer. Review hold stability, trigger release and follow-through with playback controls."
+---
+
 # Shot replay
 
 <video src="./assets/img/replay_shot.mp4" autoplay loop muted playsinline></video>

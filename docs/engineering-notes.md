@@ -1,3 +1,7 @@
+---
+description: "Read the design decisions behind ShotTrainer’s target detection, optical tracking and shot analysis, including experiments and implementation trade-offs."
+---
+
 # Engineering notes
 
 A running record of design decisions, experiments, and trade-offs made during

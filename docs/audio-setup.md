@@ -1,3 +1,8 @@
+---
+title: "Microphone setup and shot detection"
+description: "Set up microphone input for automatic shot detection in ShotTrainer. Adjust sensitivity and timing to capture shots and avoid false triggers."
+---
+
 # Setting up your microphone
 
 ShotTrainer uses a microphone to detect shots automatically.

@@ -1,3 +1,7 @@
+---
+description: "Browse saved ShotTrainer sessions, review shots and aim traces, export practice data and manage your local session history."
+---
+
 # Session history and export
 
 ![Session list](./assets/img/session_list.jpg)

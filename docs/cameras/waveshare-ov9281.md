@@ -1,3 +1,7 @@
+---
+description: "Explore the Waveshare OV9281 USB-C global shutter camera for ShotTrainer, with sensor specifications, lens mounting and practical setup notes."
+---
+
 # Waveshare OV9281 (USB-C, Global Shutter)
 
 | Field               | Value                                                 |

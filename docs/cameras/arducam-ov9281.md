@@ -1,3 +1,7 @@
+---
+description: "Read Arducam OV9281 camera test notes for ShotTrainer, including lens tests, mounting, target detection and comparison with the Waveshare board."
+---
+
 # Arducam OV9281 (USB, Global Shutter)
 
 !!! note "Superseded by the Waveshare OV9281"

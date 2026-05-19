@@ -1,3 +1,7 @@
+---
+description: "Mount and align your camera for ShotTrainer. Set the tracking circle size and use Zero on aim to account for the offset between the camera and bore."
+---
+
 # Setup and camera alignment
 
 Practical guide for getting the camera mounted on the rifle, lined up with the

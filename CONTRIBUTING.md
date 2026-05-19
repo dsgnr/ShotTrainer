@@ -99,12 +99,18 @@ format.
 
 ## Documentation
 
-The docs live in [`docs/`](docs/) and build with mkdocs-material:
+The docs live in [`docs/`](docs/) and build with Zensical:
 
 ```bash
 make docs-serve     # local preview at http://localhost:8000
 make docs-build     # one-off build into site/
 ```
+
+Give each page a unique `description` in its YAML front matter. Use `title`
+when a more descriptive search title is needed. The shared template generates
+Open Graph and Twitter preview metadata, and Zensical supplies canonical URLs
+and the sitemap. `make docs-build` and CI validate the generated metadata with
+`scripts/check_docs_seo.py`.
 
 GitHub Pages publishes the site from
 [`.github/workflows/docs.yml`](.github/workflows/docs.yml) on every push to

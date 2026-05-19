@@ -1,3 +1,7 @@
+---
+description: "Print a tracking marker sheet for ShotTrainer and match the circle diameter to your settings for camera-based aim tracking in millimetres."
+---
+
 # Printing a marker sheet
 
 The marker sheet provides a simple, high-contrast aiming mark that ShotTrainer

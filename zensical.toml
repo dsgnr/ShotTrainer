@@ -5,7 +5,7 @@
 
 [project]
 site_name = "ShotTrainer"
-site_description = "Open-source optical shooting trainer with camera tracking and audio shot detection."
+site_description = "Free, open-source optical shooting trainer for air rifle, air pistol and smallbore practice. Camera-based aim tracking, shot scoring and replay."
 site_url = "https://dsgnr.github.io/ShotTrainer/"
 repo_url = "https://github.com/dsgnr/ShotTrainer"
 repo_name = "dsgnr/ShotTrainer"

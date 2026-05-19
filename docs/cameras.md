@@ -1,3 +1,8 @@
+---
+title: "Cameras for optical shooting practice"
+description: "Compare cameras tested with ShotTrainer, including OV9281 global shutter boards, lens choices and practical notes for different shooting distances."
+---
+
 # Cameras overview
 
 This page collects community reports on cameras that have been tested with
