@@ -17,12 +17,14 @@ at 50 m may be excellent indoors at 10 m.
 
 ## Reported results
 
-Add new entries by sending a pull request that updates this file. Include
-your camera model, the distance you tested at, the focal length / zoom
-configuration, and a short note about the result.
+Each camera has its own page with photos, mount notes and any
+discipline-specific tweaks. Add a new entry by copying
+[`cameras/template.md`](cameras/template.md), filling it in, and
+sending a pull request along with photos in
+[`cameras/images/`](https://github.com/dsgnr/ShotTrainer/tree/main/docs/cameras/images).
 
-| Camera | Resolution | Range | Grade | Notes |
-|--------|------------|-------|-------|-------|
+| Camera | Resolution | Range | Grade | Details |
+|--------|------------|-------|-------|---------|
 | _No reports yet, be the first to send one!_ | | | | |
 
 ## What hurts the most
@@ -52,5 +54,5 @@ enough pixels on the target. Common solutions:
 - A smartphone with a long-throw lens, sharing video over Continuity
   Camera or NDI.
 
-We don't endorse any specific lens or camera. Choices depend on the
-rifle discipline you're shooting. Reports welcome.
+ShotTrainer doesn't endorse any specific lens or camera. Choices depend
+on the rifle discipline being shot. Reports welcome.
