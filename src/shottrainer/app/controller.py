@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Protocol
 
 import numpy as np
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QObject, Qt, Signal
 
 from shottrainer import __version__
 from shottrainer.app.preferences import Preferences
@@ -35,6 +35,7 @@ from shottrainer.sessions.repository import SessionRepository
 from shottrainer.tracking.camera import CameraCapture, CameraConfig, list_available_cameras
 from shottrainer.tracking.detector import DetectorSettings
 from shottrainer.tracking.detector_tuning import optimise_detector_settings
+from shottrainer.tracking.models import Detection, TrackingSample
 from shottrainer.tracking.tracker import Tracker
 from shottrainer.ui.main_window import MainWindow
 from shottrainer.ui.session_browser import SessionBrowserDialog
@@ -101,6 +102,16 @@ class AppController(QObject):
     # doesn't repaint at the camera's full frame rate.
     _STATUS_REFRESH_EVERY_N_FRAMES = 5
 
+    # Internal signal used to hop the per-frame result from the
+    # camera worker thread to the GUI thread. The capture
+    # pipeline runs on the worker so contour detection and the
+    # rolling-average updates don't tie up the GUI's event loop.
+    # The slot on the other end only does widget repaints, which
+    # have to run on the GUI thread anyway.
+    # Carries ``(frame, sample_or_None, last_radius_px,
+    # last_detection_or_None)``.
+    _frame_processed = Signal(object, object, float, object)
+
     def __init__(self, window: MainWindow, db_path: Path) -> None:
         super().__init__()
         self._window = window
@@ -123,9 +134,16 @@ class AppController(QObject):
             tracker=self._tracker,
             buffer=self._buffer,
             recorder=self._recorder,
-            on_frame=self._on_pipeline_frame,
-            on_detection=self._on_pipeline_detection,
-            on_no_detection=self._on_pipeline_miss,
+            # Pipeline callbacks are deliberate no-ops. The
+            # controller reacts to ``_frame_processed`` instead so
+            # widget updates are guaranteed to land on the GUI
+            # thread. The pipeline still owns the buffer append
+            # and the recorder write (both safe in the way
+            # they're used here), which can stay on the worker
+            # thread.
+            on_frame=lambda _frame: None,
+            on_detection=lambda _sample, _radius: None,
+            on_no_detection=lambda _detection: None,
         )
 
         self._player = TracePlayer(self)
@@ -220,6 +238,14 @@ class AppController(QObject):
         self._window.zero_cleared.connect(self._on_zero_cleared)
         self._window.rescore_requested.connect(self._on_rescore_requested)
 
+        # ``_frame_processed`` is emitted from the camera worker
+        # thread. Qt queues the slot call onto the GUI thread
+        # automatically because this ``QObject`` was created
+        # there. All widget updates land on the right thread
+        # without the controller having to know about thread
+        # affinity.
+        self._frame_processed.connect(self._on_frame_processed)
+
     def _effective_camera_index(self) -> int | None:
         """Pick the camera index to use given the saved selection.
 
@@ -280,7 +306,15 @@ class AppController(QObject):
         """
         self._stop_camera()
         cam = CameraCapture(self._camera_config_from_prefs(device_index))
-        cam.frame_ready.connect(self._on_frame)
+        # ``DirectConnection`` keeps the per-frame work
+        # (transform, detect, smoothing update) on the camera's
+        # worker thread. Without it Qt would queue every frame
+        # onto the GUI thread, where at 120 fps the detector
+        # would fight the live preview's repaint and the queue
+        # would back up. The slot itself emits a signal back to
+        # the GUI thread for the widget updates that actually
+        # need to run there.
+        cam.frame_ready.connect(self._on_frame, type=Qt.ConnectionType.DirectConnection)
         cam.error.connect(self._on_camera_error)
         cam.start()
         self._camera = cam
@@ -325,43 +359,66 @@ class AppController(QObject):
         return cameras, mics
 
     def _on_frame(self, frame: np.ndarray, ts: float, frame_id: int) -> None:
-        """Feed every frame from the camera signal into the capture pipeline."""
-        self._pipeline.process(frame, ts, frame_id)
+        """Feed every frame from the camera signal into the capture pipeline.
 
-    def _on_pipeline_frame(self, frame: np.ndarray) -> None:
-        """Update the live preview and frame mirrors."""
+        Runs on the camera worker thread (``DirectConnection``).
+        Detection, EMA updates, buffer append and recorder writes
+        all happen here so the GUI thread doesn't see the heavy
+        per-frame work. Only the resulting widget updates are
+        sent across via ``_frame_processed``.
+        """
+        sample = self._pipeline.process(frame, ts, frame_id)
+        # Take a snapshot of the tracker state so the GUI handler
+        # reads consistent values even though the worker thread
+        # might keep going. The frame itself is copied so the
+        # pipeline is free to mutate or release the original
+        # buffer.
+        last_radius_px = self._tracker.last_radius_px
+        last_detection = self._tracker.last_detection
+        self._frame_processed.emit(frame.copy(), sample, last_radius_px, last_detection)
+
+    def _on_frame_processed(
+        self,
+        frame: np.ndarray,
+        sample: TrackingSample | None,
+        last_radius_px: float,
+        last_detection: Detection | None,
+    ) -> None:
+        """GUI-thread handler for the per-frame pipeline result.
+
+        Updates the camera preview, the tracking-status badge and
+        the live trace. Runs after the heavy detection work has
+        already finished on the worker thread.
+        """
         self._latest_frame = frame
         self._window.camera_view.set_frame(frame)
         for mirror in self._frame_mirrors:
             mirror.push_frame(frame)
 
-    def _on_pipeline_detection(self, sample, radius_px: float) -> None:
-        """Append the new sample to the live trace."""
-        self._window.camera_view.set_aim_point(sample.x_px, sample.y_px, radius_px=radius_px)
+        if sample is None:
+            if last_detection is not None and last_detection.rejected_outside_region:
+                self._window.camera_view.set_rejected_point(
+                    last_detection.x_px,
+                    last_detection.y_px,
+                    radius_px=last_detection.radius_px,
+                )
+                self._window.camera_view.set_aim_point(None, None)
+                self._window.camera_view.set_status("rejected")
+                return
+            self._window.camera_view.set_rejected_point(None, None)
+            self._window.camera_view.set_aim_point(None, None)
+            self._window.camera_view.set_status("lost")
+            return
+
+        self._window.camera_view.set_aim_point(
+            sample.x_px, sample.y_px, radius_px=last_radius_px
+        )
         self._window.camera_view.set_rejected_point(None, None)
         self._window.camera_view.set_status("tracking")
         if sample.x_mm is not None and sample.y_mm is not None:
             self._window.target_view.append_trace_point(sample.x_mm, sample.y_mm)
         if sample.frame_id % self._STATUS_REFRESH_EVERY_N_FRAMES == 0:
             self._refresh_tracking_status()
-
-    def _on_pipeline_miss(self, detection) -> None:
-        """Surface "lost" or "rejected" status appropriately.
-
-        A detection rejected for sitting outside the tracking
-        region gets a distinct visual cue so the user can see
-        that something circular was found and ignored.
-        """
-        if detection is not None and detection.rejected_outside_region:
-            self._window.camera_view.set_rejected_point(
-                detection.x_px, detection.y_px, radius_px=detection.radius_px
-            )
-            self._window.camera_view.set_aim_point(None, None)
-            self._window.camera_view.set_status("rejected")
-            return
-        self._window.camera_view.set_rejected_point(None, None)
-        self._window.camera_view.set_aim_point(None, None)
-        self._window.camera_view.set_status("lost")
 
     def _refresh_tracking_status(self) -> None:
         """Update the header line with the current mm-per-pixel."""
