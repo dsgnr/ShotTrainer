@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import numpy as np
 import pytest
 
@@ -13,6 +15,35 @@ from shottrainer.ui.session_controls import SessionControls
 from shottrainer.ui.shot_list import ShotList, ShotListEntry
 from shottrainer.ui.target_view import ShotMarker, TargetView
 from shottrainer.ui.zoom_controls import ZoomControls
+
+
+def test_unmapped_shot_row_explains_missing_position(qtbot):
+    from PySide6.QtWidgets import QLabel
+
+    panel = ShotList()
+    qtbot.addWidget(panel)
+    panel.set_shots([ShotListEntry(index=0, timestamp=0.0, x_mm=None, y_mm=None)])
+    label = panel.findChild(QLabel, "shotRowOffset")
+    assert label.text() == "Position unavailable"
+
+
+def test_unmapped_markers_are_hidden_without_shifting_selection(qtbot):
+    view = TargetView()
+    qtbot.addWidget(view)
+    view.set_shots(
+        [ShotMarker(None, None, "1"), ShotMarker(None, 2.0, "2"), ShotMarker(3.0, 4.0, "3")]
+    )
+    painter = MagicMock()
+    view._draw_shots(painter, 100.0, 100.0, 1.0)
+    painter.drawEllipse.assert_called_once()
+    assert painter.drawEllipse.call_args.args[0].x() == 103.0
+
+    painter.reset_mock()
+    view.set_isolate_selected_shot(True)
+    view.set_selected_shot(2)
+    view._draw_shots(painter, 100.0, 100.0, 1.0)
+    painter.drawEllipse.assert_called_once()
+    assert painter.drawText.call_args.args[-1] == "3"
 
 
 def test_shot_list_emits_selection(qtbot):

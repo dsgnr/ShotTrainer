@@ -27,8 +27,8 @@ from PySide6.QtWidgets import (
 class ShotListEntry:
     index: int
     timestamp: float
-    x_mm: float
-    y_mm: float
+    x_mm: float | None
+    y_mm: float | None
     score: str | None = None
 
 
@@ -100,8 +100,8 @@ class ShotList(QWidget):
             row = _ShotRow(
                 index=e.index,
                 score=getattr(e, "score", None),
-                x_mm=getattr(e, "x_mm", 0.0),
-                y_mm=getattr(e, "y_mm", 0.0),
+                x_mm=getattr(e, "x_mm", None),
+                y_mm=getattr(e, "y_mm", None),
             )
             item = QListWidgetItem()
             item.setSizeHint(row.sizeHint())
@@ -168,8 +168,8 @@ class _ShotRow(QWidget):
         self,
         index: int,
         score: str | None,
-        x_mm: float,
-        y_mm: float,
+        x_mm: float | None,
+        y_mm: float | None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -190,7 +190,12 @@ class _ShotRow(QWidget):
         score_label.setMinimumWidth(40)
         layout.addWidget(score_label)
 
-        offset = QLabel(f"{x_mm:+5.1f}, {y_mm:+5.1f}\u202fmm")
+        position = (
+            f"{x_mm:+5.1f}, {y_mm:+5.1f}\u202fmm"
+            if x_mm is not None and y_mm is not None
+            else "Position unavailable"
+        )
+        offset = QLabel(position)
         offset.setObjectName("shotRowOffset")
         offset.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
         layout.addWidget(offset, 1)

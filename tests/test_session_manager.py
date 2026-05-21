@@ -8,7 +8,11 @@ import pytest
 
 from shottrainer.app.preferences import Preferences
 from shottrainer.app.session_manager import SessionManager, ShotEntry
+from shottrainer.audio.models import ShotEvent
 from shottrainer.replay.player import TracePlayer
+from shottrainer.services.shot_coordinator import ShotResult
+from shottrainer.sessions.database import init_database, make_engine
+from shottrainer.sessions.repository import SessionRepository
 from shottrainer.tracking.models import TrackingSample
 
 
@@ -158,6 +162,42 @@ def test_rescore_noop_when_empty(session_mgr: SessionManager):
     session_mgr._shots_in_view = []
     session_mgr.on_rescore_requested()
     session_mgr._window.statusBar().showMessage.assert_called()
+
+
+@pytest.mark.parametrize("position", [None, (None, None), (1.0, None), (None, 2.0)])
+def test_unmapped_live_shots_remain_unscored(session_mgr, position):
+    event = ShotEvent(timestamp=1.0, audio_level=0.5, sample_rate=44100)
+    sample = (
+        TrackingSample(timestamp=1.0, x_px=1.0, y_px=2.0, x_mm=position[0], y_mm=position[1])
+        if position is not None
+        else None
+    )
+    session_mgr._coordinator.handle_shot.return_value = ShotResult(event, sample, [])
+
+    session_mgr.on_shot_detected(event)
+    session_mgr.on_rescore_requested()
+
+    shot = session_mgr.shots_in_view[0]
+    assert (shot.x_mm, shot.y_mm) == (position or (None, None))
+    assert shot.score is None
+    session_mgr._window.hero_stats.update_from_positions.assert_called_with([])
+
+
+def test_rescoring_saved_unmapped_shots_does_not_award_bullseyes(session_mgr):
+    engine = make_engine(":memory:")
+    init_database(engine)
+    repo = SessionRepository(engine)
+    session_mgr._repo = repo
+    sid = repo.create_session()
+    for x, y in [(None, None), (None, 0.0), (0.0, None), (0.0, 0.0)]:
+        repo.add_shot(sid, ts=1.0, x_mm=x, y_mm=y, audio_level=0.5, confidence=1.0)
+
+    session_mgr._load_session_for_replay(sid)
+    session_mgr.on_rescore_requested()
+
+    scores = [shot.score for shot in repo.list_shots(sid)]
+    assert scores == ["", "", "", "X"]
+    session_mgr._window.hero_stats.update_from_positions.assert_called_with([(0.0, 0.0)])
 
 
 def test_replay_play(session_mgr: SessionManager):

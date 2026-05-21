@@ -44,8 +44,8 @@ class ShotEntry:
     """
 
     timestamp: float
-    x_mm: float
-    y_mm: float
+    x_mm: float | None
+    y_mm: float | None
     score: str | None = None
     shot_id: int | None = None
 
@@ -239,8 +239,8 @@ class SessionManager:
         self._shots_in_view.append(
             ShotEntry(
                 timestamp=event.timestamp,
-                x_mm=x_mm or 0.0,
-                y_mm=y_mm or 0.0,
+                x_mm=x_mm,
+                y_mm=y_mm,
                 score=score or None,
                 shot_id=shot_id,
             )
@@ -394,8 +394,8 @@ class SessionManager:
         self._shots_in_view = [
             ShotEntry(
                 timestamp=s.ts,
-                x_mm=s.x_mm or 0.0,
-                y_mm=s.y_mm or 0.0,
+                x_mm=s.x_mm,
+                y_mm=s.y_mm,
                 score=s.score or None,
                 shot_id=int(s.id),
             )
@@ -447,6 +447,10 @@ class SessionManager:
 
     def _refresh_stats(self) -> None:
         """Recompute group statistics for the current shot list."""
-        positions = [(s.x_mm, s.y_mm) for s in self._shots_in_view]
+        positions = [
+            (s.x_mm, s.y_mm)
+            for s in self._shots_in_view
+            if s.x_mm is not None and s.y_mm is not None
+        ]
         self._window.hero_stats.update_from_positions(positions)
         self._window.hero_stats.set_trace_points(None)

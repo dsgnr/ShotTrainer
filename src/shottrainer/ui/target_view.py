@@ -31,8 +31,8 @@ DEFAULT_RINGS: tuple[TargetRing, ...] = (
 
 @dataclass(frozen=True, slots=True)
 class ShotMarker:
-    x_mm: float
-    y_mm: float
+    x_mm: float | None
+    y_mm: float | None
     label: str = ""
     score: str = ""
 
@@ -457,6 +457,8 @@ class TargetView(QWidget):
         diameter_px = max(4.0, self._shot_diameter_mm * scale)
         radius_px = diameter_px / 2.0
         for i, shot in enumerate(self._shots):
+            if shot.x_mm is None or shot.y_mm is None:
+                continue
             if self._isolate_selected_shot:
                 if i != self._selected_shot:
                     continue
