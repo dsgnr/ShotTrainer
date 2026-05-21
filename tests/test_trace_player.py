@@ -104,10 +104,18 @@ def test_play_after_finishing_rewinds_to_the_start(qtbot, player):
     # Now the playhead is at the last sample. Pressing play again
     # should start the trace over.
     progress_values: list[float] = []
+    points: list[tuple[float, float]] = []
+    indices: list[int] = []
     player.progress.connect(progress_values.append)
+    player.point.connect(lambda x, y: points.append((x, y)))
+    player.index_changed.connect(indices.append)
     with qtbot.waitSignal(player.finished, timeout=2000):
         player.play()
-    assert progress_values[0] == pytest.approx(1 / 3)  # second sample (index 1 of 0..3)
+        assert progress_values == [0.0]
+        assert points == [(0.0, 0.0)]
+        assert indices == [0]
+    assert points == [(float(i), -float(i)) for i in range(4)]
+    assert indices == [0, 1, 2, 3]
     assert progress_values[-1] == pytest.approx(1.0)
 
 
