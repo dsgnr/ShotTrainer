@@ -117,10 +117,8 @@ class SessionManager:
             return
         self._buffer.clear()
         self._shots_in_view.clear()
-        self._window.target_view.clear_trace()
-        self._window.target_view.set_trace_segments(release_index=None, shot_index=None)
-        self._window.target_view.set_isolate_selected_shot(False)
-        self._window.target_view.set_hold_zone(None)
+        self._current_view_session_id = None
+        self._clear_replay()
         self._render_shots()
         self._refresh_stats()
 
@@ -165,10 +163,7 @@ class SessionManager:
             return
 
         self._shots_in_view.clear()
-        self._window.target_view.clear_trace()
-        self._window.target_view.set_trace_segments(release_index=None, shot_index=None)
-        self._window.target_view.set_isolate_selected_shot(False)
-        self._window.target_view.set_hold_zone(None)
+        self._clear_replay()
         self._render_shots()
         self._refresh_stats()
         self._window.statusBar().showMessage("Display cleared", 2000)
@@ -207,12 +202,7 @@ class SessionManager:
         del self._shots_in_view[index]
         # Drop any replay state pointing at the removed shot so the
         # target view doesn't continue to highlight it.
-        self._window.target_view.clear_trace()
-        self._window.target_view.set_trace_segments(release_index=None, shot_index=None)
-        self._window.target_view.set_isolate_selected_shot(False)
-        self._window.target_view.set_hold_zone(None)
-        self._window.replay_controls.set_enabled(False)
-        self._window.replay_controls.set_window_duration_ms(None)
+        self._clear_replay()
         self._render_shots()
         self._refresh_stats()
         self._window.statusBar().showMessage("Shot deleted", 2000)
@@ -319,6 +309,17 @@ class SessionManager:
         self._player.stop()
         self._window.replay_controls.set_playing(False)
 
+    def _clear_replay(self) -> None:
+        """Unload the old trace and reset its controls and overlays."""
+        self._player.load([])
+        self._window.replay_controls.set_playing(False)
+        self._window.replay_controls.set_enabled(False)
+        self._window.replay_controls.set_window_duration_ms(None)
+        self._window.target_view.clear_trace()
+        self._window.target_view.set_trace_segments(release_index=None, shot_index=None)
+        self._window.target_view.set_isolate_selected_shot(False)
+        self._window.target_view.set_hold_zone(None)
+
     def on_shot_selected(self, index: int) -> None:
         """Load the chosen shot's window into the replay UI.
 
@@ -389,10 +390,7 @@ class SessionManager:
         shots = self._repo.list_shots(session_id)
 
         self._current_view_session_id = session_id
-        self._window.target_view.clear_trace()
-        self._window.target_view.set_trace_segments(release_index=None, shot_index=None)
-        self._window.target_view.set_isolate_selected_shot(False)
-        self._window.target_view.set_hold_zone(None)
+        self._clear_replay()
         self._shots_in_view = [
             ShotEntry(
                 timestamp=s.ts,
@@ -405,8 +403,6 @@ class SessionManager:
         ]
         self._render_shots()
         self._refresh_stats()
-        self._window.replay_controls.set_enabled(False)
-        self._window.replay_controls.set_window_duration_ms(None)
 
     def _score_for(self, x_mm: float | None, y_mm: float | None) -> str:
         """Score a shot against the current target face."""

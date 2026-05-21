@@ -8,6 +8,8 @@ import pytest
 
 from shottrainer.app.preferences import Preferences
 from shottrainer.app.session_manager import SessionManager, ShotEntry
+from shottrainer.replay.player import TracePlayer
+from shottrainer.tracking.models import TrackingSample
 
 
 @pytest.fixture()
@@ -186,3 +188,44 @@ def test_load_session_blocked_when_recording(session_mgr: SessionManager):
     session_mgr._load_session_for_replay(1)
     session_mgr._window.statusBar().showMessage.assert_called()
     session_mgr._repo.list_shots.assert_not_called()
+
+
+@pytest.mark.parametrize("action", ["start", "load", "clear", "delete"])
+def test_changing_display_discards_previous_replay(session_mgr, qtbot, monkeypatch, action):
+    from PySide6.QtWidgets import QMessageBox
+
+    player = TracePlayer()
+    session_mgr._player = player
+    session_mgr._current_view_session_id = 7
+    session_mgr._shots_in_view = [ShotEntry(timestamp=0.0, x_mm=1.0, y_mm=2.0)]
+    player.load(
+        [TrackingSample(timestamp=ts, x_px=0.0, y_px=0.0, x_mm=1.0, y_mm=2.0) for ts in (0.0, 10.0)]
+    )
+    player.play()
+    monkeypatch.setattr(QMessageBox, "question", lambda *_a, **_k: QMessageBox.StandardButton.Yes)
+
+    try:
+        if action == "start":
+            session_mgr.on_start_requested("New session", app_version="1.0.0")
+        elif action == "load":
+            session_mgr._repo.list_shots.return_value = []
+            session_mgr._load_session_for_replay(8)
+        elif action == "clear":
+            session_mgr.on_clear_shots_requested()
+        else:
+            session_mgr.on_shot_delete_requested(0)
+
+        assert not player.is_playing
+        assert player.length == 0
+        session_mgr._window.replay_controls.set_enabled.assert_called_with(False)
+        session_mgr._window.replay_controls.set_playing.assert_called_with(False)
+        session_mgr._window.replay_controls.set_window_duration_ms.assert_called_with(None)
+        # Keyboard shortcuts must not restart the old trace either.
+        session_mgr.on_replay_play()
+        assert not player.is_playing
+        if action == "start":
+            assert session_mgr._current_view_session_id is None
+        elif action == "load":
+            assert session_mgr._current_view_session_id == 8
+    finally:
+        player.stop()
