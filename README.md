@@ -24,6 +24,29 @@ isn't achievable with this kind of setup, and
 [`docs/cameras.md`](docs/cameras.md) for success and failure stories
 with various cameras people have tried.
 
+## Contents
+
+- [What it does](#what-it-does)
+- [How it's set up](#how-its-set-up)
+- [Documentation](#documentation)
+- [Installing](#installing)
+  - [Windows](#windows)
+  - [macOS](#macos)
+  - [Linux](#linux)
+- [Running](#running)
+  - [Keyboard shortcuts](#keyboard-shortcuts)
+- [Status](#status)
+- [Requirements](#requirements)
+- [Development](#development)
+  - [Setup](#setup)
+  - [Workflow](#workflow)
+  - [Pre-commit hooks (optional)](#pre-commit-hooks-optional)
+  - [Project layout](#project-layout)
+- [Calibration](#calibration)
+- [Packaging](#packaging)
+- [Troubleshooting](#troubleshooting)
+- [Licence](#licence)
+
 ## What it does
 
 - Live preview of what the barrel-mounted camera sees.
@@ -43,6 +66,80 @@ with various cameras people have tried.
    and builds a millimetres-per-pixel mapping for the target plane.
 4. Aim, shoot, repeat. The trace and hit position appear in real time.
 
+## Documentation
+
+- [Setup and camera alignment](docs/setup.md)
+- [How tracking works](docs/how-tracking-works.md)
+- [Accuracy and target sizing](docs/accuracy.md)
+- [Cameras tested](docs/cameras.md)
+- [Using federation targets (NSRA, ISSF)](docs/provided-targets.md)
+- [Architecture](docs/architecture.md)
+- [Calibration](docs/calibration.md)
+- [Engineering notes](docs/engineering-notes.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Releases and upgrades](docs/releases.md)
+
+The same docs are published as a site at
+<https://dsgnr.github.io/ShotTrainer/> via GitHub Pages.
+
+## Installing
+
+Pre-built downloads are attached to each tagged release on
+[GitHub releases](https://github.com/dsgnr/ShotTrainer/releases).
+Pick the one for your platform.
+
+### Windows
+
+1. Download `ShotTrainer-Setup.exe` from the latest release.
+2. Run it and follow the installer.
+3. Launch ShotTrainer from the Start menu.
+
+A portable `ShotTrainer-Windows.zip` is also published. Unzip
+anywhere and run `ShotTrainer.exe` from the unpacked folder if you'd
+rather not install.
+
+### macOS
+
+1. Download `ShotTrainer-macOS.dmg` from the latest release.
+2. Open the .dmg and drag **ShotTrainer.app** into your Applications
+   folder.
+3. The first launch will prompt for camera and microphone access. Allow
+   both.
+
+The app isn't yet signed by an Apple Developer ID, so on first launch
+macOS may show "ShotTrainer can't be opened because Apple cannot check
+it for malicious software". Right-click the app and pick **Open** to
+override. MacOS remembers the choice from then on.
+
+### Linux
+
+1. Download `ShotTrainer-Linux.tar.gz` from the latest release.
+2. Extract somewhere convenient: `tar -xzf ShotTrainer-Linux.tar.gz`.
+3. Run `./ShotTrainer/ShotTrainer`.
+
+You'll need access to `/dev/video*` (usually via the `video` group)
+and a working PortAudio install (PulseAudio or ALSA). On Wayland you
+may need the X11 plugin if PySide6 cannot find a working Wayland
+platform plugin on your system.
+
+## Running
+
+```bash
+shottrainer
+```
+
+When running from source via `uv`:
+
+```bash
+uv run shottrainer
+```
+
+### Keyboard shortcuts
+
+- `Ctrl+S` (`Cmd+S` on macOS): start or stop the current session.
+- `Ctrl+R` (`Cmd+R`): clear the displayed shots (only when not recording).
+- `Space`: play / pause replay when a shot is selected.
+
 ## Status
 
 The app boots, runs the live preview, detects shots, records sessions, and
@@ -56,7 +153,7 @@ time-in-ring percentages over the pre-shot window of the selected shot. See
 
 ## Requirements
 
-- Python 3.11 or newer.
+- Python 3.11 or newer (only for source installs, not for the packaged builds).
 - A webcam, ideally with manual focus and decent zoom.
 - A microphone within hearing range of the firing point.
 - Operating system: Windows, macOS, or Linux.
@@ -65,7 +162,9 @@ On macOS you will be prompted for camera and microphone permissions the first
 time the app runs. On Linux the user must be in the appropriate `video` and
 `audio` groups, or have access to `/dev/video*` and ALSA/PulseAudio.
 
-## Development setup
+## Development
+
+### Setup
 
 We use [uv](https://docs.astral.sh/uv/) to manage Python and dependencies.
 If you don't already have it:
@@ -88,26 +187,20 @@ or upgrade a dependency edit `pyproject.toml` and run `uv lock`.
 If `sounddevice` fails to install you may need PortAudio. On macOS:
 `brew install portaudio`. On Debian/Ubuntu: `sudo apt install libportaudio2`.
 
-## Running
+Run from source with:
 
 ```bash
 uv run shottrainer
 ```
 
-Or, if you've activated the `.venv` manually:
+Or, if you've activated `.venv` manually:
 
 ```bash
 shottrainer
 # or: python -m shottrainer.app.main
 ```
 
-### Keyboard shortcuts
-
-- `Ctrl+S` (`Cmd+S` on macOS): start or stop the current session.
-- `Ctrl+R` (`Cmd+R`): clear the displayed shots (only when not recording).
-- `Space`: play / pause replay when a shot is selected.
-
-## Development workflow
+### Workflow
 
 The Makefile wraps the common commands:
 
@@ -118,6 +211,8 @@ make lint       # ruff check
 make format     # ruff format + auto-fixable lints
 make run        # launch the app
 make package    # PyInstaller build, see packaging/README.md
+make dmg        # macOS only: build dist/ShotTrainer-macOS.dmg
+make installer  # Windows only: build dist/ShotTrainer-Setup.exe
 ```
 
 Run them directly with `uv run` if you'd rather not use Make.
@@ -147,7 +242,7 @@ uvx pre-commit install
 Hooks then run on every `git commit`. Run them manually with
 `uvx pre-commit run --all-files`.
 
-## Project layout
+### Project layout
 
 ```
 src/shottrainer/
@@ -178,23 +273,13 @@ Calibration must be redone if the camera or target moves. See
 ## Packaging
 
 PyInstaller specs live under `packaging/`. The README in that directory
-covers platform-specific notes (PySide6 plugins, OpenCV bundling, signing).
+covers platform-specific notes (PySide6 plugins, OpenCV bundling, signing,
+DMG and Inno Setup installer).
 
 ## Troubleshooting
 
 See [`docs/troubleshooting.md`](docs/troubleshooting.md) for the common
 issues with cameras, microphones, calibration, and replay.
-
-## More documentation
-
-- [Setup and camera alignment](docs/setup.md)
-- [How tracking works](docs/how-tracking-works.md)
-- [Accuracy and target sizing](docs/accuracy.md)
-- [Cameras tested](docs/cameras.md)
-- [Using federation targets (NSRA, ISSF)](docs/provided-targets.md)
-- [Architecture](docs/architecture.md)
-- [Calibration](docs/calibration.md)
-- [Engineering notes](docs/engineering-notes.md)
 
 ## Licence
 
