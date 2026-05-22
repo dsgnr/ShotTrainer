@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from shottrainer.app.preferences import Preferences
 from shottrainer.app.settings import load_preferences, save_preferences
 
@@ -36,4 +38,11 @@ def test_ignores_unknown_keys(tmp_path: Path):
 def test_falls_back_on_garbage_file(tmp_path: Path):
     p = tmp_path / "settings.json"
     p.write_text("not json")
+    assert load_preferences(p) == Preferences()
+
+
+@pytest.mark.parametrize("payload", [b"null", b"[]", b"42", b"true", b'"text"', b"\xff\xfe"])
+def test_invalid_settings_document_uses_defaults(tmp_path, payload):
+    p = tmp_path / "settings.json"
+    p.write_bytes(payload)
     assert load_preferences(p) == Preferences()
