@@ -59,7 +59,8 @@ class TargetView(QWidget):
 
         self._rings: tuple[TargetRing, ...] = DEFAULT_RINGS
         self._extent_mm: float = 90.0
-        self._trace: deque[tuple[float, float]] = deque(maxlen=600)
+        self._live_trace_capacity = 600
+        self._trace: deque[tuple[float, float]] = deque(maxlen=self._live_trace_capacity)
         # Mirror of ``_trace`` split into the three replay phases.
         # Stored in target-space mm. The painter applies the
         # zoom and centre offset at draw time, so a resize or a
@@ -125,14 +126,19 @@ class TargetView(QWidget):
             self.update()
 
     def set_trace_capacity(self, n: int) -> None:
-        """Set the maximum number of trace samples retained.
+        """Set the maximum number of live trace samples retained.
+
+        A loaded replay keeps its full trace so its phase and playhead
+        indices continue to match the player.
 
         Args:
             n: Maximum trace length (clamped to at least 1).
         """
         capacity = max(1, n)
-        self._trace = deque(self._trace, maxlen=capacity)
-        self._rebuild_trace_polygons()
+        self._live_trace_capacity = capacity
+        if self._trace.maxlen is not None:
+            self._trace = deque(self._trace, maxlen=capacity)
+            self._rebuild_trace_polygons()
 
     def append_trace_point(self, x_mm: float, y_mm: float) -> None:
         """Append a single point to the live trace.
@@ -185,7 +191,7 @@ class TargetView(QWidget):
         Args:
             points: Iterable of (x_mm, y_mm) positions.
         """
-        self._trace = deque(points, maxlen=self._trace.maxlen)
+        self._trace = deque(points)
         self._live_aim = self._trace[-1] if self._trace else None
         self._playhead_index = None
         self._rebuild_trace_polygons()
@@ -240,7 +246,8 @@ class TargetView(QWidget):
 
     def clear_trace(self) -> None:
         """Remove all trace points and the live aim dot."""
-        self._trace.clear()
+        self._trace = deque(maxlen=self._live_trace_capacity)
+        self._playhead_index = None
         self._live_aim = None
         self._rebuild_trace_polygons()
         self.update()

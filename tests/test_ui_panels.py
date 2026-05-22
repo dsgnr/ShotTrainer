@@ -121,6 +121,23 @@ def test_target_view_accumulates_trace_then_clears(qtbot):
     assert len(tv._trace) == 0
 
 
+def test_replay_keeps_the_full_trace_beyond_live_capacity(qtbot):
+    view = TargetView()
+    qtbot.addWidget(view)
+    view.set_trace_capacity(4)
+    points = [(float(i), 0.0) for i in range(10)]
+    view.set_trace(points)
+    view.set_trace_capacity(3)
+    assert list(view._trace) == points
+
+    view.set_playhead_index(9)
+    view.clear_trace()
+    assert view._playhead_index is None
+    for point in points:
+        view.append_trace_point(*point)
+    assert list(view._trace) == points[-3:]
+
+
 def test_target_view_records_shots(qtbot):
     tv = TargetView()
     qtbot.addWidget(tv)

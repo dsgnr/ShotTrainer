@@ -10,10 +10,12 @@ from shottrainer.app.preferences import Preferences
 from shottrainer.app.session_manager import SessionManager, ShotEntry
 from shottrainer.audio.models import ShotEvent
 from shottrainer.replay.player import TracePlayer
+from shottrainer.services.replay_coordinator import ShotWindow
 from shottrainer.services.shot_coordinator import ShotResult
 from shottrainer.sessions.database import init_database, make_engine
 from shottrainer.sessions.repository import SessionRepository
 from shottrainer.tracking.models import TrackingSample
+from shottrainer.ui.target_view import TargetView
 
 
 @pytest.fixture()
@@ -220,6 +222,33 @@ def test_replay_reset(session_mgr: SessionManager):
     session_mgr.on_replay_reset()
     session_mgr._player.stop.assert_called_once()
     session_mgr._window.replay_controls.set_playing.assert_called_with(False)
+
+
+def test_selecting_a_shot_initialises_the_target_playhead(session_mgr, qtbot):
+    target = TargetView()
+    qtbot.addWidget(target)
+    player = TracePlayer()
+    player.index_changed.connect(target.set_playhead_index)
+    session_mgr._player = player
+    session_mgr._window.target_view = target
+    session_mgr._current_view_session_id = 7
+    session_mgr._shots_in_view = [ShotEntry(timestamp=1.0, x_mm=1.0, y_mm=2.0)]
+    samples = [
+        TrackingSample(timestamp=ts, x_px=0.0, y_px=0.0, x_mm=ts, y_mm=0.0)
+        for ts in (0.0, 1.0, 2.0)
+    ]
+    session_mgr._replay.shot_window.return_value = ShotWindow(samples, split_index=1)
+
+    session_mgr.on_shot_selected(0)
+
+    assert target._playhead_index == 0
+    assert not target._playhead_has_reached_shot()
+    player.seek_fraction(1.0)
+    assert target._playhead_has_reached_shot()
+
+    session_mgr.on_start_requested("Next session", app_version="1.0.0")
+    assert target._playhead_index is None
+    assert not target._isolate_selected_shot
 
 
 def test_load_session_blocked_when_recording(session_mgr: SessionManager):
