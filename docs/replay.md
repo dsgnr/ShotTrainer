@@ -18,6 +18,10 @@ To replay a shot, click any shot in the shot list.
 The target view switches from the live display to the recorded trace for that
 shot, and the replay controls become available.
 
+Replay uses samples with a tracked position. Missing positions are omitted;
+the remaining samples retain their recorded timing. If the shot window has no
+tracked positions, the replay controls stay disabled.
+
 ## Understanding the trace
 
 The replay trace is divided into three coloured sections, making it easy to
