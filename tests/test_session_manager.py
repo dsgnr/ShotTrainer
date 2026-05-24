@@ -185,6 +185,35 @@ def test_unmapped_live_shots_remain_unscored(session_mgr, position):
     session_mgr._window.hero_stats.update_from_positions.assert_called_with([])
 
 
+@pytest.mark.parametrize("source", ["live", "replay"])
+@pytest.mark.parametrize("has_pre_shot_trace", [True, False])
+def test_hold_statistics_only_use_mapped_pre_shot_points(session_mgr, source, has_pre_shot_trace):
+    event = ShotEvent(timestamp=1.0, audio_level=0.5, sample_rate=44100)
+    samples = [TrackingSample(timestamp=1.1, x_px=0.0, y_px=0.0, x_mm=100.0, y_mm=100.0)]
+    if has_pre_shot_trace:
+        samples = [
+            TrackingSample(timestamp=0.5, x_px=0.0, y_px=0.0, x_mm=1.0, y_mm=2.0),
+            TrackingSample(timestamp=0.7, x_px=0.0, y_px=0.0),
+            TrackingSample(timestamp=1.0, x_px=0.0, y_px=0.0, x_mm=3.0, y_mm=4.0),
+            *samples,
+        ]
+
+    if source == "live":
+        session_mgr._coordinator.handle_shot.return_value = ShotResult(event, None, samples)
+        session_mgr.on_shot_detected(event)
+    else:
+        session_mgr._current_view_session_id = 1
+        session_mgr._shots_in_view = [ShotEntry(timestamp=1.0, x_mm=3.0, y_mm=4.0)]
+        mapped = [s for s in samples if s.x_mm is not None and s.y_mm is not None]
+        session_mgr._replay.shot_window.return_value = ShotWindow(
+            mapped, split_index=1 if has_pre_shot_trace else 0
+        )
+        session_mgr.on_shot_selected(0)
+
+    expected = [(1.0, 2.0), (3.0, 4.0)] if has_pre_shot_trace else []
+    session_mgr._window.hero_stats.set_trace_points.assert_called_with(expected)
+
+
 def test_rescoring_saved_unmapped_shots_does_not_award_bullseyes(session_mgr):
     engine = make_engine(":memory:")
     init_database(engine)
