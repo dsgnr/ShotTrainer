@@ -5,7 +5,7 @@ description: "Replay your aim trace before, during and after each shot in ShotTr
 
 # Shot replay
 
-<video src="./assets/img/replay_shot.mp4" autoplay loop muted playsinline></video>
+<video src="./assets/img/replay_shot.mp4" poster="../assets/img/app.jpg" controls muted playsinline preload="metadata" aria-label="Shot replay showing the aim trace before and after a shot"></video>
 
 Shot replay allows you to examine the aiming trace recorded around an individual
 shot. By stepping through the trace, you can see how the rifle moved before the
@@ -13,7 +13,8 @@ shot, at the moment the shot broke, and during follow-through.
 
 ## Opening a replay
 
-To replay a shot, click any shot in the shot list.
+Open a saved session from the [session browser](session-browser.md), then click
+a shot in the shot list.
 
 The target view switches from the live display to the recorded trace for that
 shot, and the replay controls become available.

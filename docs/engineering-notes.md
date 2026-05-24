@@ -162,17 +162,18 @@ Lens calibration can be added later without changing the tracker architecture.
 
 Shot detection is based on:
 
-- Short-term RMS energy
-- An adaptive baseline
+- A high-pass filter to remove DC offset and reduce low-frequency noise
+- Short-term RMS energy compared with the configured threshold
 - A configurable refractory window
 
 This works well for clearly audible shots in typical shooting environments.
 
+The threshold is fixed until you change the audio preferences; there is no
+adaptive noise baseline. Adjust the threshold and gain for the microphone and
+room, using the [audio setup guide](audio-setup.md). Handling noise can still
+trigger a shot if it exceeds the threshold.
+
 ### Alternatives considered
-
-#### Fixed amplitude threshold
-
-Very simple, but prone to false triggers from handling noise.
 
 #### Spectral or impulse detection
 

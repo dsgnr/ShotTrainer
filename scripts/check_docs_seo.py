@@ -1,4 +1,4 @@
-"""Validate search and sharing metadata after building the documentation."""
+"""Validate metadata and local media after building the documentation."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import tomllib
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import unquote, urljoin, urlsplit
 
 
 class PageMetadata(HTMLParser):
@@ -17,12 +17,17 @@ class PageMetadata(HTMLParser):
         self.canonicals: list[str] = []
         self.meta: dict[str, list[str]] = {}
         self.schemas: list[str] = []
+        self.media: list[str] = []
         self._title = False
         self._schema = False
         self.feed(html)
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
+        if tag in {"img", "video", "audio", "source"} and "src" in attributes:
+            self.media.append(attributes["src"] or "")
+        if tag == "video" and "poster" in attributes:
+            self.media.append(attributes["poster"] or "")
         if tag == "title":
             self.titles.append("")
             self._title = True
@@ -49,6 +54,23 @@ class PageMetadata(HTMLParser):
             self.schemas[-1] += data
 
 
+def validate_local_media(page: PageMetadata, page_url: str, base: str, site: Path) -> None:
+    """Check media against built page URLs, including project-site subpaths."""
+    base_url = urlsplit(base)
+    for reference in page.media:
+        media_url = urlsplit(urljoin(page_url, reference))
+        if (media_url.scheme, media_url.netloc) != (base_url.scheme, base_url.netloc):
+            continue
+        assert media_url.path.startswith(base_url.path), (
+            f"Local media outside site: {reference} on {page_url}"
+        )
+        relative = unquote(media_url.path.removeprefix(base_url.path))
+        asset = (site / relative).resolve()
+        assert asset.is_relative_to(site.resolve()) and asset.is_file(), (
+            f"Missing local media: {reference} on {page_url}"
+        )
+
+
 def main() -> None:
     root = Path(__file__).resolve().parents[1]
     config = tomllib.loads((root / "zensical.toml").read_text())["project"]
@@ -66,7 +88,8 @@ def main() -> None:
             if not relative or relative.endswith("/")
             else site / relative
         )
-        page = PageMetadata(html.read_text())
+        page = PageMetadata(html.read_text(encoding="utf-8"))
+        validate_local_media(page, url, base, site)
         assert page.canonicals == [url], f"Canonical mismatch: {url}"
         assert len(page.titles) == 1 and page.titles[0].strip(), f"Missing title: {url}"
         title = page.titles[0].strip()
@@ -106,7 +129,7 @@ def main() -> None:
             assert any(
                 json.loads(schema)["@type"] == "SoftwareApplication" for schema in page.schemas
             )
-    print(f"SEO metadata verified for {len(urls)} pages.")
+    print(f"SEO metadata and local media verified for {len(urls)} pages.")
 
 
 if __name__ == "__main__":
