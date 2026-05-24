@@ -79,6 +79,22 @@ QLabel#columnCaption {
     text-transform: uppercase;
 }
 
+/* Inline hints under buttons in the left column. */
+QLabel#inlineHint {
+    color: #8a93a4;
+    font-size: 11px;
+    line-height: 1.3;
+    padding: 0 0 4px 0;
+}
+
+/* Always-visible help text under a form field. */
+QLabel#formHint {
+    color: #8a93a4;
+    font-size: 11px;
+    line-height: 1.3;
+    padding: 2px 0 6px 0;
+}
+
 /* Hero figures */
 QLabel#heroValue {
     color: #f6f7f8;
