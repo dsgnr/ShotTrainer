@@ -1,4 +1,4 @@
-"""The per-frame pipeline. Transforms each frame, runs the tracker, then dispatches to widgets and services.
+"""The per-frame pipeline. Runs the tracker and fires the side effects each frame triggers.
 
 Lifted out of ``AppController`` so that class doesn't end up as
 a dumping ground for every per-frame concern. The pipeline lives
@@ -16,7 +16,6 @@ import numpy as np
 
 from shottrainer.services.session_recorder import SessionRecorder
 from shottrainer.services.trace_buffer import TraceBuffer
-from shottrainer.tracking.frame_ops import transform_frame
 from shottrainer.tracking.models import Detection, TrackingSample
 from shottrainer.tracking.tracker import Tracker
 
@@ -29,11 +28,19 @@ OnNoDetection = Callable[[Detection | None], None]
 
 @dataclass(slots=True)
 class FrameTransformOptions:
-    """Pre-tracker frame transforms covering rotation and mirror flips."""
+    """Per-frame transforms applied before the tracker sees the frame.
+
+    Covers the geometric transforms (rotation, mirror flips) and
+    the software image controls (brightness, contrast). The
+    controller keeps the active options and applies them to each
+    incoming frame before handing it to the pipeline.
+    """
 
     rotation_degrees: int = 0
     flip_horizontal: bool = False
     flip_vertical: bool = False
+    brightness: float = 0.0  # additive offset, 0..255 units, 0 = no change
+    contrast: float = 1.0  # multiplier, 1.0 = no change
 
 
 class CapturePipeline:
@@ -62,10 +69,6 @@ class CapturePipeline:
         self._on_frame = on_frame
         self._on_detection = on_detection
         self._on_no_detection = on_no_detection
-        self._transform = FrameTransformOptions()
-
-    def set_transform(self, options: FrameTransformOptions) -> None:
-        self._transform = options
 
     def process(
         self,
@@ -73,14 +76,7 @@ class CapturePipeline:
         ts: float,
         frame_id: int | None = None,
     ) -> TrackingSample | None:
-        """Apply transforms, run the tracker, dispatch side effects."""
-        opts = self._transform
-        frame = transform_frame(
-            frame,
-            rotation_degrees=opts.rotation_degrees,
-            flip_horizontal=opts.flip_horizontal,
-            flip_vertical=opts.flip_vertical,
-        )
+        """Run the tracker on ``frame`` and fire the side effects."""
         self._on_frame(frame)
 
         sample = self._tracker.process(frame, ts, frame_id)

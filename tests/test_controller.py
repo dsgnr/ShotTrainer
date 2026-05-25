@@ -94,12 +94,6 @@ class _StubCameraCapture:
     def stop(self) -> None:
         pass
 
-    def set_property(self, name: str, value: float | None) -> bool:
-        return True
-
-    def get_property(self, name: str) -> float | None:
-        return None
-
 
 class _StubAudioListener:
     """A no-op stand-in for :class:`AudioShotListener`."""
