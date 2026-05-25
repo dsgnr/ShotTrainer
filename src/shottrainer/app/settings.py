@@ -6,11 +6,28 @@ import json
 import logging
 from dataclasses import asdict, fields
 from pathlib import Path
+from typing import Any
 
 from .paths import data_dir
 from .preferences import Preferences
+from .settings_validation import matches_setting_type
 
 log = logging.getLogger(__name__)
+
+# Match the ranges offered by the Preferences dialog.
+_RANGES = {
+    "camera_brightness": (-100, 100),
+    "camera_contrast": (0.5, 2.0),
+    "audio_gain": (0.1, 10.0),
+    "shot_threshold": (0.01, 1.0),
+    "shot_refractory_ms": (50, 5000),
+    "pre_shot_ms": (0, 10000),
+    "post_shot_ms": (0, 10000),
+    "release_window_ms": (50, 2000),
+    "shot_diameter_mm": (0.5, 25.0),
+    "tracking_region_fraction": (0.1, 1.0),
+    "circle_diameter_mm": (5.0, 1000.0),
+}
 
 
 def settings_path() -> Path:
@@ -42,20 +59,27 @@ def load_preferences(path: Path | None = None) -> Preferences:
     unknown = set(raw) - valid
     if unknown:
         log.debug("Ignoring unknown preference keys: %s", sorted(unknown))
-    filtered = {k: v for k, v in raw.items() if k in valid}
-    # ``camera_brightness`` and ``camera_contrast`` used to be
-    # ``float | None`` in a 0..1 range. They're plain floats now,
-    # with different defaults. Drop a stale ``None`` so the
-    # dataclass falls back to its default instead of raising on
-    # the wrong type.
-    for key in ("camera_brightness", "camera_contrast"):
-        if filtered.get(key) is None:
-            filtered.pop(key, None)
-    try:
-        return Preferences(**filtered)
-    except TypeError as exc:
-        log.warning("Settings file looks invalid: %s. Using defaults", exc)
-        return Preferences()
+    defaults = Preferences()
+    filtered: dict[str, Any] = {}
+    for key, value in raw.items():
+        if key not in valid:
+            continue
+        if key == "camera_id" and value is None:
+            filtered[key] = None
+            continue
+        valid_value = matches_setting_type(value, getattr(defaults, key))
+        if valid_value and key in _RANGES:
+            low, high = _RANGES[key]
+            valid_value = low <= value <= high
+        if valid_value and key == "camera_rotation":
+            valid_value = value in (0, 90, 180, 270)
+        if valid_value and key == "camera_id":
+            valid_value = value >= 0
+        if valid_value:
+            filtered[key] = value
+        else:
+            log.warning("Invalid preference %s. Using its default", key)
+    return Preferences(**filtered)
 
 
 def save_preferences(prefs: Preferences, path: Path | None = None) -> None:

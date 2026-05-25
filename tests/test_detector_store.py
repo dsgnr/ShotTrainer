@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -62,4 +63,25 @@ def test_clear_silently_handles_missing_file(tmp_path: Path):
 def test_invalid_detector_document_uses_defaults(tmp_path, payload):
     p = tmp_path / "detector.json"
     p.write_bytes(payload)
+    assert load_detector_settings(p) is None
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"blur_kernel": "5"},
+        {"blur_kernel": 4},
+        {"adaptive_block_size": 3.5},
+        {"region_fraction": None},
+        {"region_fraction": 2.0},
+        {"min_circularity": float("nan")},
+        {"lock_radius_px": float("inf")},
+        {"max_candidates": True},
+        {"min_radius_px": -1},
+        {"min_radius_px": 201, "max_radius_px": 200},
+    ],
+)
+def test_invalid_detector_values_discard_unusable_tuning(tmp_path, values):
+    p = tmp_path / "detector.json"
+    p.write_text(json.dumps(values))
     assert load_detector_settings(p) is None

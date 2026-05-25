@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -46,3 +47,42 @@ def test_invalid_settings_document_uses_defaults(tmp_path, payload):
     p = tmp_path / "settings.json"
     p.write_bytes(payload)
     assert load_preferences(p) == Preferences()
+
+
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("pre_shot_ms", "1500"),
+        ("post_shot_ms", -1),
+        ("release_window_ms", 10**20),
+        ("camera_id", True),
+        ("camera_rotation", 45),
+        ("camera_flip_h", "false"),
+        ("show_hold_zone", None),
+        ("audio_device", []),
+        ("target_face", {}),
+        ("shot_threshold", float("nan")),
+        ("audio_gain", float("inf")),
+        ("circle_diameter_mm", 0),
+        ("camera_contrast", -1),
+        ("tracking_region_fraction", 2.0),
+    ],
+)
+def test_invalid_preference_value_falls_back_without_discarding_valid_fields(tmp_path, key, value):
+    p = tmp_path / "settings.json"
+    p.write_text(json.dumps({key: value, "shot_diameter_mm": 5.6}))
+    loaded = load_preferences(p)
+    assert getattr(loaded, key) == getattr(Preferences(), key)
+    assert loaded.shot_diameter_mm == 5.6
+
+
+def test_legacy_null_image_settings_and_unselected_camera_are_supported(tmp_path):
+    p = tmp_path / "settings.json"
+    p.write_text(
+        '{"camera_id": null, "camera_brightness": null, "camera_contrast": null, "audio_gain": 2}'
+    )
+    loaded = load_preferences(p)
+    assert loaded.camera_id is None
+    assert loaded.camera_brightness == Preferences().camera_brightness
+    assert loaded.camera_contrast == Preferences().camera_contrast
+    assert loaded.audio_gain == 2.0

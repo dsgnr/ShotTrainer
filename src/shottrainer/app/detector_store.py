@@ -10,6 +10,7 @@ from pathlib import Path
 from shottrainer.tracking.detector import DetectorSettings
 
 from .paths import data_dir
+from .settings_validation import matches_setting_type
 
 log = logging.getLogger(__name__)
 
@@ -40,11 +41,34 @@ def load_detector_settings(path: Path | None = None) -> DetectorSettings | None:
         return None
     valid = {f.name for f in fields(DetectorSettings)}
     filtered = {k: v for k, v in raw.items() if k in valid}
+    defaults = DetectorSettings()
+    for key, value in filtered.items():
+        if not matches_setting_type(value, getattr(defaults, key)):
+            log.warning("Invalid detector setting %s. Using defaults", key)
+            return None
     try:
-        return DetectorSettings(**filtered)
+        settings = DetectorSettings(**filtered)
     except TypeError as exc:
         log.warning("Detector settings file looks invalid: %s", exc)
         return None
+    if (
+        not 0 < settings.min_radius_px <= settings.max_radius_px
+        or settings.blur_kernel < 0
+        or (settings.blur_kernel >= 3 and settings.blur_kernel % 2 == 0)
+        or settings.adaptive_block_size < 3
+        or not 0 <= settings.min_circularity <= 1
+        or not 0 < settings.region_fraction <= 1
+        or settings.lock_radius_px <= 0
+        or settings.lock_boost <= 0
+        or settings.lock_release_after_misses <= 0
+        or settings.opening_kernel_px < 0
+        or settings.closing_kernel_px < 0
+        or settings.max_candidates <= 0
+        or settings.lock_search_radius_factor <= 0
+    ):
+        log.warning("Detector settings are out of range. Using defaults")
+        return None
+    return settings
 
 
 def save_detector_settings(settings: DetectorSettings, path: Path | None = None) -> None:
