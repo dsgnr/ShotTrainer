@@ -1,8 +1,7 @@
 """Persist the most recent calibration so it survives restarts.
 
-The store handles both flavours of calibration (linear scale and full
-homography). It writes a small JSON file and round-trips into the
-``Tracker`` calibration objects.
+Writes a small JSON file holding the linear-scale calibration and
+round-trips it back into a :class:`LinearCalibration`.
 
 A separate "zero offset" file lives alongside the calibration. It
 holds the user's preferred origin shift (set via the Zero on aim
@@ -16,9 +15,7 @@ import json
 import logging
 from pathlib import Path
 
-import numpy as np
-
-from shottrainer.tracking.calibration import HomographyCalibration, LinearCalibration
+from shottrainer.tracking.calibration import LinearCalibration
 
 from .paths import data_dir
 
@@ -34,7 +31,7 @@ def zero_offset_path() -> Path:
 
 
 def save_calibration(
-    cal: LinearCalibration | HomographyCalibration | None,
+    cal: LinearCalibration | None,
     path: Path | None = None,
 ) -> None:
     p = path or calibration_path()
@@ -51,9 +48,7 @@ def save_calibration(
     p.write_text(json.dumps(payload, indent=2))
 
 
-def load_calibration(
-    path: Path | None = None,
-) -> LinearCalibration | HomographyCalibration | None:
+def load_calibration(path: Path | None = None) -> LinearCalibration | None:
     p = path or calibration_path()
     if not p.exists():
         return None
@@ -65,58 +60,38 @@ def load_calibration(
     return _deserialise(raw)
 
 
-def serialise_calibration(
-    cal: LinearCalibration | HomographyCalibration | None,
-) -> dict | None:
+def serialise_calibration(cal: LinearCalibration | None) -> dict | None:
     """Return a JSON-friendly dict for a calibration, or ``None`` if absent."""
     if cal is None:
         return None
     return _serialise(cal)
 
 
-def _serialise(cal: LinearCalibration | HomographyCalibration) -> dict:
-    if isinstance(cal, LinearCalibration):
-        return {
-            "type": "linear",
-            "mm_per_pixel": cal.mm_per_pixel,
-            "origin_px": list(cal.origin_px),
-        }
-    return {
-        "type": "homography",
-        "matrix": cal.matrix.tolist(),
-        "image_points": [list(p) for p in cal.image_points],
-        "target_points_mm": [list(p) for p in cal.target_points_mm],
+def _serialise(cal: LinearCalibration) -> dict:
+    payload: dict = {
+        "type": "linear",
+        "mm_per_pixel": cal.mm_per_pixel,
+        "origin_px": list(cal.origin_px),
     }
+    if cal.diameter_mm is not None:
+        payload["diameter_mm"] = cal.diameter_mm
+    return payload
 
 
-def _deserialise(raw: dict) -> LinearCalibration | HomographyCalibration | None:
-    kind = raw.get("type")
-    if kind == "linear":
-        try:
-            origin = tuple(raw.get("origin_px", (0.0, 0.0)))
-            return LinearCalibration(
-                mm_per_pixel=float(raw["mm_per_pixel"]),
-                origin_px=(float(origin[0]), float(origin[1])),
-            )
-        except (KeyError, TypeError, ValueError) as exc:
-            log.warning("Linear calibration was not readable: %s", exc)
-            return None
-    if kind == "homography":
-        try:
-            matrix = np.array(raw["matrix"], dtype=np.float64)
-            inverse = np.linalg.inv(matrix)
-            image_points = tuple(tuple(p) for p in raw.get("image_points", ()))
-            target_points = tuple(tuple(p) for p in raw.get("target_points_mm", ()))
-            return HomographyCalibration(
-                matrix=matrix,
-                inverse=inverse,
-                image_points=image_points,
-                target_points_mm=target_points,
-            )
-        except (KeyError, ValueError, np.linalg.LinAlgError) as exc:
-            log.warning("Homography calibration was not readable: %s", exc)
-            return None
-    return None
+def _deserialise(raw: dict) -> LinearCalibration | None:
+    if raw.get("type") != "linear":
+        return None
+    try:
+        origin = tuple(raw.get("origin_px", (0.0, 0.0)))
+        diameter = raw.get("diameter_mm")
+        return LinearCalibration(
+            mm_per_pixel=float(raw["mm_per_pixel"]),
+            origin_px=(float(origin[0]), float(origin[1])),
+            diameter_mm=float(diameter) if diameter is not None else None,
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        log.warning("Calibration file was not readable: %s", exc)
+        return None
 
 
 def save_zero_offset(

@@ -128,11 +128,11 @@ Once the camera is mounted and aligned well enough that the target
 sits comfortably in frame on aim, do the calibration once. See
 [`calibration.md`](calibration.md) for the full workflow. Briefly:
 
-1. Pin a printed A4 sheet at the target distance, in the same plane
-   the target will sit in.
-2. Aim at the sheet from your shooting position.
-3. Open `Tools > Calibrate target` and let the auto-detector pick the
-   four corners (or click them yourself).
+1. Print the marker sheet from `Tools > Print marker sheet` and pin it
+   at the target distance, in the same plane the target will sit in.
+2. Aim at the printed circle from your shooting position.
+3. Open `Tools > Calibrate target`, confirm the circle diameter, and
+   press **Detect** (or pick the circle manually).
 4. The dialog reports mm per pixel and saves the calibration.
 
 The camera-to-bore offset doesn't enter calibration. Calibration only
@@ -141,7 +141,7 @@ maps pixels on the target plane to millimetres on that plane.
 ## Zeroing the trace to your aim
 
 The camera's optical axis isn't the bore axis, so the calibrated
-origin (the centre of the calibration sheet) usually isn't where the
+origin (the centre of the calibration circle) usually isn't where the
 rifle is actually pointing when you're on aim. The "Zero on aim"
 button in the left column locks the current aim point as the trace's
 (0, 0) so the trace and shot marks line up with where the rifle is

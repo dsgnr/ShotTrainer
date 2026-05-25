@@ -51,6 +51,10 @@ class Preferences:
     target_face: str = "default"
     shot_diameter_mm: float = 4.5  # air pellet by default; .22 ~= 5.6 mm
     tracking_region_fraction: float = 0.7
+    # Diameter of the printed calibration circle (matches the marker
+    # sheet's "Circle diameter"). Persisted so the calibration dialog
+    # defaults to whatever the user printed last.
+    calibration_diameter_mm: float = 60.0
 
 
 ROTATION_OPTIONS: tuple[tuple[int, str], ...] = (
@@ -252,7 +256,9 @@ class PreferencesDialog(QDialog):
 
         self._flip_h = QCheckBox("Mirror horizontally")
         self._flip_h.setChecked(prefs.camera_flip_h)
-        self._flip_h.setToolTip("Flip the image left-right. Tick this if your trace moves opposite to your aim.")
+        self._flip_h.setToolTip(
+            "Flip the image left-right. Tick this if your trace moves opposite to your aim."
+        )
         self._flip_h.toggled.connect(lambda _v: self._refresh_preview_frame())
         form.addRow(
             "",
@@ -265,14 +271,15 @@ class PreferencesDialog(QDialog):
 
         self._flip_v = QCheckBox("Mirror vertically")
         self._flip_v.setChecked(prefs.camera_flip_v)
-        self._flip_v.setToolTip("Flip the image top-to-bottom. Useful when the camera is mounted upside down.")
+        self._flip_v.setToolTip(
+            "Flip the image top-to-bottom. Useful when the camera is mounted upside down."
+        )
         self._flip_v.toggled.connect(lambda _v: self._refresh_preview_frame())
         form.addRow(
             "",
             _with_hint(
                 self._flip_v,
-                "Flip the image top-to-bottom. Use when the camera is "
-                "mounted upside down.",
+                "Flip the image top-to-bottom. Use when the camera is mounted upside down.",
             ),
         )
 
@@ -332,9 +339,7 @@ class PreferencesDialog(QDialog):
                 "matters. Keep it at the camera default.",
             ),
         )
-        self._gain, g_row = self._make_property_slider(
-            "gain", prefs.camera_gain, "Gain"
-        )
+        self._gain, g_row = self._make_property_slider("gain", prefs.camera_gain, "Gain")
         form.addRow(
             "Gain",
             _with_hint(
@@ -400,8 +405,7 @@ class PreferencesDialog(QDialog):
         slider = QSlider(Qt.Orientation.Horizontal)
         slider.setRange(0, 100)
         slider.setToolTip(
-            f"{label} of the camera. Move to taste; tick 'auto' to leave the "
-            "camera at its default."
+            f"{label} of the camera. Move to taste; tick 'auto' to leave the camera at its default."
         )
         slider.setEnabled(value is not None)
         if value is not None:
@@ -411,16 +415,13 @@ class PreferencesDialog(QDialog):
         auto = QCheckBox("auto")
         auto.setChecked(value is None)
         auto.setToolTip(
-            "When ticked, the camera's own default is used and ShotTrainer "
-            "will not override it."
+            "When ticked, the camera's own default is used and ShotTrainer will not override it."
         )
         row.addWidget(auto)
 
         def _on_auto(checked: bool) -> None:
             slider.setEnabled(not checked)
-            self.camera_property_changed.emit(
-                name, None if checked else slider.value() / 100.0
-            )
+            self.camera_property_changed.emit(name, None if checked else slider.value() / 100.0)
 
         def _on_slider(v: int) -> None:
             if not auto.isChecked():
@@ -572,8 +573,7 @@ class PreferencesDialog(QDialog):
             "Calibre",
             _with_hint(
                 self._calibre,
-                "Common projectile sizes. Picking one fills in the shot "
-                "diameter below.",
+                "Common projectile sizes. Picking one fills in the shot diameter below.",
             ),
         )
 
@@ -669,8 +669,7 @@ class PreferencesDialog(QDialog):
         self._post.setSuffix(" ms")
         self._post.setValue(prefs.post_shot_ms)
         self._post.setToolTip(
-            "How much trace to keep after each shot. Useful for follow-through "
-            "review."
+            "How much trace to keep after each shot. Useful for follow-through review."
         )
         form.addRow(
             "Post-shot window",
@@ -682,10 +681,7 @@ class PreferencesDialog(QDialog):
         layout.addLayout(form)
 
         layout.addWidget(
-            QLabel(
-                "These windows control how much trace is kept around each "
-                "shot for replay."
-            )
+            QLabel("These windows control how much trace is kept around each shot for replay.")
         )
         layout.addStretch(1)
         return page
@@ -760,6 +756,7 @@ class PreferencesDialog(QDialog):
             target_face=str(target_face),
             shot_diameter_mm=float(self._shot_diameter.value()),
             tracking_region_fraction=float(self._region.value()),
+            calibration_diameter_mm=self._prefs.calibration_diameter_mm,
         )
         self.saved.emit(updated)
         self.accept()

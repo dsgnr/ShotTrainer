@@ -3,12 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from shottrainer.app.calibration_store import load_calibration, save_calibration
-from shottrainer.tracking.calibration import (
-    HomographyCalibration,
-    LinearCalibration,
-    a4_target_corners,
-    fit_homography,
-)
+from shottrainer.tracking.calibration import LinearCalibration, fit_circle_calibration
 
 
 def test_returns_none_when_missing(tmp_path: Path):
@@ -23,22 +18,19 @@ def test_linear_roundtrip(tmp_path: Path):
     assert isinstance(loaded, LinearCalibration)
     assert loaded.mm_per_pixel == 0.42
     assert loaded.origin_px == (160.0, 120.0)
+    assert loaded.diameter_mm is None
 
 
-def test_homography_roundtrip(tmp_path: Path):
+def test_circle_calibration_roundtrip_preserves_diameter(tmp_path: Path):
     p = tmp_path / "cal.json"
-    image_pts = [(100.0, 50.0), (500.0, 50.0), (500.0, 600.0), (100.0, 600.0)]
-    target_pts = a4_target_corners("centre")
-    cal = fit_homography(image_pts, target_pts)
+    cal = fit_circle_calibration(centre_px=(320.0, 240.0), radius_px=100.0, diameter_mm=60.0)
     save_calibration(cal, p)
-
     loaded = load_calibration(p)
-    assert isinstance(loaded, HomographyCalibration)
-    # The reloaded matrix should map the same input points onto the same mm coordinates.
-    for img, tgt in zip(image_pts, target_pts, strict=True):
-        x_mm, y_mm = loaded.to_mm(*img)
-        assert abs(x_mm - tgt[0]) < 1e-6
-        assert abs(y_mm - tgt[1]) < 1e-6
+
+    assert isinstance(loaded, LinearCalibration)
+    assert loaded.mm_per_pixel == cal.mm_per_pixel
+    assert loaded.origin_px == cal.origin_px
+    assert loaded.diameter_mm == 60.0
 
 
 def test_save_none_removes_file(tmp_path: Path):

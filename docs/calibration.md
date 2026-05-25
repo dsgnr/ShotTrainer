@@ -8,39 +8,46 @@ mount, or the target distance changes.
 
 The camera is mounted on the rifle and looks forward at the target. As
 you aim, the target appears at different positions in the frame.
-Calibration finds the four corners of a known-size A4 sheet placed at
-the target so we know how many millimetres a pixel represents at that
-range. From then on, the target's position in any frame can be
-reported in millimetres relative to the target centre.
+Calibration measures a single circle of known diameter printed on the
+marker sheet: from its size in pixels we know how many millimetres a
+pixel represents at that range, and from its centre we know where the
+trace's origin sits in the image. The target's position in any frame
+can then be reported in millimetres relative to that origin.
 
 ## Workflow
 
-1. Pin a printed A4 sheet (210 by 297 mm) at your target distance, in
-   the same plane the target will sit in. The built-in marker sheet
-   from `Tools > Print marker sheet` is a good choice.
-2. Adopt your normal shooting position with the rifle and bring the
-   sights to bear on the centre of the sheet. Hold steady.
-3. Open `Tools > Calibrate target` from the main menu.
-4. The dialog shows the live preview. If the auto-detector finds the
-   sheet's corners they're overlaid; press **Accept**. If not, press
-   **Pick manually** and click the four corners in clockwise order
-   starting at top-left.
-5. The dialog reports the calibration scale in mm per pixel and saves
+1. Print the marker sheet from `Tools > Print marker sheet`. The
+   diameter you choose there (60 mm by default) is the value the
+   calibration step expects.
+2. Pin the printed sheet at your target distance, in the same plane the
+   target will sit in.
+3. Adopt your normal shooting position and bring the sights to bear on
+   the centre of the printed circle. Hold steady.
+4. Open `Tools > Calibrate target` from the main menu.
+5. Confirm the diameter shown matches what you printed, then press
+   **Detect**. If the auto-detector picks the circle out it'll be
+   highlighted in cyan. Press **OK** to accept. If detection fails,
+   press **Pick manually**, click the circle's centre, then click any
+   point on its edge.
+6. The dialog reports the calibration scale in mm per pixel and saves
    it. The calibration is also written to disk so it survives a
    restart.
 
-The position of the sheet inside the frame doesn't matter much. The
-homography handles offset and tilt. What does matter is that all four
-corners are visible and the sheet is on the same plane as the target.
+The position of the circle inside the frame doesn't matter as long as
+it's fully visible. What does matter is that the circle sits in the
+same plane the target will sit in, and that the camera is roughly
+square-on to that plane.
 
 ## What is stored
 
 A calibration profile records:
 
-- The four target-space points (mm) and the four image-space points
+- The image-space centre of the circle (px) and its detected radius
   (px).
-- The resulting homography matrix.
-- The corresponding session metadata.
+- The printed diameter (mm), so a future recalibration defaults to the
+  same size.
+- The resulting `mm_per_pixel` scale, with the origin at the circle's
+  centre.
 
 The most recent calibration is also stored as a JSON file in the data
 directory; the file is reloaded at launch and watched for external
@@ -56,6 +63,9 @@ edits while the app is running.
 
 ## Limitations
 
-The homography approach assumes a single planar target. Lens
-distortion is not corrected; wide angle lenses or extreme camera
-angles produce drift toward the edges of the frame.
+A single circle gives a uniform scale and an origin but does not
+correct for perspective tilt or rotation. The setup assumes the camera
+is roughly square-on to the target plane, which is the normal case for
+a barrel or rail-mounted camera. Lens distortion is not corrected;
+wide-angle lenses or noticeably angled cameras will produce drift
+toward the edges of the frame.

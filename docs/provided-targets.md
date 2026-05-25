@@ -12,10 +12,11 @@ You don't have to use the calibration sheet provided by ShotTrainer.
    when you're on aim, at least 30 pixels across the centre, and small
    enough that natural hold motion doesn't push it out of the central
    tracked area. See [`accuracy.md`](accuracy.md) for sizing.
-3. Calibrate: pin an A4 sheet in roughly the same plane as the target,
-   either alongside or in place of the target for the calibration step.
-   Aim at the sheet, then run the automatic detector or click the four
-   corners manually. The calibration is independent of which face you're
+3. Calibrate: print the marker sheet from `Tools > Print marker sheet`
+   and pin it in roughly the same plane as the target, either alongside
+   or in place of the target for the calibration step. Aim at the
+   printed circle, then run the automatic detector or pick the circle
+   manually. The calibration is independent of which face you're
    tracking.
 4. In Preferences > Target, pick the face that matches your discipline.
    The rings drawn on the target view will then match your printed face.

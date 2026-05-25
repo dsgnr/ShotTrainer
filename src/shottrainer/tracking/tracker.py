@@ -12,7 +12,7 @@ from typing import Protocol
 
 import numpy as np
 
-from .calibration import HomographyCalibration, LinearCalibration
+from .calibration import LinearCalibration
 from .detector import CircleTargetDetector
 from .models import Detection, TrackingSample
 
@@ -44,7 +44,7 @@ class Tracker:
     def __init__(
         self,
         detector: CircleTargetDetector | None = None,
-        calibration: LinearCalibration | HomographyCalibration | None = None,
+        calibration: LinearCalibration | None = None,
     ) -> None:
         self.detector = detector or CircleTargetDetector()
         self.calibration: _Calibration | None = calibration
@@ -56,9 +56,7 @@ class Tracker:
         self._manual_px: tuple[float, float] | None = None
         self._zero_offset_mm: tuple[float, float] = (0.0, 0.0)
 
-    def set_calibration(
-        self, calibration: LinearCalibration | HomographyCalibration | None
-    ) -> None:
+    def set_calibration(self, calibration: LinearCalibration | None) -> None:
         self.calibration = calibration
         self._calibration_is_placeholder = False
 

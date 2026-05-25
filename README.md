@@ -62,8 +62,9 @@ with various cameras people have tried.
 1. Print and place a paper target at your shooting position.
 2. Mount a small USB webcam to the rifle barrel or stock so it looks
    forward at the target.
-3. Calibrate once: ShotTrainer detects the printed A4 sheet's corners
-   and builds a millimetres-per-pixel mapping for the target plane.
+3. Calibrate once: ShotTrainer measures a printed circle of known
+   diameter and builds a millimetres-per-pixel mapping for the target
+   plane.
 4. Aim, shoot, repeat. The trace and hit position appear in real time.
 
 ## Documentation
@@ -143,9 +144,10 @@ uv run shottrainer
 ## Status
 
 The app boots, runs the live preview, detects shots, records sessions, and
-replays the trace around each shot. Calibration uses an A4 sheet and survives
-restarts. Preferences include camera rotation and mirroring, audio gain and
-sensitivity, target face selection, and pre/post-shot windows. The stats
+replays the trace around each shot. Calibration uses a printed circle of
+known diameter and survives restarts. Preferences include camera rotation
+and mirroring, audio gain and sensitivity, target face selection, and
+pre/post-shot windows. The stats
 panel shows shot group metrics live, plus hold tremor, trace length, and
 time-in-ring percentages over the pre-shot window of the selected shot. See
 [`docs/troubleshooting.md`](docs/troubleshooting.md) for the rough edges and
@@ -262,10 +264,11 @@ See [`docs/architecture.md`](docs/architecture.md) for a longer description.
 
 ## Calibration
 
-You aim a printed A4 sheet with a black circle at the camera. The application
-detects the sheet (or the circle) and uses its known physical size to compute
-a pixels-per-millimetre ratio. The result is stored with the session so that
-hits can be reported in millimetres relative to the centre of the target.
+You aim a printed circle of known diameter at the camera. The application
+detects the circle and uses its physical size to compute a millimetres-per-
+pixel ratio, with the circle's centre as the image-space origin. The
+result is stored with the session so that hits can be reported in
+millimetres relative to the centre of the target.
 
 Calibration must be redone if the camera or target moves. See
 [`docs/calibration.md`](docs/calibration.md) for the workflow.

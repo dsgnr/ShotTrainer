@@ -9,20 +9,12 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 
-from shottrainer.tracking.calibration import (
-    HomographyCalibration,
-    LinearCalibration,
-    a4_target_corners,
-    fit_rifle_homography,
-)
+from shottrainer.tracking.calibration import LinearCalibration, fit_circle_calibration
 from shottrainer.tracking.tracker import Tracker
 
 from .calibration_store import load_calibration, save_calibration
 
 log = logging.getLogger(__name__)
-
-
-CalibrationLike = LinearCalibration | HomographyCalibration
 
 
 class CalibrationController:
@@ -48,16 +40,16 @@ class CalibrationController:
         self._tracker.set_calibration(saved)
         self._publish_status(saved)
 
-    def apply_image_points(self, image_points: list[tuple[float, float]]) -> None:
-        """Fit a homography from the user's selected points and persist it.
-
-        Uses the rifle-aim convention: the camera is mounted on the
-        rifle, so target motion in the frame corresponds to inverted
-        aim motion on the target plane.
-        """
+    def apply_circle(
+        self,
+        centre_px: tuple[float, float],
+        radius_px: float,
+        diameter_mm: float,
+    ) -> None:
+        """Build a linear calibration from a known-diameter circle and persist it."""
         try:
-            cal = fit_rifle_homography(image_points, a4_target_corners("centre"))
-        except Exception as exc:
+            cal = fit_circle_calibration(centre_px, radius_px, diameter_mm)
+        except ValueError as exc:
             self._on_message(f"Calibration failed: {exc}")
             return
         self._tracker.set_calibration(cal)
@@ -71,9 +63,7 @@ class CalibrationController:
                 self._on_persisted()
         self._on_message("Calibration applied")
 
-    def _publish_status(self, cal: CalibrationLike) -> None:
-        if isinstance(cal, LinearCalibration):
-            mm_per_px = cal.mm_per_pixel
-        else:
-            mm_per_px = cal.diagnostic_mm_per_pixel()
-        self._on_status(f"Calibrated: {mm_per_px:.3f} mm/px")
+    def _publish_status(self, cal: LinearCalibration) -> None:
+        # Report the unsigned mm/px so the header stays human-friendly;
+        # the sign is an implementation detail of the rifle-aim convention.
+        self._on_status(f"Calibrated: {abs(cal.mm_per_pixel):.3f} mm/px")

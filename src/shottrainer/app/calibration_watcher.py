@@ -13,7 +13,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from shottrainer.tracking.calibration import HomographyCalibration, LinearCalibration
+from shottrainer.tracking.calibration import LinearCalibration
 
 from .calibration_store import calibration_path, load_calibration
 
@@ -67,7 +67,7 @@ class CalibrationWatcher(QObject):
         if current == self._mtime:
             return
         self._mtime = current
-        cal: LinearCalibration | HomographyCalibration | None = (
+        cal: LinearCalibration | None = (
             load_calibration(self._path) if current is not None else None
         )
         self.changed.emit(cal)

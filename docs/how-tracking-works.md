@@ -55,15 +55,14 @@ flowchart LR
    contour area, which falls between pixels when the underlying mark does.
 
 4. **Calibrate.** `tracking/calibration.py` converts the target's
-   pixel position into millimetres on the target plane. There are two
-   flavours: a uniform linear scale (good when the rifle and target
-   are roughly square-on) and a perspective-aware homography fitted
-   from four known points (the corners of the calibration A4 sheet).
-   The homography also gives a local mm-per-pixel diagnostic so you
-   can sanity check the setup. The mapping is set up so a rifle aim to
-   the right (which moves the target left in the frame) reads as a
-   positive-X displacement on the target view, matching how a shooter
-   thinks about their hold.
+   pixel position into millimetres on the target plane. The user shows
+   a printed circle of known diameter to the camera. The app divides
+   that diameter by the detected diameter in pixels to get a uniform
+   mm-per-pixel scale and uses the circle's centre as the image-space
+   origin. The mapping is set up so a rifle aim to the right (which
+   moves the target left in the frame) reads as a positive-X
+   displacement on the target view, matching how a shooter thinks about
+   their hold.
 
 5. **Track.** `tracking/tracker.py` packages the detection and the
    calibrated mm into a `TrackingSample`. If the user has enabled manual
@@ -99,8 +98,10 @@ back to the main thread via Qt's queued signals.
 
 ## Out of scope
 
-- We don't try to compensate for camera lens distortion. A homography
-  handles linear perspective only.
+- We don't try to compensate for camera lens distortion or perspective
+  tilt. The single-circle calibration gives a uniform scale and origin
+  only, which is enough for a roughly square-on, rail- or barrel-mounted
+  camera.
 - We don't synchronise the audio clock with the video clock to better
   than a few milliseconds. PortAudio gives no useful time stamp here.
 - We don't filter or smooth the trace. Samples land as the detector

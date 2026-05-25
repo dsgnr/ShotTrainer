@@ -36,7 +36,7 @@ from .zoom_controls import ZoomControls
 class MainWindow(QMainWindow):
     preferences_changed = Signal(object)  # Preferences
     session_browser_requested = Signal()
-    calibration_points_accepted = Signal(list)
+    calibration_circle_accepted = Signal(float, float, float, float)  # cx, cy, r, diameter_mm
     calibration_dialog_opened = Signal(object)  # CalibrationDialog
     preferences_dialog_opened = Signal(object)  # PreferencesDialog
     manual_aim_requested = Signal(float, float)  # image-space px
@@ -44,6 +44,7 @@ class MainWindow(QMainWindow):
     zero_on_aim_requested = Signal()
     zero_cleared = Signal()
     rescore_requested = Signal()
+    marker_diameter_changed = Signal(float)
 
     def __init__(self) -> None:
         super().__init__()
@@ -51,7 +52,7 @@ class MainWindow(QMainWindow):
         self.resize(1440, 880)
 
         self._prefs = Preferences()
-        self._calibration_corner_detector: Callable | None = None
+        self._calibration_circle_detector: Callable | None = None
         self._device_options_provider: Callable | None = None
         self._target_faces_provider: Callable | None = None
         self._rings_lookup: Callable | None = None
@@ -255,8 +256,8 @@ class MainWindow(QMainWindow):
         if sizes and len(sizes) == self._main_splitter.count():
             self._main_splitter.setSizes(sizes)
 
-    def set_calibration_corner_detector(self, fn: Callable) -> None:
-        self._calibration_corner_detector = fn
+    def set_calibration_circle_detector(self, fn: Callable) -> None:
+        self._calibration_circle_detector = fn
 
     def set_device_options_provider(self, fn: Callable) -> None:
         self._device_options_provider = fn
@@ -316,14 +317,35 @@ class MainWindow(QMainWindow):
         tools_menu.addAction(rescore_action)
 
     def _open_calibration_dialog(self) -> None:
-        dialog = CalibrationDialog(detect_corners=self._calibration_corner_detector, parent=self)
-        dialog.accepted_points.connect(self.calibration_points_accepted)
+        dialog = CalibrationDialog(
+            detect_circle=self._calibration_circle_detector,
+            diameter_mm=self._prefs.calibration_diameter_mm,
+            parent=self,
+        )
+        dialog.accepted_circle.connect(self._on_calibration_circle_accepted)
         self.calibration_dialog_opened.emit(dialog)
         dialog.exec()
 
+    def _on_calibration_circle_accepted(
+        self, cx: float, cy: float, r: float, diameter_mm: float
+    ) -> None:
+        # Remember the diameter the user actually accepted so the next
+        # marker sheet and calibration default to the same value.
+        if abs(diameter_mm - self._prefs.calibration_diameter_mm) > 1e-6:
+            self._prefs.calibration_diameter_mm = diameter_mm
+            self.marker_diameter_changed.emit(diameter_mm)
+        self.calibration_circle_accepted.emit(cx, cy, r, diameter_mm)
+
     def _open_marker_sheet_dialog(self) -> None:
-        dialog = MarkerSheetDialog(parent=self)
+        dialog = MarkerSheetDialog(
+            diameter_mm=self._prefs.calibration_diameter_mm,
+            parent=self,
+        )
         dialog.exec()
+        chosen = dialog.diameter_mm()
+        if abs(chosen - self._prefs.calibration_diameter_mm) > 1e-6:
+            self._prefs.calibration_diameter_mm = chosen
+            self.marker_diameter_changed.emit(chosen)
 
     def _open_preferences_dialog(self) -> None:
         cameras: list[tuple[int, str]] | None = None
