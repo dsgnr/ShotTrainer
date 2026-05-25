@@ -96,62 +96,99 @@ def _add_field_with_hint(
 
 
 class _PropertySlider(QWidget):
-    """A 0..100 slider paired with an "auto" checkbox.
+    """A horizontal slider over a float range with a Reset button.
 
-    Used for hardware camera properties (brightness, contrast, etc.).
-    The slider's value is normalised to 0..1 when read out so the
-    capture layer can map it to whatever range OpenCV expects on the
-    current platform. Ticking "auto" leaves the property at the
-    camera's driver default and disables the slider.
-
-    Wraps the slider and checkbox in a single widget so the dialog
-    doesn't have to stash the checkbox somewhere weird (e.g. as a
-    dynamic attribute on the slider) just to read it back at save
-    time.
+    Used for the software image controls (brightness, contrast).
+    The slider's integer position is mapped to the configured
+    float range. ``value()`` returns the current float. The
+    Reset button snaps back to ``default`` and fires the change
+    so the live preview updates.
     """
 
-    value_changed = Signal(str, object)  # property name, float | None
+    value_changed = Signal(str, object)  # property name, float
 
     def __init__(
         self,
         name: str,
-        initial: float | None,
+        initial: float,
+        *,
+        minimum: float,
+        maximum: float,
+        default: float,
+        steps: int = 200,
+        suffix: str = "",
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._name = name
+        self._minimum = minimum
+        self._maximum = maximum
+        self._default = default
+        self._steps = steps
+        self._suffix = suffix
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
         self._slider = QSlider(Qt.Orientation.Horizontal)
-        self._slider.setRange(0, 100)
-        self._slider.setEnabled(initial is not None)
-        if initial is not None:
-            self._slider.setValue(round(initial * 100))
+        self._slider.setRange(0, steps)
+        self._slider.setValue(self._float_to_pos(initial))
         layout.addWidget(self._slider, 1)
 
-        self._auto = QCheckBox("auto")
-        self._auto.setChecked(initial is None)
-        layout.addWidget(self._auto)
+        self._readout = QLabel()
+        self._readout.setMinimumWidth(56)
+        self._readout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(self._readout)
 
-        self._auto.toggled.connect(self._on_auto_toggled)
+        self._reset = QPushButton("Reset")
+        self._reset.setToolTip("Restore the default value")
+        layout.addWidget(self._reset)
+
         self._slider.valueChanged.connect(self._on_slider_changed)
+        self._reset.clicked.connect(self._on_reset_clicked)
+        self._update_readout()
 
-    def value(self) -> float | None:
-        """Read the current value, or ``None`` when "auto" is ticked."""
-        if self._auto.isChecked():
-            return None
-        return self._slider.value() / 100.0
+    def value(self) -> float:
+        """Return the current slider value as a float."""
+        return self._pos_to_float(self._slider.value())
 
-    def _on_auto_toggled(self, checked: bool) -> None:
-        self._slider.setEnabled(not checked)
-        self.value_changed.emit(self._name, self.value())
+    def set_value(self, value: float) -> None:
+        """Move the slider to ``value`` without firing ``value_changed``.
+
+        Used when the controller wants to push a programmatic
+        value into the widget (after auto-optimise, for example)
+        without it looking like the user dragged the slider.
+        """
+        self._slider.blockSignals(True)
+        try:
+            self._slider.setValue(self._float_to_pos(value))
+        finally:
+            self._slider.blockSignals(False)
+        self._update_readout()
+
+    def _pos_to_float(self, pos: int) -> float:
+        ratio = pos / self._steps
+        return self._minimum + ratio * (self._maximum - self._minimum)
+
+    def _float_to_pos(self, value: float) -> int:
+        clamped = max(self._minimum, min(self._maximum, value))
+        ratio = (clamped - self._minimum) / (self._maximum - self._minimum)
+        return round(ratio * self._steps)
+
+    def _update_readout(self) -> None:
+        value = self.value()
+        if self._suffix:
+            self._readout.setText(f"{value:.2f}")
+        else:
+            self._readout.setText(f"{value:+.0f}")
 
     def _on_slider_changed(self, _value: int) -> None:
-        if not self._auto.isChecked():
-            self.value_changed.emit(self._name, self.value())
+        self._update_readout()
+        self.value_changed.emit(self._name, self.value())
+
+    def _on_reset_clicked(self) -> None:
+        self._slider.setValue(self._float_to_pos(self._default))
 
 
 class PreferencesDialog(QDialog):
@@ -159,6 +196,7 @@ class PreferencesDialog(QDialog):
     optimise_requested = Signal()
     reset_detector_requested = Signal()
     camera_property_changed = Signal(str, object)
+    camera_transform_changed = Signal(int, bool, bool)  # rotation_deg, flip_h, flip_v
     # Emitted as soon as the user picks a different camera in the
     # combo. Carries the new index, or ``None`` for "no camera". The
     # controller uses this to swap the live capture immediately so
@@ -211,44 +249,84 @@ class PreferencesDialog(QDialog):
     def push_frame(self, frame_bgr: np.ndarray) -> None:
         """Called by the controller to update the embedded preview.
 
-        The dialog applies the *current* (unsaved) rotation and flip
-        choices so the preview reflects what saving will do.
+        The frame has already been through the capture pipeline,
+        so the rotation, flip and image-control choices are
+        already applied. The dialog only has to display it.
         """
         self._latest_raw_frame = frame_bgr
         self._refresh_preview_frame()
 
     def _refresh_preview_frame(self) -> None:
-        """Repaint the embedded camera preview with the latest frame.
-
-        The preview applies the *current* (unsaved) rotation and
-        flip choices so the user sees what saving would do before
-        committing.
-        """
-        from shottrainer.tracking.frame_ops import transform_frame
-
+        """Repaint the embedded camera preview with the latest frame."""
         frame = getattr(self, "_latest_raw_frame", None)
         if frame is None:
             return
-        rotation = self._rotation.currentData() or 0
-        try:
-            transformed = transform_frame(
-                frame,
-                rotation_degrees=int(rotation),
-                flip_horizontal=self._flip_h.isChecked(),
-                flip_vertical=self._flip_v.isChecked(),
-            )
-        except Exception:
-            transformed = frame
-        self._camera_preview.set_frame(transformed)
+        self._camera_preview.set_frame(frame)
         self._camera_preview.set_region_fraction(float(self._region.value()))
 
     def _on_region_preview_changed(self, _value: float) -> None:
         self._camera_preview.set_region_fraction(float(self._region.value()))
 
+    def _emit_transform_changed(self) -> None:
+        """Tell the controller about a rotation or flip change.
+
+        The controller updates the live capture pipeline so the
+        preview reflects the new orientation immediately. The
+        change is only saved when the user clicks Save. The
+        cancel path restores the previous transform via
+        :meth:`AppController._apply_preferences`.
+        """
+        rotation = int(self._rotation.currentData() or 0)
+        self.camera_transform_changed.emit(
+            rotation,
+            self._flip_h.isChecked(),
+            self._flip_v.isChecked(),
+        )
+
     def push_audio_level(self, level: float) -> None:
         """Update the audio level meter (input is 0..1)."""
         v = round(min(1.0, max(0.0, level)) * 100)
         self._audio_meter.setValue(v)
+
+    def set_detector_status(self, text: str, *, kind: str = "info") -> None:
+        """Show a one-line result next to the auto-optimise button.
+
+        ``kind`` is ``"info"`` for neutral messages, ``"success"`` for
+        a useful result and ``"warning"`` when nothing changed.
+        """
+        colours = {
+            "info": "#8a8a8a",
+            "success": "#27ae60",
+            "warning": "#e67e22",
+        }
+        colour = colours.get(kind, colours["info"])
+        self._detector_status.setStyleSheet(f"color: {colour};")
+        self._detector_status.setText(text)
+
+    def set_image_controls(self, brightness: float, contrast: float) -> None:
+        """Snap the brightness and contrast sliders to the given values.
+
+        Used by the controller when the auto-optimiser settles
+        on a different adjustment, so the user can see what the
+        button picked. The sliders' ``set_value`` doesn't fire
+        ``camera_property_changed``, so the change doesn't feed
+        back into the controller as if the user had dragged the
+        slider themselves.
+        """
+        self._brightness.set_value(brightness)
+        self._contrast.set_value(contrast)
+
+    def set_optimise_enabled(self, enabled: bool) -> None:
+        """Enable or disable the Auto-optimise button.
+
+        Disabled while the optimiser is running on its worker
+        thread so the user can't queue a second click.
+        Re-enabled when the result lands.
+        """
+        self._optimise_btn.setEnabled(enabled)
+        self._optimise_btn.setText(
+            "Auto-optimise tracking" if enabled else "Optimising..."
+        )
 
     def set_camera_options(self, options: list[tuple[int, str]]) -> None:
         """Rebuild the camera combo from a fresh enumeration.
@@ -365,7 +443,7 @@ class PreferencesDialog(QDialog):
         form.addRow("Device", device_row)
 
         self._rotation = _make_combo(list(ROTATION_OPTIONS), initial=prefs.camera_rotation)
-        self._rotation.currentIndexChanged.connect(lambda _i: self._refresh_preview_frame())
+        self._rotation.currentIndexChanged.connect(lambda _i: self._emit_transform_changed())
         form.addRow("Rotation", self._rotation)
 
         flip_row = QWidget()
@@ -374,12 +452,12 @@ class PreferencesDialog(QDialog):
         flip_layout.setSpacing(12)
         self._flip_h = QCheckBox("Mirror horizontally")
         self._flip_h.setChecked(prefs.camera_flip_h)
-        self._flip_h.toggled.connect(lambda _v: self._refresh_preview_frame())
+        self._flip_h.toggled.connect(lambda _v: self._emit_transform_changed())
         flip_layout.addWidget(self._flip_h)
 
         self._flip_v = QCheckBox("Mirror vertically")
         self._flip_v.setChecked(prefs.camera_flip_v)
-        self._flip_v.toggled.connect(lambda _v: self._refresh_preview_frame())
+        self._flip_v.toggled.connect(lambda _v: self._emit_transform_changed())
         flip_layout.addWidget(self._flip_v)
         flip_layout.addStretch(1)
         form.addRow("Mirror", flip_row)
@@ -411,18 +489,25 @@ class PreferencesDialog(QDialog):
         self._region.valueChanged.connect(self._on_region_preview_changed)
         form.addRow("Tracking region", self._region)
 
-        # Hardware image controls. Each slider has an "auto" checkbox that
-        # leaves the camera at its default value.
-        self._brightness = self._make_property_slider("brightness", prefs.camera_brightness)
+        # Software image controls. Each slider has a Reset button to
+        # snap back to the default ("no change") value.
+        self._brightness = self._make_property_slider(
+            "brightness",
+            prefs.camera_brightness,
+            minimum=-100.0,
+            maximum=100.0,
+            default=0.0,
+        )
         form.addRow("Brightness", self._brightness)
-        self._contrast = self._make_property_slider("contrast", prefs.camera_contrast)
+        self._contrast = self._make_property_slider(
+            "contrast",
+            prefs.camera_contrast,
+            minimum=0.5,
+            maximum=2.0,
+            default=1.0,
+            suffix="x",
+        )
         form.addRow("Contrast", self._contrast)
-        self._saturation = self._make_property_slider("saturation", prefs.camera_saturation)
-        form.addRow("Saturation", self._saturation)
-        self._gain = self._make_property_slider("gain", prefs.camera_gain)
-        form.addRow("Gain", self._gain)
-        self._exposure = self._make_property_slider("exposure", prefs.camera_exposure)
-        form.addRow("Exposure", self._exposure)
 
         layout.addLayout(form)
 
@@ -439,6 +524,15 @@ class PreferencesDialog(QDialog):
         button_row.addWidget(self._reset_detector_btn)
         layout.addLayout(button_row)
 
+        # Inline status line for the auto-optimise / reset buttons. Kept
+        # in the dialog rather than the main window's status bar so the
+        # user can see the result without having to close the dialog.
+        self._detector_status = QLabel("")
+        self._detector_status.setObjectName("detectorStatus")
+        self._detector_status.setWordWrap(True)
+        self._detector_status.setStyleSheet("color: #8a8a8a;")
+        layout.addWidget(self._detector_status)
+
         self._camera_preview = CameraView()
         self._camera_preview.setMinimumHeight(160)
         self._camera_preview.set_region_fraction(prefs.tracking_region_fraction)
@@ -447,16 +541,24 @@ class PreferencesDialog(QDialog):
         return page
 
     def _make_property_slider(
-        self, name: str, value: float | None
+        self,
+        name: str,
+        value: float,
+        *,
+        minimum: float,
+        maximum: float,
+        default: float,
+        suffix: str = "",
     ) -> _PropertySlider:
-        """Build a ``_PropertySlider`` and forward its changes to the controller.
-
-        Hardware properties have driver-specific value ranges. The
-        slider exposes a normalised 0..1 float so the capture layer
-        can map it to whatever OpenCV expects on the current
-        platform.
-        """
-        slider = _PropertySlider(name, value)
+        """Build a property slider and forward its changes to the controller."""
+        slider = _PropertySlider(
+            name,
+            value,
+            minimum=minimum,
+            maximum=maximum,
+            default=default,
+            suffix=suffix,
+        )
         slider.value_changed.connect(self.camera_property_changed)
         return slider
 
@@ -767,11 +869,8 @@ class PreferencesDialog(QDialog):
             camera_rotation=int(rotation) if rotation is not None else 0,
             camera_flip_h=self._flip_h.isChecked(),
             camera_flip_v=self._flip_v.isChecked(),
-            camera_brightness=self._brightness.value(),
-            camera_contrast=self._contrast.value(),
-            camera_saturation=self._saturation.value(),
-            camera_gain=self._gain.value(),
-            camera_exposure=self._exposure.value(),
+            camera_brightness=float(self._brightness.value()),
+            camera_contrast=float(self._contrast.value()),
             audio_device=audio,
             audio_gain=float(self._audio_gain.value()),
             shot_threshold=float(self._threshold.value()),

@@ -22,22 +22,23 @@ class Preferences:
     isn't attached any more. The preview pauses until the user
     picks one in the dialog.
 
-    The hardware image properties (``camera_brightness`` etc.) are
-    optional: ``None`` leaves the camera at its driver default.
-    Trace inversion flips the per-axis sign of reported aim
-    coordinates and is useful when an optical element (a magnifying
-    scope, a mirror) reverses the default image-vs-aim relationship.
+    Brightness and contrast are applied in software inside the
+    capture pipeline rather than handed to the camera. That way
+    they behave the same on every platform and the preview
+    reflects them straight away.
+
+    Trace inversion flips the sign of the reported aim coordinates
+    on a per-axis basis. It's useful for users whose optics
+    (a magnifier, a mirror) reverse the default image-vs-aim
+    relationship.
     """
 
     camera_id: int | None = 0
     camera_rotation: int = 0  # 0, 90, 180 or 270 degrees, clockwise
     camera_flip_h: bool = False
     camera_flip_v: bool = False
-    camera_brightness: float | None = None
-    camera_contrast: float | None = None
-    camera_saturation: float | None = None
-    camera_gain: float | None = None
-    camera_exposure: float | None = None
+    camera_brightness: float = 0.0  # -100..100 additive offset, 0 = no change
+    camera_contrast: float = 1.0  # 0.5..2.0 multiplier, 1.0 = no change
     audio_device: str = "default"
     audio_gain: float = 1.0
     shot_threshold: float = 0.25
