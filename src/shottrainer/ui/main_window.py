@@ -141,25 +141,12 @@ class MainWindow(QMainWindow):
         manual_row.addStretch(1)
         layout.addLayout(manual_row)
 
-        manual_hint = self._hint_label(
-            "Pick the aim point yourself when auto-detection fails. Click "
-            "the button, then click the live preview to set the point."
-        )
-        layout.addWidget(manual_hint)
-
         zero_row = QHBoxLayout()
         zero_row.setContentsMargins(0, 0, 0, 0)
         zero_row.setSpacing(8)
         zero_row.addWidget(self._zero_button)
         zero_row.addWidget(self._clear_zero_button)
         layout.addLayout(zero_row)
-
-        zero_hint = self._hint_label(
-            "Hold the rifle on the target centre and press Zero on aim "
-            "to lock that point as (0, 0). Clear zero reverts to the "
-            "calibrated origin."
-        )
-        layout.addWidget(zero_hint)
 
         layout.addSpacing(12)
         layout.addWidget(self._caption_label("MIC LEVEL"))
@@ -212,15 +199,6 @@ class MainWindow(QMainWindow):
 
         label = QLabel(text)
         label.setObjectName("columnCaption")
-        return label
-
-    def _hint_label(self, text: str):
-        """Small grey caption used to describe a control without a tooltip."""
-        from PySide6.QtWidgets import QLabel
-
-        label = QLabel(text)
-        label.setObjectName("inlineHint")
-        label.setWordWrap(True)
         return label
 
     def set_calibration_status(self, text: str) -> None:

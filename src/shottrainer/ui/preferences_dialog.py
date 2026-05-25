@@ -78,15 +78,12 @@ CALIBRES_MM: dict[str, float] = {
 def _make_combo(
     items: list[tuple[object, str]],
     *,
-    tooltip: str = "",
     initial: object | None = None,
 ) -> QComboBox:
     """Build a QComboBox whose popup view sizes to its longest entry."""
     combo = QComboBox()
     combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
     combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContentsOnFirstShow)
-    if tooltip:
-        combo.setToolTip(tooltip)
     for value, label in items:
         combo.addItem(label, value)
     if initial is not None:
@@ -101,28 +98,26 @@ def _make_combo(
     return combo
 
 
-def _hint_label(text: str) -> QLabel:
-    """Small grey caption used under controls to explain what they do."""
-    label = QLabel(text)
-    label.setObjectName("formHint")
-    label.setWordWrap(True)
-    return label
+def _add_field_with_hint(
+    form: QFormLayout,
+    label_text: str,
+    field: QWidget,
+    hint_text: str,
+) -> None:
+    """Add a row with the field, then a wrapped hint as its own row.
 
-
-def _with_hint(widget: QWidget, hint: str) -> QWidget:
-    """Wrap ``widget`` with an always-visible help line beneath it.
-
-    The form layout treats the returned container as the row's field,
-    so labels stay aligned with the control while the hint sits
-    underneath.
+    Putting the hint in the form layout directly (rather than
+    nesting it inside the field's container) lets QFormLayout
+    honour the label's wrapped ``heightForWidth``, so longer
+    hints aren't clipped.
     """
-    container = QWidget()
-    layout = QVBoxLayout(container)
-    layout.setContentsMargins(0, 0, 0, 0)
-    layout.setSpacing(2)
-    layout.addWidget(widget)
-    layout.addWidget(_hint_label(hint))
-    return container
+    form.addRow(label_text, field)
+    hint = QLabel(hint_text)
+    hint.setObjectName("formHint")
+    hint.setWordWrap(True)
+    hint.setStyleSheet("color: #8a8a8a;")
+    hint.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.MinimumExpanding)
+    form.addRow("", hint)
 
 
 class PreferencesDialog(QDialog):
@@ -142,11 +137,13 @@ class PreferencesDialog(QDialog):
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Preferences")
-        self.resize(720, 540)
+        self.resize(720, 560)
         self._prefs = prefs
         self._rings_lookup = rings_lookup
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
         tabs = QTabWidget()
         tabs.addTab(self._build_camera_tab(prefs, camera_options), "Camera")
         tabs.addTab(self._build_audio_tab(prefs, audio_options), "Audio")
@@ -199,21 +196,13 @@ class PreferencesDialog(QDialog):
         self._audio_meter.setValue(v)
 
     def set_camera_property_actual(self, name: str, value: float | None) -> None:
-        """Surface the camera's reported value for a property.
+        """Hook for the controller to report what the camera driver actually accepted.
 
-        OpenCV reports a normalised value back. We pass it on as-is so
-        the user can see what the driver actually accepted. The value is
-        appended to the slider's tooltip. The slider position itself
-        is the user's request.
+        Currently a no-op: with the tooltip-free preferences UI there is
+        nowhere to surface this without adding a new label per slider. The
+        controller still calls it, so the API stays in place.
         """
-        slider = getattr(self, f"_{name}", None)
-        if slider is None:
-            return
-        if value is None:
-            slider.setToolTip(slider.toolTip().split("\n")[0])
-            return
-        base = slider.toolTip().split("\n")[0]
-        slider.setToolTip(f"{base}\nCamera reports: {value:.2f}")
+        del name, value
 
     def _build_camera_tab(
         self,
@@ -222,156 +211,71 @@ class PreferencesDialog(QDialog):
     ) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
 
         form = QFormLayout()
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(12)
         cam_items = list(camera_options or [(0, "Camera 0")])
-        self._camera = _make_combo(
-            cam_items,
-            tooltip="Webcam to use for tracking. Disconnect/reconnect a camera and reopen this dialog to refresh.",
-            initial=prefs.camera_id,
-        )
-        form.addRow(
-            "Device",
-            _with_hint(
-                self._camera,
-                "Webcam used for tracking. Reopen this dialog to refresh "
-                "the list after plugging or unplugging a camera.",
-            ),
-        )
+        self._camera = _make_combo(cam_items, initial=prefs.camera_id)
+        form.addRow("Device", self._camera)
 
-        self._rotation = _make_combo(
-            list(ROTATION_OPTIONS),
-            tooltip="Rotate the captured frame in 90 degree steps. Useful when a barrel-mounted camera is fitted sideways.",
-            initial=prefs.camera_rotation,
-        )
+        self._rotation = _make_combo(list(ROTATION_OPTIONS), initial=prefs.camera_rotation)
         self._rotation.currentIndexChanged.connect(lambda _i: self._refresh_preview_frame())
-        form.addRow(
-            "Rotation",
-            _with_hint(
-                self._rotation,
-                "Rotate the captured frame in 90 degree steps. Useful "
-                "when a barrel-mounted camera is fitted sideways.",
-            ),
-        )
+        form.addRow("Rotation", self._rotation)
 
+        flip_row = QWidget()
+        flip_layout = QHBoxLayout(flip_row)
+        flip_layout.setContentsMargins(0, 0, 0, 0)
+        flip_layout.setSpacing(12)
         self._flip_h = QCheckBox("Mirror horizontally")
         self._flip_h.setChecked(prefs.camera_flip_h)
-        self._flip_h.setToolTip(
-            "Flip the image left-right. Tick this if your trace moves opposite to your aim."
-        )
         self._flip_h.toggled.connect(lambda _v: self._refresh_preview_frame())
-        form.addRow(
-            "",
-            _with_hint(
-                self._flip_h,
-                "Flip the image left-right. Tick if the trace moves "
-                "opposite to your aim direction.",
-            ),
-        )
+        flip_layout.addWidget(self._flip_h)
 
         self._flip_v = QCheckBox("Mirror vertically")
         self._flip_v.setChecked(prefs.camera_flip_v)
-        self._flip_v.setToolTip(
-            "Flip the image top-to-bottom. Useful when the camera is mounted upside down."
-        )
         self._flip_v.toggled.connect(lambda _v: self._refresh_preview_frame())
-        form.addRow(
-            "",
-            _with_hint(
-                self._flip_v,
-                "Flip the image top-to-bottom. Use when the camera is mounted upside down.",
-            ),
-        )
+        flip_layout.addWidget(self._flip_v)
+        flip_layout.addStretch(1)
+        form.addRow("Mirror", flip_row)
 
         self._region = QDoubleSpinBox()
         self._region.setRange(0.1, 1.0)
         self._region.setSingleStep(0.05)
         self._region.setDecimals(2)
         self._region.setValue(prefs.tracking_region_fraction)
-        self._region.setToolTip(
-            "Fraction of the camera frame considered for tracking. Lower values "
-            "ignore distractions near the edges. Higher values let the detector "
-            "see more of the scene."
-        )
         self._region.valueChanged.connect(self._on_region_preview_changed)
-        form.addRow(
-            "Tracking region",
-            _with_hint(
-                self._region,
-                "Fraction of the frame the detector considers. Lower "
-                "values reject blobs near the edges. Higher values let "
-                "the detector see more of the scene.",
-            ),
-        )
+        form.addRow("Tracking region", self._region)
 
         # Hardware image controls. Each slider has an "auto" checkbox that
         # leaves the camera at its default value.
         self._brightness, b_row = self._make_property_slider(
             "brightness", prefs.camera_brightness, "Brightness"
         )
-        form.addRow(
-            "Brightness",
-            _with_hint(
-                b_row,
-                "Brightness of the captured image. Tick 'auto' to leave "
-                "the camera default in place.",
-            ),
-        )
+        form.addRow("Brightness", b_row)
         self._contrast, c_row = self._make_property_slider(
             "contrast", prefs.camera_contrast, "Contrast"
         )
-        form.addRow(
-            "Contrast",
-            _with_hint(
-                c_row,
-                "Contrast of the captured image. Boost when the target "
-                "edge looks soft against the paper.",
-            ),
-        )
+        form.addRow("Contrast", c_row)
         self._saturation, s_row = self._make_property_slider(
             "saturation", prefs.camera_saturation, "Saturation"
         )
-        form.addRow(
-            "Saturation",
-            _with_hint(
-                s_row,
-                "Colour saturation. Detection is grayscale so this rarely "
-                "matters. Keep it at the camera default.",
-            ),
-        )
+        form.addRow("Saturation", s_row)
         self._gain, g_row = self._make_property_slider("gain", prefs.camera_gain, "Gain")
-        form.addRow(
-            "Gain",
-            _with_hint(
-                g_row,
-                "Sensor gain. Lift in low light at the cost of more noise.",
-            ),
-        )
+        form.addRow("Gain", g_row)
         self._exposure, e_row = self._make_property_slider(
             "exposure", prefs.camera_exposure, "Exposure"
         )
-        form.addRow(
-            "Exposure",
-            _with_hint(
-                e_row,
-                "Frame exposure time. Lower values run at higher frame "
-                "rate. Higher values trade speed for a brighter image.",
-            ),
-        )
+        form.addRow("Exposure", e_row)
 
         layout.addLayout(form)
 
         self._optimise_btn = QPushButton("Auto-optimise tracking")
-        self._optimise_btn.setToolTip(
-            "Sample the current frame and pick detector thresholds that find the "
-            "target most reliably. Re-run if lighting or framing changes."
-        )
         self._optimise_btn.clicked.connect(self.optimise_requested)
 
         self._reset_detector_btn = QPushButton("Reset")
-        self._reset_detector_btn.setToolTip(
-            "Discard auto-optimised detector settings and go back to the defaults."
-        )
         self._reset_detector_btn.clicked.connect(self.reset_detector_requested)
 
         button_row = QHBoxLayout()
@@ -382,10 +286,9 @@ class PreferencesDialog(QDialog):
         layout.addLayout(button_row)
 
         self._camera_preview = CameraView()
-        self._camera_preview.setMinimumHeight(280)
+        self._camera_preview.setMinimumHeight(160)
         self._camera_preview.set_region_fraction(prefs.tracking_region_fraction)
         layout.addWidget(self._camera_preview, 1)
-        layout.addWidget(QLabel("Live preview. Pick a camera to verify framing."))
 
         return page
 
@@ -404,9 +307,6 @@ class PreferencesDialog(QDialog):
 
         slider = QSlider(Qt.Orientation.Horizontal)
         slider.setRange(0, 100)
-        slider.setToolTip(
-            f"{label} of the camera. Move to taste; tick 'auto' to leave the camera at its default."
-        )
         slider.setEnabled(value is not None)
         if value is not None:
             slider.setValue(round(value * 100))
@@ -414,9 +314,6 @@ class PreferencesDialog(QDialog):
 
         auto = QCheckBox("auto")
         auto.setChecked(value is None)
-        auto.setToolTip(
-            "When ticked, the camera's own default is used and ShotTrainer will not override it."
-        )
         row.addWidget(auto)
 
         def _on_auto(checked: bool) -> None:
@@ -443,72 +340,51 @@ class PreferencesDialog(QDialog):
     ) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
         form = QFormLayout()
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(12)
 
         audio_items = [(name, name) for name in (audio_options or ["default"])]
-        self._audio = _make_combo(
-            audio_items,
-            tooltip="Microphone used to detect shots.",
-            initial=prefs.audio_device,
-        )
-        form.addRow(
-            "Input",
-            _with_hint(self._audio, "Microphone used to detect shots."),
-        )
+        self._audio = _make_combo(audio_items, initial=prefs.audio_device)
+        form.addRow("Input", self._audio)
 
         self._audio_gain = QDoubleSpinBox()
         self._audio_gain.setRange(0.1, 10.0)
         self._audio_gain.setSingleStep(0.1)
         self._audio_gain.setSuffix("x")
         self._audio_gain.setValue(prefs.audio_gain)
-        self._audio_gain.setToolTip(
-            "Software gain applied to the mic input before shot detection. "
-            "Increase if a quiet shot doesn't register. Reduce if loud noises "
-            "cause false triggers."
-        )
-        form.addRow(
+        _add_field_with_hint(
+            form,
             "Volume",
-            _with_hint(
-                self._audio_gain,
-                "Software gain applied before shot detection. Raise if a "
-                "quiet shot doesn't register. Lower if loud noises cause "
-                "false triggers.",
-            ),
+            self._audio_gain,
+            "Software gain on the mic input. Raise if quiet shots don't "
+            "register. Lower if loud noises cause false triggers.",
         )
 
         self._threshold = QDoubleSpinBox()
         self._threshold.setRange(0.01, 1.0)
         self._threshold.setSingleStep(0.01)
         self._threshold.setValue(prefs.shot_threshold)
-        self._threshold.setToolTip(
-            "Audio level above which a shot is registered (0..1). "
-            "Watch the live level meter and pick a value just above the "
-            "ambient noise."
-        )
-        form.addRow(
+        _add_field_with_hint(
+            form,
             "Shot threshold",
-            _with_hint(
-                self._threshold,
-                "Level above which a shot is registered. Watch the live "
-                "meter and pick a value just above the ambient noise.",
-            ),
+            self._threshold,
+            "Audio level above which a shot is registered (0..1). "
+            "Pick a value just above the ambient noise on the live meter.",
         )
 
         self._refractory = QSpinBox()
         self._refractory.setRange(50, 5000)
         self._refractory.setSuffix(" ms")
         self._refractory.setValue(prefs.shot_refractory_ms)
-        self._refractory.setToolTip(
-            "Time after a shot in which further triggers are ignored. "
-            "Stops echoes and ringing being counted as extra shots."
-        )
-        form.addRow(
+        _add_field_with_hint(
+            form,
             "Refractory window",
-            _with_hint(
-                self._refractory,
-                "Time after a shot in which further triggers are ignored. "
-                "Stops echoes and ringing being counted as extra shots.",
-            ),
+            self._refractory,
+            "Time after a shot in which further triggers are ignored. "
+            "Stops echoes and ringing being counted as extra shots.",
         )
         layout.addLayout(form)
 
@@ -519,13 +395,6 @@ class PreferencesDialog(QDialog):
         self._audio_meter.setTextVisible(False)
         meter_row.addWidget(self._audio_meter, 1)
         layout.addLayout(meter_row)
-
-        layout.addWidget(
-            QLabel(
-                "Lower the threshold if shots aren't detected. Raise it if loud "
-                "ambient noise triggers false shots."
-            )
-        )
         layout.addStretch(1)
         return page
 
@@ -536,22 +405,15 @@ class PreferencesDialog(QDialog):
     ) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
         form = QFormLayout()
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(12)
 
         face_items = list(target_faces or [("default", "Default rings")])
-        self._target_face = _make_combo(
-            face_items,
-            tooltip="Scoring rings to draw on the target view. Doesn't change tracking. Only the visual reference.",
-            initial=prefs.target_face,
-        )
-        form.addRow(
-            "Face",
-            _with_hint(
-                self._target_face,
-                "Scoring rings drawn on the target view. Doesn't change "
-                "tracking. Only the visual reference and the score values.",
-            ),
-        )
+        self._target_face = _make_combo(face_items, initial=prefs.target_face)
+        form.addRow("Face", self._target_face)
 
         # Dropdown of the most common calibres. Picking a preset
         # sets the diameter spinbox. Users can still type a custom value.
@@ -565,36 +427,18 @@ class PreferencesDialog(QDialog):
                 ("9mm", "9 mm"),
                 ("45", ".45 (11.43 mm)"),
             ],
-            tooltip="Common projectile calibres. Pick one or type a custom diameter below.",
             initial=self._calibre_for_diameter(prefs.shot_diameter_mm),
         )
         self._calibre.currentIndexChanged.connect(self._on_calibre_changed)
-        form.addRow(
-            "Calibre",
-            _with_hint(
-                self._calibre,
-                "Common projectile sizes. Picking one fills in the shot diameter below.",
-            ),
-        )
+        form.addRow("Calibre", self._calibre)
 
         self._shot_diameter = QDoubleSpinBox()
         self._shot_diameter.setRange(0.5, 25.0)
         self._shot_diameter.setSingleStep(0.1)
         self._shot_diameter.setSuffix(" mm")
         self._shot_diameter.setValue(prefs.shot_diameter_mm)
-        self._shot_diameter.setToolTip(
-            "Pellet/bullet diameter. Used to draw shots at their correct size on "
-            "the target view (4.5 mm for .177 air, 5.6 mm for .22)."
-        )
         self._shot_diameter.valueChanged.connect(self._on_shot_diameter_changed)
-        form.addRow(
-            "Shot diameter",
-            _with_hint(
-                self._shot_diameter,
-                "Diameter used both to draw shots at the right size and "
-                "to score them under the edge-of-shot rule.",
-            ),
-        )
+        form.addRow("Shot diameter", self._shot_diameter)
         layout.addLayout(form)
 
         self._face_preview = TargetFacePreview()
@@ -602,12 +446,6 @@ class PreferencesDialog(QDialog):
         self._target_face.currentIndexChanged.connect(self._refresh_face_preview)
         self._refresh_face_preview()
 
-        layout.addWidget(
-            QLabel(
-                "The selected face controls the scoring rings drawn on the "
-                "target view. Calibration is independent of this choice."
-            )
-        )
         return page
 
     def _refresh_face_preview(self) -> None:
@@ -645,44 +483,35 @@ class PreferencesDialog(QDialog):
     def _build_recording_tab(self, prefs: Preferences) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
         form = QFormLayout()
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(12)
 
         self._pre = QSpinBox()
         self._pre.setRange(0, 10000)
         self._pre.setSuffix(" ms")
         self._pre.setValue(prefs.pre_shot_ms)
-        self._pre.setToolTip(
-            "How much trace to keep before each shot. Used for hold-stability and "
-            "tremor analysis on replay."
-        )
-        form.addRow(
+        _add_field_with_hint(
+            form,
             "Pre-shot window",
-            _with_hint(
-                self._pre,
-                "Trace kept before each shot. Used for hold stability "
-                "and tremor analysis on replay.",
-            ),
+            self._pre,
+            "Trace kept before each shot, used for hold-stability and "
+            "tremor analysis on replay.",
         )
 
         self._post = QSpinBox()
         self._post.setRange(0, 10000)
         self._post.setSuffix(" ms")
         self._post.setValue(prefs.post_shot_ms)
-        self._post.setToolTip(
-            "How much trace to keep after each shot. Useful for follow-through review."
-        )
-        form.addRow(
+        _add_field_with_hint(
+            form,
             "Post-shot window",
-            _with_hint(
-                self._post,
-                "Trace kept after each shot for follow-through review.",
-            ),
+            self._post,
+            "Trace kept after each shot for follow-through review.",
         )
         layout.addLayout(form)
-
-        layout.addWidget(
-            QLabel("These windows control how much trace is kept around each shot for replay.")
-        )
         layout.addStretch(1)
         return page
 
@@ -692,36 +521,49 @@ class PreferencesDialog(QDialog):
 
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(16)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(8)
 
         from PySide6.QtGui import QPixmap
 
         logo_label = QLabel()
         pixmap = QPixmap(str(asset_path("icon_128.png")))
         if not pixmap.isNull():
-            logo_label.setPixmap(pixmap)
+            logo_label.setPixmap(
+                pixmap.scaled(
+                    96,
+                    96,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(logo_label)
+        layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignHCenter)
 
         title = QLabel("ShotTrainer")
         title.setObjectName("aboutTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
+        layout.addWidget(title, 0, Qt.AlignmentFlag.AlignHCenter)
 
         form = QFormLayout()
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(4)
+        form.setFormAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         form.addRow("Version", QLabel(__version__))
         form.addRow("Licence", QLabel("GPL-3.0-or-later"))
         layout.addLayout(form)
 
-        blurb = QLabel(
-            "ShotTrainer is open source. See the project README for the "
-            "issue tracker and contribution guide."
+        links = QLabel(
+            '<a href="https://github.com/dsgnr/ShotTrainer/blob/main/README.md">README</a>'
+            ' &middot; '
+            '<a href="https://github.com/dsgnr/ShotTrainer">GitHub</a>'
         )
-        blurb.setWordWrap(True)
-        blurb.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(blurb)
-
+        links.setTextFormat(Qt.TextFormat.RichText)
+        links.setOpenExternalLinks(True)
+        links.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        links.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(links)
         layout.addStretch(1)
         return page
 
