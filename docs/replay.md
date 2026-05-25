@@ -77,8 +77,10 @@ For example:
 1:02.3 / 2:03.0
 ```
 
-The total duration is determined by the pre-shot and post-shot recording windows
-configured in **Preferences > Recording**.
+The total duration runs from the first to the last available tracking sample
+within the window configured in **Preferences > Recording**. It can be shorter
+than the requested window if tracking starts late or stops early. The slider
+and time display follow the recorded timestamps, including gaps between samples.
 
 ## What replay can tell you
 

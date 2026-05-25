@@ -361,7 +361,9 @@ class SessionManager:
         # Loading emits the initial playhead; set_trace must not clear it afterwards.
         self._player.load(window.samples)
         self._window.replay_controls.set_window_duration_ms(
-            int(prefs.pre_shot_ms) + int(prefs.post_shot_ms)
+            round((window.samples[-1].timestamp - window.samples[0].timestamp) * 1000)
+            if window.samples
+            else None
         )
         shot_ts = self._shots_in_view[index].timestamp
         pre_points = [
