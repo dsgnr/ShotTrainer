@@ -59,8 +59,8 @@ class ReplayCoordinator:
         ``split_index`` is the sample whose timestamp sits closest
         to the shot. ``release_index`` is the start of the short
         release window that ends at the shot. ``release_index``
-        is ``None`` if no sample is far enough back to mark it
-        (which happens with very short pre-windows).
+        is ``None`` if no sample falls between the release threshold
+        and the shot timestamp.
         """
         start = shot_ts - pre_ms / 1000.0
         end = shot_ts + post_ms / 1000.0
@@ -84,6 +84,6 @@ class ReplayCoordinator:
             return None
         threshold = shot_ts - release_ms / 1000.0
         for i, sample in enumerate(samples):
-            if sample.timestamp >= threshold:
+            if threshold <= sample.timestamp <= shot_ts:
                 return i
         return None
