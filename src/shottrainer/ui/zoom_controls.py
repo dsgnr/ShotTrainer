@@ -44,6 +44,7 @@ class ZoomControls(QWidget):
 
         self._slider = QSlider(Qt.Orientation.Horizontal)
         self._slider.setRange(0, 1000)
+        self._slider.setMinimumWidth(32)
         self._slider.setToolTip("Drag or scroll to zoom the target view.")
         layout.addWidget(self._slider, 1)
 
@@ -53,7 +54,7 @@ class ZoomControls(QWidget):
 
         self._readout = QLabel("- mm")
         self._readout.setObjectName("zoomReadout")
-        self._readout.setMinimumWidth(72)
+        self._readout.setMinimumWidth(self._readout.fontMetrics().horizontalAdvance("500 mm"))
         self._readout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(self._readout)
 

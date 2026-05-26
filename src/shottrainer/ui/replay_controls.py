@@ -68,8 +68,9 @@ class ReplayControls(QWidget):
 
         self._slider = QSlider(Qt.Orientation.Horizontal)
         self._slider.setRange(0, 1000)
-        self._slider.setFixedWidth(150)
-        self._slider.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self._slider.setMinimumWidth(48)
+        self._slider.setMaximumWidth(150)
+        self._slider.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         # Stop the slider widget filling its content rectangle with the
         # palette background.
         self._slider.setAutoFillBackground(False)
@@ -109,7 +110,8 @@ class ReplayControls(QWidget):
         see the same text.
         """
         button = QPushButton(glyph)
-        button.setFixedWidth(40)
+        button.setObjectName("replayTransportButton")
+        button.setFixedSize(32, 28)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setToolTip(tooltip)
         button.setAccessibleName(accessible_name)
