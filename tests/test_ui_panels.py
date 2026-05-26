@@ -9,6 +9,10 @@ import pytest
 
 pytest.importorskip("PySide6")
 
+from PySide6.QtCore import Qt
+
+from shottrainer.replay.player import TracePlayer
+from shottrainer.tracking.models import TrackingSample
 from shottrainer.ui.camera_view import CameraView
 from shottrainer.ui.replay_controls import ReplayControls
 from shottrainer.ui.session_controls import SessionControls
@@ -101,6 +105,31 @@ def test_replay_controls_progress_clamps(qtbot):
     assert rc._slider.value() == 1000
     rc.set_progress(0.5)
     assert rc._slider.value() == 500
+
+
+def test_replay_scrubber_keyboard_moves_the_playhead_and_keeps_actual_time(qtbot):
+    rc = ReplayControls()
+    qtbot.addWidget(rc)
+    player = TracePlayer()
+    rc.scrubbed.connect(player.seek_fraction)
+    player.progress.connect(rc.set_progress)
+    player.load(
+        [
+            TrackingSample(timestamp=ts, x_px=0.0, y_px=0.0, x_mm=ts, y_mm=0.0)
+            for ts in (0.0, 0.2, 1.0)
+        ]
+    )
+    rc.set_window_duration_ms(1000)
+    rc.set_enabled(True)
+    for _ in range(500):
+        qtbot.keyClick(rc._slider, Qt.Key.Key_Right)
+
+    assert player._index == 1
+    assert rc._slider.value() == 500
+    assert rc._time_label.text() == "0:00.2 / 0:01.0"
+
+    qtbot.keyClick(rc._slider, Qt.Key.Key_End)
+    assert player._index == 2
 
 
 def test_camera_view_accepts_bgr_frame(qtbot):
