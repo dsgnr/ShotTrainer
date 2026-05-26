@@ -51,7 +51,24 @@ def test_dark_window_fits_laptop_sizes_with_controls_on_one_row(qtbot, qapp, siz
         window.resize(*size)
         window.show()
         qapp.processEvents()
-        assert window.width() <= size[0]
+        widths = {
+            name: (widget.width(), widget.minimumSizeHint().width(), widget.minimumWidth())
+            for name, widget in {
+                "left": window._main_splitter.widget(0),
+                "centre": window._main_splitter.widget(1),
+                "right": window._main_splitter.widget(2),
+                "zoom": window.zoom_controls,
+                "replay": window.replay_controls,
+                "zoom slider": window.zoom_controls._slider,
+                "zoom readout": window.zoom_controls._readout,
+                "replay slider": window.replay_controls._slider,
+                "replay time": window.replay_controls._time_label,
+                "header": window.header,
+            }.items()
+        }
+        assert window.width() <= size[0], "\n".join(
+            f"{name}: actual, hint, minimum = {values}" for name, values in widths.items()
+        )
         assert window.height() <= size[1]
         zoom = window.zoom_controls
         replay = window.replay_controls
