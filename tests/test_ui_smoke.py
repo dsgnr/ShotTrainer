@@ -19,6 +19,7 @@ import pytest
 pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QScrollArea, QStyle, QStyleOptionButton
 
 from shottrainer.app.preferences import Preferences
@@ -42,9 +43,15 @@ def test_main_window_constructs(qtbot):
 
 
 @pytest.mark.parametrize("size", [(1280, 720), (1024, 768)])
-def test_dark_window_fits_laptop_sizes_with_controls_on_one_row(qtbot, qapp, size):
+@pytest.mark.parametrize("large_system_font", [False, True])
+def test_dark_window_fits_laptop_sizes_with_controls_on_one_row(
+    qtbot, qapp, size, large_system_font
+):
     previous_style = qapp.styleSheet()
+    previous_font = qapp.font()
     try:
+        if large_system_font:
+            qapp.setFont(QFont("Courier New", 18))
         apply_dark_theme(qapp)
         window = MainWindow()
         qtbot.addWidget(window)
@@ -89,6 +96,7 @@ def test_dark_window_fits_laptop_sizes_with_controls_on_one_row(qtbot, qapp, siz
         assert sidebar.horizontalScrollBar().maximum() == 0
     finally:
         qapp.setStyleSheet(previous_style)
+        qapp.setFont(previous_font)
 
 
 def test_main_window_paints_with_no_camera(qtbot):
