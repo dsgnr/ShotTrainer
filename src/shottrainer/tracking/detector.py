@@ -218,9 +218,18 @@ class CircleTargetDetector:
 
         # Cap how many contours we look at so a noisy scene can't
         # stall the detector. Largest-area first means the cap
-        # contours most likely to be the target.
+        # keeps the ones most likely to be the target. Each
+        # contour's area is cached so the loop below doesn't
+        # compute it again.
+        contour_areas: list[tuple[np.ndarray, float]]
         if len(contours) > s.max_candidates:
-            contours = sorted(contours, key=cv2.contourArea, reverse=True)[: s.max_candidates]
+            contour_areas = sorted(
+                ((c, cv2.contourArea(c)) for c in contours),
+                key=lambda pair: pair[1],
+                reverse=True,
+            )[: s.max_candidates]
+        else:
+            contour_areas = [(c, cv2.contourArea(c)) for c in contours]
 
         # The central acceptance region. Centroids that fall
         # outside it are rejected so off-axis blobs (frame edges,
@@ -244,14 +253,13 @@ class CircleTargetDetector:
         min_side = s.min_radius_px * 2
         max_side = s.max_radius_px * 2
 
-        for c in contours:
+        for c, area in contour_areas:
             _x, _y, cw, ch = cv2.boundingRect(c)
             if cw < min_side or ch < min_side:
                 continue
             if cw > max_side and ch > max_side:
                 continue
 
-            area = cv2.contourArea(c)
             if area <= 0:
                 continue
             perim = cv2.arcLength(c, True)
