@@ -212,7 +212,7 @@ make test       # run pytest
 make lint       # ruff check
 make format     # ruff format + auto-fixable lints
 make run        # launch the app
-make package    # PyInstaller build, see packaging/README.md
+make package    # Nuitka build, see packaging/README.md
 make dmg        # macOS only: build dist/ShotTrainer-macOS.dmg
 make installer  # Windows only: build dist/ShotTrainer-Setup.exe
 ```
@@ -256,7 +256,7 @@ src/shottrainer/
     replay/      trace replay logic
     services/    coordination between subsystems
 docs/            engineering notes, accuracy notes, troubleshooting
-packaging/       PyInstaller spec and platform notes
+packaging/       Nuitka build script and platform notes
 tests/           pytest suite
 ```
 
@@ -275,9 +275,9 @@ Calibration must be redone if the camera or target moves. See
 
 ## Packaging
 
-PyInstaller specs live under `packaging/`. The README in that directory
-covers platform-specific notes (PySide6 plugins, OpenCV bundling, signing,
-DMG and Inno Setup installer).
+Nuitka builds the standalone bundle under `packaging/`. The README in
+that directory covers platform-specific notes (PySide6 plugins, OpenCV
+bundling, signing, DMG and Inno Setup installer).
 
 ## Troubleshooting
 

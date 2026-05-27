@@ -34,7 +34,7 @@ package: package-deps
 ifeq ($(shell uname -s),Darwin)
 	bash packaging/build_icns.sh
 endif
-	uv run --extra package pyinstaller packaging/shottrainer.spec --noconfirm
+	uv run --extra package python packaging/build_nuitka.py
 
 dmg: package
 	bash packaging/make_dmg.sh
@@ -57,7 +57,9 @@ docs-clean:
 
 clean: docs-clean
 	rm -rf build .pytest_cache .ruff_cache .mypy_cache packaging/icon.icns
-	# dist often holds files PyInstaller has just released. Retry once
+	# dist often holds files Nuitka has just released. Retry once
 	# in case the OS hasn't caught up.
 	rm -rf dist || (sleep 1 && rm -rf dist)
+	# Nuitka may leave intermediate build trees if it was killed mid-run.
+	rm -rf packaging/ShotTrainer.build packaging/ShotTrainer.dist packaging/ShotTrainer.onefile-build
 	find . -type d -name __pycache__ -exec rm -rf {} +

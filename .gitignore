@@ -15,9 +15,16 @@ dist/
 site/
 *.egg-info/
 *.egg
-*.spec
-!packaging/*.spec
+# Nuitka intermediate output. ``packaging/build_nuitka.py`` writes to
+# ``dist/`` directly; these directories only show up if Nuitka is
+# invoked outside the driver script (or killed mid-build).
+packaging/ShotTrainer.build/
+packaging/ShotTrainer.dist/
+packaging/ShotTrainer.onefile-build/
 packaging/icon.icns
+
+# Nuitka crash report from a failed compile.
+nuitka-crash-report.xml
 
 # Test / coverage
 .pytest_cache/
