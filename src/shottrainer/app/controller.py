@@ -381,26 +381,35 @@ class AppController(QObject):
         buffer for the preview avoids a second conversion in
         the camera widget.
         """
+        emit_buffer = frame  # the camera owns the original buffer
+        owns_copy = False
         if frame.ndim == 3 and frame.shape[2] == 3:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            emit_buffer = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            owns_copy = True
         opts = self._frame_transform
         if opts is not None:
-            frame = transform_frame(
-                frame,
+            transformed = transform_frame(
+                emit_buffer,
                 rotation_degrees=opts.rotation_degrees,
                 flip_horizontal=opts.flip_horizontal,
                 flip_vertical=opts.flip_vertical,
                 brightness=opts.brightness,
                 contrast=opts.contrast,
             )
-        sample = self._pipeline.process(frame, ts, frame_id)
+            if transformed is not emit_buffer:
+                emit_buffer = transformed
+                owns_copy = True
+        sample = self._pipeline.process(emit_buffer, ts, frame_id)
         # Snapshot the tracker state so the GUI handler reads
         # consistent values even though the worker thread might
-        # keep going. The frame itself is copied so the pipeline
-        # is free to mutate or release the original buffer.
+        # keep going. Copy the frame only when nothing already
+        # allocated a fresh buffer above. The cross-thread emit
+        # has to outlive ``frame``, which the camera worker may
+        # reuse for the next read.
         last_radius_px = self._tracker.last_radius_px
         last_detection = self._tracker.last_detection
-        self._frame_processed.emit(frame.copy(), sample, last_radius_px, last_detection)
+        out = emit_buffer if owns_copy else emit_buffer.copy()
+        self._frame_processed.emit(out, sample, last_radius_px, last_detection)
 
     def _on_frame_processed(
         self,
