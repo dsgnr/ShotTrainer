@@ -40,7 +40,8 @@ the radii, and open a pull request.
 ## Custom faces
 
 If your discipline uses a different ring layout, drop a JSON file at
-`<data dir>/custom_target_faces.json`. See [`README.md`](../README.md) for
+`<data dir>/custom_target_faces.json`. See
+[Troubleshooting](troubleshooting.md#where-the-app-stores-its-data) for
 where the data directory lives on your platform. The file is a dict of
 faces keyed by their internal id:
 
