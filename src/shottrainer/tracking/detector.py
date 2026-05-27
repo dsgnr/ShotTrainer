@@ -47,6 +47,13 @@ class DetectorSettings:
     # for this many frames in a row, the lock is dropped so a
     # fresh acquisition can happen anywhere on the frame.
     lock_release_after_misses: int = 8
+    # Morphological opening kernel size in pixels, applied to the
+    # binary frame before contour extraction. It severs thin
+    # bridges that the adaptive threshold sometimes draws between
+    # the target and a nearby dark patch. Has to be odd
+    # (auto-rounded if not). Set to 0 (or any value below 3) to
+    # turn it off.
+    opening_kernel_px: int = 3
 
 
 class CircleTargetDetector:
@@ -69,6 +76,56 @@ class CircleTargetDetector:
         self._lock_px = None
         self._consecutive_misses = 0
 
+    @staticmethod
+    def _with_ellipse_fit(
+        detection: Detection, contour: np.ndarray | None
+    ) -> Detection:
+        """Add ellipse parameters to ``detection`` when the contour can be fitted.
+
+        ``cv2.fitEllipse`` needs at least five contour points, and
+        can return zero-length axes for degenerate input. Both of
+        those cases fall through unchanged, with the ellipse
+        fields left at zero so consumers know to fall back to the
+        plain ``radius_px``.
+
+        OpenCV's ``fitEllipse`` returns
+        ``((cx, cy), (axis_a, axis_b), angle)`` where the axes are
+        full widths and ``angle`` is the rotation of ``axis_a``
+        from the +x image direction. ``axis_a`` is not guaranteed
+        to be the major axis, so this helper picks whichever is
+        bigger and rotates the angle by 90 degrees if the smaller
+        axis was reported first.
+        """
+        if contour is None or len(contour) < 5:
+            return detection
+        try:
+            (_, _), (axis_a, axis_b), angle = cv2.fitEllipse(contour)
+        except cv2.error:
+            return detection
+        if axis_a <= 0 or axis_b <= 0:
+            return detection
+
+        if axis_a >= axis_b:
+            semi_major = axis_a / 2.0
+            semi_minor = axis_b / 2.0
+            major_angle = angle
+        else:
+            semi_major = axis_b / 2.0
+            semi_minor = axis_a / 2.0
+            major_angle = (angle + 90.0) % 180.0
+
+        return Detection(
+            found=detection.found,
+            x_px=detection.x_px,
+            y_px=detection.y_px,
+            radius_px=detection.radius_px,
+            confidence=detection.confidence,
+            rejected_outside_region=detection.rejected_outside_region,
+            semi_major_px=float(semi_major),
+            semi_minor_px=float(semi_minor),
+            angle_degrees=float(major_angle),
+        )
+
     def detect(self, frame_bgr: np.ndarray) -> Detection:
         """Return the best detection in ``frame_bgr``, or one with ``found=False``."""
         s = self.settings
@@ -87,6 +144,20 @@ class CircleTargetDetector:
             s.adaptive_offset,
         )
 
+        # Morphological opening (erode then dilate) cuts the thin
+        # bridges that the adaptive threshold sometimes draws
+        # between the target and a nearby dark patch. Without it,
+        # when the target slides toward another dark blob, the
+        # local-mean threshold can pinch the two together and
+        # the merged contour's centroid drifts toward the
+        # neighbour. The 3x3 kernel is small enough to sever any
+        # 1-2 pixel bridge while the target itself loses at most
+        # one pixel of its outline (which the dilate restores).
+        if s.opening_kernel_px >= 3:
+            kernel_size = s.opening_kernel_px | 1  # ensure odd
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+            binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+
         contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # The central acceptance region. Centroids that fall
@@ -101,6 +172,7 @@ class CircleTargetDetector:
 
         best: Detection = Detection(found=False)
         best_score = 0.0
+        best_contour: np.ndarray | None = None
         best_off_region: tuple[float, float, float, float] | None = None  # cx, cy, r, score
 
         for c in contours:
@@ -160,6 +232,7 @@ class CircleTargetDetector:
 
             if score > best_score:
                 best_score = score
+                best_contour = c
                 best = Detection(
                     found=True,
                     x_px=float(cx),
@@ -169,6 +242,7 @@ class CircleTargetDetector:
                 )
 
         if best.found:
+            best = self._with_ellipse_fit(best, best_contour)
             self._lock_px = (best.x_px, best.y_px)
             self._consecutive_misses = 0
             return best

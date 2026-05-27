@@ -93,7 +93,7 @@ class StatsPanel(QFrame):
 
         chosen = diagnostic_rings(self._rings)
         for ring in chosen:
-            label = QLabel(f"Time inside {ring.label or f'{ring.radius_mm:.0f} mm'}")
+            label = QLabel(f"Time inside {ring.label or f'{ring.diameter_mm:.0f} mm'}")
             value = QLabel("-")
             self._layout.addRow(label, value)
             self._ring_rows.append((label, value, ring))
@@ -106,5 +106,5 @@ class StatsPanel(QFrame):
             if not points:
                 value.setText("-")
                 continue
-            fraction = time_inside_radius(points, ring.radius_mm)
+            fraction = time_inside_radius(points, ring.diameter_mm / 2)
             value.setText(f"{fraction * 100:.0f}%")

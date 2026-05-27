@@ -34,14 +34,22 @@ class TrackingSample:
 class Detection:
     """What the detector saw in a single frame.
 
-    ``found`` is ``False`` when nothing circular enough was located. The
-    other fields are zero in that case.
+    ``found`` is ``False`` when the frame had nothing circular
+    enough to lock onto. The other fields are zero in that case.
 
     There's a special case for blobs that look like the target but
     sit outside the tracking region. ``rejected_outside_region``
     flags those, with the pixel coordinates pointing at the blob,
     so the preview can show "saw something but ignored it" without
     ``found`` going true.
+
+    ``semi_major_px`` / ``semi_minor_px`` / ``angle_degrees``
+    describe a best-fit ellipse for the contour. They're only
+    filled in when the contour has at least five points (what
+    ``cv2.fitEllipse`` needs). Smaller contours leave the ellipse
+    fields at zero and the rest of the code falls back to treating
+    the detection as a perfect circle. ``angle_degrees`` is the
+    angle of the major axis from the +x image direction.
     """
 
     found: bool
@@ -50,6 +58,9 @@ class Detection:
     radius_px: float = 0.0
     confidence: float = 0.0
     rejected_outside_region: bool = False
+    semi_major_px: float = 0.0
+    semi_minor_px: float = 0.0
+    angle_degrees: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)

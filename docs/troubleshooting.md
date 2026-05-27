@@ -40,24 +40,27 @@ See `packaging/Info.plist.in`. When running from source via Python, macOS
 prompts for the *Terminal* (or your IDE) the first time, not for
 ShotTrainer itself.
 
-## Calibration
+## Tracking
 
-**Detect can't find the calibration circle.**
-Make sure the printed circle contrasts strongly with the background and
-is fully visible. If automatic detection still fails, click "Pick
-manually", click the circle's centre, then click any point on its edge.
+**The trace stops moving and the camera view says "lost".**
+The detector can't see the printed circle in the current frame.
+Either the circle has moved out of view (swing the rifle until it's
+back in frame) or it has too little contrast against the background.
+Improve the lighting on the target side, or print a larger circle.
 
-**The mm-per-pixel value looks wildly off.**
-Confirm the diameter shown in the dialog matches the diameter you
-actually printed. The marker sheet's footer reports the size it was
-rendered at.
+**The mm-per-pixel value in the header looks wrong.**
+The header reads "Tracking N mm circle - X.XXX mm/px". Confirm the
+diameter (N) matches what you actually printed. Set it under
+**Preferences > Target > Tracking circle** if not.
 
 **The trace doesn't sit where the rifle is actually pointing.**
-The calibrated origin is the centre of the calibration circle, not the
-bore axis. Hold the rifle on the target's centre (or your zeroing
+The trace's origin is the printed circle's centre. The camera's
+optical axis isn't the rifle's bore axis, so there's a fixed offset
+between "where the camera sees the centre" and "where the rifle is
+pointing". Hold the rifle on the target's centre (or your zeroing
 group's centre) and click **Zero on aim** in the left column. That
 locks the current aim point as (0, 0). The offset persists across
-restarts; **Clear zero** reverts to the calibrated origin.
+restarts. **Clear zero** reverts to the circle's centre as origin.
 
 ## Sessions and replay
 
@@ -81,8 +84,8 @@ ShotTrainer keeps everything in a per-user data directory:
 - Linux: `$XDG_DATA_HOME/shottrainer/` (or `~/.local/share/shottrainer/`)
 - Windows: `%APPDATA%\ShotTrainer\`
 
-Inside you'll find `sessions.db` (sessions and shot data), `settings.json`,
-`calibration.json`, `detector_settings.json`, `zero_offset.json`, and
+Inside you'll find `sessions.db` (sessions and shot data),
+`settings.json`, `detector_settings.json`, `zero_offset.json`, and
 `ui_state.json`. Deleting any of them resets the relevant state to
 defaults. Deleting `sessions.db` wipes recorded shots so keep a backup
 if you care about the history.

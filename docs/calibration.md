@@ -1,71 +1,65 @@
-# Calibration
+# Tracking and the printed circle
 
-Calibration converts pixels in the camera frame to millimetres on the
-target plane. You will need to redo it any time the camera, the rifle
-mount, or the target distance changes.
+ShotTrainer doesn't have a calibration step. The trace is computed from
+each frame independently using the printed circle's known diameter,
+set once in **Preferences > Target > Tracking circle**, no separate menu
+item or workflow to run. The same number is used by the marker-sheet
+print dialog so what you print and what you tell the app are guaranteed
+to agree.
 
 ## What's actually being measured
 
-The camera is mounted on the rifle and looks forward at the target. As
-you aim, the target appears at different positions in the frame.
-Calibration measures a single circle of known diameter printed on the
-marker sheet: from its size in pixels we know how many millimetres a
-pixel represents at that range, and from its centre we know where the
-trace's origin sits in the image. The target's position in any frame
-can then be reported in millimetres relative to that origin.
+The camera is mounted on the rifle and looks forward at the target. The
+detector finds the printed black circle every frame and reports
+
+- the circle's centre in image pixels, and
+- its radius in image pixels.
+
+The frame's centre is "where the rifle is pointing". The vector from
+the circle's centre to the frame's centre is the rifle's aim offset in
+pixels. Convert pixels to millimetres using the live radius
+
+`mm/pixel = diameter_mm / (2 * radius_px)`
+
+and you have the offset in millimetres on the target plane. No
+separate calibration step is needed because every frame
+self-calibrates. If the camera moves closer the imaged circle grows,
+the radius is larger, the mm/px scale is smaller, and the trace
+continues to read the right millimetre offset.
 
 ## Workflow
 
 1. Print the marker sheet from `Tools > Print marker sheet`. The
-   diameter you choose there (60 mm by default) is the value the
-   calibration step expects.
-2. Pin the printed sheet at your target distance, in the same plane the
-   target will sit in.
-3. Adopt your normal shooting position and bring the sights to bear on
-   the centre of the printed circle. Hold steady.
-4. Open `Tools > Calibrate target` from the main menu.
-5. Confirm the diameter shown matches what you printed, then press
-   **Detect**. If the auto-detector picks the circle out it'll be
-   highlighted in cyan. Press **OK** to accept. If detection fails,
-   press **Pick manually**, click the circle's centre, then click any
-   point on its edge.
-6. The dialog reports the calibration scale in mm per pixel and saves
-   it. The calibration is also written to disk so it survives a
-   restart.
+   diameter you choose there (60 mm by default) is the value the live
+   tracker uses.
+2. Pin the printed sheet at your target distance, in the same plane
+   the target will sit in.
+3. Set the same diameter under **Preferences > Target > Tracking
+   circle**. The marker-sheet dialog updates this for you when you
+   close it.
+4. Aim at the printed circle from your shooting position.
 
-The position of the circle inside the frame doesn't matter as long as
-it's fully visible. What does matter is that the circle sits in the
-same plane the target will sit in, and that the camera is roughly
-square-on to that plane.
+That's it. There is no "Calibrate" button to press.
 
-## What is stored
+## Zero on aim
 
-A calibration profile records:
+The camera's optical axis isn't the rifle's bore axis, so the trace's
+"0" (the printed circle's centre, in image space) isn't where the rifle
+is pointing when you're holding on aim. The **Zero on aim** button in
+the left column locks the current aim point as the trace's (0, 0). The
+offset is saved across restarts. Use **Clear zero** to revert to the
+circle's centre as origin.
 
-- The image-space centre of the circle (px) and its detected radius
-  (px).
-- The printed diameter (mm), so a future recalibration defaults to the
-  same size.
-- The resulting `mm_per_pixel` scale, with the origin at the circle's
-  centre.
+## When to recheck the diameter
 
-The most recent calibration is also stored as a JSON file in the data
-directory; the file is reloaded at launch and watched for external
-edits while the app is running.
-
-## When to recalibrate
-
-- The camera moved on the rifle, or the rifle's mount changed.
-- You moved to a different shooting distance.
-- You changed lens, magnification, or resolution.
-- You suspect the numbers no longer match reality. The header shows
-  the live mm-per-pixel.
+- You changed the size of the printed circle.
+- Hits aren't reading at the millimetre offsets you'd expect across the
+  whole circle (the per-frame mm/px reported in the header should
+  closely match a ruler measurement of pixel-to-mm at the target).
 
 ## Limitations
 
-A single circle gives a uniform scale and an origin but does not
-correct for perspective tilt or rotation. The setup assumes the camera
-is roughly square-on to the target plane, which is the normal case for
-a barrel or rail-mounted camera. Lens distortion is not corrected;
-wide-angle lenses or noticeably angled cameras will produce drift
-toward the edges of the frame.
+The detector has to keep finding the circle every frame. If you swing
+the rifle far enough that the circle leaves the field of view there's
+nothing to measure and the trace pauses until the circle is in frame
+again.

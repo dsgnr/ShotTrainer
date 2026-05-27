@@ -113,7 +113,7 @@ class HeroStats(QWidget):
         chosen = diagnostic_rings(self._rings)
         if chosen:
             ring = chosen[0]
-            label = ring.label or f"{ring.radius_mm:.0f}\u202fmm"
+            label = ring.label or f"{ring.diameter_mm:.0f}\u202fmm"
             self._inner.caption.setText(f"TIME INSIDE {label}")
         else:
             self._inner.caption.setText("TIME ON TARGET")
@@ -126,5 +126,5 @@ class HeroStats(QWidget):
         if not chosen:
             self._inner.value.setText("-")
             return
-        fraction = time_inside_radius(self._last_trace, chosen[0].radius_mm)
+        fraction = time_inside_radius(self._last_trace, chosen[0].diameter_mm / 2)
         self._inner.value.setText(f"{fraction * 100:.0f}%")

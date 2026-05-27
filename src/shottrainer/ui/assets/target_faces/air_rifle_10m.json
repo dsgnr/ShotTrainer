@@ -1,15 +1,15 @@
 {
   "label": "10 m air rifle",
   "rings": [
-    { "radius_mm": 22.75, "label": "1" },
-    { "radius_mm": 20.25, "label": "2" },
-    { "radius_mm": 17.75, "label": "3" },
-    { "radius_mm": 15.25, "label": "4" },
-    { "radius_mm": 12.75, "label": "5" },
-    { "radius_mm": 10.25, "label": "6" },
-    { "radius_mm": 7.75, "label": "7" },
-    { "radius_mm": 5.25, "label": "8" },
-    { "radius_mm": 2.75, "label": "9" },
-    { "radius_mm": 0.25, "label": "10" }
+    { "diameter_mm": 45.5, "label": "1" },
+    { "diameter_mm": 40.5, "label": "2" },
+    { "diameter_mm": 35.5, "label": "3" },
+    { "diameter_mm": 30.5, "label": "4" },
+    { "diameter_mm": 25.5, "label": "5" },
+    { "diameter_mm": 20.5, "label": "6" },
+    { "diameter_mm": 15.5, "label": "7" },
+    { "diameter_mm": 10.5, "label": "8" },
+    { "diameter_mm": 5.5, "label": "9" },
+    { "diameter_mm": 0.5, "label": "10" }
   ]
 }

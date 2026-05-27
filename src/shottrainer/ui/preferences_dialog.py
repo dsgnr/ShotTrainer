@@ -51,10 +51,17 @@ class Preferences:
     target_face: str = "default"
     shot_diameter_mm: float = 4.5  # air pellet by default; .22 ~= 5.6 mm
     tracking_region_fraction: float = 0.7
-    # Diameter of the printed calibration circle (matches the marker
-    # sheet's "Circle diameter"). Persisted so the calibration dialog
-    # defaults to whatever the user printed last.
-    calibration_diameter_mm: float = 60.0
+    # Diameter of the printed black circle the live tracker measures
+    # against. Tracking is direct (not via a calibration step), so
+    # this is the only spatial parameter the user has to set.
+    circle_diameter_mm: float = 60.0
+    # Trace inversion. The default convention assumes a forward-facing
+    # barrel-mounted camera with no optics that flip the image. A
+    # magnifying scope or a mirror in the optical path can put the
+    # image-vs-aim relationship the wrong way round. Tick the
+    # appropriate axis to flip it back.
+    invert_trace_horizontal: bool = False
+    invert_trace_vertical: bool = False
 
 
 ROTATION_OPTIONS: tuple[tuple[int, str], ...] = (
@@ -240,6 +247,25 @@ class PreferencesDialog(QDialog):
         flip_layout.addWidget(self._flip_v)
         flip_layout.addStretch(1)
         form.addRow("Mirror", flip_row)
+
+        # Trace direction. Independent of the camera image flips above:
+        # "Mirror" changes how the live frame is shown and tracked,
+        # whereas "Invert trace" changes how the tracked position is
+        # converted into target millimetres. Useful when an optical
+        # element (a magnifying scope, a mirror) puts the image-vs-aim
+        # relationship the wrong way round for the default sign flip.
+        invert_row = QWidget()
+        invert_layout = QHBoxLayout(invert_row)
+        invert_layout.setContentsMargins(0, 0, 0, 0)
+        invert_layout.setSpacing(12)
+        self._invert_h = QCheckBox("Invert horizontal")
+        self._invert_h.setChecked(prefs.invert_trace_horizontal)
+        invert_layout.addWidget(self._invert_h)
+        self._invert_v = QCheckBox("Invert vertical")
+        self._invert_v.setChecked(prefs.invert_trace_vertical)
+        invert_layout.addWidget(self._invert_v)
+        invert_layout.addStretch(1)
+        form.addRow("Invert trace", invert_row)
 
         self._region = QDoubleSpinBox()
         self._region.setRange(0.1, 1.0)
@@ -439,6 +465,25 @@ class PreferencesDialog(QDialog):
         self._shot_diameter.setValue(prefs.shot_diameter_mm)
         self._shot_diameter.valueChanged.connect(self._on_shot_diameter_changed)
         form.addRow("Shot diameter", self._shot_diameter)
+
+        # Diameter of the printed black circle the live tracker
+        # measures against. Picking the right number is the only
+        # spatial parameter the user has to set. The conversion from
+        # pixels to millimetres is re-derived on every frame from the
+        # detected radius and this diameter.
+        self._circle_diameter = QDoubleSpinBox()
+        self._circle_diameter.setRange(5.0, 1000.0)
+        self._circle_diameter.setSingleStep(1.0)
+        self._circle_diameter.setSuffix(" mm")
+        self._circle_diameter.setValue(prefs.circle_diameter_mm)
+        _add_field_with_hint(
+            form,
+            "Tracking circle",
+            self._circle_diameter,
+            "Diameter of the printed black circle the live tracker "
+            "uses for scale. Set this to the size of the aiming mark "
+            "you're shooting at.",
+        )
         layout.addLayout(form)
 
         self._face_preview = TargetFacePreview()
@@ -598,7 +643,9 @@ class PreferencesDialog(QDialog):
             target_face=str(target_face),
             shot_diameter_mm=float(self._shot_diameter.value()),
             tracking_region_fraction=float(self._region.value()),
-            calibration_diameter_mm=self._prefs.calibration_diameter_mm,
+            circle_diameter_mm=float(self._circle_diameter.value()),
+            invert_trace_horizontal=self._invert_h.isChecked(),
+            invert_trace_vertical=self._invert_v.isChecked(),
         )
         self.saved.emit(updated)
         self.accept()
