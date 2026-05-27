@@ -82,11 +82,29 @@ class CircleTargetDetector:
         self.settings = settings or DetectorSettings()
         self._lock_px: tuple[float, float] | None = None
         self._consecutive_misses: int = 0
+        # The morphology kernel only depends on its size, so
+        # cache it. The detector reuses the same kernel for every
+        # frame while ``opening_kernel_px`` doesn't change.
+        self._cached_kernel: tuple[int, np.ndarray] | None = None
 
     def reset_lock(self) -> None:
         """Drop any soft lock so the next frame is treated as a fresh start."""
         self._lock_px = None
         self._consecutive_misses = 0
+
+    def _opening_kernel(self, size: int) -> np.ndarray:
+        """Return the structuring element for the morphological opening.
+
+        Cached so the per-frame call to
+        ``cv2.getStructuringElement`` only fires when the kernel
+        size actually changes.
+        """
+        cached = self._cached_kernel
+        if cached is not None and cached[0] == size:
+            return cached[1]
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (size, size))
+        self._cached_kernel = (size, kernel)
+        return kernel
 
     @staticmethod
     def _with_ellipse_fit(
@@ -167,7 +185,7 @@ class CircleTargetDetector:
         # one pixel of its outline (which the dilate restores).
         if s.opening_kernel_px >= 3:
             kernel_size = s.opening_kernel_px | 1  # ensure odd
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+            kernel = self._opening_kernel(kernel_size)
             binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
 
         h, w = grey.shape[:2]
