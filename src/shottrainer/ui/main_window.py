@@ -52,6 +52,7 @@ class MainWindow(QMainWindow):
         self._device_options_provider: Callable | None = None
         self._target_faces_provider: Callable | None = None
         self._rings_lookup: Callable | None = None
+        self._face_lookup: Callable | None = None
         self._is_recording_check: Callable[[], bool] = lambda: False
 
         self.header = AppHeader()
@@ -230,6 +231,16 @@ class MainWindow(QMainWindow):
     def set_rings_lookup(self, fn: Callable) -> None:
         self._rings_lookup = fn
 
+    def set_face_lookup(self, fn: Callable) -> None:
+        """Provide a ``(key) -> TargetFace | None`` callable.
+
+        Used by the Preferences dialog to auto-populate the
+        calibre and tracking-circle fields when the user picks
+        a different face. Optional. Without it the face combo
+        still works but the spinboxes don't auto-fill.
+        """
+        self._face_lookup = fn
+
     def set_recording_check(self, fn: Callable[[], bool]) -> None:
         """Hook for the controller to tell the window whether a session is live.
 
@@ -304,6 +315,7 @@ class MainWindow(QMainWindow):
             audio_options=microphones,
             target_faces=target_faces,
             rings_lookup=self._rings_lookup,
+            face_lookup=self._face_lookup,
             parent=self,
         )
         dialog.saved.connect(self._on_preferences_saved)

@@ -12,6 +12,8 @@ the user file is a dict of faces):
 ```
 {
   "label": "My face",
+  "shot_diameter_mm": 5.6,
+  "face_diameter_mm": 112.5,
   "rings": [
     { "diameter_mm": 150.0, "label": "1" },
     { "diameter_mm": 10.0,  "label": "X" }
@@ -19,13 +21,22 @@ the user file is a dict of faces):
 }
 ```
 
-Each ring's ``diameter_mm`` is the full width of the printed circle.
+``rings[i].diameter_mm`` is the full width of each printed
+scoring circle. ``shot_diameter_mm`` is the calibre the face
+was designed for. ``face_diameter_mm`` is the diameter of the
+black aiming area on the printed target (often equal to or a
+few mm larger than the outermost scoring ring). The live
+tracker uses it as the "tracking circle" size by default. The
+last two fields are optional. A face without them is still
+valid and the Preferences dialog will leave the user's
+spinbox values alone.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 
 from .assets import asset_path
@@ -35,6 +46,17 @@ log = logging.getLogger(__name__)
 
 
 _BUILT_IN_DIR = asset_path("target_faces")
+
+
+@dataclass(frozen=True, slots=True)
+class TargetFace:
+    """A target face and the metadata the rest of the app cares about."""
+
+    key: str
+    label: str
+    rings: tuple[TargetRing, ...]
+    shot_diameter_mm: float | None = None
+    face_diameter_mm: float | None = None
 
 
 def custom_faces_path() -> Path:
@@ -56,23 +78,40 @@ def _parse_rings(rings_raw: list) -> list[TargetRing]:
     return rings
 
 
-def _parse_face(body: dict, fallback_key: str) -> tuple[str, tuple[TargetRing, ...]] | None:
+def _optional_positive_float(body: dict, field: str) -> float | None:
+    """Coerce ``body[field]`` to a positive float, or ``None`` if it can't."""
+    raw = body.get(field)
+    if raw is None:
+        return None
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
+
+
+def _parse_face(body: dict, key: str) -> TargetFace | None:
     if not isinstance(body, dict):
         return None
-    label = str(body.get("label") or fallback_key)
     rings_raw = body.get("rings", [])
     if not isinstance(rings_raw, list):
         return None
     rings = _parse_rings(rings_raw)
     if not rings:
         return None
-    return (label, tuple(rings))
+    return TargetFace(
+        key=key,
+        label=str(body.get("label") or key),
+        rings=tuple(rings),
+        shot_diameter_mm=_optional_positive_float(body, "shot_diameter_mm"),
+        face_diameter_mm=_optional_positive_float(body, "face_diameter_mm"),
+    )
 
 
-_built_in_cache: dict[str, tuple[str, tuple[TargetRing, ...]]] = {}
+_built_in_cache: dict[str, TargetFace] = {}
 
 
-def _load_built_in_faces() -> dict[str, tuple[str, tuple[TargetRing, ...]]]:
+def _load_built_in_faces() -> dict[str, TargetFace]:
     """Load every ``*.json`` face shipped under ``ui/assets/target_faces/``.
 
     The filename stem (so ``smallbore_50m.json`` becomes ``smallbore_50m``)
@@ -97,13 +136,13 @@ def _load_built_in_faces() -> dict[str, tuple[str, tuple[TargetRing, ...]]]:
         except (OSError, json.JSONDecodeError) as exc:
             log.warning("Could not read built-in face %s: %s", path, exc)
             continue
-        parsed = _parse_face(raw, key)
-        if parsed is not None:
-            _built_in_cache[key] = parsed
+        face = _parse_face(raw, key)
+        if face is not None:
+            _built_in_cache[key] = face
     return _built_in_cache
 
 
-_custom_cache: dict[str, tuple[str, tuple[TargetRing, ...]]] = {}
+_custom_cache: dict[str, TargetFace] = {}
 _custom_cache_mtime: float = -1.0
 
 
@@ -114,7 +153,7 @@ def reload_custom_faces() -> None:
     _custom_cache_mtime = -1.0
 
 
-def _load_custom_faces() -> dict[str, tuple[str, tuple[TargetRing, ...]]]:
+def _load_custom_faces() -> dict[str, TargetFace]:
     global _custom_cache_mtime
     p = custom_faces_path()
     try:
@@ -137,15 +176,15 @@ def _load_custom_faces() -> dict[str, tuple[str, tuple[TargetRing, ...]]]:
     if not isinstance(raw, dict):
         return _custom_cache
     for key, body in raw.items():
-        parsed = _parse_face(body, str(key))
-        if parsed is not None:
-            _custom_cache[str(key)] = parsed
+        face = _parse_face(body, str(key))
+        if face is not None:
+            _custom_cache[str(key)] = face
     return _custom_cache
 
 
-def _merged_faces() -> dict[str, tuple[str, tuple[TargetRing, ...]]]:
+def _merged_faces() -> dict[str, TargetFace]:
     """Built-ins plus custom faces. Custom entries shadow built-ins of the same key."""
-    merged: dict[str, tuple[str, tuple[TargetRing, ...]]] = {}
+    merged: dict[str, TargetFace] = {}
     merged.update(_load_built_in_faces())
     merged.update(_load_custom_faces())
     return merged
@@ -158,13 +197,23 @@ def list_target_faces() -> list[tuple[str, str]]:
     users. The rest are sorted by their human-readable label so
     disciplines cluster sensibly in the picker.
     """
-    items = list(_merged_faces().items())
+    items = list(_merged_faces().values())
 
-    def sort_key(item: tuple[str, tuple[str, tuple[TargetRing, ...]]]) -> tuple[int, str]:
-        key, (label, _) = item
-        return (0 if key == "default" else 1, label.lower())
+    def sort_key(face: TargetFace) -> tuple[int, str]:
+        return (0 if face.key == "default" else 1, face.label.lower())
 
-    return [(key, label) for key, (label, _) in sorted(items, key=sort_key)]
+    return [(face.key, face.label) for face in sorted(items, key=sort_key)]
+
+
+def face_for_name(name: str) -> TargetFace | None:
+    """Return the full :class:`TargetFace` for ``name``, or ``None``.
+
+    Unlike :func:`rings_for_face`, this does *not* fall back to
+    another face when ``name`` is unknown. Callers that want a
+    fallback should handle it themselves so the UI doesn't end up
+    silently auto-populating from an unrelated face.
+    """
+    return _merged_faces().get(name)
 
 
 def rings_for_face(name: str) -> tuple[TargetRing, ...]:
@@ -176,13 +225,13 @@ def rings_for_face(name: str) -> tuple[TargetRing, ...]:
     special branch for "no faces installed".
     """
     faces = _merged_faces()
-    entry = faces.get(name)
-    if entry is not None:
-        return entry[1]
+    face = faces.get(name)
+    if face is not None:
+        return face.rings
     if "default" in faces:
-        return faces["default"][1]
+        return faces["default"].rings
     if faces:
-        return next(iter(faces.values()))[1]
+        return next(iter(faces.values())).rings
     return ()
 
 

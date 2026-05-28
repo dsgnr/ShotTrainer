@@ -1,0 +1,15 @@
+{
+  "label": "NSRA 50m Prone Rifle (NSRA MM 12 C 1996-18)",
+  "shot_diameter_mm": 5.6,
+  "face_diameter_mm": 112.5,
+  "rings": [
+    { "diameter_mm": 105.5, "label": "4" },
+    { "diameter_mm": 89.5, "label": "5" },
+    { "diameter_mm": 73.5, "label": "6" },
+    { "diameter_mm": 57.5, "label": "7" },
+    { "diameter_mm": 41.5, "label": "8" },
+    { "diameter_mm": 25.5, "label": "9" },
+    { "diameter_mm": 10.0, "label": "10" },
+    { "diameter_mm": 4.5, "label": "X" }
+  ]
+}

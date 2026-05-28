@@ -33,7 +33,7 @@ from shottrainer.ui.main_window import MainWindow
 from shottrainer.ui.preferences_dialog import Preferences
 from shottrainer.ui.session_browser import SessionBrowserDialog
 from shottrainer.ui.shot_list import ShotListEntry
-from shottrainer.ui.target_faces import list_target_faces, rings_for_face
+from shottrainer.ui.target_faces import face_for_name, list_target_faces, rings_for_face
 from shottrainer.ui.target_view import ShotMarker
 
 from .camera_selection import (
@@ -119,6 +119,7 @@ class AppController(QObject):
         self._window.set_device_options_provider(self._device_options)
         self._window.set_target_faces_provider(list_target_faces)
         self._window.set_rings_lookup(rings_for_face)
+        self._window.set_face_lookup(face_for_name)
         self._window.set_recording_check(lambda: self._recorder.is_recording)
         self._apply_preferences(prefs, persist=False)
 
