@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -86,7 +87,7 @@ def custom_faces_path() -> Path:
 def _parse_rings(rings_raw: list) -> list[TargetRing]:
     """Turn a raw JSON list into :class:`TargetRing` objects.
 
-    Entries without a numeric ``diameter_mm`` are skipped rather
+    Entries without a positive, finite ``diameter_mm`` are skipped rather
     than raising. A partially-malformed face is more useful than
     a blanket failure.
     """
@@ -94,23 +95,22 @@ def _parse_rings(rings_raw: list) -> list[TargetRing]:
     for r in rings_raw:
         if not isinstance(r, dict):
             continue
-        try:
-            rings.append(TargetRing(float(r["diameter_mm"]), str(r.get("label") or "")))
-        except (KeyError, TypeError, ValueError):
-            continue
+        diameter = _optional_positive_float(r, "diameter_mm")
+        if diameter is not None:
+            rings.append(TargetRing(diameter, str(r.get("label") or "")))
     return rings
 
 
 def _optional_positive_float(body: dict, field: str) -> float | None:
-    """Coerce ``body[field]`` to a positive float, or ``None`` if it can't."""
+    """Coerce ``body[field]`` to a positive, finite float, or ``None``."""
     raw = body.get(field)
-    if raw is None:
+    if raw is None or isinstance(raw, bool):
         return None
     try:
         value = float(raw)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
-    return value if value > 0 else None
+    return value if math.isfinite(value) and value > 0 else None
 
 
 def _parse_face(body: dict, key: str) -> TargetFace | None:
@@ -166,7 +166,7 @@ def _load_built_in_faces() -> dict[str, TargetFace]:
         key = path.stem
         try:
             raw = json.loads(path.read_text())
-        except (OSError, json.JSONDecodeError) as exc:
+        except (OSError, ValueError) as exc:
             log.warning("Could not read built-in face %s: %s", path, exc)
             continue
         face = _parse_face(raw, key)
@@ -210,7 +210,7 @@ def _load_custom_faces() -> dict[str, TargetFace]:
         return _custom_cache
     try:
         raw = json.loads(p.read_text())
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError) as exc:
         log.warning("Could not read %s: %s", p, exc)
         return _custom_cache
     if not isinstance(raw, dict):

@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import json
+
+import pytest
+
+import shottrainer.app.target_faces as tf
 from shottrainer.app.target_faces import (
     diagnostic_rings,
     face_for_name,
@@ -157,3 +162,44 @@ def test_custom_face_with_garbage_file_is_ignored(tmp_path, monkeypatch):
     # Built-ins are still listed.
     keys = {k for k, _ in tf.list_target_faces()}
     assert "default" in keys
+
+
+@pytest.mark.parametrize("field", ["diameter_mm", "shot_diameter_mm", "face_diameter_mm"])
+@pytest.mark.parametrize(
+    "value",
+    [0, -1, float("nan"), float("inf"), float("-inf"), 10**400, True],
+    ids=["zero", "negative", "nan", "infinity", "negative-infinity", "huge-int", "bool"],
+)
+def test_invalid_custom_dimensions_are_discarded(tmp_path, monkeypatch, field, value):
+    valid_ring = {"diameter_mm": 10.0, "label": "X"}
+    body = {"rings": [valid_ring]}
+    if field == "diameter_mm":
+        body["rings"].append({"diameter_mm": value, "label": "1"})
+    else:
+        body[field] = value
+    custom_file = tmp_path / "custom_target_faces.json"
+    custom_file.write_text(json.dumps({"custom": body}))
+    monkeypatch.setattr(tf, "custom_faces_path", lambda: custom_file)
+
+    face = tf.face_for_name("custom")
+
+    assert face is not None
+    assert face.rings == (TargetRing(10.0, "X"),)
+    assert face.shot_diameter_mm is None
+    assert face.face_diameter_mm is None
+
+
+def test_custom_face_without_valid_rings_does_not_replace_builtin(tmp_path, monkeypatch):
+    custom_file = tmp_path / "custom_target_faces.json"
+    custom_file.write_text('{"default": {"rings": [{"diameter_mm": -10}]}}')
+    monkeypatch.setattr(tf, "custom_faces_path", lambda: custom_file)
+
+    assert tf.face_for_name("default") == tf._load_built_in_faces()["default"]
+
+
+def test_custom_faces_with_invalid_encoding_preserve_builtins(tmp_path, monkeypatch):
+    custom_file = tmp_path / "custom_target_faces.json"
+    custom_file.write_bytes(b"\xff\xfe")
+    monkeypatch.setattr(tf, "custom_faces_path", lambda: custom_file)
+
+    assert "default" in dict(tf.list_target_faces())
