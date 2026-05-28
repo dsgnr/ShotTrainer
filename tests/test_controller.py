@@ -21,12 +21,15 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 pytest.importorskip("PySide6")
 
 from shottrainer.app.controller import AppController, _ShotEntry
 from shottrainer.app.preferences import Preferences
+from shottrainer.audio.models import ShotEvent
+from shottrainer.tracking.models import TrackingSample
 from shottrainer.ui.main_window import MainWindow
 
 
@@ -210,3 +213,49 @@ def test_rescore_updates_view_and_persists_scores(
     shots = controller._session_mgr.shots_in_view
     assert shots[0].score not in (None, "")
     assert shots[1].score is None
+
+
+@pytest.mark.parametrize("live_input", ["camera", "microphone"])
+@pytest.mark.parametrize("select_shot", [False, True])
+def test_saved_session_review_ignores_live_input(controller, live_input, select_shot):
+    """Connected devices must not change the session being reviewed."""
+    sid = controller._repo.create_session(name="Saved practice")
+    controller._repo.add_shot(
+        sid, ts=1.0, x_mm=1.0, y_mm=2.0, audio_level=0.5, confidence=1.0, score="9"
+    )
+    controller._repo.append_trace(
+        sid, [TrackingSample(timestamp=1.0, x_px=1.0, y_px=2.0, x_mm=1.0, y_mm=2.0)]
+    )
+    controller._session_mgr._load_session_for_replay(sid)
+    if select_shot:
+        controller._session_mgr.on_shot_selected(0)
+    saved_shots = list(controller._session_mgr.shots_in_view)
+    saved_trace = list(controller._window.target_view._trace)
+
+    def emit_live_input():
+        if live_input == "camera":
+            controller._on_frame_processed(
+                np.zeros((20, 20, 3), dtype=np.uint8),
+                TrackingSample(timestamp=20.0, x_px=3.0, y_px=4.0, x_mm=3.0, y_mm=4.0),
+                2.0,
+                None,
+            )
+        else:
+            controller._on_shot_detected(
+                ShotEvent(timestamp=20.0, audio_level=0.5, sample_rate=44100)
+            )
+
+    emit_live_input()
+    assert controller._session_mgr.shots_in_view == saved_shots
+    assert list(controller._window.target_view._trace) == saved_trace
+    assert len(controller._repo.list_shots(sid)) == 1
+
+    # Starting another session must restore normal live operation.
+    controller._on_start_requested("Next practice")
+    emit_live_input()
+    if live_input == "camera":
+        assert list(controller._window.target_view._trace) == [(3.0, 4.0)]
+    else:
+        assert len(controller._session_mgr.shots_in_view) == 1
+        assert controller._session_mgr.shots_in_view[0].timestamp == 20.0
+    controller._on_stop_requested()
