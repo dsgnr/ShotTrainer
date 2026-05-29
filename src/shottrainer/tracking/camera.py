@@ -12,8 +12,12 @@ calibration, storage) lives elsewhere and consumes the ``frame_ready`` signal.
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import os
+import sys
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 import cv2
@@ -56,14 +60,14 @@ def list_available_cameras(max_index: int = 5) -> list[tuple[int, str]]:
     OpenCV does not give names on all platforms, so this returns generic
     labels. Good enough for a device picker.
 
-    OpenCV chats noisily on stderr for every index that doesn't open
-    (one log line per backend per failed probe). Lower the OpenCV log
-    level for the duration of the probe so the console stays clean,
-    then restore the previous level.
+    Probing prints noisily on stderr at the C level: OpenCV emits a
+    line per failed index, and on macOS AVFoundation emits "out device
+    of bound" before OpenCV's own message. Neither is reachable
+    through the Python logging API, so the probe runs with stderr
+    redirected to ``/dev/null`` (or the OS equivalent) for the
+    duration of the call.
     """
-    previous_level = cv2.utils.logging.getLogLevel()
-    cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_SILENT)
-    try:
+    with _silenced_native_stderr():
         found: list[tuple[int, str]] = []
         for idx in range(max_index):
             cap = cv2.VideoCapture(idx, cv2.CAP_ANY)
@@ -73,8 +77,28 @@ def list_available_cameras(max_index: int = 5) -> list[tuple[int, str]]:
             finally:
                 cap.release()
         return found
+
+
+@contextlib.contextmanager
+def _silenced_native_stderr() -> Iterator[None]:
+    """Send file descriptor 2 to the null device for the duration of the block.
+
+    Native libraries (AVFoundation on macOS, V4L2 on Linux) write
+    to stderr through the C runtime, which bypasses Python's
+    ``sys.stderr`` and ``logging``. Swapping the underlying file
+    descriptor catches both. Always restored on exit.
+    """
+    devnull_path = "nul" if sys.platform == "win32" else "/dev/null"
+    saved_fd = os.dup(2)
+    try:
+        with open(devnull_path, "wb") as devnull:
+            os.dup2(devnull.fileno(), 2)
+            try:
+                yield
+            finally:
+                os.dup2(saved_fd, 2)
     finally:
-        cv2.utils.logging.setLogLevel(previous_level)
+        os.close(saved_fd)
 
 
 class CameraCapture(QObject):
@@ -109,13 +133,20 @@ class CameraCapture(QObject):
         thread.start()
 
     def stop(self) -> None:
+        """Tell the worker thread to wind up and wait for it.
+
+        The QObject keeps its thread affinity on the now-finished
+        worker thread, but the instance is single-use anyway so
+        that doesn't matter. We don't try to ``moveToThread`` back
+        to the calling thread because Qt would warn (``stop`` runs
+        on the main thread, the object lives on the worker).
+        """
         self._running = False
         thread = self._thread
         if thread is None:
             return
         thread.quit()
         thread.wait(2000)
-        self.moveToThread(QThread.currentThread())
         self._thread = None
 
     def update_config(self, config: CameraConfig) -> None:
