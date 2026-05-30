@@ -105,7 +105,7 @@ class ShotDetector:
         )
         out = out.astype(np.float32, copy=False)
 
-        rms = float(np.sqrt(np.mean(out * out))) if out.size else 0.0
+        rms = float(np.sqrt(np.dot(out, out) / out.size)) if out.size else 0.0
         if not math.isfinite(rms) or rms < s.threshold:
             return None
 
