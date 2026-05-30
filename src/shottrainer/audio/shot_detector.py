@@ -42,6 +42,23 @@ class ShotDetector:
         # input, one on the output), so ``zi`` is just a single
         # element.
         self._filter_state: np.ndarray = np.zeros(1, dtype=np.float32)
+        # The filter coefficients only depend on
+        # ``high_pass_alpha``, so cache them and only rebuild
+        # when the alpha changes. The block callback runs
+        # roughly a hundred times a second, which would
+        # otherwise leak two tiny ndarray allocations per call.
+        self._filter_alpha: float | None = None
+        self._filter_b: np.ndarray = np.array([1.0, -1.0], dtype=np.float32)
+        self._filter_a: np.ndarray = np.array([1.0, 0.0], dtype=np.float32)
+        self._refresh_filter_coefficients()
+
+    def _refresh_filter_coefficients(self) -> None:
+        """Rebuild the cached ``b`` / ``a`` arrays for the DC blocker."""
+        alpha = self.settings.high_pass_alpha
+        if alpha == self._filter_alpha:
+            return
+        self._filter_alpha = alpha
+        self._filter_a = np.array([1.0, -alpha], dtype=np.float32)
 
     def reset(self) -> None:
         """Clear the filter state and the refractory timestamp.
@@ -55,6 +72,7 @@ class ShotDetector:
     def update_settings(self, settings: ShotDetectorSettings) -> None:
         """Swap in new settings without losing the filter state."""
         self.settings = settings
+        self._refresh_filter_coefficients()
 
     def process_block(self, samples: np.ndarray, block_start_ts: float) -> ShotEvent | None:
         """Process one block of audio and return a shot event if there is one.
@@ -79,10 +97,12 @@ class ShotDetector:
         # input difference, denominator ``[1, -a]`` for the
         # recursive output. ``zi`` carries the one-sample delay
         # line across blocks so streaming output matches a
-        # concatenated signal.
-        b = np.array([1.0, -1.0], dtype=np.float32)
-        a_coef = np.array([1.0, -s.high_pass_alpha], dtype=np.float32)
-        out, self._filter_state = lfilter(b, a_coef, samples, zi=self._filter_state)
+        # one-shot filter over the concatenated signal. The
+        # coefficients are cached so we don't allocate two tiny
+        # float arrays on every block.
+        out, self._filter_state = lfilter(
+            self._filter_b, self._filter_a, samples, zi=self._filter_state
+        )
         out = out.astype(np.float32, copy=False)
 
         rms = float(np.sqrt(np.mean(out * out))) if out.size else 0.0
