@@ -138,7 +138,7 @@ class AudioShotListener(QObject):
         ts = time.monotonic() - frames / float(self._settings.sample_rate)
 
         block = indata[:, 0] if indata.ndim > 1 else indata
-        rms = float(np.sqrt(np.mean(block * block))) if block.size else 0.0
+        rms = float(np.sqrt(np.dot(block, block) / block.size)) if block.size else 0.0
         self.level.emit(rms)
 
         event = self._detector.process_block(block, ts)
