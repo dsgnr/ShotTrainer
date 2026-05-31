@@ -1,8 +1,4 @@
-"""Plain data types used across the tracking module.
-
-Plain dataclasses, no Qt imports here. The tracker, calibration and tests
-import import these without dragging OpenCV or PySide6 in too.
-"""
+"""Plain data types used across the tracking module."""
 
 from __future__ import annotations
 
@@ -13,12 +9,10 @@ from dataclasses import dataclass
 class TrackingSample:
     """One sample of where the rifle was aimed at a moment in time.
 
-    Pixel coordinates are the position of the *target* in the camera
-    frame at this moment. Millimetre coordinates, when present, are
-    the rifle's aim relative to the target centre, expressed in the
-    target's own coordinate system (positive X right of centre,
-    positive Y below). Millimetres are populated only after a
-    calibration has been applied.
+    Pixel coordinates are where the target sits in the camera
+    frame. Millimetre coordinates, when filled in, say where the
+    rifle was pointing relative to the target's centre. Positive X
+    is to the right of centre, positive Y is below.
     """
 
     timestamp: float

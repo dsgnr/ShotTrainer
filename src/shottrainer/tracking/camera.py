@@ -6,8 +6,9 @@ together with a monotonic timestamp, which is the same clock the
 audio detector and the recorder use, so everything ends up on a
 single timeline.
 
-The capture loop is intentionally small. Anything domain related (detection,
-calibration, storage) lives elsewhere and consumes the ``frame_ready`` signal.
+The loop does nothing else. Detection, recording and all the
+other domain work happen elsewhere, hooked into the
+``frame_ready`` signal.
 """
 
 from __future__ import annotations
