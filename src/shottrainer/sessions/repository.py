@@ -1,7 +1,7 @@
 """Repository for sessions, traces and shots.
 
 Hides SQLAlchemy from the rest of the app. Anything that wants
-to read or to read or to read or to read or to read or to read or write persistence goes through here.
+to read or to read or to read or to read or to read or to read or to read or write persistence goes through here.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from sqlalchemy.orm import noload
 from shottrainer.services.scoring import label_to_value
 from shottrainer.tracking.models import TrackingSample
 
-from .models import Session, Shot, TraceSample
+from .models import Session, Shot, TraceSample, utc_now
 
 
 class SessionSummary:
@@ -83,7 +83,7 @@ class SessionRepository:
             row = session.get(Session, session_id)
             if row is None:
                 return
-            row.ended_at = ended_at or datetime.utcnow()
+            row.ended_at = ended_at or utc_now()
             session.commit()
 
     def list_sessions(self) -> list[SessionSummary]:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -17,6 +17,17 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 SCHEMA_VERSION = 1
+
+
+def utc_now() -> datetime:
+    """Naive UTC ``datetime`` for column defaults.
+
+    The columns are tz-naive ``DateTime`` because SQLite has no
+    native tz-aware type. ``datetime.utcnow`` is deprecated since
+    Python 3.12, so this helper builds a tz-aware ``datetime``
+    and strips the tzinfo to keep the on-disk shape unchanged.
+    """
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class Base(DeclarativeBase):
@@ -34,7 +45,7 @@ class Session(Base):
     __tablename__ = "sessions"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False, default="")
-    started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utc_now)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     notes: Mapped[str] = mapped_column(Text, nullable=False, default="")
     calibration_json: Mapped[str | None] = mapped_column(Text, nullable=True)
