@@ -8,6 +8,7 @@ tried and dropped.
 
 from __future__ import annotations
 
+import heapq
 from dataclasses import dataclass
 
 import cv2
@@ -215,18 +216,31 @@ class CircleTargetDetector:
             offset = np.array([[offset_x, offset_y]], dtype=np.int32)
             contours = [c + offset for c in contours]
 
+        # Pre-filter on contour point count before paying for
+        # ``cv2.contourArea``. A circle with ``min_radius_px``
+        # pixels of radius has roughly ``2 * pi * r`` perimeter
+        # pixels (typically ~25 for r=4). Anything with far fewer
+        # points than that is noise. ``len(c)`` is free at the
+        # Python level and shrinks the input to the area sort by
+        # an order of magnitude on textured scenes.
+        min_points = max(8, int(2 * s.min_radius_px))
+        if len(contours) > s.max_candidates:
+            contours = [c for c in contours if len(c) >= min_points]
+
         # Cap how many contours we look at so a noisy scene can't
         # stall the detector. Largest-area first means the cap
         # keeps the ones most likely to be the target. Each
         # contour's area is cached so the loop below doesn't
-        # compute it again.
+        # compute it again. ``heapq.nlargest`` is O(n log k) on a
+        # heap of size k, which beats sorting the full list when
+        # there are far more contours than ``max_candidates``.
         contour_areas: list[tuple[np.ndarray, float]]
         if len(contours) > s.max_candidates:
-            contour_areas = sorted(
+            contour_areas = heapq.nlargest(
+                s.max_candidates,
                 ((c, cv2.contourArea(c)) for c in contours),
                 key=lambda pair: pair[1],
-                reverse=True,
-            )[: s.max_candidates]
+            )
         else:
             contour_areas = [(c, cv2.contourArea(c)) for c in contours]
 
