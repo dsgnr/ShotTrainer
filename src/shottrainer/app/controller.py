@@ -8,7 +8,6 @@ services themselves stay free of any widget code.
 from __future__ import annotations
 
 import logging
-import threading
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol
@@ -16,6 +15,7 @@ from typing import Protocol
 import cv2
 import numpy as np
 from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtWidgets import QApplication
 
 from shottrainer import __version__
 from shottrainer.app.preferences import Preferences
@@ -37,7 +37,7 @@ from shottrainer.sessions.repository import SessionRepository
 from shottrainer.tracking.camera import CameraCapture, CameraConfig, list_available_cameras
 from shottrainer.tracking.detector import DetectorSettings
 from shottrainer.tracking.detector_tuning import optimise_detector_settings
-from shottrainer.tracking.frame_ops import transform_frame
+from shottrainer.tracking.frame_ops import adjust_image, transform_frame
 from shottrainer.tracking.models import Detection, TrackingSample
 from shottrainer.tracking.tracker import Tracker
 from shottrainer.ui.main_window import MainWindow
@@ -115,11 +115,6 @@ class AppController(QObject):
     # last_detection_or_None)``.
     _frame_processed = Signal(object, object, float, object)
 
-    # Auto-optimise runs on a background thread so the UI stays
-    # responsive. Carries ``(detector_settings_or_None,
-    # image_adjustment, confidence)``.
-    _optimise_finished = Signal(object, object, float)
-
     def __init__(self, window: MainWindow, db_path: Path) -> None:
         super().__init__()
         self._window = window
@@ -160,8 +155,12 @@ class AppController(QObject):
         self._frame_mirrors: list[_FrameMirror] = []  # dialogs that want live frames
         self._active_prefs_dialog = None  # set while the Preferences dialog is open
         self._frame_transform: FrameTransformOptions | None = None
-        self._optimise_in_progress = False
         self._latest_frame: np.ndarray | None = None
+        # The frame the pipeline saw before the user's
+        # brightness/contrast adjustment ran on it. Used by the
+        # auto-optimiser so successive clicks don't compound the
+        # current adjustment on top of the previous one.
+        self._latest_unadjusted_frame: np.ndarray | None = None
         # The camera list as it was last enumerated. Refreshed
         # lazily when the Preferences dialog opens. Consulted by
         # ``_persist_camera_selection`` so saving the user's
@@ -256,11 +255,6 @@ class AppController(QObject):
         # without the controller having to know about thread
         # affinity.
         self._frame_processed.connect(self._on_frame_processed)
-        # Auto-optimise runs on a background thread so the UI
-        # stays responsive while the grid search runs. Same
-        # trick as above: the signal is queued onto the GUI
-        # thread so the slot can touch widgets directly.
-        self._optimise_finished.connect(self._on_optimise_finished)
 
     def _effective_camera_index(self) -> int | None:
         """Pick the camera index to use given the saved selection.
@@ -387,17 +381,30 @@ class AppController(QObject):
             emit_buffer = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             owns_copy = True
         opts = self._frame_transform
-        if opts is not None:
+        if opts is not None and (opts.rotation_degrees or opts.flip_horizontal or opts.flip_vertical):
             transformed = transform_frame(
                 emit_buffer,
                 rotation_degrees=opts.rotation_degrees,
                 flip_horizontal=opts.flip_horizontal,
                 flip_vertical=opts.flip_vertical,
-                brightness=opts.brightness,
-                contrast=opts.contrast,
             )
             if transformed is not emit_buffer:
                 emit_buffer = transformed
+                owns_copy = True
+        # Snapshot the pre-adjustment frame for the auto-tuner so
+        # repeated clicks don't compound the current
+        # brightness/contrast on top of itself. ``ascontiguousarray``
+        # decouples the snapshot from any later in-place writes
+        # the camera worker might do to ``frame``.
+        self._latest_unadjusted_frame = (
+            emit_buffer if owns_copy else np.ascontiguousarray(emit_buffer)
+        )
+        if opts is not None and (opts.brightness != 0.0 or opts.contrast != 1.0):
+            adjusted = adjust_image(
+                emit_buffer, brightness=opts.brightness, contrast=opts.contrast
+            )
+            if adjusted is not emit_buffer:
+                emit_buffer = adjusted
                 owns_copy = True
         sample = self._pipeline.process(emit_buffer, ts, frame_id)
         # Snapshot the tracker state so the GUI handler reads
@@ -1050,64 +1057,41 @@ class AppController(QObject):
         )
 
     def _on_optimise_requested(self) -> None:
-        """Run the auto-tuner on a background thread.
+        """Run the auto-tuner against the latest frame.
 
-        The grid search is hundreds of detector evaluations on a
-        720p frame, which is enough to freeze the GUI for a
-        couple of seconds if it ran inline. So we run it on a
-        worker thread. The result comes back via
-        :attr:`_optimise_finished`, which is queued onto the GUI
-        thread for :meth:`_on_optimise_finished`.
+        The grid is small enough now (a few dozen detector calls
+        on a typical greyscale frame) that running it inline
+        only blocks the GUI for around 100 ms on a clean frame.
+        That's well below the threshold where a user notices a
+        freeze, and it side-steps the GIL contention that
+        threading runs into when both the camera worker and the
+        optimiser are calling into ``cv2`` at the same time.
         """
-        if self._optimise_in_progress:
-            return
-        if self._latest_frame is None:
-            self._set_detector_status(
-                "No camera frame available to optimise from", kind="warning"
-            )
-            return
-        # The latest frame already has the user's current
-        # brightness/contrast applied, so we re-run the
-        # optimisation against the *raw* greyscale source.
-        # Otherwise the search would be biased by wherever the
-        # sliders happen to be.
-        source = self._raw_optimisation_frame()
+        source = self._latest_unadjusted_frame
         if source is None:
             self._set_detector_status(
                 "No camera frame available to optimise from", kind="warning"
             )
             return
-        self._optimise_in_progress = True
+
         self._set_optimise_button_enabled(False)
         self._set_detector_status("Optimising tracking...", kind="info")
+        # Force the disabled-button state and the status label to
+        # paint before the search starts. Without this, the
+        # ``Optimising...`` label only appears once the slot
+        # returns.
+        QApplication.processEvents()
 
         base_settings = self._tracker.detector.settings
-        # ``frame.copy`` so the worker thread doesn't race with
-        # the next camera frame writing into the same buffer.
-        snapshot = source.copy()
-        thread = threading.Thread(
-            target=self._run_optimise_worker,
-            args=(snapshot, base_settings),
-            daemon=True,
-            name="optimise-detector",
-        )
-        thread.start()
-
-    def _run_optimise_worker(
-        self,
-        frame: np.ndarray,
-        base_settings: DetectorSettings,
-    ) -> None:
-        """Worker-thread body for auto-optimise. Emits a finished signal."""
         try:
             new_settings, adjustment, score = optimise_detector_settings(
-                frame, base_settings
+                source, base_settings
             )
         except Exception:
             log.exception("Auto-optimise failed")
-            self._optimise_finished.emit(None, None, 0.0)
-            return
-        self._optimise_finished.emit(new_settings, adjustment, score)
+            new_settings, adjustment, score = None, None, 0.0
+
+        self._on_optimise_finished(new_settings, adjustment, score)
 
     def _on_optimise_finished(
         self,
@@ -1115,8 +1099,7 @@ class AppController(QObject):
         adjustment: object,
         score: float,
     ) -> None:
-        """Apply the optimiser's result on the GUI thread and refresh the dialog."""
-        self._optimise_in_progress = False
+        """Apply the optimiser's result and refresh the dialog."""
         self._set_optimise_button_enabled(True)
         if new_settings is None or adjustment is None:
             self._set_detector_status(
@@ -1164,27 +1147,6 @@ class AppController(QObject):
         dialog = self._active_prefs_dialog
         if dialog is not None:
             dialog.set_optimise_enabled(enabled)
-
-    def _raw_optimisation_frame(self) -> np.ndarray | None:
-        """Return the latest frame with the image adjustments backed out.
-
-        ``self._latest_frame`` already has the user's current
-        brightness and contrast baked in, so optimising against
-        it would compose two adjustments instead of searching the
-        full space. Reversing ``cv2.convertScaleAbs`` exactly
-        isn't possible, but for the optimiser's purposes a good
-        enough approximation is to subtract the offset, divide
-        by the multiplier, and clip back into the uint8 range.
-        """
-        frame = self._latest_frame
-        if frame is None:
-            return None
-        opts = self._frame_transform
-        if opts is None or (opts.brightness == 0.0 and opts.contrast == 1.0):
-            return frame
-        f = frame.astype(np.float32)
-        f = (f - opts.brightness) / max(opts.contrast, 1e-3)
-        return np.clip(f, 0, 255).astype(np.uint8)
 
     def _on_reset_detector_requested(self) -> None:
         """Reset the detector to defaults and delete the saved file."""
