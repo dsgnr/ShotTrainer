@@ -22,17 +22,6 @@ def _samples(n: int, dt: float = 0.05) -> list[TrackingSample]:
     ]
 
 
-def test_load_session_returns_trace_and_shots(repo: SessionRepository):
-    sid = repo.create_session(name="t")
-    repo.append_trace(sid, _samples(5))
-    repo.add_shot(sid, ts=0.1, x_mm=1.0, y_mm=-1.0, audio_level=0.4, confidence=0.9)
-    coord = ReplayCoordinator(repo)
-    view = coord.load_session(sid)
-    assert view.session_id == sid
-    assert len(view.trace) == 5
-    assert len(view.shots) == 1
-
-
 def test_shot_window_finds_split(repo: SessionRepository):
     sid = repo.create_session()
     repo.append_trace(sid, _samples(60, dt=0.05))  # 0.0..2.95

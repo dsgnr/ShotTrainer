@@ -44,7 +44,6 @@ class CameraView(QWidget):
         self._aim_radius_px: float = 0.0
         self._rejected_px: tuple[float, float] | None = None
         self._rejected_radius_px: float = 0.0
-        self._show_overlay: bool = True
         self._status: TrackingStatus = "idle"
         self._region_fraction: float = 1.0
 
@@ -83,10 +82,6 @@ class CameraView(QWidget):
         else:
             self._rejected_px = (x_px, y_px)
             self._rejected_radius_px = radius_px
-        self.update()
-
-    def set_overlay_visible(self, visible: bool) -> None:
-        self._show_overlay = visible
         self.update()
 
     def set_status(self, status: TrackingStatus) -> None:
@@ -133,9 +128,9 @@ class CameraView(QWidget):
         offset_y = (target.height() - scaled.height()) // 2
         painter.drawPixmap(offset_x, offset_y, scaled)
 
-        if self._show_overlay and self._aim_px is not None:
+        if self._aim_px is not None:
             self._draw_aim_overlay(painter, scaled.size().toTuple(), (offset_x, offset_y))
-        if self._show_overlay and self._rejected_px is not None:
+        if self._rejected_px is not None:
             self._draw_rejected_overlay(
                 painter, scaled.size().toTuple(), (offset_x, offset_y)
             )
