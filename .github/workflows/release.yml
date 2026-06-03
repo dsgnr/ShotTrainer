@@ -27,7 +27,7 @@ jobs:
           enable-cache: true
 
       - name: install python
-        run: uv python install 3.11
+        run: uv python install 3.13
 
       - name: install system dependencies (linux)
         if: runner.os == 'Linux'
