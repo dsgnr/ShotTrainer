@@ -39,10 +39,8 @@ with various cameras people have tried.
 - [Status](#status)
 - [Requirements](#requirements)
 - [Development](#development)
-  - [Setup](#setup)
-  - [Workflow](#workflow)
-  - [Pre-commit hooks (optional)](#pre-commit-hooks-optional)
   - [Project layout](#project-layout)
+- [Contributing](#contributing)
 - [Tracking](#tracking)
 - [Packaging](#packaging)
 - [Troubleshooting](#troubleshooting)
@@ -181,83 +179,19 @@ time the app runs. On Linux the user must be in the appropriate `video` and
 
 ## Development
 
-### Setup
-
-We use [uv](https://docs.astral.sh/uv/) to manage Python and dependencies.
-If you don't already have it:
+ShotTrainer uses [uv](https://docs.astral.sh/uv/) for Python and
+dependency management.
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh    # macOS / Linux
-# or: powershell -c "irm https://astral.sh/uv/install.ps1 | iex"  on Windows
-```
-
-Then, from the repo root:
-
-```bash
-uv sync                  # install runtime + dev dependencies in .venv/
-```
-
-`uv sync` creates a virtual environment in `.venv/` and resolves
-everything from `uv.lock` so you get a reproducible install. To add
-or upgrade a dependency edit `pyproject.toml` and run `uv lock`.
-
-If `sounddevice` fails to install you may need PortAudio. On macOS:
-`brew install portaudio`. On Debian/Ubuntu: `sudo apt install libportaudio2`.
-
-Run from source with:
-
-```bash
-uv run shottrainer
-```
-
-Or, if you've activated `.venv` manually:
-
-```bash
-shottrainer
-# or: python -m shottrainer.app.main
-```
-
-### Workflow
-
-The Makefile wraps the common commands:
-
-```bash
-make sync       # install / refresh dependencies
-make test       # run pytest
+uv sync         # install runtime + dev dependencies in .venv/
+make test       # run the pytest suite
 make lint       # ruff check
-make format     # ruff format + auto-fixable lints
-make run        # launch the app
-make package    # Nuitka build, see packaging/README.md
-make dmg        # macOS only: build dist/ShotTrainer-macOS.dmg
-make installer  # Windows only: build dist/ShotTrainer-Setup.exe
+make run        # launch the app from source
 ```
 
-Run them directly with `uv run` if you'd rather not use Make.
-
-A typical change looks like:
-
-1. `uv sync` to make sure your env matches the lockfile.
-2. Make your edit. Add or update tests next to the code where it makes
-   sense.
-3. `make test` and `make lint` before committing.
-4. Commit with conventional commit messages (`feat: ...`, `fix: ...`,
-   `refactor: ...`, `docs: ...`, `test: ...`, `chore: ...`).
-
-The image and audio tests use synthetic data and do not require a
-physical camera or microphone, so they are safe to run anywhere.
-
-### Pre-commit hooks (optional)
-
-Install [pre-commit](https://pre-commit.com/) and the hooks defined in
-`.pre-commit-config.yaml` to catch trailing whitespace, formatting drift,
-and lint regressions before they land:
-
-```bash
-uvx pre-commit install
-```
-
-Hooks then run on every `git commit`. Run them manually with
-`uvx pre-commit run --all-files`.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full contributor
+workflow, the conventional commit rules, the pre-commit hook setup and
+the documentation build.
 
 ### Project layout
 
@@ -276,6 +210,15 @@ tests/           pytest suite
 ```
 
 See [`docs/architecture.md`](docs/architecture.md) for a longer description.
+
+## Contributing
+
+Bug reports, fixes, target faces and tested-camera reports are all
+welcome. The full guide lives in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+Branch off `main`, run `make test` and `make lint` before pushing, 
+use conventional commit prefixes (`feat:`, `fix:`, `refactor:`, 
+`docs:`, `test:`), and open a pull request describing what
+changed and how you tested.
 
 ## Tracking
 
