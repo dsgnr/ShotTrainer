@@ -116,6 +116,14 @@ QLabel#heroCaption {
     padding-top: 2px;
 }
 
+QLabel#heroSubcaption {
+    color: #6c7689;
+    font-size: 10px;
+    letter-spacing: 0.4px;
+    padding-top: 1px;
+    font-style: italic;
+}
+
 /* Shot list */
 QListWidget#shotList {
     background-color: transparent;
@@ -156,6 +164,14 @@ QLabel#shotRowOffset {
     color: #6c7689;
     font-size: 11px;
     letter-spacing: 0.3px;
+}
+
+QLabel#shotListEmpty,
+QLabel#sessionListEmpty {
+    color: #6c7689;
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 16px;
 }
 
 /* Status bar: thin and unobtrusive. */
