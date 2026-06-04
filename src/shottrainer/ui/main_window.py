@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QAction, QKeySequence, QShortcut
+from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtGui import QAction, QDesktopServices, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from shottrainer.app.paths import data_dir
 from shottrainer.app.preferences import Preferences
 from shottrainer.app.target_faces import TargetFace, TargetRing
 
@@ -56,6 +57,10 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("ShotTrainer")
         self.resize(1440, 880)
+        # Cosmetic on macOS. Drops the visible toolbar divider so
+        # the header strip flows into the title bar. No-op on
+        # Windows and Linux.
+        self.setUnifiedTitleAndToolBarOnMac(True)
 
         self._prefs = Preferences()
         self._device_options_provider: DeviceOptionsProvider | None = None
@@ -314,6 +319,14 @@ class MainWindow(QMainWindow):
         marker_action.triggered.connect(self._open_marker_sheet_dialog)
         tools_menu.addAction(marker_action)
 
+        open_data_action = QAction("&Open data folder", self)
+        open_data_action.setToolTip(
+            "Show the folder where ShotTrainer stores its database, "
+            "preferences and saved camera selection."
+        )
+        open_data_action.triggered.connect(self._open_data_folder)
+        tools_menu.addAction(open_data_action)
+
         tools_menu.addSeparator()
 
         rescore_action = QAction("&Re-score with current face", self)
@@ -323,6 +336,12 @@ class MainWindow(QMainWindow):
         )
         rescore_action.triggered.connect(self.rescore_requested)
         tools_menu.addAction(rescore_action)
+
+    def _open_data_folder(self) -> None:
+        """Reveal the app's writable data folder in the OS file manager."""
+        path = data_dir()
+        path.mkdir(parents=True, exist_ok=True)
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
 
     def _open_marker_sheet_dialog(self) -> None:
         """Open the marker-sheet print dialog and propagate any diameter change.
