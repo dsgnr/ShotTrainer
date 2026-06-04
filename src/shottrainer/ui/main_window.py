@@ -166,12 +166,15 @@ class MainWindow(QMainWindow):
 
         # Compact zoom + replay row sits directly under the target. No
         # surrounding chrome. Spacing alone groups them with the target.
+        # The zoom controls take any spare width so the replay
+        # transport, slider and time readout float against the
+        # right edge.
         controls_row = QHBoxLayout()
         controls_row.setContentsMargins(8, 0, 8, 0)
         controls_row.setSpacing(20)
-        controls_row.addWidget(self.zoom_controls, 1)
-        controls_row.addSpacing(8)
-        controls_row.addWidget(self.replay_controls, 1)
+        controls_row.addWidget(self.zoom_controls)
+        controls_row.addStretch(1)
+        controls_row.addWidget(self.replay_controls)
         layout.addLayout(controls_row)
         return col
 
@@ -432,7 +435,7 @@ class MainWindow(QMainWindow):
         ):
             return
         if self.replay_controls.isEnabled():
-            self.replay_controls.play_clicked.emit()
+            self.replay_controls.toggle_play_pause()
 
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         """Prompt before closing if a session is in progress."""

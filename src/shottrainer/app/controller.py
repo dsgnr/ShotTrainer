@@ -221,13 +221,18 @@ class AppController(QObject):
         sc.clear_shots_requested.connect(self._on_clear_shots_requested)
 
         rc = self._window.replay_controls
-        rc.play_clicked.connect(self._player.play)
-        rc.pause_clicked.connect(self._player.pause)
-        rc.reset_clicked.connect(self._player.stop)
+        rc.play_clicked.connect(self._on_replay_play)
+        rc.pause_clicked.connect(self._on_replay_pause)
+        rc.reset_clicked.connect(self._on_replay_reset)
         rc.scrubbed.connect(self._player.seek_fraction)
 
         self._player.index_changed.connect(self._window.target_view.set_playhead_index)
         self._player.progress.connect(rc.set_progress)
+        # When playback finishes naturally the player flips
+        # ``is_playing`` to false. Reflect that in the button so
+        # the next click plays again from the start rather than
+        # pausing an already-stopped player.
+        self._player.finished.connect(lambda: rc.set_playing(False))
 
         self._window.shot_list.shot_selected.connect(self._on_shot_selected)
 
@@ -821,6 +826,21 @@ class AppController(QObject):
         self._window.replay_controls.set_enabled(False)
         self._window.replay_controls.set_window_duration_ms(None)
 
+    def _on_replay_play(self) -> None:
+        """Start playback and tell the controls to show the pause glyph."""
+        self._player.play()
+        self._window.replay_controls.set_playing(self._player.is_playing)
+
+    def _on_replay_pause(self) -> None:
+        """Pause playback and flip the controls back to the play glyph."""
+        self._player.pause()
+        self._window.replay_controls.set_playing(False)
+
+    def _on_replay_reset(self) -> None:
+        """Stop the player and flip the controls back to the play glyph."""
+        self._player.stop()
+        self._window.replay_controls.set_playing(False)
+
     def _on_shot_selected(self, index: int) -> None:
         """Load the chosen shot's window into the replay UI.
 
@@ -842,6 +862,10 @@ class AppController(QObject):
             post_ms=prefs.post_shot_ms,
         )
         self._player.load(window.samples)
+        # ``load`` rewinds the player to a paused state. Snap the
+        # play/pause button back to the play glyph so the user
+        # sees they need to start the new replay manually.
+        self._window.replay_controls.set_playing(False)
         self._window.target_view.set_trace_segments(
             release_index=window.release_index,
             shot_index=window.split_index,

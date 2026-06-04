@@ -7,7 +7,7 @@ for replay or delete it. The dialog reads from a
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -33,7 +33,7 @@ class SessionBrowserDialog(QDialog):
     def __init__(self, repository: SessionRepository, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Sessions")
-        self.resize(560, 420)
+        self.resize(560, 460)
         self._repo = repository
 
         layout = QVBoxLayout(self)
@@ -44,6 +44,8 @@ class SessionBrowserDialog(QDialog):
         # rebuilding the layout.
         self._stack = QStackedWidget()
         self._list = QListWidget()
+        self._list.setObjectName("sessionList")
+        self._list.setSpacing(2)
         self._empty = QLabel(
             "No saved sessions yet.\nStart one with the green button on "
             "the main window or with Ctrl+S."
@@ -88,7 +90,12 @@ class SessionBrowserDialog(QDialog):
         self._list.clear()
         sessions = self._repo.list_sessions()
         for s in sessions:
-            self._list.addItem(_make_item(s))
+            row = _SessionRow(s)
+            item = QListWidgetItem()
+            item.setSizeHint(row.sizeHint())
+            item.setData(Qt.ItemDataRole.UserRole, s.id)
+            self._list.addItem(item)
+            self._list.setItemWidget(item, row)
         self._stack.setCurrentWidget(self._list if sessions else self._empty)
         self._refresh_action_buttons()
 
@@ -147,23 +154,59 @@ class SessionBrowserDialog(QDialog):
         )
 
 
-def _make_item(summary: SessionSummary) -> QListWidgetItem:
-    """Build a list item for one session, with the id stored as user data."""
-    started = summary.started_at.strftime("%Y-%m-%d %H:%M")
-    name = summary.name or "(unnamed)"
-    duration = _format_duration(summary)
-    score = (
-        f"   {summary.total_score:g} pts"
-        if summary.shot_count and summary.total_score > 0
-        else ""
-    )
-    label = (
-        f"{started}   {name}   ({summary.shot_count} shots, {duration})"
-        f"{score}"
-    )
-    item = QListWidgetItem(label)
-    item.setData(Qt.ItemDataRole.UserRole, summary.id)
-    return item
+class _SessionRow(QWidget):
+    """One session in the browser list.
+
+    Two stacked text lines on the left, score badge on the right.
+    The top line is the session name (or a fallback), the bottom
+    line is the date plus a short metadata summary in dim text.
+    """
+
+    def __init__(self, summary: SessionSummary, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("sessionRow")
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(12)
+
+        text_block = QVBoxLayout()
+        text_block.setContentsMargins(0, 0, 0, 0)
+        text_block.setSpacing(2)
+
+        title = QLabel(summary.name or f"Session #{summary.id}")
+        title.setObjectName("sessionRowTitle")
+        text_block.addWidget(title)
+
+        meta = QLabel(_format_meta(summary))
+        meta.setObjectName("sessionRowMeta")
+        text_block.addWidget(meta)
+
+        layout.addLayout(text_block, 1)
+
+        score_text = _format_score(summary)
+        if score_text:
+            score = QLabel(score_text)
+            score.setObjectName("sessionRowScore")
+            score.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            layout.addWidget(score)
+
+    def sizeHint(self) -> QSize:  # noqa: N802 (Qt naming)
+        return QSize(520, 56)
+
+
+def _format_meta(summary: SessionSummary) -> str:
+    """Return the dim secondary line. Date, shot count, duration."""
+    started = summary.started_at.strftime("%d %b %Y, %H:%M").lstrip("0")
+    shots = "1 shot" if summary.shot_count == 1 else f"{summary.shot_count} shots"
+    return f"{started}  ·  {shots}  ·  {_format_duration(summary)}"
+
+
+def _format_score(summary: SessionSummary) -> str:
+    """Return the score badge text, or empty when there's nothing to show."""
+    if summary.shot_count and summary.total_score > 0:
+        return f"{summary.total_score:g} pts"
+    return ""
 
 
 def _format_duration(summary: SessionSummary) -> str:
