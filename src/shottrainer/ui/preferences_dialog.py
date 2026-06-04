@@ -95,6 +95,13 @@ def _add_field_with_hint(
     form.addRow("", hint)
 
 
+def _section_label(text: str) -> QLabel:
+    """Build a small uppercase heading for grouping fields in a tab."""
+    label = QLabel(text.upper())
+    label.setObjectName("prefsSection")
+    return label
+
+
 class _PropertySlider(QWidget):
     """A horizontal slider over a float range with a Reset button.
 
@@ -402,11 +409,13 @@ class PreferencesDialog(QDialog):
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(16)
+        layout.setSpacing(20)
 
-        form = QFormLayout()
-        form.setHorizontalSpacing(16)
-        form.setVerticalSpacing(12)
+        # Device section.
+        layout.addWidget(_section_label("Device"))
+        device_form = QFormLayout()
+        device_form.setHorizontalSpacing(16)
+        device_form.setVerticalSpacing(12)
         cam_items: list[tuple[object, str]] = list(camera_options or [(0, "Camera 0")])
         # Pick the saved camera by *name* first, falling back to the
         # saved index. Names are stable across reboots and across
@@ -440,11 +449,11 @@ class PreferencesDialog(QDialog):
         device_layout.setSpacing(8)
         device_layout.addWidget(self._camera, 1)
         device_layout.addWidget(refresh_btn)
-        form.addRow("Device", device_row)
+        device_form.addRow("Device", device_row)
 
         self._rotation = _make_combo(list(ROTATION_OPTIONS), initial=prefs.camera_rotation)
         self._rotation.currentIndexChanged.connect(lambda _i: self._emit_transform_changed())
-        form.addRow("Rotation", self._rotation)
+        device_form.addRow("Rotation", self._rotation)
 
         flip_row = QWidget()
         flip_layout = QHBoxLayout(flip_row)
@@ -460,7 +469,7 @@ class PreferencesDialog(QDialog):
         self._flip_v.toggled.connect(lambda _v: self._emit_transform_changed())
         flip_layout.addWidget(self._flip_v)
         flip_layout.addStretch(1)
-        form.addRow("Mirror", flip_row)
+        device_form.addRow("Mirror", flip_row)
 
         # Trace direction. Independent of the camera image flips above:
         # "Mirror" changes how the live frame is shown and tracked,
@@ -479,7 +488,14 @@ class PreferencesDialog(QDialog):
         self._invert_v.setChecked(prefs.invert_trace_vertical)
         invert_layout.addWidget(self._invert_v)
         invert_layout.addStretch(1)
-        form.addRow("Invert trace", invert_row)
+        device_form.addRow("Invert trace", invert_row)
+        layout.addLayout(device_form)
+
+        # Tracking section.
+        layout.addWidget(_section_label("Tracking"))
+        tracking_form = QFormLayout()
+        tracking_form.setHorizontalSpacing(16)
+        tracking_form.setVerticalSpacing(12)
 
         self._region = QDoubleSpinBox()
         self._region.setRange(0.1, 1.0)
@@ -487,7 +503,20 @@ class PreferencesDialog(QDialog):
         self._region.setDecimals(2)
         self._region.setValue(prefs.tracking_region_fraction)
         self._region.valueChanged.connect(self._on_region_preview_changed)
-        form.addRow("Tracking region", self._region)
+        _add_field_with_hint(
+            tracking_form,
+            "Tracking region",
+            self._region,
+            "Fraction of the frame the detector searches in. Lower it "
+            "if the camera picks up dark objects near the edges.",
+        )
+        layout.addLayout(tracking_form)
+
+        # Image section.
+        layout.addWidget(_section_label("Image"))
+        image_form = QFormLayout()
+        image_form.setHorizontalSpacing(16)
+        image_form.setVerticalSpacing(12)
 
         # Software image controls. Each slider has a Reset button to
         # snap back to the default ("no change") value.
@@ -498,7 +527,7 @@ class PreferencesDialog(QDialog):
             maximum=100.0,
             default=0.0,
         )
-        form.addRow("Brightness", self._brightness)
+        image_form.addRow("Brightness", self._brightness)
         self._contrast = self._make_property_slider(
             "contrast",
             prefs.camera_contrast,
@@ -507,9 +536,9 @@ class PreferencesDialog(QDialog):
             default=1.0,
             suffix="x",
         )
-        form.addRow("Contrast", self._contrast)
+        image_form.addRow("Contrast", self._contrast)
 
-        layout.addLayout(form)
+        layout.addLayout(image_form)
 
         self._optimise_btn = QPushButton("Auto-optimise tracking")
         self._optimise_btn.clicked.connect(self.optimise_requested)
@@ -570,14 +599,17 @@ class PreferencesDialog(QDialog):
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(16)
-        form = QFormLayout()
-        form.setHorizontalSpacing(16)
-        form.setVerticalSpacing(12)
+        layout.setSpacing(20)
+
+        # Input section.
+        layout.addWidget(_section_label("Input"))
+        input_form = QFormLayout()
+        input_form.setHorizontalSpacing(16)
+        input_form.setVerticalSpacing(12)
 
         audio_items = [(name, name) for name in (audio_options or ["default"])]
         self._audio = _make_combo(audio_items, initial=prefs.audio_device)
-        form.addRow("Input", self._audio)
+        input_form.addRow("Input", self._audio)
 
         self._audio_gain = QDoubleSpinBox()
         self._audio_gain.setRange(0.1, 10.0)
@@ -585,19 +617,26 @@ class PreferencesDialog(QDialog):
         self._audio_gain.setSuffix("x")
         self._audio_gain.setValue(prefs.audio_gain)
         _add_field_with_hint(
-            form,
+            input_form,
             "Volume",
             self._audio_gain,
             "Software gain on the mic input. Raise if quiet shots don't "
             "register. Lower if loud noises cause false triggers.",
         )
+        layout.addLayout(input_form)
+
+        # Detection section.
+        layout.addWidget(_section_label("Detection"))
+        detection_form = QFormLayout()
+        detection_form.setHorizontalSpacing(16)
+        detection_form.setVerticalSpacing(12)
 
         self._threshold = QDoubleSpinBox()
         self._threshold.setRange(0.01, 1.0)
         self._threshold.setSingleStep(0.01)
         self._threshold.setValue(prefs.shot_threshold)
         _add_field_with_hint(
-            form,
+            detection_form,
             "Shot threshold",
             self._threshold,
             "Audio level above which a shot is registered (0..1). "
@@ -609,13 +648,13 @@ class PreferencesDialog(QDialog):
         self._refractory.setSuffix(" ms")
         self._refractory.setValue(prefs.shot_refractory_ms)
         _add_field_with_hint(
-            form,
+            detection_form,
             "Refractory window",
             self._refractory,
             "Time after a shot in which further triggers are ignored. "
             "Stops echoes and ringing being counted as extra shots.",
         )
-        layout.addLayout(form)
+        layout.addLayout(detection_form)
 
         meter_row = QHBoxLayout()
         meter_row.addWidget(QLabel("Live level"))
@@ -635,14 +674,17 @@ class PreferencesDialog(QDialog):
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(16)
-        form = QFormLayout()
-        form.setHorizontalSpacing(16)
-        form.setVerticalSpacing(12)
+        layout.setSpacing(20)
+
+        # Face section.
+        layout.addWidget(_section_label("Face"))
+        face_form = QFormLayout()
+        face_form.setHorizontalSpacing(16)
+        face_form.setVerticalSpacing(12)
 
         face_items = list(target_faces or [("default", "Default rings")])
         self._target_face = _make_combo(face_items, initial=prefs.target_face)
-        form.addRow("Face", self._target_face)
+        face_form.addRow("Face", self._target_face)
         # Preset combo for the most common calibres. Picking a preset
         # sets the diameter spinbox. Users can still type a custom value.
         calibre_items: list[tuple[object, str]] = [("custom", "Custom")]
@@ -652,7 +694,7 @@ class PreferencesDialog(QDialog):
             initial=self._calibre_for_diameter(prefs.shot_diameter_mm),
         )
         self._calibre.currentIndexChanged.connect(self._on_calibre_changed)
-        form.addRow("Calibre", self._calibre)
+        face_form.addRow("Calibre", self._calibre)
 
         self._shot_diameter = QDoubleSpinBox()
         self._shot_diameter.setRange(0.5, 25.0)
@@ -660,7 +702,14 @@ class PreferencesDialog(QDialog):
         self._shot_diameter.setSuffix(" mm")
         self._shot_diameter.setValue(prefs.shot_diameter_mm)
         self._shot_diameter.valueChanged.connect(self._on_shot_diameter_changed)
-        form.addRow("Shot diameter", self._shot_diameter)
+        face_form.addRow("Shot diameter", self._shot_diameter)
+        layout.addLayout(face_form)
+
+        # Tracking section.
+        layout.addWidget(_section_label("Tracking"))
+        tracking_form = QFormLayout()
+        tracking_form.setHorizontalSpacing(16)
+        tracking_form.setVerticalSpacing(12)
 
         # Diameter of the printed black circle the live tracker
         # measures against. Picking the right number is the only
@@ -673,14 +722,14 @@ class PreferencesDialog(QDialog):
         self._circle_diameter.setSuffix(" mm")
         self._circle_diameter.setValue(prefs.circle_diameter_mm)
         _add_field_with_hint(
-            form,
+            tracking_form,
             "Tracking circle",
             self._circle_diameter,
             "Diameter of the printed black circle the live tracker "
             "uses for scale. Set this to the size of the aiming mark "
             "you're shooting at.",
         )
-        layout.addLayout(form)
+        layout.addLayout(tracking_form)
 
         self._face_preview = TargetFacePreview()
         layout.addWidget(self._face_preview, 1)
@@ -769,7 +818,9 @@ class PreferencesDialog(QDialog):
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(16)
+        layout.setSpacing(20)
+
+        layout.addWidget(_section_label("Replay window"))
         form = QFormLayout()
         form.setHorizontalSpacing(16)
         form.setVerticalSpacing(12)
@@ -830,12 +881,12 @@ class PreferencesDialog(QDialog):
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        form = QFormLayout()
-        form.setHorizontalSpacing(12)
-        form.setVerticalSpacing(4)
-        form.setFormAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
-        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-        form.addRow("Version", QLabel(__version__))
+        meta = QLabel(
+            f"Version {__version__}  ·  GPL-3.0-or-later"
+        )
+        meta.setObjectName("aboutMeta")
+        meta.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(meta, 0, Qt.AlignmentFlag.AlignHCenter)
         form.addRow("Licence", QLabel("GPL-3.0-or-later"))
         layout.addLayout(form)
 
