@@ -5,33 +5,42 @@ development so the reasoning isn't lost.
 
 ## Target detection
 
-The detector runs an adaptive threshold over the grayscale frame and then
-walks the resulting contours, scoring each by circularity (4π·area /
-perimeter²) and how well it fills its enclosing circle. The highest-scoring
-blob within the radius range wins. This rejects long rectangles like the
-edge of the marker sheet.
+The detector tries Hough circle detection first
+(`cv2.HoughCircles`). Hough works on the image gradient directly,
+so it finds the circle as a whole even when the target has scoring
+rings or internal white lines that would split a thresholded binary
+into separate contours. When Hough finds a circle in the allowed
+radius range, it wins. This solved the problem where the tracker
+would jump between different ring fragments frame-to-frame on
+federation targets.
 
-Alternatives considered:
+When Hough fails (small targets, poor contrast, unusual marks) the
+detector falls back to the contour-based approach: adaptive
+threshold, morphological opening (to sever bridges to nearby dark
+patches), morphological closing (to fill narrow ring gaps inside
+the target), contour extraction, and scoring by circularity and
+fill ratio. The fallback still works well for plain printed circles
+without internal detail.
 
-- **Hough circle transform.** Works well when parameters match the target,
-  but is sensitive to radius range, blur, and contrast. The OpenCV
-  implementation gives sub-pixel centres which is attractive for
-  high-resolution frames. Left as a possible drop-in replacement.
-- **Template matching.** Fast and simple, but does not generalise across
-  distances or zoom levels without a pyramid.
-- **Fiducial markers (ArUco).** Probably the most robust if you can stick
-  one near the target, but defeats the point of using a plain printed sheet.
-- **Manual selection.** Available as a fallback when automatic detection
-  fails. The user clicks the centre of the target.
+Other approaches I tried or considered:
+
+- Template matching. Fast, but doesn't generalise across distances
+  or zoom without a pyramid, and at that point you've written most
+  of a detector.
+- ArUco fiducials. Probably the most robust option if you can stick
+  one near the target, but the whole idea was to use a plain
+  printed sheet, so that wasn't on the table.
+- Manual selection is still there as a fallback when the auto
+  detector gives up. The user clicks the centre of the target.
 
 ## Tracking
 
 Every frame, find the printed circle, divide its known diameter (mm)
 by twice its detected radius (px) to get a per-frame mm/px, and
 report the rifle's aim as frame-centre minus circle-centre, scaled to
-mm. The radius is smoothed with a short EMA (~20 frames) so half-pixel
-jitter doesn't bleed into the trace. There is no separate calibration
-step.
+mm. Both the radius and the centroid are smoothed with a short EMA
+(~20 frames) so detector jitter doesn't bleed into the trace. There
+is no separate calibration step.
 
 This is the third design I tried. The first two each got something
 embarrassingly wrong in user testing, so it's worth writing down what
