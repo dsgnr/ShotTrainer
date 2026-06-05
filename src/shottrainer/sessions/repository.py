@@ -163,7 +163,7 @@ class SessionRepository:
         if not rows:
             return 0
         with OrmSession(self._engine, future=True) as session:
-            session.execute(TraceSample.__table__.insert(), rows)
+            session.execute(TraceSample.__table__.insert(), rows)  # type: ignore[attr-defined]
             session.commit()
         return len(rows)
 
