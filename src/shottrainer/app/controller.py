@@ -36,7 +36,7 @@ from shottrainer.sessions.database import init_database, make_engine
 from shottrainer.sessions.repository import SessionRepository
 from shottrainer.tracking.camera import CameraCapture, CameraConfig, list_available_cameras
 from shottrainer.tracking.detector import DetectorSettings
-from shottrainer.tracking.detector_tuning import optimise_detector_settings
+from shottrainer.tracking.detector_tuning import ImageAdjustment, optimise_detector_settings
 from shottrainer.tracking.frame_ops import adjust_image, transform_frame
 from shottrainer.tracking.models import Detection, TrackingSample
 from shottrainer.tracking.tracker import Tracker
@@ -1011,7 +1011,7 @@ class AppController(QObject):
             return None
         return cam.device_index
 
-    def _on_camera_chosen_in_dialog(self, new_index: object) -> None:
+    def _on_camera_chosen_in_dialog(self, new_index: int | None) -> None:
         """Swap the live capture so the embedded preview shows the chosen camera.
 
         Save isn't required. The dialog emits this on every user
@@ -1030,7 +1030,7 @@ class AppController(QObject):
             return
         self._start_camera(index)
 
-    def _on_camera_property_changed(self, name: str, value: object) -> None:
+    def _on_camera_property_changed(self, name: str, value: float | None) -> None:
         """Push a slider change into the live transform straight away.
 
         The dialog fires this on every slider movement so the
@@ -1124,7 +1124,7 @@ class AppController(QObject):
     def _on_optimise_finished(
         self,
         new_settings: DetectorSettings | None,
-        adjustment: object,
+        adjustment: ImageAdjustment | None,
         score: float,
     ) -> None:
         """Apply the optimiser's result and refresh the dialog."""

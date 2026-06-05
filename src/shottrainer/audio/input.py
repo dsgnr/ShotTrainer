@@ -11,12 +11,16 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import TYPE_CHECKING
 
 import numpy as np
 from PySide6.QtCore import QObject, Signal
 
 from .models import ShotDetectorSettings, ShotEvent
 from .shot_detector import ShotDetector
+
+if TYPE_CHECKING:
+    import sounddevice as sd
 
 log = logging.getLogger(__name__)
 
@@ -62,7 +66,7 @@ class AudioShotListener(QObject):
         self._settings = settings or ShotDetectorSettings()
         self._detector = ShotDetector(self._settings)
         self._device = device
-        self._stream = None  # type: ignore[assignment]
+        self._stream: sd.InputStream | None = None
 
     def update_settings(self, settings: ShotDetectorSettings) -> None:
         """Swap in new shot-detector settings.
