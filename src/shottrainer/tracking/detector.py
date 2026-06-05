@@ -55,6 +55,12 @@ class DetectorSettings:
     # (auto-rounded if not). Set to 0 (or any value below 3) to
     # turn it off.
     opening_kernel_px: int = 3
+    # Morphological closing kernel size in pixels, applied after
+    # opening. It fills narrow white gaps inside the black target
+    # area (e.g. scoring ring lines) so the detector sees one
+    # solid blob rather than separate ring contours. Has to be
+    # odd (auto-rounded if not). Set to 0 to turn it off.
+    closing_kernel_px: int = 5
     # Cap on how many contours the detector inspects in detail
     # per frame. A textured wall or a stack of papers can produce
     # thousands of contours. Sorting by area descending and
@@ -164,6 +170,98 @@ class CircleTargetDetector:
         if s.blur_kernel >= 3:
             grey = cv2.GaussianBlur(grey, (s.blur_kernel, s.blur_kernel), 0)
 
+        # Try Hough circle detection first. It's more stable than
+        # contour-based detection for large, well-defined circles
+        # because it uses the gradient field directly rather than a
+        # thresholded binary image. When it finds a circle in the
+        # allowed radius range, use it. Fall through to the contour
+        # path when Hough fails (small targets, poor contrast, or
+        # non-circular marks).
+        hough_det = self._try_hough(grey, s)
+        if hough_det is not None:
+            hough_det = self._apply_lock_and_region(hough_det, grey.shape, s)
+            if hough_det is not None and hough_det.found:
+                self._lock_px = (hough_det.x_px, hough_det.y_px)
+                self._consecutive_misses = 0
+                return hough_det
+
+        # Fall back to contour-based detection.
+        return self._detect_contour(grey, s)
+
+    def _try_hough(
+        self, grey: np.ndarray, s: DetectorSettings
+    ) -> Detection | None:
+        """Attempt Hough circle detection on the grayscale frame.
+
+        Returns a Detection if a suitable circle is found within
+        the radius range, otherwise None.
+        """
+        h, w = grey.shape[:2]
+        min_dist = max(s.min_radius_px * 2, 30)
+        circles = cv2.HoughCircles(
+            grey,
+            cv2.HOUGH_GRADIENT,
+            dp=1.0,
+            minDist=min_dist,
+            param1=80,
+            param2=40,
+            minRadius=s.min_radius_px,
+            maxRadius=s.max_radius_px,
+        )
+        if circles is None:
+            return None
+
+        # Pick the best circle: largest within the lock radius if
+        # we have a lock, otherwise largest overall.
+        best_cx, best_cy, best_r = 0.0, 0.0, 0.0
+        best_priority = -1.0
+        for circle in circles[0]:
+            cx, cy, r = float(circle[0]), float(circle[1]), float(circle[2])
+            if r < s.min_radius_px or r > s.max_radius_px:
+                continue
+            priority = r  # prefer larger circles
+            if self._lock_px is not None:
+                lx, ly = self._lock_px
+                d = float(np.hypot(cx - lx, cy - ly))
+                if d <= s.lock_radius_px:
+                    priority += 10000.0  # strongly prefer near lock
+                elif d > s.lock_radius_px * s.lock_search_radius_factor:
+                    continue  # outside search window, skip entirely
+            if priority > best_priority:
+                best_priority = priority
+                best_cx, best_cy, best_r = cx, cy, r
+
+        if best_r <= 0:
+            return None
+
+        # Compute a confidence score similar to contour path.
+        # Hough circles are inherently circular so score is high.
+        confidence = 0.85
+        return Detection(
+            found=True,
+            x_px=best_cx,
+            y_px=best_cy,
+            radius_px=best_r,
+            confidence=confidence,
+        )
+
+    def _apply_lock_and_region(
+        self, det: Detection, shape: tuple[int, ...], s: DetectorSettings
+    ) -> Detection | None:
+        """Check that a detection is within the tracking region."""
+        h, w = shape[:2]
+        region_fraction = max(0.05, min(1.0, s.region_fraction))
+        half_w = w * region_fraction / 2.0
+        half_h = h * region_fraction / 2.0
+        cx_frame = w / 2.0
+        cy_frame = h / 2.0
+        if abs(det.x_px - cx_frame) > half_w or abs(det.y_px - cy_frame) > half_h:
+            return None
+        return det
+
+    def _detect_contour(self, grey: np.ndarray, s: DetectorSettings) -> Detection:
+        """Contour-based fallback detection."""
+
         block = max(3, s.adaptive_block_size | 1)  # must be odd
         binary = cv2.adaptiveThreshold(
             grey,
@@ -187,6 +285,22 @@ class CircleTargetDetector:
             kernel_size = s.opening_kernel_px | 1  # ensure odd
             kernel = self._opening_kernel(kernel_size)
             binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+
+        # Morphological closing (dilate then erode) fills narrow
+        # white gaps inside the black target area. Targets with
+        # scoring rings (white lines inside the black circle) get
+        # split into separate ring-shaped contours by the
+        # adaptive threshold. The closing merges those ring
+        # fragments back into a single filled blob so the
+        # detector sees one large circle rather than bouncing
+        # between partial rings frame to frame. The kernel is
+        # slightly larger than the opening to bridge the typical
+        # 2-4 pixel scoring-ring gaps without bloating thin edges
+        # elsewhere.
+        if s.closing_kernel_px >= 3:
+            close_size = s.closing_kernel_px | 1
+            close_kernel = self._opening_kernel(close_size)
+            binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, close_kernel)
 
         h, w = grey.shape[:2]
 

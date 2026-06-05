@@ -47,12 +47,15 @@ flowchart LR
    transforms live so the displayed frame, the tracked frame, and any
    recorded artefacts agree.
 
-3. **Detect.** `tracking/detector.py` thresholds the frame, walks the
-   contours, and scores each by circularity and how well it fills its
-   minimum enclosing circle. The centroid is computed from image moments,
-   which gives sub-pixel accuracy. Rather than picking the integer-pixel
-   centre of the bounding shape, the detector uses the weighted mean of the
-   contour area, which falls between pixels when the underlying mark does.
+3. **Detect.** `tracking/detector.py` finds the printed circle in the
+   frame. It tries Hough circle detection first (`cv2.HoughCircles`),
+   which works directly on the image gradients and is stable even when
+   the target has scoring rings or internal white lines that would
+   fragment a thresholded binary. If Hough doesn't find a circle in the
+   allowed radius range (small targets, poor contrast), the detector
+   falls back to adaptive thresholding, morphological closing to fill
+   ring gaps, contour extraction, and scoring by circularity and fill.
+   Either path produces a centre and radius in pixels.
 
 4. **Track.** `tracking/tracker.py` converts the detection into a
    ``TrackingSample`` with both pixel and millimetre coordinates. The

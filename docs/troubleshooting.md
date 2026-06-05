@@ -48,6 +48,15 @@ Either the circle has moved out of view (swing the rifle until it's
 back in frame) or it has too little contrast against the background.
 Improve the lighting on the target side, or print a larger circle.
 
+**The tracking marker jumps around or wanders on a still target.**
+If you're using a target with scoring rings (white lines inside
+the black circle), the detector may be fragmenting the circle into
+ring contours. Press **Auto-optimise** in the detector panel. The
+optimiser tries different settings including morphological closing,
+which fills the ring gaps. If the target is well-lit and large in
+the frame, Hough detection should pick it up cleanly without
+needing any tweaks.
+
 **The mm-per-pixel value in the header looks wrong.**
 The header reads "Tracking N mm circle - X.XXX mm/px". Confirm the
 diameter (N) matches what you actually printed. Set it under
