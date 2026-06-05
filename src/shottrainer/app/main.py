@@ -77,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             save_ui_state(
                 UiState(
-                    window_geometry_b64=encode_geometry(bytes(window.saveGeometry())),
+                    window_geometry_b64=encode_geometry(bytes(window.saveGeometry().data())),
                     main_splitter_sizes=window.main_splitter_sizes(),
                 )
             )
