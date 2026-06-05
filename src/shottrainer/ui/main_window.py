@@ -27,7 +27,6 @@ from .preferences_dialog import Preferences, PreferencesDialog
 from .replay_controls import ReplayControls
 from .session_controls import SessionControls
 from .shot_list import ShotList
-from .stats_panel import StatsPanel
 from .target_view import TargetView
 from .zoom_controls import ZoomControls
 
@@ -64,7 +63,6 @@ class MainWindow(QMainWindow):
         self.target_view = TargetView()
         self.shot_list = ShotList()
         self.hero_stats = HeroStats()
-        self.stats_panel = StatsPanel()  # built but not displayed. Kept for the controller
         self.audio_meter = AudioMeter()
         self.zoom_controls = ZoomControls()
         self.zoom_controls.set_extent(self.target_view.extent_mm)
