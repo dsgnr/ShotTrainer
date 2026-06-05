@@ -47,6 +47,7 @@ def optimise_detector_settings(
     block_sizes: tuple[int, ...] = (15, 31),
     offsets: tuple[int, ...] = (2, 8),
     blurs: tuple[int, ...] = (3, 5),
+    closing_kernels: tuple[int, ...] = (0, 5),
     brightness_steps: tuple[float, ...] = (-20.0, 0.0, 20.0),
     contrast_steps: tuple[float, ...] = (0.8, 1.0, 1.25),
 ) -> tuple[DetectorSettings | None, ImageAdjustment, float]:
@@ -74,7 +75,7 @@ def optimise_detector_settings(
 
     cells = [(b, c) for b in brightness_steps for c in contrast_steps]
     results = [
-        _evaluate_cell(b, c, grey, base_settings, block_sizes, offsets, blurs)
+        _evaluate_cell(b, c, grey, base_settings, block_sizes, offsets, blurs, closing_kernels)
         for b, c in cells
     ]
 
@@ -92,6 +93,7 @@ def _evaluate_cell(
     block_sizes: tuple[int, ...],
     offsets: tuple[int, ...],
     blurs: tuple[int, ...],
+    closing_kernels: tuple[int, ...],
 ) -> _CellResult:
     """Search the inner block/offset/blur grid for one image adjustment.
 
@@ -111,17 +113,19 @@ def _evaluate_cell(
         blurred = cv2.GaussianBlur(adjusted, (blur, blur), 0) if blur >= 3 else adjusted
         for block in block_sizes:
             for offset in offsets:
-                detector.settings = replace(
-                    base_settings,
-                    adaptive_block_size=block,
-                    adaptive_offset=offset,
-                    blur_kernel=0,
-                )
-                detector.reset_lock()
-                detection = detector.detect(blurred)
-                if detection.found and detection.confidence > best_score:
-                    best_score = detection.confidence
-                    best_settings = replace(detector.settings, blur_kernel=blur)
+                for closing in closing_kernels:
+                    detector.settings = replace(
+                        base_settings,
+                        adaptive_block_size=block,
+                        adaptive_offset=offset,
+                        blur_kernel=0,
+                        closing_kernel_px=closing,
+                    )
+                    detector.reset_lock()
+                    detection = detector.detect(blurred)
+                    if detection.found and detection.confidence > best_score:
+                        best_score = detection.confidence
+                        best_settings = replace(detector.settings, blur_kernel=blur)
     return _CellResult(
         settings=best_settings,
         adjustment=ImageAdjustment(brightness=brightness, contrast=contrast),
