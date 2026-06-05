@@ -39,13 +39,31 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from .assets import asset_path
-from .target_view import TargetRing
+from .paths import data_dir
 
 log = logging.getLogger(__name__)
 
 
-_BUILT_IN_DIR = asset_path("target_faces")
+# Built-in face JSON files ship under ``ui/assets/target_faces/``
+# so the packaging step bundles them alongside icons and other
+# UI resources. The catalogue is domain config, so we reach the
+# directory via a path constant rather than importing the UI
+# assets helper.
+_PACKAGE_ROOT = Path(__file__).resolve().parent.parent
+_BUILT_IN_DIR = _PACKAGE_ROOT / "ui" / "assets" / "target_faces"
+
+
+@dataclass(frozen=True, slots=True)
+class TargetRing:
+    """A single scoring ring on a target face.
+
+    Domain type, no Qt imports. Re-exported from the UI's target
+    view for backward compatibility with widgets that already
+    import it from there.
+    """
+
+    diameter_mm: float
+    label: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,9 +78,6 @@ class TargetFace:
 
 
 def custom_faces_path() -> Path:
-    # Late import to avoid circular: ``app.paths`` doesn't depend on UI.
-    from shottrainer.app.paths import data_dir
-
     return data_dir() / "custom_target_faces.json"
 
 

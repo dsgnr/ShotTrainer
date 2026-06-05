@@ -15,6 +15,7 @@ from collections.abc import Sequence
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 
+from shottrainer.app.target_faces import TargetRing, diagnostic_rings
 from shottrainer.services.scoring import total_score
 from shottrainer.services.shot_stats import (
     ShotStats,
@@ -23,9 +24,6 @@ from shottrainer.services.shot_stats import (
     compute_trace_stats,
     time_inside_radius,
 )
-
-from .target_faces import diagnostic_rings
-from .target_view import TargetRing
 
 
 class _HeroFigure(QWidget):

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from shottrainer.ui.target_faces import (
+from shottrainer.app.target_faces import (
     diagnostic_rings,
     face_for_name,
     list_target_faces,
@@ -60,7 +60,7 @@ def test_diagnostic_rings_empty():
 def test_custom_face_loaded_from_data_dir(tmp_path, monkeypatch):
     from pathlib import Path
 
-    import shottrainer.ui.target_faces as tf
+    import shottrainer.app.target_faces as tf
 
     custom_file = tmp_path / "custom_target_faces.json"
     custom_file.write_text(
@@ -81,7 +81,7 @@ def test_built_in_faces_are_discovered_dynamically(tmp_path, monkeypatch):
     appear in ``list_target_faces`` without any code change."""
     from pathlib import Path
 
-    import shottrainer.ui.target_faces as tf
+    import shottrainer.app.target_faces as tf
 
     fake_dir = tmp_path / "faces"
     fake_dir.mkdir()
@@ -115,7 +115,7 @@ def test_face_metadata_is_parsed_from_json(tmp_path, monkeypatch):
     discarded so the dialog never auto-fills nonsense."""
     from pathlib import Path
 
-    import shottrainer.ui.target_faces as tf
+    import shottrainer.app.target_faces as tf
 
     fake_dir = tmp_path / "faces"
     fake_dir.mkdir()
@@ -150,7 +150,7 @@ def test_face_metadata_is_parsed_from_json(tmp_path, monkeypatch):
 def test_custom_face_with_garbage_file_is_ignored(tmp_path, monkeypatch):
     from pathlib import Path
 
-    import shottrainer.ui.target_faces as tf
+    import shottrainer.app.target_faces as tf
 
     custom_file = tmp_path / "custom_target_faces.json"
     custom_file.write_text("not json")
