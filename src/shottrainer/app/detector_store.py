@@ -50,9 +50,7 @@ def load_detector_settings(path: Path | None = None) -> DetectorSettings | None:
         return None
 
 
-def save_detector_settings(
-    settings: DetectorSettings, path: Path | None = None
-) -> None:
+def save_detector_settings(settings: DetectorSettings, path: Path | None = None) -> None:
     """Write the tuned detector settings to disk."""
     p = path or detector_settings_path()
     p.parent.mkdir(parents=True, exist_ok=True)

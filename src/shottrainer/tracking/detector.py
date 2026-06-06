@@ -114,9 +114,7 @@ class CircleTargetDetector:
         return kernel
 
     @staticmethod
-    def _with_ellipse_fit(
-        detection: Detection, contour: np.ndarray | None
-    ) -> Detection:
+    def _with_ellipse_fit(detection: Detection, contour: np.ndarray | None) -> Detection:
         """Add ellipse parameters to ``detection`` when the contour can be fitted.
 
         ``cv2.fitEllipse`` needs at least five contour points, and
@@ -189,9 +187,7 @@ class CircleTargetDetector:
         # Fall back to contour-based detection.
         return self._detect_contour(grey, s)
 
-    def _try_hough(
-        self, grey: np.ndarray, s: DetectorSettings
-    ) -> Detection | None:
+    def _try_hough(self, grey: np.ndarray, s: DetectorSettings) -> Detection | None:
         """Attempt Hough circle detection on the grayscale frame.
 
         Returns a Detection if a suitable circle is found within
@@ -461,10 +457,7 @@ class CircleTargetDetector:
         # outside the tracking region, surface it so the UI can
         # show what was rejected.
         self._consecutive_misses += 1
-        if (
-            self._lock_px is not None
-            and self._consecutive_misses >= s.lock_release_after_misses
-        ):
+        if self._lock_px is not None and self._consecutive_misses >= s.lock_release_after_misses:
             self._lock_px = None
 
         if best_off_region is not None:

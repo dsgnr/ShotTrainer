@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class UiState:
-    window_geometry_b64: str = ""        # ``QByteArray.toBase64`` of ``saveGeometry``
+    window_geometry_b64: str = ""  # ``QByteArray.toBase64`` of ``saveGeometry``
     main_splitter_sizes: list[int] = field(default_factory=list)
 
 
@@ -52,7 +52,9 @@ def load_ui_state(path: Path | None = None) -> UiState:
         return UiState()
     return UiState(
         window_geometry_b64=geometry,
-        main_splitter_sizes=[int(s) for s in sizes if isinstance(s, int) or str(s).lstrip("-").isdigit()],
+        main_splitter_sizes=[
+            int(s) for s in sizes if isinstance(s, int) or str(s).lstrip("-").isdigit()
+        ],
     )
 
 

@@ -47,9 +47,7 @@ def _create_v1_schema(db_path: Path) -> None:
                 """
             )
         )
-        conn.execute(
-            text("INSERT INTO schema_meta (version, app_version) VALUES (1, '0.0.0')")
-        )
+        conn.execute(text("INSERT INTO schema_meta (version, app_version) VALUES (1, '0.0.0')"))
         conn.execute(
             text(
                 "INSERT INTO sessions (name, started_at, calibration_json) "
@@ -75,9 +73,7 @@ def test_init_database_drops_calibration_column(legacy_db: Path):
     engine = make_engine(legacy_db)
     init_database(engine)
     with engine.connect() as conn:
-        columns = {
-            row[1] for row in conn.exec_driver_sql("PRAGMA table_info(sessions)")
-        }
+        columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(sessions)")}
         rows = list(conn.exec_driver_sql("SELECT name FROM sessions").fetchall())
     assert "calibration_json" not in columns
     assert [r[0] for r in rows] == ["legacy"]

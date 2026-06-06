@@ -64,7 +64,9 @@ class Session(Base):
 class TraceSample(Base):
     __tablename__ = "trace_samples"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    session_id: Mapped[int] = mapped_column(ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
+    session_id: Mapped[int] = mapped_column(
+        ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False
+    )
     ts: Mapped[float] = mapped_column(Float, nullable=False)  # monotonic seconds
     x_px: Mapped[float] = mapped_column(Float, nullable=False)
     y_px: Mapped[float] = mapped_column(Float, nullable=False)
