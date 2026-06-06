@@ -19,7 +19,7 @@ from PySide6.QtWidgets import QApplication
 
 from shottrainer import __version__
 from shottrainer.app.preferences import Preferences
-from shottrainer.app.target_faces import face_for_name, list_target_faces, rings_for_face
+from shottrainer.app.target_faces import face_for_name, get_face, list_target_faces, rings_for_face
 from shottrainer.audio.input import AudioShotListener, list_audio_inputs
 from shottrainer.audio.models import ShotDetectorSettings, ShotEvent
 from shottrainer.replay.player import TracePlayer
@@ -600,9 +600,11 @@ class AppController(QObject):
         """Score a shot against the current target face."""
         if x_mm is None or y_mm is None:
             return ""
-        rings = rings_for_face(self._preferences.target_face)
+        face = get_face(self._preferences.target_face)
+        if face is None:
+            return ""
         scoring = sorted(
-            (ScoringRing(r.diameter_mm / 2, r.label or "") for r in rings if r.label),
+            (ScoringRing(r.diameter_mm / 2, r.label or "") for r in face.rings if r.label),
             key=lambda r: r.radius_mm,
         )
         return score_shot(
@@ -610,6 +612,7 @@ class AppController(QObject):
             y_mm,
             scoring,
             shot_diameter_mm=self._preferences.shot_diameter_mm,
+            scoring_direction=face.scoring_direction,
         )
 
     def _render_shots(self) -> None:

@@ -37,21 +37,25 @@ def score_shot(
     *,
     shot_diameter_mm: float = 0.0,
     centre: tuple[float, float] = (0.0, 0.0),
+    scoring_direction: str = "inward",
 ) -> str:
-    """Return the label of the smallest ring this shot scores in.
+    """Return the label of the ring this shot scores.
 
-    ``rings`` has to come in sorted by radius, smallest first. We
-    walk them in order and return the label of the first ring the
-    shot's circle overlaps. Sorting once when the face is loaded
-    is cheaper than sorting on every shot.
+    ``scoring_direction`` controls how the ring list is walked:
+
+    - ``"inward"`` (default): the shot scores the innermost
+      (smallest) ring it touches. Standard for ISSF, NSRA, and
+      most rifle/pistol disciplines where 10 is in the centre.
+    - ``"outward"``: the shot scores the outermost (largest) ring
+      it sits inside. Used by some gallery and novelty targets
+      where the highest value is at the edge.
+
+    In both cases, "touches" means the shot's outer edge (centre
+    distance minus half the shot diameter) is within the ring's
+    radius.
 
     Returns an empty string if the shot misses every ring or no
     rings were supplied.
-
-    The shot is treated as a circle of ``shot_diameter_mm``. With
-    ``shot_diameter_mm == 0`` we fall back to "is the centre
-    inside the ring", which is useful for tests and for trace
-    points (which have no diameter).
     """
     if not rings:
         return ""
@@ -59,11 +63,24 @@ def score_shot(
     cx, cy = centre
     distance = math.hypot(x_mm - cx, y_mm - cy)
     margin = shot_diameter_mm / 2.0
+    shot_edge = distance - margin
 
-    for ring in rings:
-        if distance - margin <= ring.radius_mm:
-            return ring.label
-    return ""
+    if scoring_direction == "outward":
+        # Walk from smallest to largest. The first ring the shot
+        # is strictly inside wins. Touching the boundary exactly
+        # scores the outer ring (shot_edge < radius, not <=),
+        # which is the convention for outward-scored targets.
+        for ring in sorted(rings, key=lambda r: r.radius_mm):
+            if shot_edge < ring.radius_mm:
+                return ring.label
+        return ""
+    else:
+        # Walk from smallest to largest (default inward scoring).
+        # The first (innermost) ring the shot touches wins.
+        for ring in rings:
+            if shot_edge <= ring.radius_mm:
+                return ring.label
+        return ""
 
 
 def label_to_value(label: str) -> float | None:
