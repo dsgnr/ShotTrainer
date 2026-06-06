@@ -197,7 +197,6 @@ class CircleTargetDetector:
         Returns a Detection if a suitable circle is found within
         the radius range, otherwise None.
         """
-        h, w = grey.shape[:2]
         min_dist = max(s.min_radius_px * 2, 30)
         circles = cv2.HoughCircles(
             grey,
