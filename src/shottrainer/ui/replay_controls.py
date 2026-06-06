@@ -150,9 +150,7 @@ class ReplayControls(QWidget):
         if duration is None:
             return
         offset_ms = round(fraction * duration)
-        self._time_label.setText(
-            f"{_format_seconds(offset_ms)} / {_format_seconds(duration)}"
-        )
+        self._time_label.setText(f"{_format_seconds(offset_ms)} / {_format_seconds(duration)}")
 
     def set_playing(self, playing: bool) -> None:
         """Tell the controls whether the player is currently running.

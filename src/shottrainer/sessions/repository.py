@@ -102,9 +102,7 @@ class SessionRepository:
 
             session_ids = [int(row.id) for row in session_rows]
             shot_rows = session.execute(
-                select(Shot.session_id, Shot.score).where(
-                    Shot.session_id.in_(session_ids)
-                )
+                select(Shot.session_id, Shot.score).where(Shot.session_id.in_(session_ids))
             ).all()
 
             counts: dict[int, int] = {sid: 0 for sid in session_ids}
