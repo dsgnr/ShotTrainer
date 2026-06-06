@@ -2,6 +2,7 @@
   "label": "NSRA 25yd Prone Rifle (NSRA 2510 BM/89-18)",
   "shot_diameter_mm": 5.6,
   "face_diameter_mm": 51.5,
+  "scoring_direction": "outward",
   "rings": [
     { "diameter_mm": 41.5, "label": "6" },
     { "diameter_mm": 34.5, "label": "7" },
