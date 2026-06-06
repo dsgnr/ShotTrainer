@@ -153,6 +153,7 @@ class AppController(QObject):
         self._current_view_session_id: int | None = None
         self._shots_in_view: list[_ShotEntry] = []
         self._frame_mirrors: list[_FrameMirror] = []  # dialogs that want live frames
+        self._camera_popout = None  # enlarged camera preview dialog
         self._active_prefs_dialog = None  # set while the Preferences dialog is open
         self._frame_transform: FrameTransformOptions | None = None
         self._latest_frame: np.ndarray | None = None
@@ -260,6 +261,8 @@ class AppController(QObject):
         # without the controller having to know about thread
         # affinity.
         self._frame_processed.connect(self._on_frame_processed)
+
+        self._window._expand_button.clicked.connect(self._on_camera_popout_requested)
 
     def _effective_camera_index(self) -> int | None:
         """Pick the camera index to use given the saved selection.
@@ -1204,3 +1207,36 @@ class AppController(QObject):
         dialog.finished.connect(
             lambda _r, d=dialog: self._frame_mirrors.remove(d) if d in self._frame_mirrors else None
         )
+
+    def _on_camera_popout_requested(self) -> None:
+        """Open (or raise) the enlarged camera preview dialog."""
+        from shottrainer.ui.camera_popout import CameraPopout
+
+        if self._camera_popout is not None and self._camera_popout.isVisible():
+            self._camera_popout.raise_()
+            self._camera_popout.activateWindow()
+            return
+
+        popout = CameraPopout(self._window)
+        self._camera_popout = popout
+
+        # Push the current frame immediately so it's not blank on open.
+        if self._latest_frame is not None:
+            popout.view.set_frame(self._latest_frame)
+            popout.view.set_region_fraction(self._window.camera_view._region_fraction)
+            h, w = self._latest_frame.shape[:2]
+            popout.set_resolution(w, h)
+        # Mirror live frames into the popout's view.
+        self._frame_mirrors.append(popout.view)
+        popout.finished.connect(self._on_camera_popout_closed)
+        popout.show()
+        popout.raise_()
+        popout.activateWindow()
+
+    def _on_camera_popout_closed(self, _result: int) -> None:
+        """Clean up when the popout dialog closes."""
+        if self._camera_popout is not None:
+            view = self._camera_popout.view
+            if view in self._frame_mirrors:
+                self._frame_mirrors.remove(view)
+            self._camera_popout = None
