@@ -552,6 +552,20 @@ def apply_dark_theme(app) -> None:
     """Apply the dark stylesheet to a QApplication."""
     from .assets import asset_path
 
-    # Use a forward-slash path so QSS parses it consistently on Windows.
     check_path = str(asset_path("check.svg")).replace("\\", "/")
     app.setStyleSheet(build_stylesheet(check_path=check_path))
+
+    # Qt has no stylesheet or style-hint mechanism for setting cursors
+    # on widget classes. An app-level event filter on Polish is the
+    # standard workaround.
+    from PySide6.QtCore import QEvent, QObject, Qt
+    from PySide6.QtWidgets import QPushButton, QToolButton
+
+    class _ButtonCursorFilter(QObject):
+        def eventFilter(self, obj, event):  # noqa: N802
+            if event.type() == QEvent.Type.Polish and isinstance(obj, (QPushButton, QToolButton)):
+                obj.setCursor(Qt.CursorShape.PointingHandCursor)
+            return False
+
+    app._button_cursor_filter = _ButtonCursorFilter(app)
+    app.installEventFilter(app._button_cursor_filter)
