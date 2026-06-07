@@ -8,7 +8,6 @@ import numpy as np
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
-    QComboBox,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
@@ -17,8 +16,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QProgressBar,
     QPushButton,
-    QSizePolicy,
-    QSlider,
     QSpinBox,
     QTabWidget,
     QVBoxLayout,
@@ -30,175 +27,26 @@ from shottrainer.app.target_faces import TargetFace, TargetRing
 
 from .camera_view import CameraView
 from .target_face_preview import TargetFacePreview
-
-ROTATION_OPTIONS: tuple[tuple[int, str], ...] = (
-    (0, "None"),
-    (90, "90 clockwise"),
-    (180, "180"),
-    (270, "90 counter-clockwise"),
+from .widgets import (
+    CALIBRES,
+    CALIBRES_BY_KEY,
+    ROTATION_OPTIONS,
+    PropertySlider,
+    add_field_with_hint,
+    make_combo,
+    make_expand_button,
+    section_label,
 )
-
-
-CALIBRES: tuple[tuple[str, str, float], ...] = (
-    ("177", ".177 air pellet (4.5 mm)", 4.5),
-    ("20", ".20 air pellet (5.0 mm)", 5.0),
-    ("22", ".22 (5.6 mm)", 5.6),
-    ("25", ".25 (6.35 mm)", 6.35),
-    ("9mm", "9 mm", 9.0),
-    ("45", ".45 (11.43 mm)", 11.43),
-)
-_CALIBRES_BY_KEY: dict[str, float] = {key: mm for key, _label, mm in CALIBRES}
-
-
-def _make_combo(
-    items: list[tuple[object, str]] | list[tuple[str, str]] | list[tuple[int, str]],
-    *,
-    initial: object | None = None,
-) -> QComboBox:
-    """Build a QComboBox whose popup view sizes to its longest entry."""
-    combo = QComboBox()
-    combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-    combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContentsOnFirstShow)
-    for value, label in items:
-        combo.addItem(label, value)
-    if initial is not None:
-        idx = combo.findData(initial)
-        if idx >= 0:
-            combo.setCurrentIndex(idx)
-    # Make the popup wide enough to read the longest entry, regardless
-    # of how narrow the combo itself is.
-    metrics = combo.fontMetrics()
-    max_w = max((metrics.horizontalAdvance(label) for _, label in items), default=120)
-    combo.view().setMinimumWidth(max_w + 32)
-    return combo
-
-
-def _add_field_with_hint(
-    form: QFormLayout,
-    label_text: str,
-    field: QWidget,
-    hint_text: str,
-) -> None:
-    """Add a row with the field, then a wrapped hint as its own row.
-
-    Putting the hint in the form layout directly (rather than
-    nesting it inside the field's container) lets QFormLayout
-    honour the label's wrapped ``heightForWidth``, so longer
-    hints aren't clipped.
-    """
-    form.addRow(label_text, field)
-    hint = QLabel(hint_text)
-    hint.setObjectName("formHint")
-    hint.setWordWrap(True)
-    hint.setStyleSheet("color: #8a8a8a;")
-    hint.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.MinimumExpanding)
-    form.addRow("", hint)
-
-
-def _section_label(text: str) -> QLabel:
-    """Build a small uppercase heading for grouping fields in a tab."""
-    label = QLabel(text.upper())
-    label.setObjectName("prefsSection")
-    return label
-
-
-class _PropertySlider(QWidget):
-    """A horizontal slider over a float range with a Reset button.
-
-    Used for the software image controls (brightness, contrast).
-    The slider's integer position is mapped to the configured
-    float range. ``value()`` returns the current float. The
-    Reset button snaps back to ``default`` and fires the change
-    so the live preview updates.
-    """
-
-    value_changed = Signal(str, object)  # property name, float
-
-    def __init__(
-        self,
-        name: str,
-        initial: float,
-        *,
-        minimum: float,
-        maximum: float,
-        default: float,
-        steps: int = 200,
-        suffix: str = "",
-        parent: QWidget | None = None,
-    ) -> None:
-        super().__init__(parent)
-        self._name = name
-        self._minimum = minimum
-        self._maximum = maximum
-        self._default = default
-        self._steps = steps
-        self._suffix = suffix
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
-
-        self._slider = QSlider(Qt.Orientation.Horizontal)
-        self._slider.setRange(0, steps)
-        self._slider.setValue(self._float_to_pos(initial))
-        layout.addWidget(self._slider, 1)
-
-        self._readout = QLabel()
-        self._readout.setMinimumWidth(56)
-        self._readout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(self._readout)
-
-        self._reset = QPushButton("Reset")
-        self._reset.setToolTip("Restore the default value")
-        layout.addWidget(self._reset)
-
-        self._slider.valueChanged.connect(self._on_slider_changed)
-        self._reset.clicked.connect(self._on_reset_clicked)
-        self._update_readout()
-
-    def value(self) -> float:
-        """Return the current slider value as a float."""
-        return self._pos_to_float(self._slider.value())
-
-    def set_value(self, value: float) -> None:
-        """Move the slider to ``value`` without firing ``value_changed``.
-
-        Used when the controller wants to push a programmatic
-        value into the widget (after auto-optimise, for example)
-        without it looking like the user dragged the slider.
-        """
-        self._slider.blockSignals(True)
-        try:
-            self._slider.setValue(self._float_to_pos(value))
-        finally:
-            self._slider.blockSignals(False)
-        self._update_readout()
-
-    def _pos_to_float(self, pos: int) -> float:
-        ratio = pos / self._steps
-        return self._minimum + ratio * (self._maximum - self._minimum)
-
-    def _float_to_pos(self, value: float) -> int:
-        clamped = max(self._minimum, min(self._maximum, value))
-        ratio = (clamped - self._minimum) / (self._maximum - self._minimum)
-        return round(ratio * self._steps)
-
-    def _update_readout(self) -> None:
-        value = self.value()
-        if self._suffix:
-            self._readout.setText(f"{value:.2f}")
-        else:
-            self._readout.setText(f"{value:+.0f}")
-
-    def _on_slider_changed(self, _value: int) -> None:
-        self._update_readout()
-        self.value_changed.emit(self._name, self.value())
-
-    def _on_reset_clicked(self) -> None:
-        self._slider.setValue(self._float_to_pos(self._default))
 
 
 class PreferencesDialog(QDialog):
+    """Tabbed preferences dialog with live camera preview and target picker.
+
+    Changes are applied live where possible (camera selection, image
+    controls) so the user gets immediate feedback. Clicking Save
+    persists the full state; Cancel reverts the live changes.
+    """
+
     saved = Signal(Preferences)
     optimise_requested = Signal()
     reset_detector_requested = Signal()
@@ -227,6 +75,18 @@ class PreferencesDialog(QDialog):
         saved_camera_name: str = "",
         parent: QWidget | None = None,
     ) -> None:
+        """Initialise the dialog with the given preferences and device lists.
+
+        Args:
+            prefs: The current application preferences to populate fields.
+            camera_options: Available cameras as (index, name) pairs.
+            audio_options: Available microphone device names.
+            target_faces: Available target faces as (key, label) pairs.
+            rings_lookup: Callable returning rings for a face key.
+            face_lookup: Callable returning a `TargetFace` for a key.
+            saved_camera_name: Name of the previously saved camera.
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         self.setWindowTitle("Preferences")
         self.resize(720, 560)
@@ -264,7 +124,7 @@ class PreferencesDialog(QDialog):
         self._refresh_preview_frame()
 
     def _refresh_preview_frame(self) -> None:
-        """Repaint the embedded camera preview with the latest frame."""
+        """Repaint the embedded camera preview and mirror to the popout."""
         frame = getattr(self, "_latest_raw_frame", None)
         if frame is None:
             return
@@ -277,46 +137,8 @@ class PreferencesDialog(QDialog):
             popout.view.set_region_fraction(float(self._region.value()))
 
     def _on_region_preview_changed(self, _value: float) -> None:
+        """Update the camera preview's tracking region overlay."""
         self._camera_preview.set_region_fraction(float(self._region.value()))
-
-    def _make_expand_button(self, parent):
-        """Create the expand icon button (same as main window)."""
-        from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
-
-        btn = QPushButton(parent)
-        btn.setFixedSize(26, 26)
-        btn.setToolTip("Enlarge camera preview")
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setStyleSheet(
-            "QPushButton {"
-            "  background: rgba(0, 0, 0, 160);"
-            "  border: none;"
-            "  border-radius: 4px;"
-            "  padding: 4px;"
-            "}"
-            "QPushButton:hover {"
-            "  background: rgba(60, 60, 60, 200);"
-            "}"
-        )
-        pm = QPixmap(18, 18)
-        pm.fill(QColor(0, 0, 0, 0))
-        p = QPainter(pm)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        pen = QPen(QColor(255, 255, 255, 220))
-        pen.setWidth(2)
-        p.setPen(pen)
-        p.drawLine(2, 6, 2, 2)
-        p.drawLine(2, 2, 6, 2)
-        p.drawLine(11, 2, 15, 2)
-        p.drawLine(15, 2, 15, 6)
-        p.drawLine(2, 11, 2, 15)
-        p.drawLine(2, 15, 6, 15)
-        p.drawLine(11, 15, 15, 15)
-        p.drawLine(15, 15, 15, 11)
-        p.end()
-        btn.setIcon(QIcon(pm))
-        btn.setIconSize(pm.size())
-        return btn
 
     def _on_expand_preview(self) -> None:
         """Open the camera popout from the preferences pane."""
@@ -484,13 +306,14 @@ class PreferencesDialog(QDialog):
         prefs: Preferences,
         camera_options: list[tuple[int, str]] | None,
     ) -> QWidget:
+        """Build the Camera tab: device selection, tracking, image controls, preview."""
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
 
         # Device section.
-        layout.addWidget(_section_label("Device"))
+        layout.addWidget(section_label("Device"))
         device_form = QFormLayout()
         device_form.setHorizontalSpacing(16)
         device_form.setVerticalSpacing(12)
@@ -510,7 +333,7 @@ class PreferencesDialog(QDialog):
         else:
             cam_items.insert(0, (None, "No camera"))
             initial_camera = None
-        self._camera = _make_combo(cam_items, initial=initial_camera)
+        self._camera = make_combo(cam_items, initial=initial_camera)
         self._camera.activated.connect(self._on_camera_chosen)
 
         # Refresh button next to the combo so a camera plugged in
@@ -529,7 +352,7 @@ class PreferencesDialog(QDialog):
         device_layout.addWidget(refresh_btn)
         device_form.addRow("Device", device_row)
 
-        self._rotation = _make_combo(list(ROTATION_OPTIONS), initial=prefs.camera_rotation)
+        self._rotation = make_combo(list(ROTATION_OPTIONS), initial=prefs.camera_rotation)
         self._rotation.currentIndexChanged.connect(lambda _i: self._emit_transform_changed())
         device_form.addRow("Rotation", self._rotation)
 
@@ -570,7 +393,7 @@ class PreferencesDialog(QDialog):
         layout.addLayout(device_form)
 
         # Tracking section.
-        layout.addWidget(_section_label("Tracking"))
+        layout.addWidget(section_label("Tracking"))
         tracking_form = QFormLayout()
         tracking_form.setHorizontalSpacing(16)
         tracking_form.setVerticalSpacing(12)
@@ -581,7 +404,7 @@ class PreferencesDialog(QDialog):
         self._region.setDecimals(2)
         self._region.setValue(prefs.tracking_region_fraction)
         self._region.valueChanged.connect(self._on_region_preview_changed)
-        _add_field_with_hint(
+        add_field_with_hint(
             tracking_form,
             "Tracking region",
             self._region,
@@ -591,7 +414,7 @@ class PreferencesDialog(QDialog):
         layout.addLayout(tracking_form)
 
         # Image section.
-        layout.addWidget(_section_label("Image"))
+        layout.addWidget(section_label("Image"))
         image_form = QFormLayout()
         image_form.setHorizontalSpacing(16)
         image_form.setVerticalSpacing(12)
@@ -651,7 +474,7 @@ class PreferencesDialog(QDialog):
         camera_container_layout.setContentsMargins(0, 0, 0, 0)
         camera_container_layout.addWidget(self._camera_preview)
 
-        self._prefs_expand_button = self._make_expand_button(camera_container)
+        self._prefs_expand_button = make_expand_button(camera_container)
         self._prefs_expand_button.clicked.connect(self._on_expand_preview)
         self._prefs_expand_button.move(camera_container.width() - 34, 8)
         self._prefs_expand_button.raise_()
@@ -670,9 +493,9 @@ class PreferencesDialog(QDialog):
         maximum: float,
         default: float,
         suffix: str = "",
-    ) -> _PropertySlider:
-        """Build a property slider and forward its changes to the controller."""
-        slider = _PropertySlider(
+    ) -> PropertySlider:
+        """Build a property slider and wire its changes to `camera_property_changed`."""
+        slider = PropertySlider(
             name,
             value,
             minimum=minimum,
@@ -688,19 +511,20 @@ class PreferencesDialog(QDialog):
         prefs: Preferences,
         audio_options: list[str] | None,
     ) -> QWidget:
+        """Build the Audio tab: input device, gain, detection thresholds."""
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
 
         # Input section.
-        layout.addWidget(_section_label("Input"))
+        layout.addWidget(section_label("Input"))
         input_form = QFormLayout()
         input_form.setHorizontalSpacing(16)
         input_form.setVerticalSpacing(12)
 
         audio_items = [(name, name) for name in (audio_options or ["default"])]
-        self._audio = _make_combo(audio_items, initial=prefs.audio_device)
+        self._audio = make_combo(audio_items, initial=prefs.audio_device)
         input_form.addRow("Input", self._audio)
 
         self._audio_gain = QDoubleSpinBox()
@@ -708,7 +532,7 @@ class PreferencesDialog(QDialog):
         self._audio_gain.setSingleStep(0.1)
         self._audio_gain.setSuffix("x")
         self._audio_gain.setValue(prefs.audio_gain)
-        _add_field_with_hint(
+        add_field_with_hint(
             input_form,
             "Volume",
             self._audio_gain,
@@ -718,7 +542,7 @@ class PreferencesDialog(QDialog):
         layout.addLayout(input_form)
 
         # Detection section.
-        layout.addWidget(_section_label("Detection"))
+        layout.addWidget(section_label("Detection"))
         detection_form = QFormLayout()
         detection_form.setHorizontalSpacing(16)
         detection_form.setVerticalSpacing(12)
@@ -727,7 +551,7 @@ class PreferencesDialog(QDialog):
         self._threshold.setRange(0.01, 1.0)
         self._threshold.setSingleStep(0.01)
         self._threshold.setValue(prefs.shot_threshold)
-        _add_field_with_hint(
+        add_field_with_hint(
             detection_form,
             "Shot threshold",
             self._threshold,
@@ -739,7 +563,7 @@ class PreferencesDialog(QDialog):
         self._refractory.setRange(50, 5000)
         self._refractory.setSuffix(" ms")
         self._refractory.setValue(prefs.shot_refractory_ms)
-        _add_field_with_hint(
+        add_field_with_hint(
             detection_form,
             "Refractory window",
             self._refractory,
@@ -763,25 +587,26 @@ class PreferencesDialog(QDialog):
         prefs: Preferences,
         target_faces: list[tuple[str, str]] | None,
     ) -> QWidget:
+        """Build the Target tab: face picker, calibre, tracking circle."""
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
 
         # Face section.
-        layout.addWidget(_section_label("Face"))
+        layout.addWidget(section_label("Face"))
         face_form = QFormLayout()
         face_form.setHorizontalSpacing(16)
         face_form.setVerticalSpacing(12)
 
         face_items = list(target_faces or [("default", "Default rings")])
-        self._target_face = _make_combo(face_items, initial=prefs.target_face)
+        self._target_face = make_combo(face_items, initial=prefs.target_face)
         face_form.addRow("Face", self._target_face)
         # Preset combo for the most common calibres. Picking a preset
         # sets the diameter spinbox. Users can still type a custom value.
         calibre_items: list[tuple[object, str]] = [("custom", "Custom")]
         calibre_items.extend((key, label) for key, label, _mm in CALIBRES)
-        self._calibre = _make_combo(
+        self._calibre = make_combo(
             calibre_items,
             initial=self._calibre_for_diameter(prefs.shot_diameter_mm),
         )
@@ -798,7 +623,7 @@ class PreferencesDialog(QDialog):
         layout.addLayout(face_form)
 
         # Tracking section.
-        layout.addWidget(_section_label("Tracking"))
+        layout.addWidget(section_label("Tracking"))
         tracking_form = QFormLayout()
         tracking_form.setHorizontalSpacing(16)
         tracking_form.setVerticalSpacing(12)
@@ -813,7 +638,7 @@ class PreferencesDialog(QDialog):
         self._circle_diameter.setSingleStep(1.0)
         self._circle_diameter.setSuffix(" mm")
         self._circle_diameter.setValue(prefs.circle_diameter_mm)
-        _add_field_with_hint(
+        add_field_with_hint(
             tracking_form,
             "Tracking circle",
             self._circle_diameter,
@@ -868,14 +693,7 @@ class PreferencesDialog(QDialog):
         self._face_preview.set_rings(rings)
 
     def _on_camera_chosen(self, _index: int) -> None:
-        """Tell the controller as soon as the user picks a different camera.
-
-        Fires on explicit selection only (``activated``), so
-        opening the dialog with the saved camera preselected
-        doesn't trigger a needless capture restart. ``None``
-        propagates through as the new camera id, meaning
-        "stop the live capture".
-        """
+        """Emit `camera_changed` when the user picks a different device."""
         new_id = self._camera.currentData()
         self.camera_changed.emit(new_id if isinstance(new_id, int) else None)
         # The image controls are reapplied to the new device on
@@ -883,22 +701,24 @@ class PreferencesDialog(QDialog):
         # themselves stay where the user had them.
 
     def _calibre_for_diameter(self, mm: float) -> str:
-        """Return the preset key whose diameter matches ``mm`` (or "custom")."""
-        for key, value in _CALIBRES_BY_KEY.items():
+        """Return the preset key whose diameter matches `mm`, or 'custom'."""
+        for key, value in CALIBRES_BY_KEY.items():
             if abs(value - mm) < 0.05:
                 return key
         return "custom"
 
     def _on_calibre_changed(self, _index: int) -> None:
+        """Sync the shot diameter spinbox when a preset calibre is picked."""
         key = self._calibre.currentData()
-        if isinstance(key, str) and key in _CALIBRES_BY_KEY:
+        if isinstance(key, str) and key in CALIBRES_BY_KEY:
             # Block signals during the spinbox update so the change
             # doesn't flip the combo back to "Custom".
             self._shot_diameter.blockSignals(True)
-            self._shot_diameter.setValue(_CALIBRES_BY_KEY[key])
+            self._shot_diameter.setValue(CALIBRES_BY_KEY[key])
             self._shot_diameter.blockSignals(False)
 
     def _on_shot_diameter_changed(self, value: float) -> None:
+        """Snap the calibre combo to the matching preset, or 'Custom'."""
         # Manual edit invalidates the preset selection.
         self._calibre.blockSignals(True)
         idx = self._calibre.findData(self._calibre_for_diameter(value))
@@ -907,12 +727,13 @@ class PreferencesDialog(QDialog):
         self._calibre.blockSignals(False)
 
     def _build_recording_tab(self, prefs: Preferences) -> QWidget:
+        """Build the Recording tab: pre/post-shot window durations."""
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
 
-        layout.addWidget(_section_label("Replay window"))
+        layout.addWidget(section_label("Replay window"))
         form = QFormLayout()
         form.setHorizontalSpacing(16)
         form.setVerticalSpacing(12)
@@ -921,7 +742,7 @@ class PreferencesDialog(QDialog):
         self._pre.setRange(0, 10000)
         self._pre.setSuffix(" ms")
         self._pre.setValue(prefs.pre_shot_ms)
-        _add_field_with_hint(
+        add_field_with_hint(
             form,
             "Pre-shot window",
             self._pre,
@@ -932,7 +753,7 @@ class PreferencesDialog(QDialog):
         self._post.setRange(0, 10000)
         self._post.setSuffix(" ms")
         self._post.setValue(prefs.post_shot_ms)
-        _add_field_with_hint(
+        add_field_with_hint(
             form,
             "Post-shot window",
             self._post,
@@ -943,6 +764,7 @@ class PreferencesDialog(QDialog):
         return page
 
     def _build_about_tab(self) -> QWidget:
+        """Build the About tab: logo, version, links."""
         from shottrainer import __version__
         from shottrainer.ui.assets import asset_path
 
