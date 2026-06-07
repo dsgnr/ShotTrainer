@@ -1,12 +1,13 @@
 """Repository for sessions, traces and shots.
 
 Hides SQLAlchemy from the rest of the app. Anything that wants
-to read or to read or to read or to read or to read or to read or to read or to read or write persistence goes through here.
+to read or to read or to read or to read or to read or to read or to read or to read or to read or write persistence goes through here.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import select
@@ -20,26 +21,16 @@ from shottrainer.tracking.models import TrackingSample
 from .models import Session, Shot, TraceSample, utc_now
 
 
+@dataclass(frozen=True, slots=True)
 class SessionSummary:
     """A read-only view of a session for list rendering. Cheap to build."""
 
-    __slots__ = ("ended_at", "id", "name", "shot_count", "started_at", "total_score")
-
-    def __init__(
-        self,
-        session_id: int,
-        name: str,
-        started_at: datetime,
-        ended_at: datetime | None,
-        shot_count: int,
-        total_score: float = 0.0,
-    ) -> None:
-        self.id = session_id
-        self.name = name
-        self.started_at = started_at
-        self.ended_at = ended_at
-        self.shot_count = shot_count
-        self.total_score = total_score
+    id: int
+    name: str
+    started_at: datetime
+    ended_at: datetime | None
+    shot_count: int
+    total_score: float = 0.0
 
 
 class SessionRepository:
@@ -121,7 +112,7 @@ class SessionRepository:
 
             return [
                 SessionSummary(
-                    session_id=int(s.id),
+                    id=int(s.id),
                     name=s.name,
                     started_at=s.started_at,
                     ended_at=s.ended_at,
