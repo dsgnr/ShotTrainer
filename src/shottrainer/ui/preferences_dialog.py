@@ -94,6 +94,65 @@ def _add_field_with_hint(
     form.addRow("", hint)
 
 
+class _PropertySlider(QWidget):
+    """A 0..100 slider paired with an "auto" checkbox.
+
+    Used for hardware camera properties (brightness, contrast, etc.).
+    The slider's value is normalised to 0..1 when read out so the
+    capture layer can map it to whatever range OpenCV expects on the
+    current platform. Ticking "auto" leaves the property at the
+    camera's driver default and disables the slider.
+
+    Wraps the slider and checkbox in a single widget so the dialog
+    doesn't have to stash the checkbox somewhere weird (e.g. as a
+    dynamic attribute on the slider) just to read it back at save
+    time.
+    """
+
+    value_changed = Signal(str, object)  # property name, float | None
+
+    def __init__(
+        self,
+        name: str,
+        initial: float | None,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._name = name
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+
+        self._slider = QSlider(Qt.Orientation.Horizontal)
+        self._slider.setRange(0, 100)
+        self._slider.setEnabled(initial is not None)
+        if initial is not None:
+            self._slider.setValue(round(initial * 100))
+        layout.addWidget(self._slider, 1)
+
+        self._auto = QCheckBox("auto")
+        self._auto.setChecked(initial is None)
+        layout.addWidget(self._auto)
+
+        self._auto.toggled.connect(self._on_auto_toggled)
+        self._slider.valueChanged.connect(self._on_slider_changed)
+
+    def value(self) -> float | None:
+        """Read the current value, or ``None`` when "auto" is ticked."""
+        if self._auto.isChecked():
+            return None
+        return self._slider.value() / 100.0
+
+    def _on_auto_toggled(self, checked: bool) -> None:
+        self._slider.setEnabled(not checked)
+        self.value_changed.emit(self._name, self.value())
+
+    def _on_slider_changed(self, _value: int) -> None:
+        if not self._auto.isChecked():
+            self.value_changed.emit(self._name, self.value())
+
+
 class PreferencesDialog(QDialog):
     saved = Signal(Preferences)
     optimise_requested = Signal()
@@ -347,24 +406,16 @@ class PreferencesDialog(QDialog):
 
         # Hardware image controls. Each slider has an "auto" checkbox that
         # leaves the camera at its default value.
-        self._brightness, b_row = self._make_property_slider(
-            "brightness", prefs.camera_brightness, "Brightness"
-        )
-        form.addRow("Brightness", b_row)
-        self._contrast, c_row = self._make_property_slider(
-            "contrast", prefs.camera_contrast, "Contrast"
-        )
-        form.addRow("Contrast", c_row)
-        self._saturation, s_row = self._make_property_slider(
-            "saturation", prefs.camera_saturation, "Saturation"
-        )
-        form.addRow("Saturation", s_row)
-        self._gain, g_row = self._make_property_slider("gain", prefs.camera_gain, "Gain")
-        form.addRow("Gain", g_row)
-        self._exposure, e_row = self._make_property_slider(
-            "exposure", prefs.camera_exposure, "Exposure"
-        )
-        form.addRow("Exposure", e_row)
+        self._brightness = self._make_property_slider("brightness", prefs.camera_brightness)
+        form.addRow("Brightness", self._brightness)
+        self._contrast = self._make_property_slider("contrast", prefs.camera_contrast)
+        form.addRow("Contrast", self._contrast)
+        self._saturation = self._make_property_slider("saturation", prefs.camera_saturation)
+        form.addRow("Saturation", self._saturation)
+        self._gain = self._make_property_slider("gain", prefs.camera_gain)
+        form.addRow("Gain", self._gain)
+        self._exposure = self._make_property_slider("exposure", prefs.camera_exposure)
+        form.addRow("Exposure", self._exposure)
 
         layout.addLayout(form)
 
@@ -389,45 +440,18 @@ class PreferencesDialog(QDialog):
         return page
 
     def _make_property_slider(
-        self, name: str, value: float | None, label: str
-    ) -> tuple[QSlider, QWidget]:
-        """Build a 0..100 slider plus 'auto' checkbox for a hardware property.
+        self, name: str, value: float | None
+    ) -> _PropertySlider:
+        """Build a ``_PropertySlider`` and forward its changes to the controller.
 
-        The slider value is normalised to 0..1 when emitted/saved so
-        platforms can map to whatever range OpenCV expects.
+        Hardware properties have driver-specific value ranges. The
+        slider exposes a normalised 0..1 float so the capture layer
+        can map it to whatever OpenCV expects on the current
+        platform.
         """
-        container = QWidget()
-        row = QHBoxLayout(container)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(8)
-
-        slider = QSlider(Qt.Orientation.Horizontal)
-        slider.setRange(0, 100)
-        slider.setEnabled(value is not None)
-        if value is not None:
-            slider.setValue(round(value * 100))
-        row.addWidget(slider, 1)
-
-        auto = QCheckBox("auto")
-        auto.setChecked(value is None)
-        row.addWidget(auto)
-
-        def _on_auto(checked: bool) -> None:
-            slider.setEnabled(not checked)
-            self.camera_property_changed.emit(name, None if checked else slider.value() / 100.0)
-
-        def _on_slider(v: int) -> None:
-            if not auto.isChecked():
-                self.camera_property_changed.emit(name, v / 100.0)
-
-        auto.toggled.connect(_on_auto)
-        slider.valueChanged.connect(_on_slider)
-
-        # Stash on the slider so _on_save can read the auto state.
-        slider.setProperty("auto_checkbox", id(auto))
-        slider._auto_checkbox = auto  # type: ignore[attr-defined]
-
-        return slider, container
+        slider = _PropertySlider(name, value)
+        slider.value_changed.connect(self.camera_property_changed)
+        return slider
 
     def _build_audio_tab(
         self,
@@ -730,22 +754,16 @@ class PreferencesDialog(QDialog):
         audio = self._audio.currentText()
         target_face = self._target_face.currentData() or "default"
 
-        def _slider_value(slider: QSlider) -> float | None:
-            auto = getattr(slider, "_auto_checkbox", None)
-            if auto is not None and auto.isChecked():
-                return None
-            return slider.value() / 100.0
-
         updated = Preferences(
             camera_id=int(cam_id) if isinstance(cam_id, int) else None,
             camera_rotation=int(rotation) if rotation is not None else 0,
             camera_flip_h=self._flip_h.isChecked(),
             camera_flip_v=self._flip_v.isChecked(),
-            camera_brightness=_slider_value(self._brightness),
-            camera_contrast=_slider_value(self._contrast),
-            camera_saturation=_slider_value(self._saturation),
-            camera_gain=_slider_value(self._gain),
-            camera_exposure=_slider_value(self._exposure),
+            camera_brightness=self._brightness.value(),
+            camera_contrast=self._contrast.value(),
+            camera_saturation=self._saturation.value(),
+            camera_gain=self._gain.value(),
+            camera_exposure=self._exposure.value(),
             audio_device=audio,
             audio_gain=float(self._audio_gain.value()),
             shot_threshold=float(self._threshold.value()),
