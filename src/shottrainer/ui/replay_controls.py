@@ -23,12 +23,19 @@ from PySide6.QtWidgets import (
 
 
 class ReplayControls(QWidget):
+    """Replay transport panel with play/pause, reset, scrubber, and time label."""
+
     play_clicked = Signal()
     pause_clicked = Signal()
     reset_clicked = Signal()
     scrubbed = Signal(float)  # 0.0 to 1.0
 
     def __init__(self, parent: QWidget | None = None) -> None:
+        """Initialise the transport controls in a disabled state.
+
+        Args:
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         # ``Preferred`` width so the row's stretch element pushes
         # the controls toward the right rather than blowing the
@@ -111,6 +118,11 @@ class ReplayControls(QWidget):
         return button
 
     def set_enabled(self, enabled: bool) -> None:
+        """Enable or disable all transport controls.
+
+        Args:
+            enabled: Whether the controls should be interactive.
+        """
         for w in (self._play_pause, self._reset, self._slider, self._time_label):
             w.setEnabled(enabled)
 
@@ -128,6 +140,11 @@ class ReplayControls(QWidget):
             self._refresh_time_label(self._slider.value() / 1000.0)
 
     def set_progress(self, fraction: float) -> None:
+        """Move the scrubber to the given position without emitting signals.
+
+        Args:
+            fraction: Position between 0.0 and 1.0.
+        """
         v = max(0, min(1000, round(fraction * 1000)))
         self._slider.blockSignals(True)
         self._slider.setValue(v)
@@ -180,12 +197,14 @@ class ReplayControls(QWidget):
         self._on_play_pause_clicked()
 
     def _on_play_pause_clicked(self) -> None:
+        """Emit play or pause depending on current state."""
         if self._is_playing:
             self.pause_clicked.emit()
         else:
             self.play_clicked.emit()
 
     def _on_slider_moved(self, value: int) -> None:
+        """Handle manual scrubbing: emit fraction and show tooltip."""
         fraction = value / 1000.0
         self.scrubbed.emit(fraction)
         self._refresh_time_label(fraction)

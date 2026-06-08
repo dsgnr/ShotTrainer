@@ -12,6 +12,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Palette:
+    """Colour tokens for the application theme."""
+
     bg: str = "#0e1014"
     bg_dark: str = "#0a0c10"
     bg_panel: str = "#14171c"
@@ -38,6 +40,15 @@ _DEFAULT_PALETTE = Palette()
 
 
 def build_stylesheet(check_path: str = "__CHECK_PATH__", p: Palette = _DEFAULT_PALETTE) -> str:
+    """Generate the application-wide QSS stylesheet.
+
+    Args:
+        check_path: File path to the checkbox check icon SVG.
+        p: Colour palette to use for all tokens.
+
+    Returns:
+        A complete QSS string ready for `QApplication.setStyleSheet`.
+    """
     return f"""
 QWidget {{
     background-color: {p.bg};

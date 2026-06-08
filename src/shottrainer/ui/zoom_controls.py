@@ -13,6 +13,8 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSlider, QWidget
 
 
 class ZoomControls(QWidget):
+    """Logarithmic zoom slider for the target view."""
+
     extent_changed = Signal(float)  # new extent in mm
 
     def __init__(
@@ -21,6 +23,13 @@ class ZoomControls(QWidget):
         max_extent_mm: float = 500.0,
         parent: QWidget | None = None,
     ) -> None:
+        """Initialise the zoom controls.
+
+        Args:
+            min_extent_mm: Minimum visible extent in mm (fully zoomed in).
+            max_extent_mm: Maximum visible extent in mm (fully zoomed out).
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         self._min = min_extent_mm
         self._max = max_extent_mm
@@ -55,6 +64,7 @@ class ZoomControls(QWidget):
         self._slider.valueChanged.connect(self._on_slider)
 
     def _make_button(self, glyph: str, tooltip: str) -> QPushButton:
+        """Create a small auto-repeat button for zoom stepping."""
         btn = QPushButton(glyph)
         btn.setObjectName("zoomButton")
         btn.setFixedSize(32, 28)
@@ -65,6 +75,11 @@ class ZoomControls(QWidget):
         return btn
 
     def set_extent(self, extent_mm: float) -> None:
+        """Set the slider position to match the given extent.
+
+        Args:
+            extent_mm: Target extent in mm, clamped to the valid range.
+        """
         clamped = min(self._max, max(self._min, float(extent_mm)))
         ratio = math.log(clamped / self._min) / math.log(self._max / self._min)
         value = round(ratio * 1000)
@@ -74,14 +89,16 @@ class ZoomControls(QWidget):
         self._readout.setText(f"{clamped:.0f} mm")
 
     def _on_slider(self, value: int) -> None:
+        """Convert slider position to extent and emit `extent_changed`."""
         ratio = value / 1000.0
         extent = self._min * ((self._max / self._min) ** ratio)
         self._readout.setText(f"{extent:.0f} mm")
         self.extent_changed.emit(extent)
 
     def _zoom_in(self) -> None:
-        # Zoom in narrows the visible extent (smaller mm number).
+        """Step the slider toward a narrower visible extent."""
         self._slider.setValue(self._slider.value() - 50)
 
     def _zoom_out(self) -> None:
+        """Step the slider toward a wider visible extent."""
         self._slider.setValue(self._slider.value() + 50)
