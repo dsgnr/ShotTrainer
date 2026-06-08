@@ -32,9 +32,16 @@ class ShotListEntry:
 
 
 class ShotList(QWidget):
+    """Vertical shot list panel showing each shot's number, score, and offset."""
+
     shot_selected = Signal(int)  # entry index
 
     def __init__(self, parent: QWidget | None = None) -> None:
+        """Initialise the shot list with an empty-state placeholder.
+
+        Args:
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
@@ -60,6 +67,11 @@ class ShotList(QWidget):
         self._list.hide()
 
     def set_shots(self, entries) -> None:
+        """Replace the shot list with the given entries.
+
+        Args:
+            entries: Iterable of `ShotListEntry` objects to display.
+        """
         entries = list(entries)
         self._list.blockSignals(True)
         self._list.clear()
@@ -80,6 +92,11 @@ class ShotList(QWidget):
         self._list.setVisible(bool(entries))
 
     def select_index(self, index: int | None) -> None:
+        """Programmatically select a shot by index.
+
+        Args:
+            index: Zero-based shot index, or None to clear selection.
+        """
         if index is None:
             self._list.clearSelection()
             return
@@ -87,6 +104,7 @@ class ShotList(QWidget):
             self._list.setCurrentRow(index)
 
     def _on_selection_changed(self) -> None:
+        """Emit `shot_selected` when the user clicks a row."""
         items = self._list.selectedItems()
         if not items:
             return

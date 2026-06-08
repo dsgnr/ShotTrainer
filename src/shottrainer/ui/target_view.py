@@ -78,9 +78,20 @@ def colour_for_score(score: str) -> str:
 
 
 class TargetView(QWidget):
+    """The target display widget rendering rings, trace, and shot markers.
+
+    All coordinates are in target-space millimetres. The widget converts
+    to pixels at paint time based on the current zoom extent.
+    """
+
     extent_changed = Signal(float)
 
     def __init__(self, parent: QWidget | None = None) -> None:
+        """Initialise the target view with default rings and zoom.
+
+        Args:
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         self.setMinimumSize(320, 320)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -118,12 +129,22 @@ class TargetView(QWidget):
         self._isolate_selected_shot: bool = False
 
     def set_rings(self, rings: Iterable[TargetRing]) -> None:
+        """Set the target face rings and auto-adjust the extent.
+
+        Args:
+            rings: The ring definitions for the active target face.
+        """
         self._rings = tuple(rings)
         if self._rings:
             self._extent_mm = max(r.diameter_mm for r in self._rings) / 2 * 1.15
         self.update()
 
     def set_extent_mm(self, extent_mm: float) -> None:
+        """Set the visible extent (half-width of the view in mm).
+
+        Args:
+            extent_mm: Half the visible width/height in mm.
+        """
         self._extent_mm = max(1.0, extent_mm)
         self.update()
 
@@ -132,11 +153,22 @@ class TargetView(QWidget):
         return self._extent_mm
 
     def set_trace_capacity(self, n: int) -> None:
+        """Set the maximum number of trace samples retained.
+
+        Args:
+            n: Maximum trace length (clamped to at least 1).
+        """
         capacity = max(1, n)
         self._trace = deque(self._trace, maxlen=capacity)
         self._rebuild_trace_polygons()
 
     def append_trace_point(self, x_mm: float, y_mm: float) -> None:
+        """Append a single point to the live trace.
+
+        Args:
+            x_mm: Horizontal offset from centre in mm.
+            y_mm: Vertical offset from centre in mm.
+        """
         # Drop points well outside the visible target. A noisy
         # detection (a sliver-of-a-pixel ellipse fit, the camera
         # being swept past the target) can land hundreds of mm
@@ -171,6 +203,11 @@ class TargetView(QWidget):
         self.update()
 
     def set_trace(self, points: Iterable[tuple[float, float]]) -> None:
+        """Replace the entire trace with the given points.
+
+        Args:
+            points: Iterable of (x_mm, y_mm) positions.
+        """
         self._trace = deque(points, maxlen=self._trace.maxlen)
         self._live_aim = self._trace[-1] if self._trace else None
         self._playhead_index = None
@@ -225,6 +262,7 @@ class TargetView(QWidget):
         self.update()
 
     def clear_trace(self) -> None:
+        """Remove all trace points and the live aim dot."""
         self._trace.clear()
         self._live_aim = None
         self._rebuild_trace_polygons()
@@ -250,14 +288,29 @@ class TargetView(QWidget):
         self._trace_follow = follow
 
     def set_shots(self, shots: Iterable[ShotMarker]) -> None:
+        """Replace the shot markers on the target.
+
+        Args:
+            shots: Iterable of `ShotMarker` objects.
+        """
         self._shots = list(shots)
         self.update()
 
     def set_selected_shot(self, index: int | None) -> None:
+        """Highlight a specific shot marker.
+
+        Args:
+            index: Zero-based shot index, or None to clear.
+        """
         self._selected_shot = index
         self.update()
 
     def set_shot_diameter_mm(self, diameter_mm: float) -> None:
+        """Set the rendered projectile diameter.
+
+        Args:
+            diameter_mm: Projectile diameter in mm (minimum 0.1).
+        """
         self._shot_diameter_mm = max(0.1, float(diameter_mm))
         self.update()
 
