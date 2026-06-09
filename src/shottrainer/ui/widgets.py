@@ -86,6 +86,7 @@ def make_expand_button(parent: QWidget) -> QPushButton:
     btn.setIconSize(btn.size())
     return btn
 
+
 ROTATION_OPTIONS: tuple[tuple[int, str], ...] = (
     (0, "None"),
     (90, "90 clockwise"),

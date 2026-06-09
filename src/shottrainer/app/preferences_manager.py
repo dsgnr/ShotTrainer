@@ -9,6 +9,7 @@ dialog is involved.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
     from shottrainer.ui.main_window import MainWindow
 
     from .camera_manager import CameraManager
+    from .capture_pipeline import FrameTransformOptions
 
 log = logging.getLogger(__name__)
 
@@ -44,10 +46,10 @@ class PreferencesManager:
         window: MainWindow,
         tracker: Tracker,
         camera_mgr: CameraManager,
-        get_preferences: callable,
-        set_preferences: callable,
-        set_frame_transform: callable,
-        build_transform: callable,
+        get_preferences: Callable[[], Preferences],
+        set_preferences: Callable[[Preferences], None],
+        set_frame_transform: Callable[[FrameTransformOptions], None],
+        build_transform: Callable[[Preferences], FrameTransformOptions],
     ) -> None:
         self._window = window
         self._tracker = tracker
@@ -220,9 +222,7 @@ class PreferencesManager:
         """
         source = self._latest_unadjusted_frame
         if source is None:
-            self._set_detector_status(
-                "No camera frame available to optimise from", kind="warning"
-            )
+            self._set_detector_status("No camera frame available to optimise from", kind="warning")
             return
 
         self._set_optimise_button_enabled(False)
