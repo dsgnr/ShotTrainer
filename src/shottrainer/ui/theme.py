@@ -418,6 +418,15 @@ QLabel#detectorStatus {{
     color: {p.text_dim};
 }}
 
+QLabel#statePill {{
+    border: 1px solid {p.text_dim};
+    border-radius: 12px;
+    padding: 4px 12px;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}}
+
 /* Inputs */
 QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {{
     background-color: {p.bg_dark};
