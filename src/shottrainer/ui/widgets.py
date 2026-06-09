@@ -20,18 +20,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-_EXPAND_BUTTON_STYLE = (
-    "QPushButton {"
-    "  background: rgba(0, 0, 0, 160);"
-    "  border: none;"
-    "  border-radius: 4px;"
-    "  padding: 4px;"
-    "}"
-    "QPushButton:hover {"
-    "  background: rgba(60, 60, 60, 200);"
-    "}"
-)
-
 
 def make_expand_icon() -> QIcon:
     """Create the expand icon (four outward-pointing corners).
@@ -78,9 +66,9 @@ def make_expand_button(parent: QWidget) -> QPushButton:
     """
     btn = QPushButton(parent)
     btn.setFixedSize(26, 26)
+    btn.setObjectName("expandButton")
     btn.setToolTip("Enlarge camera preview")
     btn.setCursor(Qt.CursorShape.PointingHandCursor)
-    btn.setStyleSheet(_EXPAND_BUTTON_STYLE)
     icon = make_expand_icon()
     btn.setIcon(icon)
     btn.setIconSize(btn.size())
@@ -156,7 +144,6 @@ def add_field_with_hint(
     hint = QLabel(hint_text)
     hint.setObjectName("formHint")
     hint.setWordWrap(True)
-    hint.setStyleSheet("color: #8a8a8a;")
     hint.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.MinimumExpanding)
     form.addRow("", hint)
 

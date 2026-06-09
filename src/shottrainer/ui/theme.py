@@ -404,6 +404,27 @@ QPushButton#zoomButton {{
     border-radius: 8px;
 }}
 
+QPushButton#expandButton {{
+    background: rgba(0, 0, 0, 160);
+    border: none;
+    border-radius: 4px;
+    padding: 4px;
+}}
+
+QPushButton#expandButton:hover {{
+    background: rgba(60, 60, 60, 200);
+}}
+
+QLabel#cameraResolution {{
+    color: {p.text_dim};
+    font-size: 11px;
+    padding: 4px 8px;
+}}
+
+QLabel#detectorStatus {{
+    color: {p.text_dim};
+}}
+
 /* Inputs */
 QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {{
     background-color: {p.bg_dark};
