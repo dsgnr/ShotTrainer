@@ -16,6 +16,14 @@ from shottrainer.tracking.models import TrackingSample
 
 @dataclass(frozen=True, slots=True)
 class ShotWindow:
+    """A slice of trace samples around a single shot, with phase boundaries.
+
+    ``split_index`` is the sample nearest the shot timestamp.
+    ``release_index`` marks where the short release window starts
+    (typically 250 ms before the shot). The replay UI draws the
+    release phase in a different colour from the longer approach.
+    """
+
     samples: list[TrackingSample]
     split_index: int | None
     release_index: int | None = None
@@ -31,6 +39,12 @@ _RELEASE_WINDOW_MS = 250
 
 
 class ReplayCoordinator:
+    """Loads saved trace windows from the database for the replay view.
+
+    No Qt or widget code. Returns plain :class:`ShotWindow` data
+    so the controller can hand it to whichever view wants it.
+    """
+
     def __init__(self, repository: SessionRepository) -> None:
         self._repo = repository
 

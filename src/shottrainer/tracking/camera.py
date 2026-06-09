@@ -30,6 +30,14 @@ log = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class CameraConfig:
+    """Parameters for opening a camera device.
+
+    ``device_index`` maps to an OpenCV capture index. ``width``,
+    ``height`` and ``fps`` are requests — the device picks the
+    nearest supported mode. Leave them as ``None`` to use the
+    device's default.
+    """
+
     device_index: int = 0
     width: int | None = None
     height: int | None = None

@@ -35,10 +35,14 @@ def utc_now() -> datetime:
 
 
 class Base(DeclarativeBase):
+    """Shared declarative base for all ORM models."""
+
     pass
 
 
 class SchemaMeta(Base):
+    """Tracks the current schema version for migration decisions."""
+
     __tablename__ = "schema_meta"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -46,6 +50,13 @@ class SchemaMeta(Base):
 
 
 class Session(Base):
+    """A single training session, from start to stop.
+
+    Holds metadata (name, notes, target profile) and owns the
+    related :class:`Shot` rows via a cascade relationship. Trace
+    samples live in their own table for bulk-insert performance.
+    """
+
     __tablename__ = "sessions"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False, default="")
@@ -62,6 +73,13 @@ class Session(Base):
 
 
 class TraceSample(Base):
+    """One tracking sample persisted to the database.
+
+    ``ts`` is the monotonic timestamp from the camera loop. Pixel
+    coordinates are always present; millimetre coordinates are
+    ``None`` when the tracker couldn't convert (no circle found).
+    """
+
     __tablename__ = "trace_samples"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     session_id: Mapped[int] = mapped_column(
@@ -80,6 +98,14 @@ Index("ix_trace_session_ts", TraceSample.session_id, TraceSample.ts)
 
 
 class Shot(Base):
+    """A single shot detected during a session.
+
+    ``x_mm`` / ``y_mm`` are the aim coordinates at the moment of
+    the shot. ``None`` when the tracker didn't have a lock at that
+    instant. ``score`` holds the ring label assigned by the
+    scoring service, or an empty string when unscored.
+    """
+
     __tablename__ = "shots"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     session_id: Mapped[int] = mapped_column(

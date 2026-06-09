@@ -235,6 +235,7 @@ class SessionRepository:
 
 
 def _row_to_sample(r: TraceSample) -> TrackingSample:
+    """Convert a database row to a domain-level tracking sample."""
     return TrackingSample(
         timestamp=r.ts,
         x_px=r.x_px,

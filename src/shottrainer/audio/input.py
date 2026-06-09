@@ -51,6 +51,14 @@ def list_audio_inputs() -> list[str]:
 
 
 class AudioShotListener(QObject):
+    """Streams audio from a microphone and emits Qt signals on shot detection.
+
+    Wraps a ``sounddevice.InputStream`` and a :class:`ShotDetector`.
+    Audio capture runs on PortAudio's callback thread; the Qt
+    signal queue delivers ``shot_detected`` and ``level`` back to
+    the GUI thread so receivers don't need locking.
+    """
+
     shot_detected = Signal(ShotEvent)
     level = Signal(float)
     started = Signal()
