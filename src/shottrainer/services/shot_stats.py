@@ -16,11 +16,18 @@ import numpy as np
 
 @dataclass(frozen=True, slots=True)
 class ShotStats:
+    """Aggregate statistics for a group of shot positions.
+
+    ``extreme_spread_mm`` is the largest centre-to-centre
+    distance between any two shots. ``mean_radius_mm`` is the
+    average distance of each shot from the group centroid.
+    """
+
     count: int
     mean_x_mm: float
     mean_y_mm: float
-    extreme_spread_mm: float  # largest centre-to-centre distance
-    mean_radius_mm: float  # average distance from the group centre
+    extreme_spread_mm: float
+    mean_radius_mm: float
 
 
 @dataclass(frozen=True, slots=True)
