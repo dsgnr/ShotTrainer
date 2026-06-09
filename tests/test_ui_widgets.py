@@ -88,17 +88,13 @@ def test_calibres_by_key_matches_calibres():
 
 
 def test_property_slider_initial_value(qtbot):
-    slider = PropertySlider(
-        "brightness", 50.0, minimum=0.0, maximum=100.0, default=0.0
-    )
+    slider = PropertySlider("brightness", 50.0, minimum=0.0, maximum=100.0, default=0.0)
     qtbot.addWidget(slider)
     assert abs(slider.value() - 50.0) < 1.0
 
 
 def test_property_slider_set_value_no_signal(qtbot):
-    slider = PropertySlider(
-        "contrast", 1.0, minimum=0.5, maximum=2.0, default=1.0, suffix="x"
-    )
+    slider = PropertySlider("contrast", 1.0, minimum=0.5, maximum=2.0, default=1.0, suffix="x")
     qtbot.addWidget(slider)
     received = []
     slider.value_changed.connect(lambda name, val: received.append((name, val)))
@@ -108,9 +104,7 @@ def test_property_slider_set_value_no_signal(qtbot):
 
 
 def test_property_slider_emits_on_change(qtbot):
-    slider = PropertySlider(
-        "brightness", 0.0, minimum=-100.0, maximum=100.0, default=0.0
-    )
+    slider = PropertySlider("brightness", 0.0, minimum=-100.0, maximum=100.0, default=0.0)
     qtbot.addWidget(slider)
     received = []
     slider.value_changed.connect(lambda name, val: received.append((name, val)))
@@ -122,9 +116,7 @@ def test_property_slider_emits_on_change(qtbot):
 
 
 def test_property_slider_reset_restores_default(qtbot):
-    slider = PropertySlider(
-        "test", 75.0, minimum=0.0, maximum=100.0, default=50.0
-    )
+    slider = PropertySlider("test", 75.0, minimum=0.0, maximum=100.0, default=50.0)
     qtbot.addWidget(slider)
     slider._reset.click()
     assert abs(slider.value() - 50.0) < 1.0

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
@@ -23,6 +24,8 @@ from .target_faces import get_face
 if TYPE_CHECKING:
     from shottrainer.audio.models import ShotEvent
     from shottrainer.ui.main_window import MainWindow
+
+    from .preferences import Preferences
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +61,7 @@ class SessionManager:
         replay: ReplayCoordinator,
         player: TracePlayer,
         buffer: TraceBuffer,
-        get_preferences: callable,
+        get_preferences: Callable[[], Preferences],
     ) -> None:
         self._window = window
         self._repo = repo
@@ -273,9 +276,7 @@ class SessionManager:
         self._window.replay_controls.set_window_duration_ms(
             int(prefs.pre_shot_ms) + int(prefs.post_shot_ms)
         )
-        pre_points = (
-            points[: window.split_index + 1] if window.split_index is not None else points
-        )
+        pre_points = points[: window.split_index + 1] if window.split_index is not None else points
         self._window.hero_stats.set_trace_points(pre_points)
         if pre_points:
             stats = compute_trace_stats(pre_points)
