@@ -132,7 +132,7 @@ def _evaluate_cell(
 
     for blur in blurs:
         blurred = cv2.GaussianBlur(adjusted, (blur, blur), 0) if blur >= 3 else adjusted
-        # Run Hough once per blur level — it doesn't depend on
+        # Run Hough once per blur level as it doesn't depend on
         # the contour-specific inner loop.
         detector.settings = replace(base_settings, blur_kernel=0)
         detector.reset_lock()

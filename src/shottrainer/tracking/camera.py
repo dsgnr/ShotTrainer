@@ -33,7 +33,7 @@ class CameraConfig:
     """Parameters for opening a camera device.
 
     ``device_index`` maps to an OpenCV capture index. ``width``,
-    ``height`` and ``fps`` are requests — the device picks the
+    ``height`` and ``fps`` are requests. The device picks the
     nearest supported mode. Leave them as ``None`` to use the
     device's default.
     """
