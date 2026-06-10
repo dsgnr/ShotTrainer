@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 from shottrainer.app.target_faces import TargetRing
@@ -277,22 +277,38 @@ class TargetView(QWidget):
         if len(self._trace) < 2:
             return
 
-        # Three-colour ramp: cool blue for the long approach, warm
-        # amber for the short release window immediately before the
-        # shot, green for the follow-through.
-        approach_pen = self._segment_pen(QColor(60, 120, 200, 220))
-        release_pen = self._segment_pen(QColor(243, 156, 18, 230))
-        follow_pen = self._segment_pen(QColor(40, 160, 90, 230))
+        # The trace splits into up to three phases (approach,
+        # release, follow-through). Each phase becomes its own
+        # ``QPainterPath`` so the painter strokes each colour in
+        # a single call rather than swapping pens between every
+        # line segment. With 600-sample traces and three pens
+        # that turns roughly 600 setPen+drawLine calls into
+        # three.
+        approach = QPainterPath()
+        release = QPainterPath()
+        follow = QPainterPath()
 
         prev: QPointF | None = None
         for i, (x_mm, y_mm) in enumerate(self._trace):
-            p = QPointF(cx + x_mm * scale, cy + y_mm * scale)
+            point = QPointF(cx + x_mm * scale, cy + y_mm * scale)
             if prev is not None:
-                painter.setPen(self._pen_for_index(
-                    i, approach_pen, release_pen, follow_pen,
-                ))
-                painter.drawLine(prev, p)
-            prev = p
+                path = self._path_for_index(i, approach, release, follow)
+                path.moveTo(prev)
+                path.lineTo(point)
+            prev = point
+
+        approach_pen = self._segment_pen(QColor(60, 120, 200, 220))
+        release_pen = self._segment_pen(QColor(243, 156, 18, 230))
+        follow_pen = self._segment_pen(QColor(40, 160, 90, 230))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        for path, pen in (
+            (approach, approach_pen),
+            (release, release_pen),
+            (follow, follow_pen),
+        ):
+            if not path.isEmpty():
+                painter.setPen(pen)
+                painter.drawPath(path)
 
     @staticmethod
     def _segment_pen(colour: QColor) -> QPen:
@@ -303,14 +319,14 @@ class TargetView(QWidget):
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         return pen
 
-    def _pen_for_index(
+    def _path_for_index(
         self,
         i: int,
-        approach: QPen,
-        release: QPen,
-        follow: QPen,
-    ) -> QPen:
-        """Pick the pen for a trace segment ending at sample ``i``.
+        approach: QPainterPath,
+        release: QPainterPath,
+        follow: QPainterPath,
+    ) -> QPainterPath:
+        """Pick the path for the trace segment ending at sample ``i``.
 
         Falls back to the approach colour when no segmentation
         is in force, so a live trace reads as a single colour.
