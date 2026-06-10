@@ -192,47 +192,69 @@ class CircleTargetDetector:
 
         Returns a Detection if a suitable circle is found within
         the radius range, otherwise None.
+
+        Picks the largest circle whose centre falls inside the
+        tracking region. When concentric scoring rings produce
+        multiple candidates (NSRA targets, ISSF faces) the outer
+        aiming mark is the largest and wins.
+
+        Once locked, the search is restricted to a window around
+        the lock so a transient larger circle elsewhere can't
+        steal the tracker mid-trace.
         """
+        h, w = grey.shape[:2]
+        region_fraction = max(0.05, min(1.0, s.region_fraction))
+        half_w = w * region_fraction / 2.0
+        half_h = h * region_fraction / 2.0
+        cx_frame = w / 2.0
+        cy_frame = h / 2.0
+
         min_dist = max(s.min_radius_px * 2, 30)
         circles = cv2.HoughCircles(
             grey,
             cv2.HOUGH_GRADIENT,
             dp=1.0,
             minDist=min_dist,
-            param1=80,
-            param2=40,
+            param1=50,
+            param2=30,
             minRadius=s.min_radius_px,
             maxRadius=s.max_radius_px,
         )
         if circles is None:
             return None
 
-        # Pick the best circle: largest within the lock radius if
-        # we have a lock, otherwise largest overall.
+        lock_radius = s.lock_radius_px * s.lock_search_radius_factor
+
         best_cx, best_cy, best_r = 0.0, 0.0, 0.0
-        best_priority = -1.0
         for circle in circles[0]:
             cx, cy, r = float(circle[0]), float(circle[1]), float(circle[2])
             if r < s.min_radius_px or r > s.max_radius_px:
                 continue
-            priority = r  # prefer larger circles
+            # Reject candidates outside the tracking region.
+            if abs(cx - cx_frame) > half_w or abs(cy - cy_frame) > half_h:
+                continue
+            # When locked, restrict to candidates near the lock so
+            # transient larger circles elsewhere don't steal it.
             if self._lock_px is not None:
                 lx, ly = self._lock_px
-                d = float(np.hypot(cx - lx, cy - ly))
-                if d <= s.lock_radius_px:
-                    priority += 10000.0  # strongly prefer near lock
-                elif d > s.lock_radius_px * s.lock_search_radius_factor:
-                    continue  # outside search window, skip entirely
-            if priority > best_priority:
-                best_priority = priority
-                best_cx, best_cy, best_r = cx, cy, r
+                if float(np.hypot(cx - lx, cy - ly)) > lock_radius:
+                    continue
+            # Largest valid circle wins. The outer aiming mark
+            # is the biggest dark circle in its neighbourhood.
+            if r > best_r:
+                best_r = r
+                best_cx, best_cy = cx, cy
 
         if best_r <= 0:
             return None
 
-        # Compute a confidence score similar to contour path.
-        # Hough circles are inherently circular so score is high.
-        confidence = 0.85
+        # Score by edge contrast at the detected circle. A clean,
+        # high-contrast circle (good exposure, sharp edge) scores
+        # higher than a faint one. This lets the auto-optimiser
+        # prefer brightness/contrast values that produce a strong
+        # edge signal rather than just any detection.
+        confidence = self._hough_edge_confidence(grey, best_cx, best_cy, best_r)
+
         return Detection(
             found=True,
             x_px=best_cx,
@@ -240,6 +262,86 @@ class CircleTargetDetector:
             radius_px=best_r,
             confidence=confidence,
         )
+
+    @staticmethod
+    def _hough_edge_confidence(grey: np.ndarray, cx: float, cy: float, r: float) -> float:
+        """Score a Hough detection by edge contrast and interior uniformity.
+
+        Combines two signals:
+
+        - Edge contrast: difference between thin bands just inside
+          and just outside the perimeter. Sharp edges score high.
+        - Interior uniformity: standard deviation of pixels inside
+          the circle. A solid (uniformly dark) interior scores high;
+          internal detail (visible scoring rings) scores low.
+
+        The product of the two means a stable target needs both a
+        clean edge AND a clean interior. Settings that crush the
+        scoring rings to pure black (high contrast) win over
+        settings that leave the rings visible.
+
+        Args:
+            grey: The greyscale frame the detection came from.
+            cx: Detected circle centre x in pixels.
+            cy: Detected circle centre y in pixels.
+            r: Detected circle radius in pixels.
+
+        Returns:
+            A confidence in the range [0.0, 1.0].
+        """
+        h, w = grey.shape[:2]
+
+        inner_band = np.zeros((h, w), dtype=np.uint8)
+        cv2.circle(inner_band, (int(cx), int(cy)), int(r * 0.99), 255, -1)
+        cv2.circle(inner_band, (int(cx), int(cy)), int(r * 0.85), 0, -1)
+
+        outer_band = np.zeros((h, w), dtype=np.uint8)
+        cv2.circle(outer_band, (int(cx), int(cy)), int(r * 1.15), 255, -1)
+        cv2.circle(outer_band, (int(cx), int(cy)), int(r * 1.01), 0, -1)
+
+        # Solid interior region for uniformity check. Use 90% of
+        # radius to include pixels right up to the edge so internal
+        # detail (scoring rings) actually shows up in the variance.
+        interior = np.zeros((h, w), dtype=np.uint8)
+        cv2.circle(interior, (int(cx), int(cy)), max(1, int(r * 0.9)), 255, -1)
+
+        if (
+            cv2.countNonZero(inner_band) == 0
+            or cv2.countNonZero(outer_band) == 0
+            or cv2.countNonZero(interior) == 0
+        ):
+            return 0.0
+
+        inner_mean = cv2.mean(grey, mask=inner_band)[0]
+        outer_mean = cv2.mean(grey, mask=outer_band)[0]
+        # Don't cap edge contrast: a 250 difference is genuinely
+        # better than a 200 difference (cleaner threshold for
+        # gradient-based detectors). Normalise by 255 so the
+        # theoretical max is 1.0 but cells with weaker edges
+        # genuinely score lower.
+        edge_score = abs(outer_mean - inner_mean) / 255.0
+
+        # Standard deviation inside the target. Tight range so
+        # uniformity actually discriminates between cells:
+        # stddev 0 -> 1.0, stddev 30 -> 0.0.
+        _, stddev = cv2.meanStdDev(grey, mask=interior)
+        interior_stddev = float(stddev[0][0])
+        uniformity_score = max(0.0, 1.0 - interior_stddev / 30.0)
+
+        # Saturation bonus: reward settings that push the dark
+        # interior toward pure black and the bright surround
+        # toward pure white. A target with mean inner=10 and
+        # mean outer=240 scores higher than one with inner=80
+        # and outer=200 even though both have similar edge
+        # contrast (130 vs 120). Pure saturation gives the
+        # detector the cleanest possible binary signal.
+        dark_saturation = max(0.0, 1.0 - min(inner_mean, outer_mean) / 60.0)
+        light_saturation = max(0.0, (max(inner_mean, outer_mean) - 195.0) / 60.0)
+        saturation_score = (dark_saturation + light_saturation) / 2.0
+
+        # Multiply all three so a cell needs strong edge, uniform
+        # interior AND saturated extremes to win.
+        return float(edge_score * uniformity_score * (0.5 + 0.5 * saturation_score))
 
     def _apply_lock_and_region(
         self, det: Detection, shape: tuple[int, ...], s: DetectorSettings
