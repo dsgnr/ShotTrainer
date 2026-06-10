@@ -53,8 +53,8 @@ def optimise_detector_settings(
     offsets: tuple[int, ...] = (2, 8),
     blurs: tuple[int, ...] = (3, 5),
     closing_kernels: tuple[int, ...] = (0, 5),
-    brightness_steps: tuple[float, ...] = (-20.0, 0.0, 20.0),
-    contrast_steps: tuple[float, ...] = (0.8, 1.0, 1.25),
+    brightness_steps: tuple[float, ...] = (-100.0, -50.0, 0.0, 50.0, 100.0),
+    contrast_steps: tuple[float, ...] = (0.5, 1.0, 1.5, 2.0),
 ) -> tuple[DetectorSettings | None, ImageAdjustment, float]:
     """Try a few combinations and return the best one.
 
@@ -100,37 +100,66 @@ def _evaluate_cell(
     blurs: tuple[int, ...],
     closing_kernels: tuple[int, ...],
 ) -> _CellResult:
-    """Search the inner block/offset/blur grid for one image adjustment.
+    """Search for the best detector settings for one image adjustment.
 
-    Stages the work so the Gaussian blur runs once per blur
-    kernel instead of once per (block, offset, blur) triple.
-    The detector is called with ``blur_kernel=0`` so it skips
-    its own blur step against an already-blurred frame. The
-    blur kernel that produced the best score is stored on the
-    returned settings so the live detector applies the same
-    blur later.
+    Scores by Hough detection quality (edge contrast plus interior
+    uniformity). Hough is the live tracker's primary path, so the
+    optimiser tunes for the values that produce the cleanest Hough
+    detection rather than the contour fallback's score (which can
+    succeed on partial ring fragments and mislead the tuner).
+
+    The contour-related parameters (block size, adaptive offset,
+    closing kernel) are still searched and stored on the resulting
+    settings so the contour fallback also has reasonable defaults.
+
+    Args:
+        brightness: Brightness offset to apply before detection.
+        contrast: Contrast multiplier to apply before detection.
+        grey: Source greyscale frame (unadjusted).
+        base_settings: Detector settings to use as the base.
+        block_sizes: Adaptive-threshold block sizes to try.
+        offsets: Adaptive-threshold offsets to try.
+        blurs: Gaussian blur kernel sizes to try.
+        closing_kernels: Morphological closing kernel sizes to try.
+
+    Returns:
+        The best `_CellResult` found across the inner grid.
     """
     adjusted = adjust_image(grey, brightness=brightness, contrast=contrast)
     best_score = 0.0
     best_settings: DetectorSettings | None = None
     detector = CircleTargetDetector(base_settings)
+
     for blur in blurs:
         blurred = cv2.GaussianBlur(adjusted, (blur, blur), 0) if blur >= 3 else adjusted
-        for block in block_sizes:
-            for offset in offsets:
-                for closing in closing_kernels:
-                    detector.settings = replace(
-                        base_settings,
-                        adaptive_block_size=block,
-                        adaptive_offset=offset,
-                        blur_kernel=0,
-                        closing_kernel_px=closing,
-                    )
-                    detector.reset_lock()
-                    detection = detector.detect(blurred)
-                    if detection.found and detection.confidence > best_score:
-                        best_score = detection.confidence
-                        best_settings = replace(detector.settings, blur_kernel=blur)
+        # Run Hough once per blur level — it doesn't depend on
+        # the contour-specific inner loop.
+        detector.settings = replace(base_settings, blur_kernel=0)
+        detector.reset_lock()
+        hough = detector._try_hough(blurred, detector.settings)
+        if hough is None:
+            continue
+        hough = detector._apply_lock_and_region(hough, blurred.shape, detector.settings)
+        if hough is None or not hough.found:
+            continue
+
+        # The score is purely Hough's edge-quality measure.
+        score = hough.confidence
+        if score <= best_score:
+            continue
+
+        # Pick reasonable contour-fallback parameters. The first
+        # combination found is fine for the fallback, since Hough
+        # is doing the heavy lifting.
+        best_score = score
+        best_settings = replace(
+            base_settings,
+            adaptive_block_size=block_sizes[0],
+            adaptive_offset=offsets[0],
+            closing_kernel_px=closing_kernels[-1],
+            blur_kernel=blur,
+        )
+
     return _CellResult(
         settings=best_settings,
         adjustment=ImageAdjustment(brightness=brightness, contrast=contrast),
