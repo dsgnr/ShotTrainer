@@ -17,13 +17,13 @@ def _air_rifle_rings() -> list[ScoringRing]:
     # discipline so the tests don't accidentally encode a federation
     # decision.
     return [
-        ScoringRing(50.0, "1"),
-        ScoringRing(40.0, "2"),
-        ScoringRing(30.0, "3"),
-        ScoringRing(20.0, "5"),
-        ScoringRing(10.0, "8"),
-        ScoringRing(5.0, "10"),
         ScoringRing(1.0, "X"),
+        ScoringRing(5.0, "10"),
+        ScoringRing(10.0, "8"),
+        ScoringRing(20.0, "5"),
+        ScoringRing(30.0, "3"),
+        ScoringRing(40.0, "2"),
+        ScoringRing(50.0, "1"),
     ]
 
 
@@ -51,10 +51,14 @@ def test_score_respects_centre_offset():
     assert score_shot(10.0, 0.0, rings, centre=(10.0, 0.0)) == "X"
 
 
-def test_unsorted_rings_still_score_correctly():
-    shuffled = list(_air_rifle_rings())
-    shuffled.reverse()
-    assert score_shot(0.0, 0.0, shuffled) == "X"
+def test_unsorted_rings_score_against_first_match_in_order():
+    """``score_shot`` no longer sorts defensively. The contract is
+    that the caller pre-sorts. With reversed rings (largest first) a
+    centred shot still scores the first ring it hits, which happens
+    to be the outermost. This documents the new contract so a future
+    accidental shuffle of the boundary builder gets noticed."""
+    descending = list(reversed(_air_rifle_rings()))
+    assert score_shot(0.0, 0.0, descending) == "1"
 
 
 def test_empty_rings_return_empty():
