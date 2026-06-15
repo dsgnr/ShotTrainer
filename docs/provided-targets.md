@@ -1,52 +1,86 @@
-# Using federation targets (NSRA, ISSF)
+# Using federation targets (NSRA, ISSF, and others)
 
-The detector tracks any black circular mark on a light background.
-That includes the printed scoring centres on standard NSRA and ISSF
-targets. You don't have to use ShotTrainer's marker sheet. Any
-printed circle whose diameter you can measure works.
+ShotTrainer can track standard competition targets as well as the supplied
+marker sheet.
 
-## How to set up
+The tracker follows any dark circular aiming mark against a lighter background,
+including the black aiming centres found on most NSRA, ISSF, NRA, CMP, and
+similar federation targets. As long as the aiming circle is visible to the
+camera and its diameter is known, it can be used for tracking.
 
-1. Pin the official target where you'd normally shoot it.
-2. Mount your camera on the rifle as you would for any session. The
-   target's black aiming centre needs to be reasonably big in the frame
-   when you're on aim, at least 30 pixels across the centre, and small
-   enough that natural hold motion doesn't push it out of the central
-   tracked area. See [`accuracy.md`](accuracy.md) for sizing.
-3. Set the diameter under `Preferences > Target > Tracking circle`
-   and enter the diameter of the black aiming centre on your printed
-   target (or, if you'd rather use ShotTrainer's marker sheet, the
-   diameter you printed). The mm/px scale derives from this value
-   live. There is no calibration step.
-4. In Preferences > Target, pick the face that matches your discipline.
-   The rings drawn on the target view will then match your printed face.
+## Setting up a federation target
 
-## Built-in faces
+1. Mount your target as you normally would for shooting.
+2. Attach the camera to the rifle and position it as you would for a regular
+   session.
+3. Ensure the black aiming mark is clearly visible in the camera view.
 
-ShotTrainer ships with some standard target faces:
+For reliable tracking:
 
-- **NSRA 25 yd Prone Rifle (NSRA 2510 BM/89-18).** Five rings from 41.5 mm diamter down to a 13 mm 10-ring.
-- **NSRA 50 m Prone Rifle (NSRA MM 12 C 1996-18).** Seven rings from 105.5 mm diameter down to a 4.5 mm X-ring.
-- **NSRA 100 yd Prone Rifle (NSRA 1001C 1996-18).** Seven rings from 205 mm diameter down to an 11.5 mm X-ring.
-- **10 m air rifle (ISSF).** Ten rings from 45.5 mm diameter down to a
-  0.5 mm diameter 10-ring (5 mm wide rings, 1.0 mm 10-ring).
-- **50 m smallbore (ISSF).** Ten rings from 154.4 mm diameter down to a
-  10.4 mm diameter 10-ring.
-- **Default rings.** Generic concentric rings for casual practice.
+- The aiming mark should appear at least 30 pixels across in the camera image.
+- Normal hold movement should not cause the aiming mark to leave the central
+  tracking area.
 
-The built-ins are JSON files under
-`src/shottrainer/ui/assets/target_faces/` in the source tree. Their
-format is identical to the user file described below. If you want to
-contribute a new built-in face, copy one of the existing files, tweak
-the diameters, and open a pull request.
+See [Accuracy and target sizing](accuracy.md) for guidance on selecting an
+appropriate camera position and target size.
 
-## Custom faces
+1. Open **Preferences > Target**.
+2. Enter the diameter of the target's black aiming centre in **Tracking circle
+   diameter**.
+3. Select the target face that matches the target you are shooting.
 
-If your discipline uses a different ring layout, drop a JSON file at
-`<data dir>/custom_target_faces.json`. See
-[Troubleshooting](troubleshooting.md#where-the-app-stores-its-data) for
-where the data directory lives on your platform. The file is a dict of
-faces keyed by their internal id:
+ShotTrainer uses the tracking circle diameter to calculate the live
+millimetres-per-pixel scale. No separate calibration step is required.
+
+## Built-in target faces
+
+ShotTrainer includes several commonly used target faces.
+
+### NSRA 25 yd Prone Rifle
+
+NSRA 2510 BM/89-18.
+
+Five scoring rings ranging from a 41.5 mm outer ring to a 13 mm 10-ring.
+
+### NSRA 50 m Prone Rifle
+
+NSRA MM 12 C 1996-18.
+
+Seven scoring rings ranging from a 105.5 mm outer ring to a 4.5 mm X-ring.
+
+### NSRA 100 yd Prone Rifle
+
+NSRA 1001C 1996-18.
+
+Seven scoring rings ranging from a 205 mm outer ring to an 11.5 mm X-ring.
+
+### ISSF 10 m Air Rifle
+
+Ten scoring rings with a 0.5 mm X-ring and a 10-ring diameter of 1.0 mm.
+
+### ISSF 50 m Rifle
+
+Ten scoring rings with a 10-ring diameter of 10.4 mm.
+
+### Default rings
+
+A simple set of concentric rings intended for informal practice and testing.
+
+## Custom target faces
+
+If your discipline uses a different scoring layout, you can add your own target
+definitions.
+
+Create a file named:
+
+```text
+<data dir>/custom_target_faces.json
+```
+
+See [Troubleshooting](troubleshooting.md#where-the-app-stores-its-data) for the
+location of the data directory on your platform.
+
+The file contains a JSON object whose keys are face identifiers:
 
 ```json
 {
@@ -61,59 +95,95 @@ faces keyed by their internal id:
 }
 ```
 
-The file is reread when its modification time changes, so edits show up
-without restarting the app. A custom entry whose key matches a built-in
-overrides it.
+Changes are detected automatically, so updates usually appear without restarting
+the application.
 
-## Asking for a built-in face
+If a custom face uses the same identifier as a built-in face, the custom version
+takes precedence.
 
-If you're shooting on a federation target that isn't shipped, please
-open an issue with:
+## How tracking works
 
-- The discipline and federation (ISSF, NSRA, NRA, CMP, BSSF, etc).
-- A link or photograph of the official target dimensions document.
-- The diameters you want, in millimetres.
+The selected target face only affects scoring and the rings drawn on the target
+view.
 
-Or send a pull request adding a JSON file to
-`src/shottrainer/ui/assets/target_faces/`. We're happy to take any
-real-world target.
+The detector itself simply tracks the largest circular dark object visible in
+the image. On most federation targets this will be the black aiming mark.
 
-## What the detector actually tracks
-
-Whichever face you choose, the detector locks onto the largest, most
-circular, dark blob in the frame. On a standard target that's the
-black aiming circle. The scoring rings drawn on the target view are
-purely for your reference. They have no effect on detection.
+Changing target faces does not change how tracking works.
 
 ## How shots are scored
 
-When a shot is detected, ShotTrainer reads its (x, y) position on the
-target plane and walks the active face's rings from inside outward.
-The shot scores the innermost ring whose disc the shot circle
-overlaps, using the configured shot diameter (Preferences > Target >
-Shot diameter). A shot that touches a ring counts as the higher value,
-matching how paper targets are scored. The label shown is taken
-verbatim from the face JSON, so federation labels (1..10, X) and
-custom labels both work.
+When a shot is detected, ShotTrainer calculates its position relative to the
+centre of the target and evaluates it against the active target face.
 
-A label of `X` is treated as 10 for the running total, mirroring the
-common federation rule that the inner ten counts the same as a 10
-unless tied. Labels that don't parse as numbers contribute zero to the
-total, so mixed-discipline labels still produce a sensible figure.
+Scoring is based on the configured shot diameter:
 
-### Re-scoring a loaded session
+**Preferences > Target > Shot diameter**
 
-Scores are captured at recording time against whatever face was
-active. If you open a saved session and switch to a different face
-(say to compare a 50 m smallbore session against a different ring
-layout), the on-screen scores still reflect the original face. Use
-**Tools > Re-score with current face** to refresh the displayed
-scores against the active face. The change is in-memory only.
-Re-opening the session reloads the originally captured scores.
+A shot that touches a higher-value ring receives the higher score, matching
+standard paper-target scoring rules.
 
-## Black-target faces
+The score labels come directly from the target face definition, allowing both
+standard competition labels and custom scoring schemes.
 
-Targets with a large black field (some pistol distances) can defeat
-the contour detector because the entire target reads as one blob. For
-these, swap to a longer lens or a closer mount so the black field
-fills the frame and the detector locks onto its outer edge.
+### X-ring scoring
+
+If a target face includes an X-ring, shots inside that ring are displayed as
+**X**.
+
+For score totals, X counts as 10 points. The X count is treated as a separate
+tie-break value rather than additional score.
+
+### Re-scoring a session
+
+Sessions are scored using the target face that was active when they were
+recorded.
+
+If you load a session and select a different target face, the original scores
+remain unchanged.
+
+To calculate scores using the currently selected face, choose:
+
+**Tools > Re-score with current face**
+
+The updated scores are shown immediately in the shot list and statistics panel.
+
+Re-scoring only affects the currently loaded session view. The original session
+data stored in the database is not modified.
+
+## When a target face cannot be loaded
+
+If no target face is selected, or a face definition cannot be loaded,
+ShotTrainer can still track shots and display them on the target.
+
+However, no scores will be calculated until a valid target face becomes
+available.
+
+## Adding a new built-in face
+
+If your discipline uses a target that is not currently included, contributions
+are welcome.
+
+When requesting a new built-in face, please provide:
+
+- The discipline and governing body (ISSF, NSRA, NRA, CMP, BSSF, etc.)
+- A link to the official target specification or dimensions document
+- The ring diameters in millimetres
+
+You can also submit a pull request containing a new target face definition.
+
+## Large black-field targets
+
+Some targets, particularly certain pistol targets, use a large black field that
+can occupy most of the camera image.
+
+In these cases, tracking may be less reliable because the detector sees the
+entire black area as a single shape.
+
+If this occurs, try:
+
+- Moving the camera closer
+- Using a longer focal length
+- Adjusting the framing so the aiming mark occupies more of the image
+
+This helps the detector lock onto a clearly defined circular boundary.

@@ -1,106 +1,200 @@
 # Accuracy notes
 
-ShotTrainer aims to give useful feedback, not laboratory-grade
-measurements. This page is an honest summary of what affects accuracy
-and what you can realistically expect.
+ShotTrainer is designed to provide useful feedback on hold quality, shot timing,
+and follow-through. It is not intended to be a laboratory-grade measurement
+system.
 
-The setup ShotTrainer assumes: a small webcam mounted on the rifle
-itself (barrel, stock, or a Picatinny / dovetail rail) looking forward
-at a static paper target. Aim moves the rifle, which moves the camera,
-which moves where the target appears in the frame. ShotTrainer detects
-the target's position in each frame and translates that motion into a
-hold trace.
+The accuracy you achieve depends as much on the camera, optics, mounting method,
+and environment as it does on the software itself.
 
-## What "millimetre accuracy" actually depends on
+This page explains the main factors that affect accuracy and what you can
+realistically expect from a typical setup.
 
-Reaching mm-level precision at the target depends on several things that are
-not the application:
+## How ShotTrainer measures movement
 
-- **Sensor resolution.** A 1080p webcam pointed at a target 50 m away
-  produces a target image only a handful of pixels across. The
-  mm-per-pixel ratio at the target is a hard ceiling on accuracy.
-- **Optical magnification.** Without a longer focal length lens you
-  cannot recover pixels you never captured. A telephoto webcam or a
-  C-mount tele lens is the usual answer at longer ranges.
-- **Lens quality and focus.** Soft focus and chromatic aberration smear
-  the target edge so the centroid wanders.
-- **Mount rigidity.** The camera must move with the rifle and only with
-  the rifle. Any flex or play in the mount adds spurious motion to the
-  trace that has nothing to do with hold.
-- **Lighting.** Strong shadows or backlighting change which pixels the
-  detector picks as "the circle".
-- **Atmospheric effects.** At long range, mirage and heat shimmer can
-  move the apparent target by more than the rifle's group size.
-- **Frame rate and timestamp alignment.** A shot moving across the
-  trace during a frame's exposure is averaged. The audio shot time has
-  its own latency.
+ShotTrainer assumes a rifle-mounted camera looking towards a fixed target.
 
-A practical short range setup (10 m, 1080p webcam, decent lighting,
-solid mount) can resolve a few millimetres on the target. A long range
-setup without optical magnification cannot, regardless of the software.
+As the rifle moves, the target appears to move within the camera image. By
+tracking that movement frame by frame, ShotTrainer can estimate how the rifle
+was being aimed over time.
 
-## Framing the target
+The quality of those measurements depends on how accurately the target can be
+detected in each frame.
 
-The target needs to be small enough in the frame that natural rifle
-motion keeps it on screen, and large enough that the centroid is
-precise.
+## What affects accuracy
 
-Two competing constraints:
+### Camera resolution
 
-- **Pixels across the target mark.** Below 30 pixels of diameter the
-  centroid jitters by appreciable fractions of a millimetre. More
-  pixels is better for precision.
-- **Headroom for hold motion.** A standing position can wobble several
-  centimetres on the target plane. The target plus that wobble must
-  stay inside the frame, otherwise the detector loses lock during the
-  hold.
+The more pixels available on the target, the more accurately ShotTrainer can
+measure movement.
 
-A useful rule of thumb: frame so the target is roughly a quarter to a
-third of the frame width when the rifle is on aim. That leaves room
-for the worst-case wobble before the target reaches the edge of the
-tracking region.
+If the aiming mark occupies only a small number of pixels, small changes in
+detection can produce noticeable movement in the trace.
 
-Approximate target diameters at common practice ranges, assuming a
-1080p sensor and the framing rule above:
+Higher-resolution cameras generally provide better results, especially at longer
+distances.
 
-| Range  | Suggested mark diameter | Notes |
-|--------|-------------------------|-------|
-| 5 m    | 25 to 50 mm             | Indoor air rifle, classroom range. |
-| 10 m   | 30 to 60 mm             | Standard 10 m air discipline. |
-| 25 m   | 80 to 150 mm            | Pistol practice or sighter. |
-| 50 m   | 150 to 250 mm           | Smallbore distance, optical magnification helpful. |
-| 100 yd | 300 mm or larger        | A telephoto lens is essentially required. |
+### Optical magnification
 
-If your mark is below the suggested range, expect the reported group
-centre to wobble by a millimetre or two even on a perfectly steady
-hold. That wobble is detector noise, not your hold.
+Resolution alone is not enough if the target occupies only a tiny portion of the
+image.
 
-## Diagnostic
+At longer distances, optical magnification is often more important than sensor
+resolution.
 
-The header shows the live mm-per-pixel value derived from the printed
-circle's detected radius. Multiply by the scoring ring tolerance you
-care about to see whether your setup can theoretically resolve it.
+Common solutions include:
 
-For example, if you want to resolve the 10-ring of a 50 m smallbore
-target (roughly 10 mm diameter) and the header reads 2 mm per pixel,
-you have about 5 pixels across the ring, which is too few for stable
-centroid estimation.
+- Telephoto lenses
+- C-mount or CS-mount optics
+- Cameras with optical zoom
 
-## Time alignment
+### Focus and lens quality
 
-Tracking samples are timestamped from `time.monotonic()` at the moment
-the frame is read off the camera. Shot events are timestamped from the
-same clock at the moment the audio block crosses the detection
-threshold. There is a small unknown latency from the microphone and
-audio buffer. Realistic alignment is on the order of one or two video
-frames, not microseconds.
+A sharply focused target produces a well-defined edge that can be detected
+consistently.
 
-## What the app does well
+Soft focus, motion blur, lens distortion, and chromatic aberration can all
+reduce tracking precision.
 
-- Pixel-to-mm conversion is unit tested and reused across recording and
-  replay so the same numbers come out on either side.
-- The trace stored around a shot includes a configurable pre and post
-  window, so post-hoc analysis of hold and follow-through is honest
-  about what was sampled.
-- Confidence is recorded per sample so low-quality detections can be
-  filtered or down-weighted during analysis.
+### Mount rigidity
+
+The camera must move with the rifle.
+
+Any movement between the rifle and the camera introduces apparent motion that
+has nothing to do with the shooter's hold.
+
+A rigid mount is one of the most important factors in obtaining useful results.
+
+### Lighting
+
+The detector relies on identifying the edge of a dark circular target.
+
+Strong shadows, glare, reflections, or uneven lighting can change the apparent
+edge position and introduce noise into the trace.
+
+### Atmospheric conditions
+
+At longer distances, mirage and heat shimmer can visibly move the apparent
+position of the target.
+
+In some conditions, atmospheric distortion contributes more movement than the
+shooter.
+
+### Timing accuracy
+
+Shot positions are determined by combining:
+
+- Camera-based tracking data
+- Audio-based shot detection
+
+Both systems have finite latency and resolution, which limits timing accuracy.
+
+## Target size and framing
+
+Good tracking requires balancing two competing requirements:
+
+### Enough pixels on target
+
+The aiming mark must occupy enough pixels for the detector to locate its centre
+reliably.
+
+As a general guideline:
+
+- Below about **30 pixels across**, tracking noise becomes increasingly
+  noticeable.
+- More pixels generally improve precision.
+
+### Enough room for movement
+
+The target must also remain comfortably within the camera image during normal
+aiming movement.
+
+If the target moves out of view, tracking stops until it reappears.
+
+### Recommended framing
+
+A good starting point is to frame the aiming mark so that it occupies
+approximately:
+
+**25–33% of the image width**
+
+This usually provides a good balance between precision and tracking stability.
+
+## Suggested aiming mark sizes
+
+The table below provides rough guidance for a 1080p camera using the recommended
+framing approach.
+
+| Distance | Suggested mark diameter | Notes                                                 |
+| -------- | ----------------------- | ----------------------------------------------------- |
+| 5 m      | 25–50 mm                | Indoor air rifle and classroom practice               |
+| 10 m     | 30–60 mm                | Standard 10 m air rifle and air pistol                |
+| 25 m     | 80–150 mm               | General practice and pistol shooting                  |
+| 50 m     | 150–250 mm              | Smallbore distances; optical magnification is helpful |
+| 100 yd   | 300 mm or larger        | A telephoto lens is usually required                  |
+
+These figures are intended as practical guidelines rather than strict
+requirements.
+
+## Understanding detector noise
+
+If the aiming mark occupies only a small number of pixels, the reported aim
+position may move slightly even when the rifle is perfectly still.
+
+This movement is detector noise rather than genuine hold movement.
+
+In practice, detector noise often appears as a small amount of random wobble
+around the true position.
+
+## Using the mm-per-pixel value
+
+ShotTrainer displays a live millimetres-per-pixel value derived from the
+detected tracking circle.
+
+This value provides a quick indication of the theoretical resolution of the
+setup.
+
+As an example:
+
+- A 10 mm scoring ring
+- A measured scale of 2 mm per pixel
+
+means the ring spans only about five pixels.
+
+At that point, stable sub-millimetre measurements become difficult regardless of
+the tracking algorithm.
+
+## Timing alignment
+
+Tracking samples are timestamped when camera frames are received.
+
+Shot events are timestamped when the microphone signal crosses the detection
+threshold.
+
+Both use the same monotonic clock source, but camera and audio devices do not
+share a common hardware clock.
+
+In practice, alignment accuracy is typically on the order of a few milliseconds
+rather than microseconds.
+
+For hold analysis and replay, this level of accuracy is generally sufficient.
+
+## What ShotTrainer does well
+
+While overall accuracy depends heavily on the hardware setup, ShotTrainer is
+designed to keep its own contribution to measurement error as small as
+practical.
+
+Specifically:
+
+- Pixel-to-millimetre conversion is applied consistently throughout the
+  application.
+- The same coordinate system is used during recording, replay, and analysis.
+- Configurable pre-shot and post-shot windows preserve the full context around
+  each shot.
+- Detection confidence is recorded for each tracking sample.
+- Raw tracking data is retained for later replay and analysis.
+
+As a result, the quality of the measurements you see is primarily determined by
+the quality of the image and the stability of the setup rather than by hidden
+processing or smoothing.

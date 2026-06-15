@@ -1,0 +1,13 @@
+{% extends "main.html" %}
+
+{% block site_meta %}
+  {{ super() }}
+{% endblock %}
+
+{% block container %}
+  <div class="md-content md-content--landing" data-md-component="content">
+    <article class="md-typeset st-landing-article">
+      {{ page.content }}
+    </article>
+  </div>
+{% endblock %}

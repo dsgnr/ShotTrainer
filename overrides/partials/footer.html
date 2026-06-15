@@ -1,0 +1,19 @@
+<footer class="md-footer st-site-footer">
+  <div class="st-site-footer__inner md-grid">
+    <a class="st-site-footer__brand" href="{{ config.extra.homepage | d(nav.homepage.url, true) | url }}">
+      <span class="st-site-footer__name">{{ config.site_name }}</span>
+      <span class="st-site-footer__tagline">Open-source optical shooting trainer</span>
+    </a>
+    <nav class="st-site-footer__nav" aria-label="Footer">
+      <a href="{{ 'getting-started/' | url }}">Docs</a>
+      <a href="{{ 'releases/' | url }}">Releases</a>
+      {% if config.repo_url %}
+        <a href="{{ config.repo_url }}">GitHub</a>
+      {% endif %}
+    </nav>
+    <div class="md-copyright st-site-footer__credit">
+      Made with
+      <a href="https://zensical.org/" target="_blank" rel="noopener">Zensical</a>
+    </div>
+  </div>
+</footer>
