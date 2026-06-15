@@ -42,14 +42,16 @@ class TraceBuffer:
     def nearest(self, timestamp: float) -> TrackingSample | None:
         if not self._samples:
             return None
-        # Linear scan is fine: the buffer is small and time-ordered.
-        ts = [s.timestamp for s in self._samples]
-        i = bisect.bisect_left(ts, timestamp)
-        candidates = []
-        if i < len(ts):
-            candidates.append(self._samples[i])
+        # Snapshot to a list so ``bisect`` can index in O(1). Deque
+        # indexing is O(n), and bisect's log(n) lookups would
+        # multiply that out.
+        samples = list(self._samples)
+        i = bisect.bisect_left(samples, timestamp, key=lambda s: s.timestamp)
+        candidates: list[TrackingSample] = []
+        if i < len(samples):
+            candidates.append(samples[i])
         if i > 0:
-            candidates.append(self._samples[i - 1])
+            candidates.append(samples[i - 1])
         if not candidates:
             return None
         return min(candidates, key=lambda s: abs(s.timestamp - timestamp))
