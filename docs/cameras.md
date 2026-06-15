@@ -1,58 +1,123 @@
-# Cameras tested
+# Cameras overview
 
-A community-maintained log of cameras people have used with ShotTrainer,
-their results, and the distance they worked well at. The grades describe
-the experience, not the hardware in absolute terms. A camera that struggles
-at 50 m may be excellent indoors at 10 m.
+This page collects community reports on cameras that have been tested with
+ShotTrainer.
 
-## Grading
+The aim is to help shooters understand what works in practice, how different
+cameras perform at various distances, and what setup considerations may be
+required.
 
-- **Excellent** Sub-millimetre tracking, no manual fiddling, robust to
-  typical indoor lighting.
-- **Good** Reliable tracking after sensible setup. Expect ~1 mm noise.
-- **Workable** Tracking is achievable but needs careful framing, lighting,
-  or extra zoom. Suitable for hobby use.
-- **Poor** Either does not detect reliably or has too much noise to be
-  useful at the listed distance.
+The ratings below describe the overall ShotTrainer experience rather than the
+quality of the camera itself. A camera that performs well at 10 metres may not
+be suitable for 50 metres without additional optics.
 
-## Reported results
+## Rating guide
 
-Each camera has its own page with photos, mount notes and any
-discipline-specific tweaks. Add a new entry by copying
-[`cameras/template.md`](cameras/template.md), filling it in, and
-sending a pull request along with photos in
-[`cameras/images/`](https://github.com/dsgnr/ShotTrainer/tree/main/docs/cameras/images).
+### Excellent
 
-| Camera | Resolution | Range | Grade | Details |
-|--------|------------|-------|-------|---------|
-| [Arducam OV9281](cameras/arducam-ov9281.md) | 1280 x 800 (~1MP) | TBC | TBC | More to come |
+- Reliable tracking with minimal setup
+- Consistent results under typical indoor lighting
+- Sub-millimetre tracking noise
+- Little or no adjustment required
 
-## What hurts the most
+### Good
 
-In rough order of impact:
+- Reliable tracking after normal setup and alignment
+- Stable results for regular practice
+- Typically around 1 mm of tracking noise
 
-1. **Pixels across the target mark.** Below 30 pixels the centroid wobbles.
-   See [`accuracy.md`](accuracy.md) for sizing guidance.
-2. **Mount rigidity on the rifle.** Any flex or play between the camera
-   and the rifle adds spurious motion to the trace that has nothing to
-   do with hold.
-3. **Lighting.** Hard shadows, backlighting and glare on glossy paper
-   change which pixels the detector picks as the edge.
-4. **Auto-focus.** A focus hunt during a hold reframes the target a
-   fraction of a millimetre. Lock focus before calibrating.
-5. **Atmospheric mirage.** At long range, heat shimmer alone can move the
-   apparent target by more than a typical group size.
+### Workable
 
-## Reaching longer ranges
+- Can produce useful results, but requires careful setup
+- Often benefits from additional zoom, lighting control, or precise framing
+- Suitable for experimentation and hobby use
 
-For ranges beyond about 25 m a webcam without optical zoom won't have
-enough pixels on the target. Common solutions:
+### Poor
 
-- A telephoto C-mount or CS-mount lens on a board camera.
-- A USB camera marketed for surveillance / inspection that includes
-  optical zoom.
-- A smartphone with a long-throw lens, sharing video over Continuity
-  Camera or NDI.
+- Tracking is unreliable at the reported distance
+- Excessive noise or frequent detection failures
+- Difficult to recommend for practical use
 
-ShotTrainer doesn't endorse any specific lens or camera. Choices depend
-on the rifle discipline being shot. Reports welcome.
+## Camera reports
+
+Each camera has its own page containing setup notes, mounting information,
+photos, and any discipline-specific recommendations.
+
+To contribute a report:
+
+1. Copy the [camera template](cameras/template.md).
+2. Fill in your test results.
+3. Add any supporting photos to the `docs/cameras/images/` directory.
+4. Submit a pull request.
+
+## Reported cameras
+
+| Camera                                      | Resolution         | Range | Rating | Details                     |
+| ------------------------------------------- | ------------------ | ----- | ------ | --------------------------- |
+| [Arducam OV9281](cameras/arducam-ov9281.md) | 1280 × 800 (~1 MP) | TBC   | TBC    | Initial testing in progress |
+
+## Factors that affect tracking quality
+
+Several factors have a much larger impact on tracking performance than the
+camera model itself.
+
+### 1. Target size in the image
+
+The most important factor is the number of pixels covering the aiming mark.
+
+When the target occupies too few pixels, small changes in edge detection can
+produce visible movement in the trace.
+
+As a rule of thumb, aim for at least 30 pixels across the tracking circle.
+
+See [Accuracy and target sizing](accuracy.md) for guidance.
+
+### 2. Mount rigidity
+
+The camera should be mounted as rigidly as possible to the rifle.
+
+Any movement between the camera and the rifle introduces apparent motion that is
+unrelated to the shooter's hold and will appear in the trace.
+
+### 3. Lighting
+
+Even lighting generally produces the best results.
+
+Strong shadows, glare, reflections, or backlighting can affect how the detector
+identifies the edge of the aiming mark.
+
+### 4. Focus stability
+
+Auto-focus can introduce unwanted movement as the camera adjusts focus during a
+hold.
+
+Where possible, lock focus before use.
+
+### 5. Mirage and atmospheric effects
+
+At longer distances, heat shimmer and atmospheric distortion can move the
+apparent position of the target.
+
+In some conditions, mirage can contribute more apparent movement than the
+shooter.
+
+## Cameras for longer distances
+
+As distance increases, the target occupies fewer pixels in the image.
+
+For many disciplines beyond approximately 25 metres, a basic webcam or laptop
+camera will not provide enough resolution on target without additional optics.
+
+Common solutions include:
+
+- Board cameras fitted with telephoto C-mount or CS-mount lenses
+- USB cameras designed for inspection or surveillance use
+- Cameras with optical zoom capability
+- Smartphones with telephoto lenses used through Continuity Camera, NDI, or
+  similar video-sharing solutions
+
+There is no single recommended camera for all shooting disciplines. The best
+choice depends on the target size, shooting distance, mounting method, and
+budget.
+
+Community reports are always welcome.
