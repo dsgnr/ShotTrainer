@@ -128,6 +128,7 @@ class AppController(QObject):
             player=self._player,
             buffer=self._buffer,
             get_preferences=lambda: self._preferences,
+            set_target_face=self._set_target_face,
         )
 
         self._prefs_mgr = PreferencesManager(
@@ -401,6 +402,18 @@ class AppController(QObject):
     def _on_rescore_requested(self) -> None:
         """Forward re-score to the session manager."""
         self._session_mgr.on_rescore_requested()
+
+    def _set_target_face(self, face_key: str) -> None:
+        """Switch the active target face and apply the change.
+
+        Called by the session manager when loading a session whose
+        target_profile differs from the current preference.
+        """
+        if face_for_name(face_key) is None:
+            log.warning("Session references unknown face %r, keeping current", face_key)
+            return
+        updated = replace(self._preferences, target_face=face_key)
+        self._apply_preferences(updated)
 
     def _apply_preferences(self, prefs: Preferences, *, persist: bool = True) -> None:
         """Push a fresh `Preferences` into every dependent service.
