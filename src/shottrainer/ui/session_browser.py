@@ -7,7 +7,7 @@ for replay or delete it. The dialog reads from a
 
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -69,7 +69,7 @@ class SessionBrowserDialog(QDialog):
         item = self._list.currentItem()
         if item is None:
             return None
-        return int(item.data(0x0100))
+        return int(item.data(Qt.ItemDataRole.UserRole))
 
     def _on_open(self) -> None:
         sid = self._selected_session_id()
@@ -119,5 +119,5 @@ def _make_item(summary: SessionSummary) -> QListWidgetItem:
     )
     label = f"{started}   {name}   ({summary.shot_count} shots){score}"
     item = QListWidgetItem(label)
-    item.setData(0x0100, summary.id)
+    item.setData(Qt.ItemDataRole.UserRole, summary.id)
     return item
