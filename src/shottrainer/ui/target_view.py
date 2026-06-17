@@ -152,6 +152,18 @@ class TargetView(QWidget):
     def extent_mm(self) -> float:
         return self._extent_mm
 
+    def reset_extent_to_rings(self) -> None:
+        """Reset the visible extent to fit the current rings.
+
+        Uses the same calculation as :meth:`set_rings` so keyboard
+        shortcuts and the menu can return the view to a sensible
+        default after the user has zoomed in or out.
+        """
+        if self._rings:
+            self._extent_mm = max(r.diameter_mm for r in self._rings) / 2 * 1.15
+            self.extent_changed.emit(self._extent_mm)
+            self.update()
+
     def set_trace_capacity(self, n: int) -> None:
         """Set the maximum number of trace samples retained.
 

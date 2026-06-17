@@ -166,3 +166,65 @@ def test_raw_camera_view_full_lifecycle(qtbot):
     view.repaint()
     view.clear()
     view.repaint()
+
+
+def test_arrow_keys_step_shot_selection(qtbot):
+    """Up and Down step through the shot list when there are shots."""
+    from shottrainer.ui.shot_list import ShotListEntry
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    qtbot.waitExposed(window)
+    window.activateWindow()
+    qtbot.waitActive(window)
+
+    window.shot_list.set_shots(
+        [
+            ShotListEntry(index=0, timestamp=0.0, x_mm=0.0, y_mm=0.0, score="10"),
+            ShotListEntry(index=1, timestamp=1.0, x_mm=1.0, y_mm=1.0, score="9"),
+            ShotListEntry(index=2, timestamp=2.0, x_mm=2.0, y_mm=2.0, score="8"),
+        ]
+    )
+
+    # The arrow keys go through the main window's helper, so exercise
+    # them through that entry point. The QShortcut binds the same
+    # callable.
+    window._step_next_shot()
+    assert window.shot_list._list.currentRow() == 0
+
+    window._step_next_shot()
+    assert window.shot_list._list.currentRow() == 1
+
+    window._step_prev_shot()
+    assert window.shot_list._list.currentRow() == 0
+
+    # Up at the top stays put.
+    window._step_prev_shot()
+    assert window.shot_list._list.currentRow() == 0
+
+
+def test_zoom_shortcuts_change_extent(qtbot):
+    """The zoom helpers behind Ctrl++/-/0 change the target extent."""
+    from shottrainer.app.target_faces import rings_for_face
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    qtbot.waitExposed(window)
+
+    # Apply the default face's rings the way the controller does on
+    # startup so the "fit to rings" reset has the right baseline.
+    window.target_view.set_rings(rings_for_face("default"))
+    initial = window.target_view.extent_mm
+
+    window.zoom_controls.zoom_in()
+    assert window.target_view.extent_mm < initial
+
+    window.zoom_controls.zoom_out()
+    window.zoom_controls.zoom_out()
+    assert window.target_view.extent_mm > initial
+
+    # Reset returns the view to the rings-based default extent.
+    window.target_view.reset_extent_to_rings()
+    assert window.target_view.extent_mm == pytest.approx(initial, rel=1e-6)

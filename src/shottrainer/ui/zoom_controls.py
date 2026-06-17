@@ -98,3 +98,11 @@ class ZoomControls(QWidget):
     def _zoom_out(self) -> None:
         """Step the slider toward a wider visible extent."""
         self._slider.setValue(self._slider.value() + 50)
+
+    def zoom_in(self) -> None:
+        """Public zoom-in step. Used by keyboard shortcuts."""
+        self._zoom_in()
+
+    def zoom_out(self) -> None:
+        """Public zoom-out step. Used by keyboard shortcuts."""
+        self._zoom_out()
