@@ -63,6 +63,26 @@ def test_add_and_list_shots(repo: SessionRepository):
     assert summary.shot_count == 2
 
 
+def test_update_shot_scores_writes_new_labels(repo: SessionRepository):
+    """``update_shot_scores`` writes the new labels back to the rows
+    so a session loaded later sees the updated scores."""
+    sid = repo.create_session()
+    a = repo.add_shot(sid, ts=1.0, x_mm=0.0, y_mm=0.0, audio_level=0.5, confidence=1.0, score="9")
+    b = repo.add_shot(sid, ts=2.0, x_mm=1.0, y_mm=1.0, audio_level=0.5, confidence=1.0, score="8")
+    changed = repo.update_shot_scores({a: "10", b: "8"})
+    assert changed == 1  # only the first label actually changed
+    refreshed = {s.id: s.score for s in repo.list_shots(sid)}
+    assert refreshed[a] == "10"
+    assert refreshed[b] == "8"
+
+
+def test_update_shot_scores_ignores_empty_dict(repo: SessionRepository):
+    """An empty update is a no-op."""
+    sid = repo.create_session()
+    repo.add_shot(sid, ts=1.0, x_mm=0.0, y_mm=0.0, audio_level=0.5, confidence=1.0, score="9")
+    assert repo.update_shot_scores({}) == 0
+
+
 def test_session_summary_includes_total_score(repo: SessionRepository):
     sid = repo.create_session(name="qual")
     repo.add_shot(sid, ts=0.1, x_mm=0.0, y_mm=0.0, audio_level=0.4, confidence=0.9, score="10")

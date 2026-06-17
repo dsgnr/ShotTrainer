@@ -69,16 +69,32 @@ def test_on_stop_requested_noop_when_not_recording(session_mgr: SessionManager):
 
 
 def test_rescore_updates_shot_scores(session_mgr: SessionManager, monkeypatch):
-    """Re-scoring replaces scores on in-memory shots."""
+    """Re-scoring replaces scores on in-memory shots and persists them
+    to the database for any shots that have a database id."""
     session_mgr._shots_in_view = [
-        ShotEntry(timestamp=0.0, x_mm=0.0, y_mm=0.0, score="5"),
-        ShotEntry(timestamp=1.0, x_mm=100.0, y_mm=100.0, score="9"),
+        ShotEntry(timestamp=0.0, x_mm=0.0, y_mm=0.0, score="5", shot_id=11),
+        ShotEntry(timestamp=1.0, x_mm=100.0, y_mm=100.0, score="9", shot_id=12),
+        ShotEntry(timestamp=2.0, x_mm=50.0, y_mm=50.0, score=None),
     ]
-    # Stub _score_for to return a fixed value
+    # Stub _score_for to return X for the centred shot, blank otherwise.
     monkeypatch.setattr(session_mgr, "_score_for", lambda x, y: "X" if x == 0.0 else "")
+    session_mgr._repo.update_shot_scores.return_value = 2
     session_mgr.on_rescore_requested()
     assert session_mgr._shots_in_view[0].score == "X"
     assert session_mgr._shots_in_view[1].score is None
+    assert session_mgr._shots_in_view[2].score is None
+    # Only entries with a shot_id are sent to the repository.
+    session_mgr._repo.update_shot_scores.assert_called_once_with({11: "X", 12: ""})
+
+
+def test_rescore_skips_database_when_no_shot_ids(session_mgr: SessionManager, monkeypatch):
+    """Re-scoring purely in-memory shots does not call the repository."""
+    session_mgr._shots_in_view = [
+        ShotEntry(timestamp=0.0, x_mm=0.0, y_mm=0.0, score=None),
+    ]
+    monkeypatch.setattr(session_mgr, "_score_for", lambda x, y: "X")
+    session_mgr.on_rescore_requested()
+    session_mgr._repo.update_shot_scores.assert_not_called()
 
 
 def test_rescore_noop_when_empty(session_mgr: SessionManager):
