@@ -26,6 +26,7 @@ Notes:
 from __future__ import annotations
 
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -38,9 +39,24 @@ ENTRY = PACKAGING / "ShotTrainer.py"
 ICNS = PACKAGING / "icon.icns"
 ICO = PROJECT_ROOT / "src" / "shottrainer" / "ui" / "assets" / "icon.ico"
 
+
+def _read_version() -> str:
+    """Return the project version, taken from ``pyproject.toml``.
+
+    The version lives in one place (``pyproject.toml``) and is exposed
+    at runtime through ``shottrainer.__version__``.
+    """
+    pyproject = PROJECT_ROOT / "pyproject.toml"
+    text = pyproject.read_text(encoding="utf-8")
+    match = re.search(r'(?m)^version\s*=\s*"([^"]+)"', text)
+    if not match:
+        raise RuntimeError(f"Could not parse version from {pyproject}")
+    return match.group(1)
+
+
 APP_NAME = "ShotTrainer"
 BUNDLE_ID = "org.shottrainer.app"
-APP_VERSION = "0.1.0"
+APP_VERSION = _read_version()
 
 CAMERA_USAGE = "ShotTrainer uses the camera to track the aiming point on the target."
 MIC_USAGE = "ShotTrainer listens for the sound of a shot to record hit timing."
