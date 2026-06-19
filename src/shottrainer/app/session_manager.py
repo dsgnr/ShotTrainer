@@ -7,6 +7,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
+from PySide6.QtWidgets import QMessageBox
+
 from shottrainer.replay.player import TracePlayer
 from shottrainer.services.replay_coordinator import ReplayCoordinator
 from shottrainer.services.scoring import ScoringRing, score_shot
@@ -149,7 +151,6 @@ class SessionManager:
         """
         if not self._shots_in_view:
             return
-        from PySide6.QtWidgets import QMessageBox
 
         confirm = QMessageBox.question(
             self._window,
@@ -169,6 +170,50 @@ class SessionManager:
         self._render_shots()
         self._refresh_stats()
         self._window.statusBar().showMessage("Display cleared", 2000)
+
+    def on_shot_delete_requested(self, index: int) -> None:
+        """Confirm with the user, then remove a single shot.
+
+        Used when the microphone picks up a stray shot the user does
+        not want counted (another shooter on the line, a knock on the
+        microphone). Persisted shots are also removed from the
+        database so the deletion survives reopening the session.
+        Replay state for
+        the deleted shot is dropped so the target view doesn't keep
+        showing its trace.
+
+        Args:
+            index: Position of the shot in the on-screen list.
+        """
+        if not 0 <= index < len(self._shots_in_view):
+            return
+        entry = self._shots_in_view[index]
+
+        confirm = QMessageBox.question(
+            self._window,
+            "Delete shot?",
+            "Remove this shot from the session? This cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+
+        if entry.shot_id is not None:
+            self._repo.delete_shot(entry.shot_id)
+
+        del self._shots_in_view[index]
+        # Drop any replay state pointing at the removed shot so the
+        # target view doesn't continue to highlight it.
+        self._window.target_view.clear_trace()
+        self._window.target_view.set_trace_segments(release_index=None, shot_index=None)
+        self._window.target_view.set_isolate_selected_shot(False)
+        self._window.target_view.set_hold_zone(None)
+        self._window.replay_controls.set_enabled(False)
+        self._window.replay_controls.set_window_duration_ms(None)
+        self._render_shots()
+        self._refresh_stats()
+        self._window.statusBar().showMessage("Shot deleted", 2000)
 
     def on_shot_detected(self, event: ShotEvent) -> None:
         """Handle a detected shot event.
