@@ -1,6 +1,6 @@
 # Shot replay
 
-![Replay shot](./assets/img/replay_shot.webp)
+<video src="./assets/img/replay_shot.mp4" autoplay loop muted playsinline></video>
 
 Shot replay allows you to examine the aiming trace recorded around an individual
 shot. By stepping through the trace, you can see how the rifle moved before the

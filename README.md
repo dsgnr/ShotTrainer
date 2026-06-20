@@ -58,7 +58,7 @@ cameras people have tried.
 
 App preview: ![App view](docs/assets/img/app.jpg)
 
-Trace replay view: ![Shot Replay Demo](docs/assets/img/replay_shot.webp)
+Trace replay view: ![Shot Replay Demo](docs/assets/img/replay_shot.gif)
 
 ## How it's set up
 
