@@ -37,46 +37,6 @@ class ShotMarker:
     score: str = ""
 
 
-# Colour ramp for scoring shots. Tens and inner-tens are
-# bright gold, the mid-rings are warm, low rings are dim, and
-# misses (or unscored shots) come out neutral red so they're
-# still visible. Anything we don't recognise falls through to
-# the miss colour.
-_SCORE_COLOURS: dict[str, str] = {
-    "X": "#f1c40f",
-    "10": "#f1c40f",
-    "9": "#f39c12",
-    "8": "#e67e22",
-    "7": "#d35400",
-    "6": "#c0392b",
-    "5": "#a33223",
-    "4": "#8a2a1d",
-    "3": "#732417",
-    "2": "#5c1d12",
-    "1": "#451609",
-}
-_MISS_COLOUR = "#7f8c8d"
-
-
-def colour_for_score(score: str) -> str:
-    """Return a hex colour for a ring label.
-
-    Federation labels (1..10, X) and decimal sub-rings come out
-    on a warm-to-bright ramp. Anything else (empty labels,
-    custom strings, misses) falls back to a neutral grey so it
-    stays visible without looking like a high-value shot.
-    """
-    if not score:
-        return _MISS_COLOUR
-    upper = score.upper()
-    if upper in _SCORE_COLOURS:
-        return _SCORE_COLOURS[upper]
-    # Decimal labels like "10.5" or "9.7" use the colour of
-    # their integer part.
-    head = upper.split(".", 1)[0]
-    return _SCORE_COLOURS.get(head, _MISS_COLOUR)
-
-
 class TargetView(QWidget):
     """The target display widget rendering rings, trace, and shot markers.
 
@@ -348,23 +308,9 @@ class TargetView(QWidget):
         self._draw_rings(painter, cx, cy, scale)
         self._draw_crosshair(painter, cx, cy, size)
         self._draw_hold_zone(painter, cx, cy, scale)
-        self._draw_trace(painter, cx, cy, scale)
-        self._draw_playhead(painter, cx, cy, scale)
         self._draw_shots(painter, cx, cy, scale)
+        self._draw_trace(painter, cx, cy, scale)
         self._draw_live_aim(painter, cx, cy, scale)
-
-    def _draw_playhead(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
-        if self._playhead_index is None or not self._trace:
-            return
-        i = max(0, min(len(self._trace) - 1, self._playhead_index))
-        x_mm, y_mm = self._trace[i]
-        x = cx + x_mm * scale
-        y = cy + y_mm * scale
-        pen = QPen(QColor("#f1c40f"))
-        pen.setWidth(2)
-        painter.setPen(pen)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawEllipse(QPointF(x, y), 7.0, 7.0)
 
     def _draw_hold_zone(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
         if self._hold_zone is None:
@@ -410,16 +356,41 @@ class TargetView(QWidget):
         ):
             return
 
-        approach_pen = self._segment_pen(QColor(60, 120, 200, 220))
-        release_pen = self._segment_pen(QColor(243, 156, 18, 230))
-        follow_pen = self._segment_pen(QColor(40, 160, 90, 230))
+        # During replay the polygons are clipped to the playhead so the
+        # trace draws itself out as the timeline advances rather than
+        # being painted in full from the start.
+        a_full = self._trace_approach
+        r_full = self._trace_release
+        f_full = self._trace_follow
+        if self._playhead_index is None:
+            approach, release, follow = a_full, r_full, f_full
+        else:
+            p = max(0, self._playhead_index)
+            a_len = a_full.size()
+            r_len = r_full.size()
+            if p < a_len:
+                approach = QPolygonF(a_full.mid(0, p + 1))
+                release = QPolygonF()
+                follow = QPolygonF()
+            elif p < a_len + r_len:
+                approach = a_full
+                release = QPolygonF(r_full.mid(0, p - a_len + 1))
+                follow = QPolygonF()
+            else:
+                approach = a_full
+                release = r_full
+                follow = QPolygonF(f_full.mid(0, p - a_len - r_len + 1))
+
+        approach_pen = self._segment_pen(QColor(0, 200, 60))
+        release_pen = self._segment_pen(QColor(255, 220, 0))
+        follow_pen = self._segment_pen(QColor(220, 30, 30))
 
         # The polygons are in target-space mm. The painter does
         # the conversion to widget pixels in C++, which is much
         # cheaper than walking the trace in Python every paint.
         painter.save()
         # Antialiasing the trace stroke gets expensive once the
-        # polyline has hundreds of vertices. The 3-pixel pen
+        # polyline has hundreds of vertices. The 8-pixel pen
         # weight hides any aliasing at video rate, so the trade
         # is invisible to the eye.
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
@@ -427,9 +398,9 @@ class TargetView(QWidget):
         painter.translate(cx, cy)
         painter.scale(scale, scale)
         for polygon, pen in (
-            (self._trace_approach, approach_pen),
-            (self._trace_release, release_pen),
-            (self._trace_follow, follow_pen),
+            (approach, approach_pen),
+            (release, release_pen),
+            (follow, follow_pen),
         ):
             if not polygon.isEmpty():
                 painter.setPen(pen)
@@ -439,7 +410,7 @@ class TargetView(QWidget):
     @staticmethod
     def _segment_pen(colour: QColor) -> QPen:
         pen = QPen(colour)
-        pen.setWidth(3)
+        pen.setWidth(8)
         pen.setCosmetic(True)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
@@ -489,13 +460,12 @@ class TargetView(QWidget):
             x = cx + shot.x_mm * scale
             y = cy + shot.y_mm * scale
             selected = i == self._selected_shot
-            base = QColor(colour_for_score(shot.score))
-            colour = base.darker(115) if selected else base
-            painter.setBrush(colour)
-            pen = QPen(base.darker(170))
-            pen.setWidth(2 if selected else 1)
-            painter.setPen(pen)
-            r = radius_px * (1.2 if selected else 1.0)
+            # Magenta marker.
+            fill = QColor("#ff1493")
+            fill.setAlpha(200 if not selected else 230)
+            painter.setBrush(fill)
+            painter.setPen(Qt.PenStyle.NoPen)
+            r = radius_px * (1.5 if selected else 1.3)
             painter.drawEllipse(QPointF(x, y), r, r)
             if shot.label:
                 painter.setPen(QColor("#1f2228"))
