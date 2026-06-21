@@ -106,6 +106,10 @@ than the geometric centre of the marker.
 
 The zero offset is saved and restored automatically between sessions.
 
+While the offset is in force, the camera preview shows a magenta cross at
+the chosen zero point so you can see where it sits relative to the printed
+circle, along with a "Manual zero" badge in the bottom-left corner.
+
 To remove the adjustment and return to the marker centre, use **Clear zero**.
 
 ## When to check the tracking circle diameter

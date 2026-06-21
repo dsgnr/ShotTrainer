@@ -184,4 +184,6 @@ As a result, there is usually a fixed offset between the camera's centre point
 and the actual point of impact.
 
 Use **Zero on aim** to compensate for this offset when shooting against a known
-aiming point.
+aiming point. While the offset is set the camera preview marks the chosen zero
+with a magenta cross and shows a "Manual zero" badge in the bottom-left, so the
+adjustment is always visible at a glance.
