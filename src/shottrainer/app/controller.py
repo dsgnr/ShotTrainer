@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any
+from typing import Protocol
 
 import numpy as np
 from PySide6.QtCore import QObject
@@ -65,6 +65,20 @@ class _ShotEntry:
     score: str | None = None
 
 
+class _FrameMirror(Protocol):
+    """Anything that wants to receive live frames and audio levels.
+
+    The Preferences dialog implements this. The controller hands
+    each live frame and audio level out to every mirror currently
+    open. Defined as a :class:`Protocol` so the dialog doesn't
+    have to inherit from anything for the controller's typing to
+    be useful.
+    """
+
+    def push_frame(self, frame_bgr: np.ndarray) -> None: ...
+    def push_audio_level(self, level: float) -> None: ...
+
+
 class AppController(QObject):
     """Connects UI signals to the underlying services.
 
@@ -109,7 +123,7 @@ class AppController(QObject):
         self._player = TracePlayer(self)
         self._current_view_session_id: int | None = None
         self._shots_in_view: list[_ShotEntry] = []
-        self._frame_mirrors: list[Any] = []  # dialogs that want live frames
+        self._frame_mirrors: list[_FrameMirror] = []  # dialogs that want live frames
         self._latest_frame: np.ndarray | None = None
         # The camera list as it was last enumerated. Refreshed
         # lazily when the Preferences dialog opens. Consulted by
@@ -280,9 +294,7 @@ class AppController(QObject):
         self._latest_frame = frame
         self._window.camera_view.set_frame(frame)
         for mirror in self._frame_mirrors:
-            handler = getattr(mirror, "set_frame", None) or getattr(mirror, "push_frame", None)
-            if handler is not None:
-                handler(frame)
+            mirror.push_frame(frame)
 
     def _on_pipeline_detection(self, sample, radius_px: float) -> None:
         self._window.camera_view.set_aim_point(sample.x_px, sample.y_px, radius_px=radius_px)
@@ -327,9 +339,7 @@ class AppController(QObject):
         scaled = level * gain
         self._window.audio_meter.set_level(scaled)
         for mirror in self._frame_mirrors:
-            push = getattr(mirror, "push_audio_level", None)
-            if push is not None:
-                push(scaled)
+            mirror.push_audio_level(scaled)
 
     def _on_zero_on_aim_requested(self) -> None:
         if not self._tracker.zero_at_last_sample():
