@@ -30,23 +30,24 @@ class ReplayControls(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 4, 8, 4)
 
-        self._reset = self._make_button(
-            "⏮",
-            tooltip="Reset to the start of the shot window",
-            accessible_name="Reset replay",
+        # The transport row is three buttons in a fixed order. Build
+        # them from a table so the binding (signal, glyph, tooltip,
+        # accessible name) lives in one place rather than spread
+        # across three near-identical blocks.
+        button_specs: tuple[tuple[str, Signal, str, str], ...] = (
+            ("⏮", self.reset_clicked, "Reset to the start of the shot window", "Reset replay"),
+            ("▶", self.play_clicked, "Play (Space)", "Play replay"),
+            ("⏸", self.pause_clicked, "Pause (Space)", "Pause replay"),
         )
-        self._play = self._make_button(
-            "▶",
-            tooltip="Play (Space)",
-            accessible_name="Play replay",
-        )
-        self._pause = self._make_button(
-            "⏸",
-            tooltip="Pause (Space)",
-            accessible_name="Pause replay",
-        )
-        for btn in (self._reset, self._play, self._pause):
-            layout.addWidget(btn)
+        buttons: list[QPushButton] = []
+        for glyph, signal, tooltip, accessible_name in button_specs:
+            button = self._make_button(
+                glyph, tooltip=tooltip, accessible_name=accessible_name
+            )
+            button.clicked.connect(signal)
+            buttons.append(button)
+            layout.addWidget(button)
+        self._reset, self._play, self._pause = buttons
 
         self._slider = QSlider(Qt.Orientation.Horizontal)
         self._slider.setRange(0, 1000)
@@ -58,9 +59,6 @@ class ReplayControls(QWidget):
         self._time_label.setFixedWidth(60)
         layout.addWidget(self._time_label)
 
-        self._play.clicked.connect(self.play_clicked)
-        self._pause.clicked.connect(self.pause_clicked)
-        self._reset.clicked.connect(self.reset_clicked)
         self._slider.sliderMoved.connect(self._on_slider_moved)
 
         self.set_enabled(False)
