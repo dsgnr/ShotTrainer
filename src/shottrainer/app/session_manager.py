@@ -353,7 +353,7 @@ class SessionManager:
         )
         pre_points = points[: window.split_index + 1] if window.split_index is not None else points
         self._window.hero_stats.set_trace_points(pre_points)
-        if pre_points:
+        if pre_points and prefs.show_hold_zone:
             stats = compute_trace_stats(pre_points)
             self._window.target_view.set_hold_zone(
                 (stats.mean_x_mm, stats.mean_y_mm), stats.hold_tremor_mm

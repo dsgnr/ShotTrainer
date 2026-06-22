@@ -45,3 +45,6 @@ class Preferences:
     circle_diameter_mm: float = 60.0
     invert_trace_horizontal: bool = False
     invert_trace_vertical: bool = False
+    # Show the amber "hold zone" circle on the target view during replay.
+    # It marks the pre-shot mean position and tremor radius.
+    show_hold_zone: bool = True
