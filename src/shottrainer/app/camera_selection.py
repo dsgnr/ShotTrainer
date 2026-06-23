@@ -33,10 +33,18 @@ class CameraSelection:
 
 
 def camera_selection_path() -> Path:
+    """The on-disk path for ``camera_selection.json``."""
     return data_dir() / "camera_selection.json"
 
 
 def load_camera_selection(path: Path | None = None) -> CameraSelection:
+    """Read the saved camera selection, falling back to a default on any error.
+
+    A missing or unreadable file gives back a fresh
+    :class:`CameraSelection` rather than raising. The saved value
+    is advisory anyway, since the controller falls back to enumeration
+    if the saved name doesn't match anything attached.
+    """
     p = path or camera_selection_path()
     if not p.exists():
         return CameraSelection()
@@ -55,6 +63,7 @@ def load_camera_selection(path: Path | None = None) -> CameraSelection:
 def save_camera_selection(
     selection: CameraSelection, path: Path | None = None
 ) -> None:
+    """Write the user's camera choice to disk."""
     p = path or camera_selection_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(asdict(selection), indent=2))
