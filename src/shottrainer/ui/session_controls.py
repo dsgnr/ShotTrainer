@@ -1,15 +1,16 @@
 """Session control panel.
 
-Holds a compact stack of widgets. A session name field, a primary
-action that swaps between Start and Stop, a secondary clear button,
-and a small summary line. Designed to fit a narrow side column
-without truncating.
+Holds a compact stack of widgets. A session name field, a category
+selector, a primary action that swaps between Start and Stop, a
+secondary clear button, and a small summary line. Designed to fit a
+narrow side column without truncating.
 """
 
 from __future__ import annotations
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
+    QComboBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -18,6 +19,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from shottrainer.sessions.models import DEFAULT_SESSION_CATEGORY, SESSION_CATEGORIES
 
 
 class SessionControls(QWidget):
@@ -43,6 +46,18 @@ class SessionControls(QWidget):
         self._name = QLineEdit()
         self._name.setPlaceholderText("Session name")
         layout.addWidget(self._name)
+
+        # Category picker. The order matches SESSION_CATEGORIES so the
+        # default ("practice") sits at the top of the list. Each item
+        # carries the underlying string in its userData so the
+        # display label can be reworded without touching the
+        # database side.
+        self._category = QComboBox()
+        for value in SESSION_CATEGORIES:
+            self._category.addItem(value.capitalize(), value)
+        self._category.setCurrentIndex(SESSION_CATEGORIES.index(DEFAULT_SESSION_CATEGORY))
+        self._category.setToolTip("Tag this session as practice, sighters, or a match.")
+        layout.addWidget(self._category)
 
         # Primary action: one button that toggles its own meaning.
         self._primary = QPushButton("Start session")
@@ -73,6 +88,7 @@ class SessionControls(QWidget):
         """
         self._active = active
         self._name.setEnabled(not active)
+        self._category.setEnabled(not active)
         self._clear.setEnabled(not active)
         if active:
             self._primary.setText("Stop session")
@@ -95,6 +111,13 @@ class SessionControls(QWidget):
     def session_name(self) -> str:
         """Return the current text in the session name field, stripped."""
         return self._name.text().strip()
+
+    def session_category(self) -> str:
+        """Return the currently selected category string."""
+        value = self._category.currentData()
+        if isinstance(value, str):
+            return value
+        return DEFAULT_SESSION_CATEGORY
 
     def primary_action(self) -> QPushButton:
         """Return the primary Start/Stop button.

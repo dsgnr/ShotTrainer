@@ -123,6 +123,33 @@ def test_rename_session_returns_false_for_missing_id(repo: SessionRepository):
     assert repo.rename_session(999_999, "anything") is False
 
 
+def test_create_session_records_category(repo: SessionRepository):
+    """``create_session`` writes the category and surfaces it in summaries."""
+    sid = repo.create_session(name="match", category="match")
+    summary = next(s for s in repo.list_sessions() if s.id == sid)
+    assert summary.category == "match"
+
+
+def test_create_session_defaults_to_practice(repo: SessionRepository):
+    """Sessions started without an explicit category are tagged practice."""
+    sid = repo.create_session(name="default")
+    summary = next(s for s in repo.list_sessions() if s.id == sid)
+    assert summary.category == "practice"
+
+
+def test_update_session_category_writes_new_value(repo: SessionRepository):
+    """``update_session_category`` switches a session's tag."""
+    sid = repo.create_session(name="match", category="practice")
+    assert repo.update_session_category(sid, "match") is True
+    summary = next(s for s in repo.list_sessions() if s.id == sid)
+    assert summary.category == "match"
+
+
+def test_update_session_category_returns_false_for_missing_id(repo: SessionRepository):
+    """Updating a missing row is reported as a miss."""
+    assert repo.update_session_category(999_999, "match") is False
+
+
 def test_session_summary_includes_total_score(repo: SessionRepository):
     sid = repo.create_session(name="qual")
     repo.add_shot(sid, ts=0.1, x_mm=0.0, y_mm=0.0, audio_level=0.4, confidence=0.9, score="10")

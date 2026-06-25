@@ -87,6 +87,17 @@ To change the name of a saved session:
 Leaving the field blank clears the name back to the default **Session #N**
 display. The change is saved immediately.
 
+## Changing the category
+
+Each session is tagged as practice, sighter, or match. To change the tag on a
+saved session:
+
+1. Select the session.
+2. Click **Category...**
+3. Pick a different value and press OK.
+
+The new tag is saved immediately and the badge on the row updates.
+
 ## Deleting a session
 
 To permanently remove a session:

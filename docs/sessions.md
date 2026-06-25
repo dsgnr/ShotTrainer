@@ -9,6 +9,11 @@ exported at any time.
 Enter a session name if you want one, or leave the field blank and ShotTrainer
 will create a name automatically using the current date and time.
 
+Pick the **category** below the name field to tag the session as **practice**,
+**sighter**, or **match**. The category is stored with the session and shows
+up as a badge in the session browser. You can change it later if you tagged
+it wrong at the time.
+
 To begin recording:
 
 - Click **Start session**
