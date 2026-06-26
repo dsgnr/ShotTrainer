@@ -14,6 +14,14 @@ from shottrainer.sessions.repository import SessionRepository
 
 
 def export_session_csv(repo: SessionRepository, session_id: int, target_dir: Path) -> list[Path]:
+    """Write a session out as ``session_<id>_shots.csv`` and ``..._trace.csv``.
+
+    The target directory is created if it doesn't exist. Numeric
+    columns get a fixed number of decimal places so the user
+    doesn't end up with scientific notation in their spreadsheet.
+    Empty cells (``None`` values) are written as the empty
+    string. Returns the list of files written.
+    """
     target_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
 
