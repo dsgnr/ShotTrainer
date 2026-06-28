@@ -78,10 +78,17 @@ class TargetFace:
 
 
 def custom_faces_path() -> Path:
+    """The on-disk path for user-defined custom faces."""
     return data_dir() / "custom_target_faces.json"
 
 
 def _parse_rings(rings_raw: list) -> list[TargetRing]:
+    """Turn a raw JSON list into :class:`TargetRing` objects.
+
+    Entries without a numeric ``diameter_mm`` are skipped rather
+    than raising. A partially-malformed face is more useful than
+    a blanket failure.
+    """
     rings: list[TargetRing] = []
     for r in rings_raw:
         if not isinstance(r, dict):
@@ -106,6 +113,12 @@ def _optional_positive_float(body: dict, field: str) -> float | None:
 
 
 def _parse_face(body: dict, key: str) -> TargetFace | None:
+    """Build a :class:`TargetFace` from a JSON body, or return ``None``.
+
+    A face is rejected when the ``rings`` array is missing or
+    none of its entries parse. Missing optional fields (calibre,
+    face diameter, label) just fall back to defaults.
+    """
     if not isinstance(body, dict):
         return None
     rings_raw = body.get("rings", [])
@@ -169,6 +182,13 @@ def reload_custom_faces() -> None:
 
 
 def _load_custom_faces() -> dict[str, TargetFace]:
+    """Read the user's custom-faces file, caching the parsed result.
+
+    The cache is keyed on file mtime, so editing the file in
+    place triggers a reload on the next lookup. A missing file
+    or a parse error gives back an empty dict. The built-ins
+    still load.
+    """
     global _custom_cache_mtime
     p = custom_faces_path()
     try:
