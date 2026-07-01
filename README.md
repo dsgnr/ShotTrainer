@@ -27,6 +27,7 @@ with various cameras people have tried.
 ## Contents
 
 - [What it does](#what-it-does)
+- [Preview](#preview)
 - [How it's set up](#how-its-set-up)
 - [Documentation](#documentation)
 - [Installing](#installing)
@@ -57,6 +58,14 @@ with various cameras people have tried.
 - Records the rifle's hold trace continuously while practising.
 - Stores sessions and shots in a local SQLite database.
 - Lets you replay the trace around each shot.
+
+## Preview
+
+App preview:
+![App view](docs/assets/img/app1.png)
+
+Trace replay view:
+![Shot Replay Demo](docs/assets/img/replay1.webp)
 
 ## How it's set up
 
