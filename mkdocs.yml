@@ -27,13 +27,18 @@ nav:
   - Setup and camera alignment: setup.md
   - How tracking works: how-tracking-works.md
   - Accuracy and target sizing: accuracy.md
-  - Cameras tested: cameras.md
+  - Cameras tested:
+      - Overview: cameras.md
+      - Submission template: cameras/template.md
   - Federation targets: provided-targets.md
   - Calibration: calibration.md
   - Architecture: architecture.md
   - Engineering notes: engineering-notes.md
   - Troubleshooting: troubleshooting.md
   - Releases: releases.md
+
+not_in_nav: |
+  cameras/images/README.md
 
 markdown_extensions:
   - admonition
