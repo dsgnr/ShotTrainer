@@ -7,6 +7,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol
 
+import cv2
 import numpy as np
 from PySide6.QtCore import QObject, Qt, Signal
 
@@ -356,18 +357,23 @@ class AppController(QObject):
     def _on_frame(self, frame: np.ndarray, ts: float, frame_id: int) -> None:
         """Feed every frame from the camera signal into the capture pipeline.
 
-        Runs on the camera worker thread (``DirectConnection``).
-        Detection, EMA updates, buffer append and recorder writes
-        all happen here so the GUI thread doesn't see the heavy
-        per-frame work. Only the resulting widget updates are
-        sent across via ``_frame_processed``.
+        Runs on the camera worker thread (``DirectConnection``) so
+        detection, EMA updates, buffer append and recorder writes
+        all happen off the GUI thread. Only the resulting widget
+        updates are sent across via ``_frame_processed``.
+
+        The frame is converted to greyscale before the pipeline
+        runs. The detector ignores colour anyway, and reusing the
+        single-channel buffer for the preview avoids a second
+        conversion in the camera widget.
         """
+        if frame.ndim == 3 and frame.shape[2] == 3:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         sample = self._pipeline.process(frame, ts, frame_id)
-        # Take a snapshot of the tracker state so the GUI handler
-        # reads consistent values even though the worker thread
-        # might keep going. The frame itself is copied so the
-        # pipeline is free to mutate or release the original
-        # buffer.
+        # Snapshot the tracker state so the GUI handler reads
+        # consistent values even though the worker thread might
+        # keep going. The frame itself is copied so the pipeline
+        # is free to mutate or release the original buffer.
         last_radius_px = self._tracker.last_radius_px
         last_detection = self._tracker.last_detection
         self._frame_processed.emit(frame.copy(), sample, last_radius_px, last_detection)
