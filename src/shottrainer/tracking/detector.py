@@ -54,6 +54,18 @@ class DetectorSettings:
     # (auto-rounded if not). Set to 0 (or any value below 3) to
     # turn it off.
     opening_kernel_px: int = 3
+    # Cap on how many contours the detector inspects in detail
+    # per frame. A textured wall or a stack of papers can produce
+    # thousands of contours. Sorting by area descending and
+    # capping the loop keeps the per-frame cost predictable so
+    # the preview doesn't lag when there's no real target around.
+    max_candidates: int = 200
+    # Multiplier on ``lock_radius_px`` defining how big a window
+    # the detector searches inside while it has a lock. Bigger
+    # values cope with faster aim movement. Smaller values give a
+    # bigger speedup on busy scenes. ``2.0`` covers the soft-lock
+    # window plus the same again for the damped band around it.
+    lock_search_radius_factor: float = 2.0
 
 
 class CircleTargetDetector:
@@ -158,12 +170,43 @@ class CircleTargetDetector:
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
             binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
 
-        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        h, w = grey.shape[:2]
+
+        # While the detector has a lock, only look inside a box
+        # around the last hit. ``cv2.findContours`` itself walks
+        # the whole image, but feeding it a cropped slice means
+        # there are fewer contours to analyse afterwards. On a
+        # busy scene (textured walls, lots of dark blobs) that's
+        # a noticeable saving. When the lock has been dropped we
+        # search the whole frame so re-acquiring the target isn't
+        # restricted to where it used to be.
+        offset_x, offset_y = 0, 0
+        search = binary
+        if self._lock_px is not None:
+            radius = max(1.0, s.lock_radius_px) * max(1.0, s.lock_search_radius_factor)
+            lx, ly = self._lock_px
+            x0 = max(0, int(lx - radius))
+            y0 = max(0, int(ly - radius))
+            x1 = min(w, int(lx + radius))
+            y1 = min(h, int(ly + radius))
+            if x1 > x0 and y1 > y0:
+                search = binary[y0:y1, x0:x1]
+                offset_x, offset_y = x0, y0
+
+        contours, _ = cv2.findContours(search, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if offset_x or offset_y:
+            offset = np.array([[offset_x, offset_y]], dtype=np.int32)
+            contours = [c + offset for c in contours]
+
+        # Cap how many contours we look at so a noisy scene can't
+        # stall the detector. Largest-area first means the cap
+        # contours most likely to be the target.
+        if len(contours) > s.max_candidates:
+            contours = sorted(contours, key=cv2.contourArea, reverse=True)[: s.max_candidates]
 
         # The central acceptance region. Centroids that fall
         # outside it are rejected so off-axis blobs (frame edges,
         # other papers in shot) don't capture the tracker.
-        h, w = grey.shape[:2]
         region_fraction = max(0.05, min(1.0, s.region_fraction))
         half_w = w * region_fraction / 2.0
         half_h = h * region_fraction / 2.0
@@ -175,7 +218,21 @@ class CircleTargetDetector:
         best_contour: np.ndarray | None = None
         best_off_region: tuple[float, float, float, float] | None = None  # cx, cy, r, score
 
+        # Bounding-rectangle prefilter. If a contour's bounding
+        # box can't fit a circle within the configured radius
+        # range, it's almost certainly noise. The rectangle check
+        # is much cheaper than the area / circularity / moment
+        # work below, so we discard the obvious rejects first.
+        min_side = s.min_radius_px * 2
+        max_side = s.max_radius_px * 2
+
         for c in contours:
+            _x, _y, cw, ch = cv2.boundingRect(c)
+            if cw < min_side or ch < min_side:
+                continue
+            if cw > max_side and ch > max_side:
+                continue
+
             area = cv2.contourArea(c)
             if area <= 0:
                 continue
