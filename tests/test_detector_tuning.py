@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 
 from shottrainer.tracking.detector import DetectorSettings
-from shottrainer.tracking.detector_tuning import optimise_detector_settings
+from shottrainer.tracking.detector_tuning import ImageAdjustment, optimise_detector_settings
 
 
 def _frame(circle: bool = True) -> np.ndarray:
@@ -15,18 +15,34 @@ def _frame(circle: bool = True) -> np.ndarray:
 
 
 def test_optimise_picks_settings_for_visible_target():
-    settings, score = optimise_detector_settings(_frame(), DetectorSettings())
+    settings, adjustment, score = optimise_detector_settings(_frame(), DetectorSettings())
     assert settings is not None
+    assert isinstance(adjustment, ImageAdjustment)
     assert score > 0.0
 
 
 def test_optimise_returns_none_when_nothing_visible():
-    settings, score = optimise_detector_settings(_frame(circle=False), DetectorSettings())
+    settings, adjustment, score = optimise_detector_settings(
+        _frame(circle=False), DetectorSettings()
+    )
     assert settings is None
+    assert adjustment == ImageAdjustment()
     assert score == 0.0
 
 
 def test_optimise_handles_empty_frame():
-    settings, score = optimise_detector_settings(np.array([]), DetectorSettings())
+    settings, adjustment, score = optimise_detector_settings(np.array([]), DetectorSettings())
     assert settings is None
+    assert adjustment == ImageAdjustment()
     assert score == 0.0
+
+
+def test_optimise_recovers_underexposed_frame():
+    """An underexposed frame should come back with positive brightness."""
+    dim = (_frame().astype(np.float32) * 0.4).astype(np.uint8)
+    settings, adjustment, score = optimise_detector_settings(dim, DetectorSettings())
+    assert settings is not None
+    assert score > 0.0
+    # The optimiser should pick some non-identity adjustment to lift
+    # the frame back into a usable range.
+    assert (adjustment.brightness, adjustment.contrast) != (0.0, 1.0)

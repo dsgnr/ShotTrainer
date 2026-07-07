@@ -10,6 +10,7 @@ from shottrainer.services.session_recorder import SessionRecorder
 from shottrainer.services.trace_buffer import TraceBuffer
 from shottrainer.sessions.database import init_database, make_engine
 from shottrainer.sessions.repository import SessionRepository
+from shottrainer.tracking.frame_ops import transform_frame
 from shottrainer.tracking.tracker import Tracker
 
 
@@ -76,13 +77,22 @@ def test_pipeline_reports_no_detection_on_blank(pipeline_pieces):
     assert misses == [True]
 
 
-def test_pipeline_applies_transform(pipeline_pieces):
+def test_pipeline_processes_pre_transformed_frame(pipeline_pieces):
+    """The controller transforms frames before handing them to the pipeline."""
     pipe, _, _ = _make_pipeline(pipeline_pieces)
-    pipe.set_transform(FrameTransformOptions(rotation_degrees=180))
+    options = FrameTransformOptions(rotation_degrees=180)
+    rotated = transform_frame(
+        _frame_with_circle(100, 100),
+        rotation_degrees=options.rotation_degrees,
+        flip_horizontal=options.flip_horizontal,
+        flip_vertical=options.flip_vertical,
+        brightness=options.brightness,
+        contrast=options.contrast,
+    )
 
     # A circle at (100, 100) on a 640x480 frame ends up at (540, 380)
     # after 180 degree rotation.
-    sample = pipe.process(_frame_with_circle(100, 100), ts=0.0)
+    sample = pipe.process(rotated, ts=0.0)
     assert sample is not None
     assert abs(sample.x_px - 540) < 3
     assert abs(sample.y_px - 380) < 3

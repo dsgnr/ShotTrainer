@@ -39,6 +39,14 @@ def load_preferences(path: Path | None = None) -> Preferences:
     if unknown:
         log.debug("Ignoring unknown preference keys: %s", sorted(unknown))
     filtered = {k: v for k, v in raw.items() if k in valid}
+    # ``camera_brightness`` and ``camera_contrast`` used to be
+    # ``float | None`` in a 0..1 range. They're plain floats now,
+    # with different defaults. Drop a stale ``None`` so the
+    # dataclass falls back to its default instead of raising on
+    # the wrong type.
+    for key in ("camera_brightness", "camera_contrast"):
+        if filtered.get(key) is None:
+            filtered.pop(key, None)
     try:
         return Preferences(**filtered)
     except TypeError as exc:
