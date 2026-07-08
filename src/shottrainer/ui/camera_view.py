@@ -47,6 +47,8 @@ class CameraView(QWidget):
         self.setAutoFillBackground(True)
 
         self._pixmap: QPixmap | None = None
+        self._scaled_pixmap: QPixmap | None = None
+        self._scaled_for_size: tuple[int, int] = (0, 0)
         self._frame_size: tuple[int, int] = (0, 0)
         self._aim_px: tuple[float, float] | None = None
         self._aim_radius_px: float = 0.0
@@ -76,6 +78,7 @@ class CameraView(QWidget):
             return
         # ``image`` references the numpy buffer. Copy once so the QPixmap owns the data.
         self._pixmap = QPixmap.fromImage(image.copy())
+        self._scaled_pixmap = None
         self._frame_size = (w, h)
         self.update()
 
@@ -124,9 +127,15 @@ class CameraView(QWidget):
 
     def clear(self) -> None:
         self._pixmap = None
+        self._scaled_pixmap = None
         self._aim_px = None
         self._rejected_px = None
         self.update()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        # Force the next paint to rebuild the cached scaled pixmap.
+        self._scaled_pixmap = None
+        super().resizeEvent(event)
 
     def paintEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         painter = QPainter(self)
@@ -137,13 +146,22 @@ class CameraView(QWidget):
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "No camera")
             return
 
-        # Letterbox the frame into the widget while preserving aspect ratio.
+        # Cache the scaled pixmap so the per-frame paint doesn't redo
+        # the resize. The cache is invalidated when the source pixmap
+        # changes (``set_frame``) or when the widget is resized
+        # (``resizeEvent``). Nearest-neighbour scaling is fine for a
+        # live preview at full frame rate. The eye doesn't catch the
+        # difference and the cost is half that of bilinear.
         target = self.rect()
-        scaled = self._pixmap.scaled(
-            target.size(),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
+        target_size = (target.width(), target.height())
+        if self._scaled_pixmap is None or self._scaled_for_size != target_size:
+            self._scaled_pixmap = self._pixmap.scaled(
+                target.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.FastTransformation,
+            )
+            self._scaled_for_size = target_size
+        scaled = self._scaled_pixmap
         offset_x = (target.width() - scaled.width()) // 2
         offset_y = (target.height() - scaled.height()) // 2
         painter.drawPixmap(offset_x, offset_y, scaled)
