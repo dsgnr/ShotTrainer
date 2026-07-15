@@ -7,18 +7,14 @@ Doesn't talk to the camera or keep any state of its own. The
 ``Auto-optimise`` button calls it when the user wants a quick way
 to nudge things back into shape after the lighting changed.
 
-The grid is small enough to walk in a single thread (about a
-second on a busy 720p frame), but the outer brightness/contrast
-sweep parallelises cleanly across CPUs because each cell is
-independent. ``optimise_detector_settings`` picks a process
-pool when it has more than one core to play with and falls back
-to in-process when it doesn't.
+The grid is staged so each step runs the minimum number of times.
+The greyscale conversion runs once for the whole search and the
+Gaussian blur runs once per (cell, blur kernel) pair, since
+neither depends on the inner adaptive-threshold loop.
 """
 
 from __future__ import annotations
 
-import os
-from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, replace
 
 import cv2
@@ -48,60 +44,39 @@ def optimise_detector_settings(
     frame: np.ndarray,
     base_settings: DetectorSettings,
     *,
-    block_sizes: tuple[int, ...] = (15, 21, 31, 41),
-    offsets: tuple[int, ...] = (2, 5, 8, 12),
-    blurs: tuple[int, ...] = (3, 5, 7),
-    brightness_steps: tuple[float, ...] = (-40.0, -20.0, 0.0, 20.0, 40.0),
-    contrast_steps: tuple[float, ...] = (0.8, 1.0, 1.25, 1.5),
-    workers: int | None = None,
+    block_sizes: tuple[int, ...] = (15, 31),
+    offsets: tuple[int, ...] = (2, 8),
+    blurs: tuple[int, ...] = (3, 5),
+    brightness_steps: tuple[float, ...] = (-20.0, 0.0, 20.0),
+    contrast_steps: tuple[float, ...] = (0.8, 1.0, 1.25),
 ) -> tuple[DetectorSettings | None, ImageAdjustment, float]:
     """Try a few combinations and return the best one.
 
     Walks a small grid of adaptive-threshold, blur, brightness and
     contrast values and runs the detector against ``frame`` for
     each. The brightness/contrast pass is a single
-    ``cv2.convertScaleAbs`` on a copy of the frame, then the
-    detector runs against that copy.
+    ``cv2.convertScaleAbs`` per cell, the Gaussian blur runs once
+    per (cell, blur) pair, and only the threshold and contour
+    analysis run for the full grid.
 
     Returns ``(settings, adjustment, confidence)``. When nothing
     scores above zero the settings come back as ``None``, the
     adjustment is the identity (no change) and the confidence is
     ``0.0``. That almost always means the target wasn't visible
     in the frame.
-
-    The brightness/contrast outer loop runs in a process pool so
-    each ``(brightness, contrast)`` cell uses its own core. Pass
-    ``workers=1`` to keep everything in-process (handy for tests).
-    Defaults to ``min(cpu_count, len(brightness)*len(contrast))``.
     """
     if frame is None or frame.size == 0:
         return (None, ImageAdjustment(), 0.0)
 
-    cells = [(b, c) for b in brightness_steps for c in contrast_steps]
-    if workers is None:
-        workers = min(os.cpu_count() or 1, len(cells))
+    # Greyscale once. Every cell works against the same source,
+    # only the brightness/contrast multiplier changes.
+    grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
 
-    if workers <= 1:
-        results = [
-            _evaluate_cell(b, c, frame, base_settings, block_sizes, offsets, blurs)
-            for b, c in cells
-        ]
-    else:
-        with ProcessPoolExecutor(max_workers=workers) as pool:
-            futures = [
-                pool.submit(
-                    _evaluate_cell,
-                    b,
-                    c,
-                    frame,
-                    base_settings,
-                    block_sizes,
-                    offsets,
-                    blurs,
-                )
-                for b, c in cells
-            ]
-            results = [f.result() for f in futures]
+    cells = [(b, c) for b in brightness_steps for c in contrast_steps]
+    results = [
+        _evaluate_cell(b, c, grey, base_settings, block_sizes, offsets, blurs)
+        for b, c in cells
+    ]
 
     best = max(results, key=lambda r: r.score, default=None)
     if best is None or best.settings is None:
@@ -112,7 +87,7 @@ def optimise_detector_settings(
 def _evaluate_cell(
     brightness: float,
     contrast: float,
-    frame: np.ndarray,
+    grey: np.ndarray,
     base_settings: DetectorSettings,
     block_sizes: tuple[int, ...],
     offsets: tuple[int, ...],
@@ -120,27 +95,33 @@ def _evaluate_cell(
 ) -> _CellResult:
     """Search the inner block/offset/blur grid for one image adjustment.
 
-    Module-level so the process pool can pickle it. Returns the
-    best detector settings for this cell or a result with
-    ``settings=None`` when nothing in this cell found the target.
+    Stages the work so the Gaussian blur runs once per blur
+    kernel instead of once per (block, offset, blur) triple.
+    The detector is called with ``blur_kernel=0`` so it skips
+    its own blur step against an already-blurred frame. The
+    blur kernel that produced the best score is stored on the
+    returned settings so the live detector applies the same
+    blur later.
     """
-    adjusted = _apply_adjustment(frame, brightness, contrast)
+    adjusted = _apply_adjustment(grey, brightness, contrast)
     best_score = 0.0
     best_settings: DetectorSettings | None = None
-    for block in block_sizes:
-        for offset in offsets:
-            for blur in blurs:
-                candidate = replace(
+    detector = CircleTargetDetector(base_settings)
+    for blur in blurs:
+        blurred = cv2.GaussianBlur(adjusted, (blur, blur), 0) if blur >= 3 else adjusted
+        for block in block_sizes:
+            for offset in offsets:
+                detector.settings = replace(
                     base_settings,
                     adaptive_block_size=block,
                     adaptive_offset=offset,
-                    blur_kernel=blur,
+                    blur_kernel=0,
                 )
-                detector = CircleTargetDetector(candidate)
-                detection = detector.detect(adjusted)
+                detector.reset_lock()
+                detection = detector.detect(blurred)
                 if detection.found and detection.confidence > best_score:
                     best_score = detection.confidence
-                    best_settings = candidate
+                    best_settings = replace(detector.settings, blur_kernel=blur)
     return _CellResult(
         settings=best_settings,
         adjustment=ImageAdjustment(brightness=brightness, contrast=contrast),
@@ -148,8 +129,8 @@ def _evaluate_cell(
     )
 
 
-def _apply_adjustment(frame: np.ndarray, brightness: float, contrast: float) -> np.ndarray:
-    """Return ``frame`` with the given brightness and contrast applied to a copy."""
+def _apply_adjustment(grey: np.ndarray, brightness: float, contrast: float) -> np.ndarray:
+    """Return ``grey`` with the given brightness and contrast applied to a copy."""
     if brightness == 0.0 and contrast == 1.0:
-        return frame
-    return cv2.convertScaleAbs(frame, alpha=contrast, beta=brightness)
+        return grey
+    return cv2.convertScaleAbs(grey, alpha=contrast, beta=brightness)

@@ -15,9 +15,7 @@ def _frame(circle: bool = True) -> np.ndarray:
 
 
 def test_optimise_picks_settings_for_visible_target():
-    settings, adjustment, score = optimise_detector_settings(
-        _frame(), DetectorSettings(), workers=1
-    )
+    settings, adjustment, score = optimise_detector_settings(_frame(), DetectorSettings())
     assert settings is not None
     assert isinstance(adjustment, ImageAdjustment)
     assert score > 0.0
@@ -25,7 +23,7 @@ def test_optimise_picks_settings_for_visible_target():
 
 def test_optimise_returns_none_when_nothing_visible():
     settings, adjustment, score = optimise_detector_settings(
-        _frame(circle=False), DetectorSettings(), workers=1
+        _frame(circle=False), DetectorSettings()
     )
     assert settings is None
     assert adjustment == ImageAdjustment()
@@ -34,7 +32,7 @@ def test_optimise_returns_none_when_nothing_visible():
 
 def test_optimise_handles_empty_frame():
     settings, adjustment, score = optimise_detector_settings(
-        np.array([]), DetectorSettings(), workers=1
+        np.array([]), DetectorSettings()
     )
     assert settings is None
     assert adjustment == ImageAdjustment()
@@ -44,24 +42,9 @@ def test_optimise_handles_empty_frame():
 def test_optimise_recovers_underexposed_frame():
     """An underexposed frame should come back with positive brightness."""
     dim = (_frame().astype(np.float32) * 0.4).astype(np.uint8)
-    settings, adjustment, score = optimise_detector_settings(
-        dim, DetectorSettings(), workers=1
-    )
+    settings, adjustment, score = optimise_detector_settings(dim, DetectorSettings())
     assert settings is not None
     assert score > 0.0
     # The optimiser should pick some non-identity adjustment to lift
     # the frame back into a usable range.
     assert (adjustment.brightness, adjustment.contrast) != (0.0, 1.0)
-
-
-def test_parallel_run_matches_serial():
-    """Running across processes should give the same result as in-process."""
-    settings_p, adj_p, score_p = optimise_detector_settings(
-        _frame(), DetectorSettings(), workers=2
-    )
-    settings_s, adj_s, score_s = optimise_detector_settings(
-        _frame(), DetectorSettings(), workers=1
-    )
-    assert settings_p == settings_s
-    assert adj_p == adj_s
-    assert score_p == score_s
