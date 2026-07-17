@@ -107,7 +107,62 @@ def scoring() -> dict:
     }
 
 
-AREAS = {"scoring": scoring}
+def shot_stats() -> dict:
+    import random
+
+    from shottrainer.services.shot_stats import (
+        compute_stats,
+        compute_trace_stats,
+        time_inside_radius,
+    )
+
+    rng = random.Random(7)
+    inputs = {
+        "empty": [],
+        "one_point": [(3.5, -2.25)],
+        "identical": [(1.5, 1.5), (1.5, 1.5)],
+        "two_points": [(0.0, 0.0), (3.0, 4.0)],
+        "five_points": [(0.0, 0.0), (2.0, 1.0), (-1.5, 3.0), (4.0, -2.0), (0.5, 0.25)],
+        "random_200": [(rng.uniform(-15, 15), rng.uniform(-15, 15)) for _ in range(200)],
+        "collinear": [(float(i), 2.0 * i + 1.0) for i in range(-3, 6)],
+    }
+    cases = []
+    for name, pts in inputs.items():
+        stats = compute_stats(pts)
+        trace = compute_trace_stats(pts)
+        cases.append(
+            {
+                "name": name,
+                "points": [list(p) for p in pts],
+                "stats": {
+                    "count": stats.count,
+                    "mean_x_mm": stats.mean_x_mm,
+                    "mean_y_mm": stats.mean_y_mm,
+                    "extreme_spread_mm": stats.extreme_spread_mm,
+                    "mean_radius_mm": stats.mean_radius_mm,
+                },
+                "trace": {
+                    "samples": trace.samples,
+                    "hold_tremor_mm": trace.hold_tremor_mm,
+                    "trace_length_mm": trace.trace_length_mm,
+                    "mean_x_mm": trace.mean_x_mm,
+                    "mean_y_mm": trace.mean_y_mm,
+                },
+                "inside": [
+                    {
+                        "radius_mm": radius,
+                        "centre": list(centre),
+                        "fraction": time_inside_radius(pts, radius, centre),
+                    }
+                    for radius in (0.0, 1.0, 5.0, 100.0)
+                    for centre in ((0.0, 0.0), (1.0, -1.0))
+                ],
+            }
+        )
+    return {"cases": cases}
+
+
+AREAS = {"scoring": scoring, "shot_stats": shot_stats}
 
 if __name__ == "__main__":
     name = sys.argv[1]
