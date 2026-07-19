@@ -21,6 +21,7 @@ thiserror.workspace = true
 log.workspace = true
 
 [dev-dependencies]
+rusqlite = { workspace = true, features = ["trace"] }
 testkit = { path = "../testkit" }
 serde_json.workspace = true
 proptest.workspace = true
