@@ -13,10 +13,12 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QFileDialog,
     QHBoxLayout,
+    QLabel,
     QListWidget,
     QListWidgetItem,
     QMessageBox,
     QPushButton,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -36,8 +38,22 @@ class SessionBrowserDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
+        # Either the list or the empty-state placeholder is shown
+        # at any one time. Keeping them in a stacked widget means
+        # ``refresh`` only flips the visible page rather than
+        # rebuilding the layout.
+        self._stack = QStackedWidget()
         self._list = QListWidget()
-        layout.addWidget(self._list, 1)
+        self._empty = QLabel(
+            "No saved sessions yet.\nStart one with the green button on "
+            "the main window or with Ctrl+S."
+        )
+        self._empty.setObjectName("sessionListEmpty")
+        self._empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty.setWordWrap(True)
+        self._stack.addWidget(self._list)
+        self._stack.addWidget(self._empty)
+        layout.addWidget(self._stack, 1)
 
         actions = QHBoxLayout()
         self._open = QPushButton("Open")
@@ -58,13 +74,30 @@ class SessionBrowserDialog(QDialog):
         self._delete.clicked.connect(self._on_delete)
         self._export.clicked.connect(self._on_export)
 
+        # Open / Delete / Export only make sense with a row
+        # selected. Bind their enabled state to the list's
+        # selection so the dialog isn't offering buttons that
+        # would do nothing.
+        self._list.itemDoubleClicked.connect(lambda _item: self._on_open())
+        self._list.currentItemChanged.connect(lambda *_: self._refresh_action_buttons())
+
         self.refresh()
 
     def refresh(self) -> None:
         """Re-read the session list from the repository and rebuild the rows."""
         self._list.clear()
-        for s in self._repo.list_sessions():
+        sessions = self._repo.list_sessions()
+        for s in sessions:
             self._list.addItem(_make_item(s))
+        self._stack.setCurrentWidget(self._list if sessions else self._empty)
+        self._refresh_action_buttons()
+
+    def _refresh_action_buttons(self) -> None:
+        """Enable the action buttons only when a row is selected."""
+        has_selection = self._list.currentItem() is not None
+        self._open.setEnabled(has_selection)
+        self._delete.setEnabled(has_selection)
+        self._export.setEnabled(has_selection)
 
     def _selected_session_id(self) -> int | None:
         """Database id of the currently selected row, or ``None``."""
@@ -118,12 +151,28 @@ def _make_item(summary: SessionSummary) -> QListWidgetItem:
     """Build a list item for one session, with the id stored as user data."""
     started = summary.started_at.strftime("%Y-%m-%d %H:%M")
     name = summary.name or "(unnamed)"
+    duration = _format_duration(summary)
     score = (
         f"   {summary.total_score:g} pts"
         if summary.shot_count and summary.total_score > 0
         else ""
     )
-    label = f"{started}   {name}   ({summary.shot_count} shots){score}"
+    label = (
+        f"{started}   {name}   ({summary.shot_count} shots, {duration})"
+        f"{score}"
+    )
     item = QListWidgetItem(label)
     item.setData(Qt.ItemDataRole.UserRole, summary.id)
     return item
+
+
+def _format_duration(summary: SessionSummary) -> str:
+    """Return the session length as ``"Xm Ys"`` or ``"in progress"``."""
+    if summary.ended_at is None:
+        return "in progress"
+    delta = summary.ended_at - summary.started_at
+    seconds = max(0, int(delta.total_seconds()))
+    minutes, seconds = divmod(seconds, 60)
+    if minutes:
+        return f"{minutes}m {seconds:02d}s"
+    return f"{seconds}s"

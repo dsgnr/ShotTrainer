@@ -47,7 +47,21 @@ class ShotList(QWidget):
         self._list.itemSelectionChanged.connect(self._on_selection_changed)
         layout.addWidget(self._list)
 
+        # Shown in place of the list while there are no shots to
+        # display. Keeps the panel from looking broken on first
+        # launch.
+        self._empty = QLabel(
+            "No shots yet.\nStart a session and the microphone will\n"
+            "pick up each one."
+        )
+        self._empty.setObjectName("shotListEmpty")
+        self._empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty.setWordWrap(True)
+        layout.addWidget(self._empty)
+        self._list.hide()
+
     def set_shots(self, entries) -> None:
+        entries = list(entries)
         self._list.blockSignals(True)
         self._list.clear()
         for e in entries:
@@ -63,6 +77,8 @@ class ShotList(QWidget):
             self._list.addItem(item)
             self._list.setItemWidget(item, row)
         self._list.blockSignals(False)
+        self._empty.setVisible(not entries)
+        self._list.setVisible(bool(entries))
 
     def select_index(self, index: int | None) -> None:
         if index is None:
