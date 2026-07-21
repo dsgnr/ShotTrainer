@@ -213,3 +213,16 @@ fn data_dirs_match_python() {
         assert_eq!(got, PathBuf::from(case["path"].as_str().unwrap()), "{case}");
     }
 }
+
+#[test]
+fn seventeen_digit_floats_parse_exactly() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("s.json");
+    std::fs::write(
+        &path,
+        r#"{"tracking_region_fraction": 0.19862074538694519}"#,
+    )
+    .unwrap();
+    let loaded = load_preferences(&path).tracking_region_fraction;
+    assert_eq!(loaded.to_bits(), 0.198_620_745_386_945_19_f64.to_bits());
+}

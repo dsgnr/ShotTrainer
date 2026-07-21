@@ -236,12 +236,9 @@ impl serde_json::ser::Formatter for PythonFormatter {
     }
 }
 
-/// `repr(float)` for finite values. Non-finite values are written as `null`
-/// because no valid preference holds one.
+/// `repr(float)` for finite values. serde_json writes a non-finite field as
+/// `null` without calling the formatter, so it never reaches this function.
 fn python_float_repr(value: f64) -> String {
-    if !value.is_finite() {
-        return "null".into();
-    }
     // `{:e}` yields the shortest round-trip digits as `d.ddde-N`.
     let sci = format!("{value:e}");
     let (mantissa, exp) = sci.split_once('e').unwrap_or((&sci, "0"));

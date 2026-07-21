@@ -462,6 +462,7 @@ def preferences() -> dict:
         ("legacy nulls", '{"camera_id": null, "camera_brightness": null, "camera_contrast": null}'),
         ("empty strings", '{"audio_device": "", "target_face": ""}'),
         ("non-bmp string", r'{"audio_device": "mic \ud83c\udfa4"}'),
+        ("seventeen digit float", '{"tracking_region_fraction": 0.19862074538694519}'),
     ]
     defaults = asdict(Preferences())
     wrong_types = {
