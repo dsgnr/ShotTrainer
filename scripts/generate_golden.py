@@ -389,7 +389,188 @@ def export_csv() -> dict:
     return {"shots": shots, "samples": samples, "files": files}
 
 
-AREAS = {"scoring": scoring, "shot_stats": shot_stats, "trace": trace, "export_csv": export_csv}
+def preferences() -> dict:
+    import os
+    from dataclasses import asdict
+    from unittest import mock
+
+    from shottrainer.app import paths
+    from shottrainer.app.preferences import Preferences
+    from shottrainer.app.settings import _RANGES, load_preferences, save_preferences
+
+    texts: list[tuple[str, str | bytes]] = [
+        ("empty object", "{}"),
+        ("whitespace object", " \n{ }\n"),
+        ("null", "null"),
+        ("array", "[]"),
+        ("number", "3"),
+        ("string", '"x"'),
+        ("true", "true"),
+        ("invalid json", "not json"),
+        ("truncated", '{"camera_id": 1,'),
+        ("empty file", ""),
+        ("invalid utf-8", b"\xff\xfe"),
+        ("unknown keys", '{"camera_id": 1, "unknown_key": true, "other": [1, 2]}'),
+        ("duplicate key", '{"camera_id": 1, "camera_id": 4}'),
+        (
+            "full valid",
+            json.dumps(
+                {
+                    "camera_id": 2,
+                    "camera_rotation": 270,
+                    "camera_flip_h": True,
+                    "camera_flip_v": True,
+                    "camera_brightness": -12.5,
+                    "camera_contrast": 1.75,
+                    "audio_device": "USB Mic \u00e9",
+                    "audio_gain": 3.5,
+                    "shot_threshold": 0.4,
+                    "shot_refractory_ms": 500,
+                    "pre_shot_ms": 2000,
+                    "post_shot_ms": 1000,
+                    "release_window_ms": 300,
+                    "target_face": "ten_metre",
+                    "shot_diameter_mm": 5.6,
+                    "tracking_region_fraction": 0.5,
+                    "circle_diameter_mm": 80.0,
+                    "invert_trace_horizontal": True,
+                    "invert_trace_vertical": True,
+                    "show_hold_zone": False,
+                }
+            ),
+        ),
+        ("camera id null", '{"camera_id": null}'),
+        ("camera id negative", '{"camera_id": -1, "audio_gain": 2}'),
+        ("camera id zero", '{"camera_id": 0}'),
+        ("camera id int32 max", '{"camera_id": 2147483647}'),
+        ("camera id past int32", '{"camera_id": 2147483648}'),
+        ("camera id float", '{"camera_id": 1.0}'),
+        ("camera id true", '{"camera_id": true}'),
+        ("camera id string", '{"camera_id": "1"}'),
+        ("camera id exponent", '{"camera_id": 1e2}'),
+        ("negative zero int", '{"pre_shot_ms": -0}'),
+        ("rotation 90", '{"camera_rotation": 90}'),
+        ("rotation 45", '{"camera_rotation": 45}'),
+        ("rotation float", '{"camera_rotation": 90.0}'),
+        ("integer for float field", '{"audio_gain": 2, "camera_brightness": -5}'),
+        ("float for int field", '{"shot_refractory_ms": 400.0}'),
+        ("huge int", '{"release_window_ms": 100000000000000000000, "audio_gain": 1e999}'),
+        ("nan", '{"shot_threshold": NaN, "shot_diameter_mm": 5.6}'),
+        ("infinity", '{"audio_gain": Infinity, "camera_contrast": -Infinity, "pre_shot_ms": 7}'),
+        ("nan in string", '{"audio_device": "NaN Infinity", "shot_threshold": NaN}'),
+        ("nan for string field", '{"audio_device": NaN}'),
+        ("legacy nulls", '{"camera_id": null, "camera_brightness": null, "camera_contrast": null}'),
+        ("empty strings", '{"audio_device": "", "target_face": ""}'),
+        ("non-bmp string", r'{"audio_device": "mic \ud83c\udfa4"}'),
+    ]
+    defaults = asdict(Preferences())
+    wrong_types = {
+        "camera_id": ["1", 1.5, True, [], {}],
+        "camera_rotation": ["90", True, None, 90.5],
+        "camera_flip_h": [1, "false", None, 0.0],
+        "camera_flip_v": [0, "true", None],
+        "camera_brightness": ["1", True, None, []],
+        "camera_contrast": ["1", False, None],
+        "audio_device": [1, True, None, []],
+        "audio_gain": ["1", True, None],
+        "shot_threshold": ["0.2", False, None],
+        "shot_refractory_ms": ["400", True, None, 400.5],
+        "pre_shot_ms": ["1", True, None],
+        "post_shot_ms": ["1", False, None],
+        "release_window_ms": ["250", True, None],
+        "target_face": [1, True, None, {}],
+        "shot_diameter_mm": ["4.5", True, None],
+        "tracking_region_fraction": ["0.7", True, None],
+        "circle_diameter_mm": ["60", True, None],
+        "invert_trace_horizontal": [1, "x", None],
+        "invert_trace_vertical": [1, "x", None],
+        "show_hold_zone": [1, "x", None],
+    }
+    for key, values in wrong_types.items():
+        for i, value in enumerate(values):
+            texts.append(
+                (f"wrong type {key} {i}", json.dumps({key: value, "shot_diameter_mm": 5.6}))
+            )
+    for key, (low, high) in _RANGES.items():
+        step = 1 if isinstance(low, int) else low / 10
+        for label, value in [
+            ("below", low - step),
+            ("at low", low),
+            ("at high", high),
+            ("above", high + step),
+        ]:
+            texts.append((f"range {key} {label}", json.dumps({key: value, "audio_gain": 2.5})))
+
+    cases = []
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "settings.json"
+        for name, text in texts:
+            if isinstance(text, bytes):
+                target.write_bytes(text)
+            else:
+                target.write_text(text, encoding="utf-8")
+            loaded = asdict(load_preferences(target))
+            case = {"name": name, "prefs": loaded}
+            if isinstance(text, bytes):
+                case["hex"] = text.hex()
+            else:
+                case["raw"] = text
+            cases.append(case)
+
+        saves = []
+        variants = [
+            {},
+            {"camera_id": None},
+            {"camera_id": 3, "camera_brightness": 5.0, "audio_gain": 10.0},
+            {"camera_brightness": -100.0, "camera_contrast": 0.5, "shot_threshold": 0.01},
+            {"audio_device": 'quote " back \\ tab \t nl \n \u00e9 \u20ac \U0001f3a4 \x7f \x01'},
+            {"target_face": "", "show_hold_zone": False, "invert_trace_vertical": True},
+            {"audio_gain": 1e-5, "shot_threshold": 0.0001, "circle_diameter_mm": 1e16},
+            {"audio_gain": 123456789012345680.0, "shot_diameter_mm": 5e-324},
+            {"camera_brightness": -0.0, "tracking_region_fraction": 0.1 + 0.2},
+            {"shot_refractory_ms": -5, "pre_shot_ms": 2147483647},
+        ]
+        for fields in variants:
+            prefs = Preferences(**fields)
+            save_preferences(prefs, target)
+            saves.append({"prefs": asdict(prefs), "text": target.read_text()})
+
+    data_dirs = []
+    home = Path("/home/user")
+    envs = [
+        {},
+        {"APPDATA": "/appdata", "XDG_DATA_HOME": "/xdg"},
+        {"APPDATA": "", "XDG_DATA_HOME": ""},
+        {"APPDATA": "/data with space", "XDG_DATA_HOME": "/data with space"},
+        {"HOME": "/ignored"},
+    ]
+    for platform in ("win32", "darwin", "linux"):
+        for env in envs:
+            with (
+                mock.patch.object(paths.sys, "platform", platform),
+                mock.patch.dict(os.environ, env, clear=True),
+                mock.patch.object(Path, "home", return_value=home),
+                mock.patch.object(Path, "mkdir"),
+            ):
+                result = paths.data_dir()
+            data_dirs.append(
+                {
+                    "platform": {"win32": "windows", "darwin": "macos", "linux": "linux"}[platform],
+                    "env": env,
+                    "home": str(home),
+                    "path": str(result),
+                }
+            )
+    return {"defaults": defaults, "cases": cases, "saves": saves, "data_dirs": data_dirs}
+
+
+AREAS = {
+    "preferences": preferences,
+    "scoring": scoring,
+    "shot_stats": shot_stats,
+    "trace": trace,
+    "export_csv": export_csv,
+}
 
 if __name__ == "__main__":
     name = sys.argv[1]
@@ -405,6 +586,21 @@ if __name__ == "__main__":
                 else f"{json.dumps(k)}:[\n"
                 + ",\n".join(json.dumps(i, separators=(",", ":")) for i in v)
                 + "\n]"
+                for k, v in data.items()
+            )
+            + "\n}\n"
+        )
+    elif name == "preferences":
+
+        def compact(v: object) -> str:
+            return json.dumps(v, separators=(",", ":"))
+
+        text = (
+            "{\n"
+            + ",\n".join(
+                f"{json.dumps(k)}:{compact(v)}"
+                if k == "defaults"
+                else f"{json.dumps(k)}:[\n" + ",\n".join(compact(i) for i in v) + "\n]"
                 for k, v in data.items()
             )
             + "\n}\n"
