@@ -6,6 +6,7 @@ mod json_write;
 mod paths;
 mod preferences;
 pub mod stores;
+pub mod target_faces;
 
 pub use error::SettingsError;
 pub use paths::{Platform, data_dir, data_dir_for, sessions_db_path, settings_path};

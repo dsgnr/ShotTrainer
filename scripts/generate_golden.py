@@ -895,6 +895,203 @@ def stores() -> dict:
     }
 
 
+def target_faces() -> dict:
+    import shottrainer.app.target_faces as tf
+
+    def face_dict(face: object) -> dict:
+        return {
+            "key": face.key,
+            "label": face.label,
+            "rings": [[r.diameter_mm, r.label] for r in face.rings],
+            "shot_diameter_mm": face.shot_diameter_mm,
+            "face_diameter_mm": face.face_diameter_mm,
+            "scoring_direction": face.scoring_direction,
+        }
+
+    ring = {"diameter_mm": 10.0, "label": "X"}
+    texts: list[tuple[str, str | bytes | None]] = [
+        ("missing", None),
+        ("empty_object", "{}"),
+        ("empty_list", "[]"),
+        ("list_top_level", '[{"rings": [{"diameter_mm": 5}]}]'),
+        ("string_top_level", '"faces"'),
+        ("number_top_level", "7"),
+        ("garbage", "not json"),
+        ("invalid_utf8", b"\xff\xfe"),
+        ("truncated", '{"a": {"rings": [{"diameter_mm": 5}'),
+        (
+            "valid",
+            json.dumps(
+                {
+                    "my_face": {
+                        "label": "My face",
+                        "shot_diameter_mm": 5.6,
+                        "face_diameter_mm": 112.5,
+                        "scoring_direction": "outward",
+                        "rings": [{"diameter_mm": 100.0, "label": "1"}, ring],
+                    },
+                    "plain": {"rings": [{"diameter_mm": 3}]},
+                }
+            ),
+        ),
+        ("unknown_keys", json.dumps({"u": {"rings": [ring], "colour": "red", "extra": [1]}})),
+        (
+            "body_not_object",
+            json.dumps({"a": [1], "b": "x", "c": None, "d": 3, "e": {"rings": [ring]}}),
+        ),
+        ("missing_rings", json.dumps({"a": {"label": "No rings"}, "b": {"rings": [ring]}})),
+        ("rings_not_list", json.dumps({"a": {"rings": {"diameter_mm": 5}}, "b": {"rings": "x"}})),
+        ("rings_empty", json.dumps({"a": {"rings": []}})),
+        (
+            "ring_entries",
+            json.dumps({"a": {"rings": [1, "x", None, [], {"label": "no diameter"}, ring]}}),
+        ),
+        (
+            "ring_diameters",
+            json.dumps(
+                {
+                    "a": {
+                        "rings": [
+                            {"diameter_mm": 0, "label": "zero"},
+                            {"diameter_mm": -1.5, "label": "neg"},
+                            {"diameter_mm": True, "label": "bool"},
+                            {"diameter_mm": None, "label": "null"},
+                            {"diameter_mm": "12.5", "label": "str"},
+                            {"diameter_mm": " 1_0 ", "label": "under"},
+                            {"diameter_mm": "abc", "label": "text"},
+                            {"diameter_mm": "inf", "label": "infstr"},
+                            {"diameter_mm": [3], "label": "list"},
+                            {"diameter_mm": 10**400, "label": "huge"},
+                            {"diameter_mm": 2, "label": "int"},
+                            {"diameter_mm": 1e-300, "label": "tiny"},
+                        ]
+                    }
+                }
+            ),
+        ),
+        (
+            "non_finite_tokens",
+            '{"a": {"rings": [{"diameter_mm": NaN}, {"diameter_mm": Infinity},'
+            ' {"diameter_mm": -Infinity}, {"diameter_mm": 1e999}, {"diameter_mm": 4}],'
+            ' "shot_diameter_mm": NaN, "face_diameter_mm": Infinity}}',
+        ),
+        (
+            "metadata",
+            json.dumps(
+                {
+                    "a": {"rings": [ring], "shot_diameter_mm": "huge", "face_diameter_mm": -1},
+                    "b": {"rings": [ring], "shot_diameter_mm": "5.6", "face_diameter_mm": 0},
+                    "c": {"rings": [ring], "shot_diameter_mm": True, "face_diameter_mm": 10**400},
+                    "d": {"rings": [ring], "shot_diameter_mm": 4, "face_diameter_mm": [1]},
+                }
+            ),
+        ),
+        (
+            "labels",
+            json.dumps(
+                {
+                    "n": {"label": 5, "rings": [{"diameter_mm": 1, "label": 9}]},
+                    "z": {"label": 0, "rings": [{"diameter_mm": 1, "label": 0.0}]},
+                    "f": {"label": 2.5, "rings": [{"diameter_mm": 1, "label": False}]},
+                    "t": {"label": True, "rings": [{"diameter_mm": 1, "label": True}]},
+                    "l": {"label": [1, "a"], "rings": [{"diameter_mm": 1, "label": [1.0, None]}]},
+                    "o": {"label": {"a": 1}, "rings": [{"diameter_mm": 1, "label": {}}]},
+                    "s": {"label": "", "rings": [{"diameter_mm": 1, "label": None}]},
+                    "u": {"label": "caf\u00e9 \u2603", "rings": [{"diameter_mm": 1, "label": "X"}]},
+                }
+            ),
+        ),
+        (
+            "directions",
+            json.dumps(
+                {
+                    "a": {"scoring_direction": "outward", "rings": [ring]},
+                    "b": {"scoring_direction": "sideways", "rings": [ring]},
+                    "c": {"scoring_direction": "Outward", "rings": [ring]},
+                    "d": {"scoring_direction": 1, "rings": [ring]},
+                    "e": {"scoring_direction": None, "rings": [ring]},
+                    "f": {"scoring_direction": ["inward"], "rings": [ring]},
+                }
+            ),
+        ),
+        (
+            "duplicate_ids",
+            '{"d": {"label": "first", "rings": [{"diameter_mm": 1}]},'
+            ' "e": {"rings": [{"diameter_mm": 2}]},'
+            ' "d": {"label": "second", "rings": [{"diameter_mm": 3}]}}',
+        ),
+        (
+            "built_in_collision",
+            json.dumps(
+                {
+                    "default": {"label": "Mine", "rings": [{"diameter_mm": 99, "label": "1"}]},
+                    "smallbore_50m": {"rings": [{"diameter_mm": -10}]},
+                    "air_rifle_10m": {"label": "aaa first", "rings": [ring]},
+                }
+            ),
+        ),
+        (
+            "sorting",
+            json.dumps(
+                {
+                    "z": {"label": "Zed", "rings": [ring]},
+                    "b": {"label": "alpha", "rings": [ring]},
+                    "c": {"label": "Alpha", "rings": [ring]},
+                    "d": {"label": "\u00c9clair", "rings": [ring]},
+                    "e": {"label": "\u03a3\u03a3", "rings": [ring]},
+                }
+            ),
+        ),
+    ]
+
+    cases = []
+    original = tf.custom_faces_path
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "custom_target_faces.json"
+            tf.custom_faces_path = lambda: target
+            for name, text in texts:
+                target.unlink(missing_ok=True)
+                if isinstance(text, bytes):
+                    target.write_bytes(text)
+                elif text is not None:
+                    target.write_text(text, encoding="utf-8")
+                tf.reload_custom_faces()
+                custom = list(tf._load_custom_faces().values())
+                case = {
+                    "name": name,
+                    "faces": [face_dict(f) for f in custom],
+                    "list": tf.list_target_faces(),
+                    "merged_keys": list(tf._merged_faces()),
+                    "fallback": tf.get_face("nonsense").key,
+                }
+                if isinstance(text, bytes):
+                    case["bytes_hex"] = text.hex()
+                else:
+                    case["text"] = text
+                cases.append(case)
+            # A directory in place of the file is unreadable.
+            target.unlink(missing_ok=True)
+            target.mkdir()
+            tf.reload_custom_faces()
+            cases.append(
+                {
+                    "name": "directory",
+                    "directory": True,
+                    "faces": [],
+                    "list": tf.list_target_faces(),
+                    "merged_keys": list(tf._merged_faces()),
+                    "fallback": tf.get_face("nonsense").key,
+                }
+            )
+    finally:
+        tf.custom_faces_path = original
+        tf.reload_custom_faces()
+
+    built_in = [face_dict(f) for f in tf._load_built_in_faces().values()]
+    return {"built_in": built_in, "cases": cases}
+
+
 AREAS = {
     "preferences": preferences,
     "scoring": scoring,
@@ -902,6 +1099,7 @@ AREAS = {
     "trace": trace,
     "export_csv": export_csv,
     "stores": stores,
+    "target_faces": target_faces,
 }
 
 if __name__ == "__main__":
@@ -922,7 +1120,7 @@ if __name__ == "__main__":
             )
             + "\n}\n"
         )
-    elif name in ("preferences", "stores"):
+    elif name in ("preferences", "stores", "target_faces"):
 
         def compact(v: object) -> str:
             return json.dumps(v, separators=(",", ":"))

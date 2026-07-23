@@ -1,0 +1,15 @@
+{
+  "label": "NSRA 100yd Prone Rifle (NSRA 1001C 1996-18)",
+  "shot_diameter_mm": 5.6,
+  "face_diameter_mm": 211,
+  "rings": [
+    { "diameter_mm": 205, "label": "4" },
+    { "diameter_mm": 180, "label": "5" },
+    { "diameter_mm": 149, "label": "6" },
+    { "diameter_mm": 118, "label": "7" },
+    { "diameter_mm": 87.5, "label": "8" },
+    { "diameter_mm": 56.5, "label": "9" },
+    { "diameter_mm": 25.5, "label": "10" },
+    { "diameter_mm": 11.5, "label": "X" }
+  ]
+}
