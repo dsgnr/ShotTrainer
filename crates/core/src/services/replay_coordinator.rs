@@ -9,7 +9,7 @@ use crate::sessions::{DatabaseError, SessionRepository};
 /// the trigger breaks.
 pub const DEFAULT_RELEASE_WINDOW_MS: i64 = 250;
 
-/// Trace samples around a shot with the phase boundaries.
+/// Trace samples around a shot with the release boundaries.
 ///
 /// Samples without both millimetre coordinates are omitted so every index
 /// refers to the points the player and target view display. `split_index` is

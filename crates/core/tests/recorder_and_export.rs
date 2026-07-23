@@ -95,7 +95,7 @@ fn test_release_index_default_is_250ms() {
 }
 
 #[test]
-fn test_phase_indices_only_include_samples_with_both_coordinates() {
+fn test_window_indices_only_include_samples_with_both_coordinates() {
     let db = engine();
     let repo = SessionRepository::new(&db);
     let sid = repo.create_session(&NewSession::default()).unwrap();
@@ -127,7 +127,7 @@ fn test_phase_indices_only_include_samples_with_both_coordinates() {
 }
 
 #[test]
-fn test_unmapped_window_has_no_replay_or_phase_boundaries() {
+fn test_unmapped_window_has_no_replay_or_release_boundaries() {
     let db = engine();
     let repo = SessionRepository::new(&db);
     let sid = repo.create_session(&NewSession::default()).unwrap();
