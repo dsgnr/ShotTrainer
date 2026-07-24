@@ -22,42 +22,31 @@ pub struct ShotWindow {
     pub release_index: Option<usize>,
 }
 
-pub struct ReplayCoordinator<'a> {
-    repo: &'a SessionRepository<'a>,
-}
-
-impl<'a> ReplayCoordinator<'a> {
-    pub fn new(repo: &'a SessionRepository<'a>) -> Self {
-        ReplayCoordinator { repo }
-    }
-
-    /// `release_index` is `None` when no sample falls between the release
-    /// threshold and the shot timestamp.
-    pub fn shot_window(
-        &self,
-        session_id: i64,
-        shot_ts: f64,
-        pre_ms: i64,
-        post_ms: i64,
-        release_ms: i64,
-    ) -> Result<ShotWindow, DatabaseError> {
-        let start = shot_ts - pre_ms as f64 / 1000.0;
-        let end = shot_ts + post_ms as f64 / 1000.0;
-        let samples: Vec<TrackingSample> = self
-            .repo
-            .load_trace(session_id, Some(start), Some(end))?
-            .into_iter()
-            .filter(|s| s.x_mm.is_some() && s.y_mm.is_some())
-            .collect();
-        let split_index = index_of_nearest(&samples, shot_ts);
-        let threshold = shot_ts - release_ms as f64 / 1000.0;
-        let release_index = samples
-            .iter()
-            .position(|s| threshold <= s.timestamp && s.timestamp <= shot_ts);
-        Ok(ShotWindow {
-            samples,
-            split_index,
-            release_index,
-        })
-    }
+/// `release_index` is `None` when no sample falls between the release
+/// threshold and the shot timestamp.
+pub fn shot_window(
+    repo: &SessionRepository,
+    session_id: i64,
+    shot_ts: f64,
+    pre_ms: i64,
+    post_ms: i64,
+    release_ms: i64,
+) -> Result<ShotWindow, DatabaseError> {
+    let start = shot_ts - pre_ms as f64 / 1000.0;
+    let end = shot_ts + post_ms as f64 / 1000.0;
+    let samples: Vec<TrackingSample> = repo
+        .load_trace(session_id, Some(start), Some(end))?
+        .into_iter()
+        .filter(|s| s.x_mm.is_some() && s.y_mm.is_some())
+        .collect();
+    let split_index = index_of_nearest(&samples, shot_ts);
+    let threshold = shot_ts - release_ms as f64 / 1000.0;
+    let release_index = samples
+        .iter()
+        .position(|s| threshold <= s.timestamp && s.timestamp <= shot_ts);
+    Ok(ShotWindow {
+        samples,
+        split_index,
+        release_index,
+    })
 }

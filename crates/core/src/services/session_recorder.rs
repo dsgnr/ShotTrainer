@@ -31,18 +31,19 @@ impl Default for RecorderConfig {
     }
 }
 
-pub struct SessionRecorder<'a> {
-    repo: &'a SessionRepository<'a>,
+/// Holds the batching state only. Every method that touches the database
+/// takes the repository per call, so the recorder can live beside the
+/// connection and move between threads.
+pub struct SessionRecorder {
     config: RecorderConfig,
     session_id: Option<i64>,
     pending: Vec<TrackingSample>,
     last_flush_ts: f64,
 }
 
-impl<'a> SessionRecorder<'a> {
-    pub fn new(repo: &'a SessionRepository<'a>, config: RecorderConfig) -> Self {
+impl SessionRecorder {
+    pub fn new(config: RecorderConfig) -> Self {
         SessionRecorder {
-            repo,
             config,
             session_id: None,
             pending: Vec::new(),
@@ -58,11 +59,15 @@ impl<'a> SessionRecorder<'a> {
         self.session_id.is_some()
     }
 
-    pub fn start(&mut self, new: &NewSession) -> Result<i64, RecorderError> {
+    pub fn start(
+        &mut self,
+        repo: &SessionRepository,
+        new: &NewSession,
+    ) -> Result<i64, RecorderError> {
         if self.session_id.is_some() {
             return Err(RecorderError::AlreadyRunning);
         }
-        let id = self.repo.create_session(new)?;
+        let id = repo.create_session(new)?;
         self.session_id = Some(id);
         self.pending.clear();
         self.last_flush_ts = 0.0;
@@ -71,7 +76,11 @@ impl<'a> SessionRecorder<'a> {
     }
 
     /// Drops the sample when no session is running.
-    pub fn add_sample(&mut self, sample: TrackingSample) -> Result<(), DatabaseError> {
+    pub fn add_sample(
+        &mut self,
+        repo: &SessionRepository,
+        sample: TrackingSample,
+    ) -> Result<(), DatabaseError> {
         if self.session_id.is_none() {
             return Ok(());
         }
@@ -80,45 +89,61 @@ impl<'a> SessionRecorder<'a> {
         if self.pending.len() >= self.config.flush_every
             || timestamp - self.last_flush_ts >= self.config.flush_seconds
         {
-            self.flush(timestamp)?;
+            self.flush(repo, timestamp)?;
         }
         Ok(())
     }
 
     /// Flushes pending samples first so the saved trace has no gap where the
     /// shot lands. Returns `None` when no session is running.
-    pub fn add_shot(&mut self, shot: &NewShot) -> Result<Option<i64>, DatabaseError> {
+    pub fn add_shot(
+        &mut self,
+        repo: &SessionRepository,
+        shot: &NewShot,
+    ) -> Result<Option<i64>, DatabaseError> {
         let Some(session_id) = self.session_id else {
             return Ok(None);
         };
-        self.flush(shot.ts)?;
-        self.repo.add_shot(session_id, shot).map(Some)
+        self.flush(repo, shot.ts)?;
+        repo.add_shot(session_id, shot).map(Some)
     }
 
     /// Flushes, stamps `ended_at` and returns the session id, or `None` when
     /// no session is running.
-    pub fn stop(&mut self) -> Result<Option<i64>, DatabaseError> {
+    pub fn stop(&mut self, repo: &SessionRepository) -> Result<Option<i64>, DatabaseError> {
         let Some(session_id) = self.session_id else {
             return Ok(None);
         };
-        self.flush(self.last_flush_ts)?;
-        self.repo.end_session(session_id, Some(utc_now()))?;
+        self.flush(repo, self.last_flush_ts)?;
+        repo.end_session(session_id, Some(utc_now()))?;
         self.session_id = None;
         log::info!("stopped session {session_id}");
         Ok(Some(session_id))
     }
 
     /// Keeps the pending samples when the write fails so a retry loses none.
-    fn flush(&mut self, now_ts: f64) -> Result<(), DatabaseError> {
+    fn flush(&mut self, repo: &SessionRepository, now_ts: f64) -> Result<(), DatabaseError> {
         let Some(session_id) = self.session_id else {
             return Ok(());
         };
         if self.pending.is_empty() {
             return Ok(());
         }
-        self.repo.append_trace(session_id, &self.pending)?;
+        repo.append_trace(session_id, &self.pending)?;
         self.pending.clear();
         self.last_flush_ts = now_ts;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_send<T: Send>() {}
+
+    #[test]
+    fn recorder_is_send() {
+        assert_send::<SessionRecorder>();
     }
 }
