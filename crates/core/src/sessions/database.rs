@@ -123,8 +123,8 @@ pub fn make_engine(db_path: &str) -> Result<Db, DatabaseError> {
 }
 
 /// Creates any missing tables and runs pending migrations in a single
-/// transaction. An empty `schema_meta` table is treated as a fresh database
-/// and receives the current version without any migration.
+/// transaction. An empty `schema_meta` table is treated as version 1 and
+/// migrated, then receives the current version.
 pub fn init_database(conn: &Db) -> Result<(), DatabaseError> {
     let tx = conn.unchecked_transaction()?;
     for (name, create, indexes) in TABLES {
@@ -142,6 +142,11 @@ pub fn init_database(conn: &Db) -> Result<(), DatabaseError> {
         .optional()?;
     match existing {
         None => {
+            // Python stamps the current version here without migrating, which
+            // leaves an old layout unreadable for good. The migration steps
+            // check the columns first, so running them on a current layout
+            // changes nothing. This differs from Python on purpose.
+            apply_migrations(conn, 1)?;
             conn.execute(
                 "INSERT INTO schema_meta (version, app_version) VALUES (?1, ?2)",
                 (SCHEMA_VERSION, APP_VERSION),

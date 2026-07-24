@@ -174,7 +174,7 @@ fn deleting_a_session_cascades() {
 }
 
 #[test]
-fn empty_schema_meta_gets_the_current_version_without_migrating() {
+fn empty_schema_meta_on_a_v1_layout_is_migrated() {
     let dir = tempfile::tempdir().unwrap();
     let path = legacy_db(dir.path(), 1);
     Connection::open(&path)
@@ -182,9 +182,36 @@ fn empty_schema_meta_gets_the_current_version_without_migrating() {
         .execute_batch("DELETE FROM schema_meta")
         .unwrap();
     let conn = make_engine(path.to_str().unwrap()).unwrap();
-    assert_eq!(version(&conn), 3);
-    // Matches Python, which skips the migrations when no row exists.
-    assert!(column_names(&conn, "sessions").contains(&"calibration_json".to_string()));
+    check_migrated(&conn, &["practice", "practice"]);
+    assert_eq!(count(&conn, "schema_meta"), 1);
+}
+
+#[test]
+fn empty_schema_meta_on_a_current_layout_only_gains_the_version_row() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = legacy_db(dir.path(), 3);
+    let before = {
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch("DELETE FROM schema_meta").unwrap();
+        (
+            columns(&conn, "sessions"),
+            indexes(&conn, "sessions"),
+            count(&conn, "sessions"),
+            count(&conn, "trace_samples"),
+            count(&conn, "shots"),
+        )
+    };
+    let conn = make_engine(path.to_str().unwrap()).unwrap();
+    let after = (
+        columns(&conn, "sessions"),
+        indexes(&conn, "sessions"),
+        count(&conn, "sessions"),
+        count(&conn, "trace_samples"),
+        count(&conn, "shots"),
+    );
+    assert_eq!(before, after);
+    assert_eq!(version(&conn), SCHEMA_VERSION);
+    assert_eq!(count(&conn, "schema_meta"), 1);
 }
 
 #[test]
