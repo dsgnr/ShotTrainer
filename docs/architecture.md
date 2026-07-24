@@ -176,6 +176,75 @@ Contains:
 
 This is where the Qt application and the core services are connected together.
 
+## Rust workspace
+
+A Cargo workspace under `crates/` holds Rust implementations of the storage,
+scoring, statistics, services and settings code. Camera capture, target
+detection, the tracker, audio capture, shot detection, the controller and the
+interface are not part of the workspace yet and remain in Python. The Python
+code under `src/shottrainer/` is the reference for behaviour. The Rust crates
+read and write the same `sessions.db`, JSON files and CSV exports.
+
+| Crate      | Contents                                                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tracking` | Shared tracking value types such as `TrackingSample`                                                                                             |
+| `audio`    | Shared audio value types                                                                                                                         |
+| `core`     | Sessions database, migrations and repository, scoring, statistics, trace buffer, shot and replay coordinators, session recorder and CSV exporter |
+| `settings` | Data paths, preferences, detector, zero offset, camera and window state stores and the target face catalogue                                     |
+| `testkit`  | Test helpers for loading golden fixtures and comparing floats                                                                                    |
+
+Import rules between the crates:
+
+- `tracking`, `audio` and `settings` import no other workspace crate.
+- `core` imports only `tracking` and `audio`.
+- `testkit` is used only from tests.
+- No crate imports a UI framework.
+
+The Python `sessions` and `services` modules depend on each other through
+scoring, so `core` holds both and the Rust `app` stores live in `settings`.
+
+### Golden fixtures
+
+Behaviour that has to match Python is fixed by JSON fixtures in
+`testdata/golden/`. Each fixture is generated from the Python implementation by
+`scripts/generate_golden.py`, and the Rust tests load it through `testkit`.
+The available names are `preferences`, `scoring`, `shot_stats`, `trace`,
+`export_csv`, `stores` and `target_faces`. To regenerate one and check the Rust
+side against it:
+
+```bash
+uv run python scripts/generate_golden.py scoring
+cargo test --workspace
+```
+
+Keep fixtures compact and well under 150 KB by choosing boundary cases over
+exhaustive combinations. Floating-point comparisons use a tolerance of `1e-9`,
+so a case whose result can be zero also asserts the sign explicitly.
+
+### Compatibility checks
+
+- Schema migrations are tested against databases built from the SQL dumps in
+  `testdata/legacy/`, one per schema version. `scripts/make_legacy_db.py`
+  writes the dumps from the Python schema definitions.
+- `crates/core/examples/write_fixture_db.rs` writes a database and CSV export
+  through the Rust repository and exporter. `scripts/check_rust_db.py` opens
+  that database with the Python `SessionRepository`, checks counts, categories,
+  shot order, `NULL` millimetre values and datetimes, and compares the CSV files
+  with the Python exporter byte for byte. Run it with temporary paths only:
+
+  ```bash
+  cargo run -q -p shottrainer-core --example write_fixture_db -- \
+    /tmp/rust_fixture.db /tmp/rust_fixture_csv > /tmp/rust_fixture.json
+  uv run python scripts/check_rust_db.py \
+    /tmp/rust_fixture.db /tmp/rust_fixture.json /tmp/rust_fixture_csv
+  ```
+
+  The script prints `ok` on success. Remove the temporary files afterwards.
+- Tests never touch the real data directory.
+
+See [`CONTRIBUTING.md`](https://github.com/dsgnr/ShotTrainer/blob/main/CONTRIBUTING.md)
+for the Rust format, lint and test commands.
+
 ## Persistent data
 
 ShotTrainer stores data in a small number of files within its data directory.

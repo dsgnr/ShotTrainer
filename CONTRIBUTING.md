@@ -51,6 +51,25 @@ System packages that sometimes need installing alongside `uv sync`:
 - Debian / Ubuntu: `sudo apt install libportaudio2 libegl1 libgl1`.
 - Windows: nothing extra. PortAudio ships with the wheel.
 
+## Rust workspace
+
+The Cargo workspace under `crates/` needs a stable Rust toolchain with `clippy`
+and `rustfmt`. From the repository root:
+
+```bash
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+```
+
+Run `cargo fmt --all` to apply formatting. The [rust workflow](.github/workflows/rust.yml)
+runs the same three commands on Linux, macOS and Windows, so avoid tests that
+depend on POSIX paths, file permissions or the platform clock resolution.
+Golden fixtures are regenerated from the Python code with
+`uv run python scripts/generate_golden.py <name>`. The crate layout, fixtures
+and compatibility checks are described in the
+[architecture notes](docs/architecture.md#rust-workspace).
+
 ## Working on a change
 
 1. Branch off `main`.
