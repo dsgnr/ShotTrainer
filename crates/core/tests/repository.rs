@@ -661,3 +661,57 @@ proptest! {
         }
     }
 }
+
+/// The real schema declares these columns NOT NULL, so the NULLs come from a
+/// copy of the tables without that constraint.
+fn lenient_db() -> Db {
+    let conn = Db::open_in_memory().unwrap();
+    conn.execute_batch(
+        "CREATE TABLE sessions (
+            id INTEGER PRIMARY KEY, name TEXT, started_at DATETIME, ended_at DATETIME,
+            notes TEXT, target_profile TEXT, category TEXT, app_version TEXT,
+            schema_version INTEGER);
+        CREATE TABLE shots (
+            id INTEGER PRIMARY KEY, session_id INTEGER, ts FLOAT, x_mm FLOAT, y_mm FLOAT,
+            audio_level FLOAT, confidence FLOAT, score TEXT);
+        INSERT INTO sessions VALUES
+            (1, NULL, '2026-01-01 10:00:00.000000', NULL, NULL, NULL, NULL, NULL, 3);
+        INSERT INTO shots VALUES
+            (1, 1, 1.0, 1.0, 1.0, 0.5, 0.9, NULL),
+            (2, 1, 2.0, 1.0, 1.0, 0.5, 0.9, '9.5');",
+    )
+    .unwrap();
+    conn
+}
+
+#[test]
+fn list_sessions_reads_null_text_columns_as_empty() {
+    let db = lenient_db();
+    let sessions = SessionRepository::new(&db).list_sessions().unwrap();
+    assert_eq!(sessions.len(), 1);
+    assert_eq!(sessions[0].name, "");
+    assert_eq!(sessions[0].category, "");
+    assert_eq!(sessions[0].shot_count, 2);
+    assert_eq!(sessions[0].total_score, 9.5);
+}
+
+#[test]
+fn get_session_reads_null_text_columns_as_empty() {
+    let db = lenient_db();
+    let session = SessionRepository::new(&db).get_session(1).unwrap().unwrap();
+    assert_eq!(session.name, "");
+    assert_eq!(session.notes, "");
+    assert_eq!(session.target_profile, "");
+    assert_eq!(session.category, "");
+    assert_eq!(session.app_version, "");
+    let scores: Vec<&str> = session.shots.iter().map(|s| s.score.as_str()).collect();
+    assert_eq!(scores, vec!["", "9.5"]);
+}
+
+#[test]
+fn list_shots_reads_a_null_score_as_empty() {
+    let db = lenient_db();
+    let shots = SessionRepository::new(&db).list_shots(1).unwrap();
+    assert_eq!(shots.len(), 2);
+    assert_eq!(shots[0].score, "");
+}
