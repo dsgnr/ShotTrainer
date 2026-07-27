@@ -1120,7 +1120,7 @@ if __name__ == "__main__":
             )
             + "\n}\n"
         )
-    elif name in ("preferences", "stores", "target_faces"):
+    elif name in ("preferences", "stores", "target_faces", "scoring", "shot_stats", "trace"):
 
         def compact(v: object) -> str:
             return json.dumps(v, separators=(",", ":"))
