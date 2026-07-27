@@ -886,8 +886,6 @@ class PreferencesDialog(QDialog):
         meta.setObjectName("aboutMeta")
         meta.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(meta, 0, Qt.AlignmentFlag.AlignHCenter)
-        form.addRow("Licence", QLabel("GPL-3.0-or-later"))
-        layout.addLayout(form)
 
         links = QLabel(
             '<a href="https://github.com/dsgnr/ShotTrainer/blob/main/README.md">README</a>'
