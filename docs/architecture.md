@@ -193,6 +193,12 @@ read and write the same `sessions.db`, JSON files and CSV exports.
 | `settings` | Data paths, preferences, detector, zero offset, camera and window state stores and the target face catalogue                                     |
 | `testkit`  | Test helpers for loading golden fixtures and comparing floats                                                                                    |
 
+The Rust `SessionRecorder` holds only its batching state. Each method that
+writes takes a `SessionRepository` argument, so the recorder can live beside
+the connection and move between threads. The replay window is the free function
+`shot_window` in `services::replay_coordinator`, which also takes the
+repository per call.
+
 Import rules between the crates:
 
 - `tracking`, `audio` and `settings` import no other workspace crate.
@@ -201,7 +207,7 @@ Import rules between the crates:
 - No crate imports a UI framework.
 
 The Python `sessions` and `services` modules depend on each other through
-scoring, so `core` holds both and the Rust `app` stores live in `settings`.
+scoring, so `core` holds both and the Python `app` stores live in `settings`.
 
 ### Golden fixtures
 
@@ -217,15 +223,21 @@ uv run python scripts/generate_golden.py scoring
 cargo test --workspace
 ```
 
-Keep fixtures compact and well under 150 KB by choosing boundary cases over
-exhaustive combinations. Floating-point comparisons use a tolerance of `1e-9`,
+Keep fixtures compact, with one case per line, and choose boundary cases over
+exhaustive combinations. The largest fixture, `trace.json`, is about 215 KB. Floating-point comparisons use a tolerance of `1e-9`,
 so a case whose result can be zero also asserts the sign explicitly.
 
 ### Compatibility checks
 
 - Schema migrations are tested against databases built from the SQL dumps in
   `testdata/legacy/`, one per schema version. `scripts/make_legacy_db.py`
-  writes the dumps from the Python schema definitions.
+  writes the dumps from historical DDL it hard-codes and does not import
+  `shottrainer`.
+- A database whose `schema_meta` table exists but has no row is treated as
+  version 1, migrated and then stamped with the current version. Python stamps
+  the current version without migrating, which leaves an old layout unreadable.
+  The migration steps check the columns first, so a current layout is left
+  unchanged.
 - `crates/core/examples/write_fixture_db.rs` writes a database and CSV export
   through the Rust repository and exporter. `scripts/check_rust_db.py` opens
   that database with the Python `SessionRepository`, checks counts, categories,
