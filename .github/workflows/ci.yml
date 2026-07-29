@@ -39,6 +39,9 @@ jobs:
       - name: lint
         run: uv run ruff check .
 
+      - name: type check
+        run: uv run mypy src/shottrainer
+
       - name: test
         env:
           QT_QPA_PLATFORM: offscreen
