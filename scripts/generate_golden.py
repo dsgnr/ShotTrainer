@@ -1385,6 +1385,89 @@ def shot_detector() -> dict:
     return {"cases": cases}
 
 
+def audio_pipeline() -> dict:
+    """Aligned listener callbacks, replayed from ``AudioShotListener._on_block``.
+
+    Each buffer is mono and as long as the block size, so the expected events
+    come straight from the Python detector and level calculation.
+    """
+    import numpy as np
+
+    from shottrainer.audio.models import ShotDetectorSettings
+    from shottrainer.audio.shot_detector import ShotDetector
+
+    def silence(n):
+        return {"kind": "silence", "n": n}
+
+    def impulse(n, amp):
+        return {"kind": "impulse", "n": n, "amp": amp, "decay": 1.0}
+
+    def noise(n, amp):
+        return {"kind": "noise", "n": n, "amp": amp}
+
+    def recipe(seed, *segments):
+        return {"seed": seed, "segments": list(segments)}
+
+    def burst(position, amp=0.875):
+        return recipe(1, silence(position), impulse(1, amp), silence(511 - position))
+
+    def settings(**kw):
+        base = {
+            "threshold": 0.02,
+            "refractory_ms": 200,
+            "block_size": 512,
+            "sample_rate": 8192,
+            "high_pass_alpha": 0.97,
+        }
+        base.update(kw)
+        return base
+
+    quiet = recipe(5, silence(512))
+    cases_in = [
+        (
+            "shot_between_quiet_blocks",
+            settings(),
+            [(1.0, quiet), (1.0625, burst(100)), (1.125, quiet)],
+        ),
+        (
+            "silence_only",
+            settings(),
+            [(0.5, quiet), (0.5625, quiet), (0.625, quiet)],
+        ),
+        (
+            "refractory_repeat_is_suppressed",
+            settings(refractory_ms=300),
+            [(2.0, burst(100)), (2.0625, burst(100)), (2.125, burst(200)), (2.5, burst(100))],
+        ),
+        (
+            "rate_48000_with_noise",
+            settings(sample_rate=48000, threshold=0.2, refractory_ms=150),
+            [
+                (10.0, recipe(31, noise(512, 0.5))),
+                (10.015625, recipe(32, noise(512, 0.125))),
+                (10.25, recipe(33, noise(512, 0.625))),
+            ],
+        ),
+    ]
+
+    cases = []
+    for name, cfg, buffers in cases_in:
+        det = ShotDetector(ShotDetectorSettings(**cfg))
+        out_buffers = []
+        for arrival, rec in buffers:
+            block = _render_recipe(rec)
+            frames = block.size
+            ts = arrival - frames / float(cfg["sample_rate"])
+            rms = float(np.sqrt(np.dot(block, block) / block.size)) if block.size else 0.0
+            events = [["level", rms]]
+            event = det.process_block(block, ts)
+            if event is not None:
+                events.append(["shot", event.timestamp, event.audio_level, event.sample_rate])
+            out_buffers.append({"arrival": arrival, "recipe": rec, "expect": events})
+        cases.append({"name": name, "settings": cfg, "buffers": out_buffers})
+    return {"cases": cases}
+
+
 AREAS = {
     "preferences": preferences,
     "scoring": scoring,
@@ -1394,6 +1477,7 @@ AREAS = {
     "stores": stores,
     "target_faces": target_faces,
     "shot_detector": shot_detector,
+    "audio_pipeline": audio_pipeline,
 }
 
 if __name__ == "__main__":
@@ -1422,6 +1506,7 @@ if __name__ == "__main__":
         "shot_stats",
         "trace",
         "shot_detector",
+        "audio_pipeline",
     ):
 
         def compact(v: object) -> str:
