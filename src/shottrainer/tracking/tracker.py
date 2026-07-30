@@ -319,7 +319,7 @@ class Tracker:
         else:
             self._smoothed_cx_px = (1.0 - a) * self._smoothed_cx_px + a * cx_px
             self._smoothed_cy_px = (1.0 - a) * self._smoothed_cy_px + a * cy_px  # type: ignore[operator]
-        return (self._smoothed_cx_px, self._smoothed_cy_px)  # type: ignore[return-value]
+        return (self._smoothed_cx_px, self._smoothed_cy_px)
 
     def _fallback_axes(self, radius_px: float) -> tuple[float, float]:
         """Pick a sensible axis pair when the current detection is too noisy.
