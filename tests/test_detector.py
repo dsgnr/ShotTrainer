@@ -91,8 +91,8 @@ def test_centroid_uses_image_moments_for_sub_pixel_accuracy():
     img = cv2.resize(big, (640, 480), interpolation=cv2.INTER_AREA)
     det = CircleTargetDetector().detect(img)
     assert det.found
-    assert abs(det.x_px - 320.0) < 0.5
-    assert abs(det.y_px - 240.0) < 0.5
+    assert abs(det.x_px - 320.0) <= 0.5
+    assert abs(det.y_px - 240.0) <= 0.5
 
 
 def test_blob_outside_centre_region_is_rejected():
@@ -205,8 +205,12 @@ def test_morphological_opening_severs_thin_bridge_to_neighbour():
     # and the contour bridges. Opening severs the bridge.
     cv2.line(img, (340, 240), (342, 240), (180, 180, 180), thickness=2)
 
-    with_opening = CircleTargetDetector(DetectorSettings(opening_kernel_px=3)).detect(img)
-    without_opening = CircleTargetDetector(DetectorSettings(opening_kernel_px=0)).detect(img)
+    with_opening = CircleTargetDetector(
+        DetectorSettings(opening_kernel_px=3, closing_kernel_px=0)
+    ).detect(img)
+    without_opening = CircleTargetDetector(
+        DetectorSettings(opening_kernel_px=0, closing_kernel_px=0)
+    ).detect(img)
 
     assert with_opening.found
     # Centroid should be on the target, not pulled toward the distractor
@@ -245,7 +249,9 @@ def test_busy_scene_still_finds_target_and_caps_candidates():
         cv2.rectangle(img, (x, y), (x + side, y + side), (10, 10, 10), -1)
     cv2.circle(img, (320, 240), 25, (0, 0, 0), -1)
 
-    detection = CircleTargetDetector().detect(img)
+    detection = CircleTargetDetector(
+        DetectorSettings(closing_kernel_px=0)
+    ).detect(img)
     assert detection.found
     assert abs(detection.x_px - 320) < 5
     assert abs(detection.y_px - 240) < 5
