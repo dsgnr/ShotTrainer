@@ -1,11 +1,17 @@
-"""Live camera preview widget.
+"""Live camera view.
 
-Shows the latest frame plus an optional aim-point overlay. The
-widget doesn't know anything about camera capture. The caller
-pushes frames in via ``set_frame`` and tracking samples via
-``set_aim_point``. That keeps capture, detection and rendering
-on different timelines and means the widget is testable without
-a real camera.
+:class:`RawCameraView` is a base class (inherited from :class:`QWidget`)
+that renders frames with aspect-ratio scaling. It's intentionally kept simple.
+Used anywhere a plain camera image is needed (popout dialog, preferences preview).
+
+:class:`CameraView` is a child class of :class:`RawCameraView` with
+tracking overlays (aim point, reticle, status badge, region rectangle)
+and click-to-aim. Used in the main window's left column.
+
+Neither class knows anything about camera capture. The caller pushes
+frames in via ``set_frame``. That keeps capture, detection and
+rendering on different timelines and means the classes are testable
+without a real camera.
 """
 
 from __future__ import annotations
@@ -37,8 +43,12 @@ _STATUS_STYLES: dict[str, _StatusStyle] = {
 }
 
 
-class CameraView(QWidget):
-    clicked_at = Signal(float, float)  # image-space coordinates
+class RawCameraView(QWidget):
+    """Renders camera frames scaled to fit.
+
+    Satisfies the ``_FrameMirror`` protocol so it can be used as a
+    target for the controller's frame mirroring.
+    """
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -50,22 +60,12 @@ class CameraView(QWidget):
         self._scaled_pixmap: QPixmap | None = None
         self._scaled_for_size: tuple[int, int] = (0, 0)
         self._frame_size: tuple[int, int] = (0, 0)
-        self._aim_px: tuple[float, float] | None = None
-        self._aim_radius_px: float = 0.0
-        self._rejected_px: tuple[float, float] | None = None
-        self._rejected_radius_px: float = 0.0
-        self._status: TrackingStatus = "idle"
-        self._region_fraction: float = 1.0
 
     def set_frame(self, frame: np.ndarray) -> None:
         """Push a frame into the preview.
 
         Accepts either a colour BGR frame (``H x W x 3`` uint8)
         or a single-channel greyscale frame (``H x W`` uint8).
-        The detector strips colour out before looking at the
-        frame, so feeding the preview the same single-channel
-        buffer skips a second conversion and a bigger pixmap
-        allocation.
         """
         if frame.ndim == 2 and frame.dtype == np.uint8:
             h, w = frame.shape
@@ -76,11 +76,64 @@ class CameraView(QWidget):
             image = QImage(rgb.data, w, h, 3 * w, QImage.Format.Format_RGB888)
         else:
             return
-        # ``image`` references the numpy buffer. Copy once so the QPixmap owns the data.
         self._pixmap = QPixmap.fromImage(image.copy())
         self._scaled_pixmap = None
         self._frame_size = (w, h)
         self.update()
+
+    def push_frame(self, frame: np.ndarray) -> None:
+        """Alias for set_frame (satisfies _FrameMirror protocol)."""
+        self.set_frame(frame)
+
+    def push_audio_level(self, level: float) -> None:
+        """No-op (satisfies _FrameMirror protocol)."""
+
+    def clear(self) -> None:
+        self._pixmap = None
+        self._scaled_pixmap = None
+        self.update()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        self._scaled_pixmap = None
+        super().resizeEvent(event)
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), Qt.GlobalColor.black)
+
+        if self._pixmap is None:
+            painter.setPen(Qt.GlobalColor.white)
+            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "No camera")
+            return
+
+        target = self.rect()
+        target_size = (target.width(), target.height())
+        if self._scaled_pixmap is None or self._scaled_for_size != target_size:
+            self._scaled_pixmap = self._pixmap.scaled(
+                target.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.FastTransformation,
+            )
+            self._scaled_for_size = target_size
+        scaled = self._scaled_pixmap
+        offset_x = (target.width() - scaled.width()) // 2
+        offset_y = (target.height() - scaled.height()) // 2
+        painter.drawPixmap(offset_x, offset_y, scaled)
+
+
+class CameraView(RawCameraView):
+    """Camera preview with tracking overlays and click-to-aim."""
+
+    clicked_at = Signal(float, float)  # image-space coordinates
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._aim_px: tuple[float, float] | None = None
+        self._aim_radius_px: float = 0.0
+        self._rejected_px: tuple[float, float] | None = None
+        self._rejected_radius_px: float = 0.0
+        self._status: TrackingStatus | None = None
+        self._region_fraction: float = 1.0
 
     def set_aim_point(self, x_px: float | None, y_px: float | None, radius_px: float = 0.0) -> None:
         if x_px is None or y_px is None:
@@ -93,13 +146,7 @@ class CameraView(QWidget):
     def set_rejected_point(
         self, x_px: float | None, y_px: float | None, radius_px: float = 0.0
     ) -> None:
-        """Show or hide a marker for a candidate the region rejected.
-
-        Drawn separately from the main aim overlay so the user
-        can see that the detector found something circular but
-        ignored it because it sat outside the central tracking
-        region.
-        """
+        """Show or hide a marker for a candidate the region rejected."""
         if x_px is None or y_px is None:
             self._rejected_px = None
         else:
@@ -115,29 +162,18 @@ class CameraView(QWidget):
             self.update()
 
     def set_region_fraction(self, fraction: float) -> None:
-        """Tell the view what fraction of the frame is being tracked.
-
-        Drawn as a thin dashed rectangle so the user knows which
-        part of the image the detector is looking at.
-        """
+        """Tell the view what fraction of the frame is being tracked."""
         f = max(0.05, min(1.0, float(fraction)))
         if abs(f - self._region_fraction) > 1e-6:
             self._region_fraction = f
             self.update()
 
     def clear(self) -> None:
-        self._pixmap = None
-        self._scaled_pixmap = None
         self._aim_px = None
         self._rejected_px = None
-        self.update()
+        super().clear()
 
-    def resizeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        # Force the next paint to rebuild the cached scaled pixmap.
-        self._scaled_pixmap = None
-        super().resizeEvent(event)
-
-    def paintEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+    def paintEvent(self, event) -> None:  # noqa: N802
         painter = QPainter(self)
         painter.fillRect(self.rect(), Qt.GlobalColor.black)
 
@@ -146,12 +182,6 @@ class CameraView(QWidget):
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "No camera")
             return
 
-        # Cache the scaled pixmap so the per-frame paint doesn't redo
-        # the resize. The cache is invalidated when the source pixmap
-        # changes (``set_frame``) or when the widget is resized
-        # (``resizeEvent``). Nearest-neighbour scaling is fine for a
-        # live preview at full frame rate. The eye doesn't catch the
-        # difference and the cost is half that of bilinear.
         target = self.rect()
         target_size = (target.width(), target.height())
         if self._scaled_pixmap is None or self._scaled_for_size != target_size:
@@ -169,17 +199,13 @@ class CameraView(QWidget):
         if self._aim_px is not None:
             self._draw_aim_overlay(painter, scaled.size().toTuple(), (offset_x, offset_y))
         if self._rejected_px is not None:
-            self._draw_rejected_overlay(
-                painter, scaled.size().toTuple(), (offset_x, offset_y)
-            )
+            self._draw_rejected_overlay(painter, scaled.size().toTuple(), (offset_x, offset_y))
 
-        # Centre reticle: a fixed crosshair at the middle of the visible
-        # frame so the user has a stable aim reference.
         self._draw_centre_reticle(painter, scaled.size().toTuple(), (offset_x, offset_y))
         if self._region_fraction < 0.999:
             self._draw_tracking_region(painter, scaled.size().toTuple(), (offset_x, offset_y))
-
-        self._draw_status_badge(painter)
+        if self._status is not None:
+            self._draw_status_badge(painter)
 
     def _draw_tracking_region(
         self,
@@ -210,8 +236,6 @@ class CameraView(QWidget):
         ox, oy = offset
         cx = ox + sw / 2.0
         cy = oy + sh / 2.0
-        # Outer ring + crosshair lines, kept thin so it doesn't clutter the
-        # preview.
         radius = max(20.0, min(sw, sh) * 0.05)
         gap = radius * 0.35
         pen = QPen(QColor(255, 255, 255, 200))
@@ -226,7 +250,6 @@ class CameraView(QWidget):
 
     def _draw_status_badge(self, painter: QPainter) -> None:
         style = _STATUS_STYLES[self._status]
-        # Background pill in the top-left corner of the widget.
         margin = 8
         padding_x = 8
         padding_y = 4
@@ -242,7 +265,6 @@ class CameraView(QWidget):
         painter.setBrush(QColor(0, 0, 0, 160))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(x, y, rect_w, rect_h, 4, 4)
-        # A coloured dot to make the state pop without relying on text alone.
         dot_d = 8
         painter.setBrush(QColor(style.colour))
         painter.drawEllipse(x + 6, y + (rect_h - dot_d) // 2, dot_d, dot_d)
@@ -295,31 +317,25 @@ class CameraView(QWidget):
         sy = oy + self._rejected_px[1] * sh / fh
         radius = max(6.0, self._rejected_radius_px * sw / fw)
 
-        # Dashed amber circle with a slash through it: clear visual cue
-        # for "something circular was seen here but ignored".
         pen = QPen(QColor("#d35400"))
         pen.setWidth(2)
         pen.setStyle(Qt.PenStyle.DashLine)
         painter.save()
         painter.setPen(pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawEllipse(
-            int(sx - radius), int(sy - radius), int(radius * 2), int(radius * 2)
-        )
+        painter.drawEllipse(int(sx - radius), int(sy - radius), int(radius * 2), int(radius * 2))
         slash = radius * 0.7
-        painter.drawLine(
-            int(sx - slash), int(sy + slash), int(sx + slash), int(sy - slash)
-        )
+        painter.drawLine(int(sx - slash), int(sy + slash), int(sx + slash), int(sy - slash))
         painter.restore()
 
-    def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        if self._pixmap is None or event.button() != Qt.MouseButton.LeftButton:
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() != Qt.MouseButton.LeftButton:
+            return
+        if self._pixmap is None:
             return
         pos = event.position()
         target = self.rect()
-        scaled = self._pixmap.size().scaled(
-            target.size(), Qt.AspectRatioMode.KeepAspectRatio
-        )
+        scaled = self._pixmap.size().scaled(target.size(), Qt.AspectRatioMode.KeepAspectRatio)
         offset_x = (target.width() - scaled.width()) // 2
         offset_y = (target.height() - scaled.height()) // 2
         if not (offset_x <= pos.x() < offset_x + scaled.width()):

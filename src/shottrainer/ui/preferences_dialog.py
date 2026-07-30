@@ -270,9 +270,91 @@ class PreferencesDialog(QDialog):
             return
         self._camera_preview.set_frame(frame)
         self._camera_preview.set_region_fraction(float(self._region.value()))
+        # Mirror to the popout if open.
+        popout = getattr(self, "_prefs_popout", None)
+        if popout is not None and popout.isVisible():
+            popout.view.set_frame(frame)
+            popout.view.set_region_fraction(float(self._region.value()))
 
     def _on_region_preview_changed(self, _value: float) -> None:
         self._camera_preview.set_region_fraction(float(self._region.value()))
+
+    def _make_expand_button(self, parent):
+        """Create the expand icon button (same as main window)."""
+        from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
+
+        btn = QPushButton(parent)
+        btn.setFixedSize(26, 26)
+        btn.setToolTip("Enlarge camera preview")
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setStyleSheet(
+            "QPushButton {"
+            "  background: rgba(0, 0, 0, 160);"
+            "  border: none;"
+            "  border-radius: 4px;"
+            "  padding: 4px;"
+            "}"
+            "QPushButton:hover {"
+            "  background: rgba(60, 60, 60, 200);"
+            "}"
+        )
+        pm = QPixmap(18, 18)
+        pm.fill(QColor(0, 0, 0, 0))
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        pen = QPen(QColor(255, 255, 255, 220))
+        pen.setWidth(2)
+        p.setPen(pen)
+        p.drawLine(2, 6, 2, 2)
+        p.drawLine(2, 2, 6, 2)
+        p.drawLine(11, 2, 15, 2)
+        p.drawLine(15, 2, 15, 6)
+        p.drawLine(2, 11, 2, 15)
+        p.drawLine(2, 15, 6, 15)
+        p.drawLine(11, 15, 15, 15)
+        p.drawLine(15, 15, 15, 11)
+        p.end()
+        btn.setIcon(QIcon(pm))
+        btn.setIconSize(pm.size())
+        return btn
+
+    def _on_expand_preview(self) -> None:
+        """Open the camera popout from the preferences pane."""
+        from .camera_popout import CameraPopout
+
+        if (
+            hasattr(self, "_prefs_popout")
+            and self._prefs_popout is not None
+            and self._prefs_popout.isVisible()
+        ):
+            self._prefs_popout.raise_()
+            self._prefs_popout.activateWindow()
+            return
+
+        popout = CameraPopout(self)
+        popout.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
+        self._prefs_popout = popout
+
+        # Push the current frame.
+        frame = getattr(self, "_latest_raw_frame", None)
+        if frame is not None:
+            popout.view.set_frame(frame)
+            popout.view.set_region_fraction(float(self._region.value()))
+            h, w = frame.shape[:2]
+            popout.set_resolution(w, h)
+
+        popout.finished.connect(lambda _r: setattr(self, "_prefs_popout", None))
+        popout.show()
+        popout.raise_()
+        popout.activateWindow()
+
+    def eventFilter(self, obj, event):  # noqa: N802
+        """Reposition the expand button when the camera container resizes."""
+        from PySide6.QtCore import QEvent
+
+        if event.type() == QEvent.Type.Resize and hasattr(self, "_prefs_expand_button"):
+            self._prefs_expand_button.move(obj.width() - 34, 8)
+        return super().eventFilter(obj, event)
 
     def _emit_transform_changed(self) -> None:
         """Tell the controller about a rotation or flip change.
@@ -565,7 +647,21 @@ class PreferencesDialog(QDialog):
         self._camera_preview = CameraView()
         self._camera_preview.setMinimumHeight(160)
         self._camera_preview.set_region_fraction(prefs.tracking_region_fraction)
-        layout.addWidget(self._camera_preview, 1)
+
+        # Wrap in container for the expand button overlay.
+
+        camera_container = QWidget()
+        camera_container_layout = QVBoxLayout(camera_container)
+        camera_container_layout.setContentsMargins(0, 0, 0, 0)
+        camera_container_layout.addWidget(self._camera_preview)
+
+        self._prefs_expand_button = self._make_expand_button(camera_container)
+        self._prefs_expand_button.clicked.connect(self._on_expand_preview)
+        self._prefs_expand_button.move(camera_container.width() - 34, 8)
+        self._prefs_expand_button.raise_()
+        camera_container.installEventFilter(self)
+
+        layout.addWidget(camera_container, 1)
 
         return page
 
