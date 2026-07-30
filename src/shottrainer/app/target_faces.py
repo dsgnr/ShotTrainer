@@ -75,6 +75,7 @@ class TargetFace:
     rings: tuple[TargetRing, ...]
     shot_diameter_mm: float | None = None
     face_diameter_mm: float | None = None
+    scoring_direction: str = "inward"
 
 
 def custom_faces_path() -> Path:
@@ -127,12 +128,16 @@ def _parse_face(body: dict, key: str) -> TargetFace | None:
     rings = _parse_rings(rings_raw)
     if not rings:
         return None
+    direction = body.get("scoring_direction", "inward")
+    if direction not in ("inward", "outward"):
+        direction = "inward"
     return TargetFace(
         key=key,
         label=str(body.get("label") or key),
         rings=tuple(rings),
         shot_diameter_mm=_optional_positive_float(body, "shot_diameter_mm"),
         face_diameter_mm=_optional_positive_float(body, "face_diameter_mm"),
+        scoring_direction=direction,
     )
 
 
@@ -259,15 +264,25 @@ def rings_for_face(name: str) -> tuple[TargetRing, ...]:
     tuple if nothing is loadable, so callers don't need a
     special branch for "no faces installed".
     """
+    face = get_face(name)
+    return face.rings if face is not None else ()
+
+
+def get_face(name: str) -> TargetFace | None:
+    """Return the :class:`TargetFace` for ``name``, or ``None``.
+
+    Falls back to ``default`` and then the first face in the
+    catalogue, same as :func:`rings_for_face`.
+    """
     faces = _merged_faces()
     face = faces.get(name)
     if face is not None:
-        return face.rings
+        return face
     if "default" in faces:
-        return faces["default"].rings
+        return faces["default"]
     if faces:
-        return next(iter(faces.values())).rings
-    return ()
+        return next(iter(faces.values()))
+    return None
 
 
 def diagnostic_rings(rings: tuple[TargetRing, ...]) -> list[TargetRing]:
