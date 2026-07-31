@@ -413,9 +413,7 @@ class PreferencesDialog(QDialog):
         Re-enabled when the result lands.
         """
         self._optimise_btn.setEnabled(enabled)
-        self._optimise_btn.setText(
-            "Auto-optimise tracking" if enabled else "Optimising..."
-        )
+        self._optimise_btn.setText("Auto-optimise tracking" if enabled else "Optimising...")
 
     def set_camera_options(self, options: list[tuple[int, str]]) -> None:
         """Rebuild the camera dropdown from a fresh enumeration.
@@ -454,9 +452,7 @@ class PreferencesDialog(QDialog):
         finally:
             self._camera.blockSignals(False)
         if new_initial != previous_index:
-            self.camera_changed.emit(
-                new_initial if isinstance(new_initial, int) else None
-            )
+            self.camera_changed.emit(new_initial if isinstance(new_initial, int) else None)
 
     def set_audio_options(self, options: list[str]) -> None:
         """Rebuild the audio-input dropdown with a fresh device list."""
@@ -928,8 +924,7 @@ class PreferencesDialog(QDialog):
             form,
             "Pre-shot window",
             self._pre,
-            "Trace kept before each shot, used for hold-stability and "
-            "tremor analysis on replay.",
+            "Trace kept before each shot, used for hold-stability and tremor analysis on replay.",
         )
 
         self._post = QSpinBox()
@@ -976,16 +971,14 @@ class PreferencesDialog(QDialog):
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        meta = QLabel(
-            f"Version {__version__}  ·  GPL-3.0-or-later"
-        )
+        meta = QLabel(f"Version {__version__}  ·  GPL-3.0-or-later")
         meta.setObjectName("aboutMeta")
         meta.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(meta, 0, Qt.AlignmentFlag.AlignHCenter)
 
         links = QLabel(
             '<a href="https://github.com/dsgnr/ShotTrainer/blob/main/README.md">README</a>'
-            ' &middot; '
+            " &middot; "
             '<a href="https://github.com/dsgnr/ShotTrainer">GitHub</a>'
         )
         links.setTextFormat(Qt.TextFormat.RichText)

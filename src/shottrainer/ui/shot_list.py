@@ -51,8 +51,7 @@ class ShotList(QWidget):
         # display. Keeps the panel from looking broken on first
         # launch.
         self._empty = QLabel(
-            "No shots yet.\nStart a session and the microphone will\n"
-            "pick up each one."
+            "No shots yet.\nStart a session and the microphone will\npick up each one."
         )
         self._empty.setObjectName("shotListEmpty")
         self._empty.setAlignment(Qt.AlignmentFlag.AlignCenter)

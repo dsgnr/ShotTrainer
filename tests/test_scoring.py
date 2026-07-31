@@ -77,7 +77,7 @@ def test_outward_scoring_awards_smallest_ring_shot_is_inside():
     inward scoring where touching a boundary scores the inner ring.
     """
     rings = [
-        ScoringRing(10.0, "1"),   # centre, low value
+        ScoringRing(10.0, "1"),  # centre, low value
         ScoringRing(25.0, "5"),
         ScoringRing(50.0, "10"),  # edge, high value
     ]

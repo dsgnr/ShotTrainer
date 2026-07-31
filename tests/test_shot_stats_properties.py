@@ -13,9 +13,7 @@ from hypothesis import strategies as st
 
 from shottrainer.services.shot_stats import compute_stats
 
-_finite = st.floats(
-    min_value=-500.0, max_value=500.0, allow_nan=False, allow_infinity=False
-)
+_finite = st.floats(min_value=-500.0, max_value=500.0, allow_nan=False, allow_infinity=False)
 
 
 @given(
@@ -74,6 +72,4 @@ def test_mean_is_translation_equivariant(
     assert math.isclose(
         shifted.extreme_spread_mm, base.extreme_spread_mm, rel_tol=1e-9, abs_tol=1e-7
     )
-    assert math.isclose(
-        shifted.mean_radius_mm, base.mean_radius_mm, rel_tol=1e-9, abs_tol=1e-7
-    )
+    assert math.isclose(shifted.mean_radius_mm, base.mean_radius_mm, rel_tol=1e-9, abs_tol=1e-7)

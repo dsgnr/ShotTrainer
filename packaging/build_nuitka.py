@@ -42,12 +42,8 @@ APP_NAME = "ShotTrainer"
 BUNDLE_ID = "org.shottrainer.app"
 APP_VERSION = "0.1.0"
 
-CAMERA_USAGE = (
-    "ShotTrainer uses the camera to track the aiming point on the target."
-)
-MIC_USAGE = (
-    "ShotTrainer listens for the sound of a shot to record hit timing."
-)
+CAMERA_USAGE = "ShotTrainer uses the camera to track the aiming point on the target."
+MIC_USAGE = "ShotTrainer listens for the sound of a shot to record hit timing."
 
 
 def _common_args() -> list[str]:

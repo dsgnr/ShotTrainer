@@ -304,9 +304,7 @@ class Tracker:
 
         return (self._smoothed_major_px, self._smoothed_minor_px)
 
-    def _update_smoothed_centroid(
-        self, cx_px: float, cy_px: float
-    ) -> tuple[float, float]:
+    def _update_smoothed_centroid(self, cx_px: float, cy_px: float) -> tuple[float, float]:
         """Fold a fresh centroid into the running average.
 
         Same EMA as the radius smoothing. First detection

@@ -35,6 +35,7 @@ def _enable_sqlite_foreign_keys(engine: Engine) -> None:
     ``ON DELETE CASCADE`` declarations on the trace and shot
     tables wouldn't fire when a session is deleted.
     """
+
     @event.listens_for(engine, "connect")
     def _fk_pragma_on_connect(dbapi_conn, _):
         cursor = dbapi_conn.cursor()
@@ -93,9 +94,7 @@ def _drop_legacy_calibration_column(engine: Engine) -> None:
     Python 3.13 ships a newer SQLite, so the statement is safe.
     """
     with engine.begin() as conn:
-        existing = {
-            row[1] for row in conn.exec_driver_sql("PRAGMA table_info(sessions)")
-        }
+        existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(sessions)")}
         if "calibration_json" in existing:
             conn.execute(text("ALTER TABLE sessions DROP COLUMN calibration_json"))
             log.info("Dropped legacy column sessions.calibration_json")

@@ -21,7 +21,7 @@ class TracePlayer(QObject):
 
     point = Signal(float, float)  # x_mm, y_mm
     index_changed = Signal(int)
-    progress = Signal(float)       # 0.0..1.0
+    progress = Signal(float)  # 0.0..1.0
     finished = Signal()
 
     def __init__(self, parent: QObject | None = None) -> None:

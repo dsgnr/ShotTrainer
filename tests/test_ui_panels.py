@@ -18,10 +18,12 @@ from shottrainer.ui.zoom_controls import ZoomControls
 def test_shot_list_emits_selection(qtbot):
     panel = ShotList()
     qtbot.addWidget(panel)
-    panel.set_shots([
-        ShotListEntry(index=0, timestamp=0.0, x_mm=1.0, y_mm=2.0),
-        ShotListEntry(index=1, timestamp=1.0, x_mm=-1.0, y_mm=-2.0, score="9.5"),
-    ])
+    panel.set_shots(
+        [
+            ShotListEntry(index=0, timestamp=0.0, x_mm=1.0, y_mm=2.0),
+            ShotListEntry(index=1, timestamp=1.0, x_mm=-1.0, y_mm=-2.0, score="9.5"),
+        ]
+    )
     with qtbot.waitSignal(panel.shot_selected, timeout=500) as blocker:
         panel.select_index(1)
     assert blocker.args == [1]
@@ -376,9 +378,7 @@ def test_preferences_dialog_emits_refresh_devices_request(qtbot):
     # Find the refresh button by its text and click it.
     from PySide6.QtWidgets import QPushButton
 
-    refresh = next(
-        b for b in dialog.findChildren(QPushButton) if b.text() == "Refresh"
-    )
+    refresh = next(b for b in dialog.findChildren(QPushButton) if b.text() == "Refresh")
     refresh.click()
     assert received == [True]
 

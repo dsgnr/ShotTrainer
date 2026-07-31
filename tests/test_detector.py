@@ -126,9 +126,7 @@ def test_lock_prefers_close_blob_over_distant_one():
     # Now both blobs in the same frame: a noise blob slightly closer to
     # the centre, and the original further off. With the lock active,
     # the original wins.
-    detector = CircleTargetDetector(
-        DetectorSettings(region_fraction=1.0, lock_radius_px=80.0)
-    )
+    detector = CircleTargetDetector(DetectorSettings(region_fraction=1.0, lock_radius_px=80.0))
     detector.detect(img)  # establish lock at (320, 240)
     img2 = _white_canvas()
     _draw_circle(img2, 320, 240, 25)  # original
@@ -227,7 +225,6 @@ def test_morphological_opening_severs_thin_bridge_to_neighbour():
         assert without_opening.x_px >= with_opening.x_px - 0.5
 
 
-
 def test_busy_scene_still_finds_target_and_caps_candidates():
     """A scene full of small dark blobs should not derail the detector.
 
@@ -249,9 +246,7 @@ def test_busy_scene_still_finds_target_and_caps_candidates():
         cv2.rectangle(img, (x, y), (x + side, y + side), (10, 10, 10), -1)
     cv2.circle(img, (320, 240), 25, (0, 0, 0), -1)
 
-    detection = CircleTargetDetector(
-        DetectorSettings(closing_kernel_px=0)
-    ).detect(img)
+    detection = CircleTargetDetector(DetectorSettings(closing_kernel_px=0)).detect(img)
     assert detection.found
     assert abs(detection.x_px - 320) < 5
     assert abs(detection.y_px - 240) < 5
@@ -262,9 +257,7 @@ def test_lock_window_prefers_nearby_target_over_far_distractor():
     window should be ignored entirely. The cropped findContours loop
     means contours far from the lock never enter the candidate list,
     so even a more "circular" blob far away can't take the lock."""
-    detector = CircleTargetDetector(
-        DetectorSettings(region_fraction=1.0, lock_radius_px=50.0)
-    )
+    detector = CircleTargetDetector(DetectorSettings(region_fraction=1.0, lock_radius_px=50.0))
 
     # Establish the lock on a centred circle.
     img = _white_canvas()
