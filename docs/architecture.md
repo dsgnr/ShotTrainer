@@ -180,15 +180,14 @@ This is where the Qt application and the core services are connected together.
 
 A Cargo workspace under `crates/` holds Rust implementations of the storage,
 scoring, statistics, services and settings code. Camera capture, target
-detection, the tracker, audio capture, shot detection, the controller and the
-interface are not part of the workspace yet and remain in Python. The Python
+detection, the tracker, the controller and the interface are not part of the workspace yet and remain in Python. The Python
 code under `src/shottrainer/` is the reference for behaviour. The Rust crates
 read and write the same `sessions.db`, JSON files and CSV exports.
 
 | Crate      | Contents                                                                                                                                         |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `tracking` | Shared tracking value types such as `TrackingSample`                                                                                             |
-| `audio`    | Shared audio value types                                                                                                                         |
+| `audio`    | Shot detector, block pipeline and microphone input                                                                                               |
 | `core`     | Sessions database, migrations and repository, scoring, statistics, trace buffer, shot and replay coordinators, session recorder and CSV exporter |
 | `settings` | Data paths, preferences, detector, zero offset, camera and window state stores and the target face catalogue                                     |
 | `testkit`  | Test helpers for loading golden fixtures and comparing floats                                                                                    |
@@ -209,13 +208,56 @@ Import rules between the crates:
 The Python `sessions` and `services` modules depend on each other through
 scoring, so `core` holds both and the Python `app` stores live in `settings`.
 
+### Audio crate
+
+The `audio` crate has three layers.
+
+- `ShotDetector` is the high-pass filter, threshold and refractory logic ported
+  from the Python detector. It takes one block of samples and a block start
+  time and returns at most one shot.
+- `AudioPipeline` takes interleaved device buffers, reads channel 0 as the
+  Python input does when it opens one channel, cuts blocks of
+  `block_size` frames and emits `AudioEvent::Level` for each block followed by
+  `AudioEvent::Shot` when the detector fires. A trailing partial frame is
+  dropped. The detector runs at the rate of the incoming buffers, whatever the
+  configured `sample_rate` says.
+- `AudioInput` opens a microphone through `cpal` on its own thread and feeds
+  the pipeline from the audio callback. It selects the device by default,
+  index or name, picks a mono configuration at the configured rate when the
+  device offers one and otherwise falls back to the device rate and channel
+  count. `list_audio_inputs` returns the input device names.
+
+Events reach the caller through one callback. `Started` is always the first
+event, `Error` replaces it when the stream cannot be opened or played and
+`Stopped` follows only a `Started` that was not followed by an `Error`.
+
+The clock is supplied by the caller as a `ClockFn` returning seconds on the
+shared monotonic timeline. The pipeline reads it once per buffer, treats the
+reading as the arrival time of the buffer's last frame and derives each block
+start from the frame count, so shot timestamps are on the same timeline as
+camera frames.
+
+Signals in the audio fixtures are integer recipes made of seeded noise and
+dyadic-valued segments. `scripts/generate_golden.py` renders them with numpy
+float32 and the Rust tests render them with `f32`, so both sides see identical
+samples and no sample arrays are stored. The `shot_detector` and
+`audio_pipeline` fixtures are listed under golden fixtures below.
+
+The `audio_input` example opens a real microphone and prints levels and shots.
+It needs a device and microphone permission, so it is run by hand and not by
+`cargo test`.
+
+```bash
+cargo run -p shottrainer-audio --example audio_input -- default 10
+```
+
 ### Golden fixtures
 
 Behaviour that has to match Python is fixed by JSON fixtures in
 `testdata/golden/`. Each fixture is generated from the Python implementation by
 `scripts/generate_golden.py`, and the Rust tests load it through `testkit`.
 The available names are `preferences`, `scoring`, `shot_stats`, `trace`,
-`export_csv`, `stores` and `target_faces`. To regenerate one and check the Rust
+`export_csv`, `stores`, `target_faces`, `shot_detector` and `audio_pipeline`. To regenerate one and check the Rust
 side against it:
 
 ```bash
