@@ -1154,7 +1154,7 @@ def shot_detector() -> dict:
     def recipe(seed, *segments):
         return {"seed": seed, "segments": list(segments)}
 
-    def spike(n, position, amp=0.875):
+    def single_impulse(n, position, amp=0.875):
         """One sample at ``position`` inside ``n`` samples of silence."""
         tail = [silence(n - position - 1)] if n - position - 1 else []
         head = [silence(position)] if position else []
@@ -1181,12 +1181,12 @@ def shot_detector() -> dict:
         (
             "impulse_above_threshold",
             settings(threshold=0.02),
-            [block(10.0, spike(512, 128))],
+            [block(10.0, single_impulse(512, 128))],
         ),
         (
             "impulse_below_threshold",
             settings(threshold=0.08),
-            [block(10.0, spike(512, 128))],
+            [block(10.0, single_impulse(512, 128))],
         ),
         (
             "dc_only_is_removed",
@@ -1222,39 +1222,42 @@ def shot_detector() -> dict:
         (
             "refractory_blocks_second_impulse",
             settings(refractory_ms=300),
-            [block(0.0, spike(512, 100)), block(0.0625, spike(512, 100))],
+            [block(0.0, single_impulse(512, 100)), block(0.0625, single_impulse(512, 100))],
         ),
         (
             "refractory_releases_after_window",
             settings(refractory_ms=200),
-            [block(0.0, spike(512, 100)), block(0.5, spike(512, 100))],
+            [block(0.0, single_impulse(512, 100)), block(0.5, single_impulse(512, 100))],
         ),
         (
             "refractory_boundary_is_inclusive",
             settings(refractory_ms=250),
             [
-                block(0.0, spike(512, 256)),
-                block(0.28125 - 1 / 1024, spike(512, 256)),
-                block(0.28125, spike(512, 256)),
+                block(0.0, single_impulse(512, 256)),
+                block(0.28125 - 1 / 1024, single_impulse(512, 256)),
+                block(0.28125, single_impulse(512, 256)),
             ],
         ),
         (
             "refractory_measured_from_event_timestamp",
             settings(refractory_ms=250),
-            [block(0.0, spike(512, 256)), block(0.28125 - 1 / 8192, spike(512, 256))],
+            [
+                block(0.0, single_impulse(512, 256)),
+                block(0.28125 - 1 / 8192, single_impulse(512, 256)),
+            ],
         ),
-        ("loudest_at_first_index", settings(), [block(3.0, spike(512, 0))]),
-        ("loudest_at_last_index", settings(), [block(3.0, spike(512, 511))]),
-        ("loudest_in_the_middle", settings(), [block(3.0, spike(512, 200))]),
+        ("loudest_at_first_index", settings(), [block(3.0, single_impulse(512, 0))]),
+        ("loudest_at_last_index", settings(), [block(3.0, single_impulse(512, 511))]),
+        ("loudest_in_the_middle", settings(), [block(3.0, single_impulse(512, 200))]),
         (
             "tie_first_index_wins",
             settings(high_pass_alpha=0.0),
-            [block(1.0, spike(512, 40, 0.5)), block(2.0, spike(512, 300, -0.5))],
+            [block(1.0, single_impulse(512, 40, 0.5)), block(2.0, single_impulse(512, 300, -0.5))],
         ),
         (
             "impulse_at_block_end_leaks_into_next_block",
             settings(high_pass_alpha=0.0),
-            [block(1.0, spike(512, 511, 0.5)), block(2.0, quiet)],
+            [block(1.0, single_impulse(512, 511, 0.5)), block(2.0, quiet)],
         ),
         (
             "filter_state_carries_across_blocks",
@@ -1268,9 +1271,9 @@ def shot_detector() -> dict:
             "update_settings_raises_threshold",
             settings(threshold=0.02, refractory_ms=50),
             [
-                block(1.0, spike(512, 100)),
-                block(2.0, spike(512, 100), {"update": settings(threshold=0.08)}),
-                block(3.0, spike(512, 100), {"update": settings(threshold=0.02)}),
+                block(1.0, single_impulse(512, 100)),
+                block(2.0, single_impulse(512, 100), {"update": settings(threshold=0.08)}),
+                block(3.0, single_impulse(512, 100), {"update": settings(threshold=0.02)}),
             ],
         ),
         (
@@ -1290,17 +1293,17 @@ def shot_detector() -> dict:
             "update_settings_changes_sample_rate",
             settings(),
             [
-                block(1.0, spike(512, 256)),
-                block(2.0, spike(512, 256), {"update": settings(sample_rate=48000)}),
+                block(1.0, single_impulse(512, 256)),
+                block(2.0, single_impulse(512, 256), {"update": settings(sample_rate=48000)}),
             ],
         ),
         (
             "update_settings_shortens_refractory",
             settings(refractory_ms=1000),
             [
-                block(1.0, spike(512, 100)),
-                block(1.25, spike(512, 100)),
-                block(1.5, spike(512, 100), {"update": settings(refractory_ms=100)}),
+                block(1.0, single_impulse(512, 100)),
+                block(1.25, single_impulse(512, 100)),
+                block(1.5, single_impulse(512, 100), {"update": settings(refractory_ms=100)}),
             ],
         ),
         (
@@ -1315,12 +1318,12 @@ def shot_detector() -> dict:
         (
             "sample_rate_48000",
             settings(sample_rate=48000, high_pass_alpha=0.97),
-            [block(100.0, spike(512, 300))],
+            [block(100.0, single_impulse(512, 300))],
         ),
         (
             "empty_block",
             settings(),
-            [block(0.0, recipe(1)), block(1.0, spike(512, 100)), block(1.0625, recipe(1))],
+            [block(0.0, recipe(1)), block(1.0, single_impulse(512, 100)), block(1.0625, recipe(1))],
         ),
         (
             "empty_block_keeps_filter_state",
@@ -1339,17 +1342,21 @@ def shot_detector() -> dict:
         (
             "large_start_timestamp",
             settings(),
-            [block(1048576.5, spike(512, 64))],
+            [block(1048576.5, single_impulse(512, 64))],
         ),
         (
             "huge_finite_amplitude",
             settings(),
-            [block(1.0, spike(512, 7, 2.0**60))],
+            [block(1.0, single_impulse(512, 7, 2.0**60))],
         ),
         (
             "squares_overflow_to_infinity",
             settings(),
-            [block(1.0, spike(512, 7, 2.0**70)), block(2.0, quiet), block(3.0, spike(512, 9))],
+            [
+                block(1.0, single_impulse(512, 7, 2.0**70)),
+                block(2.0, quiet),
+                block(3.0, single_impulse(512, 9)),
+            ],
         ),
     ]
 
