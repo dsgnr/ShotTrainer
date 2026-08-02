@@ -75,6 +75,7 @@ impl AudioPipeline {
     /// Feeds one interleaved buffer that arrived now and returns the events
     /// for every block it completes, in order.
     ///
+    /// Only channel 0 is analysed, as Python opens the input with one channel.
     /// The clock is read once per non-empty buffer, so the end of the buffer's
     /// last frame is at the arrival time. A trailing partial frame is dropped
     /// rather than carried, because a device delivers whole frames and keeping
@@ -89,12 +90,8 @@ impl AudioPipeline {
         if channels == 1 {
             self.pending.extend_from_slice(interleaved);
         } else {
-            let divisor = channels as f32;
-            self.pending.extend(
-                interleaved
-                    .chunks_exact(channels)
-                    .map(|frame| frame.iter().sum::<f32>() / divisor),
-            );
+            self.pending
+                .extend(interleaved.chunks_exact(channels).map(|frame| frame[0]));
         }
 
         // Deviates from Python, where blocksize=0 lets the driver choose the
@@ -301,12 +298,12 @@ mod tests {
     }
 
     #[test]
-    fn stereo_is_averaged_and_a_partial_frame_is_dropped() {
+    fn channel_zero_is_used_and_a_partial_frame_is_dropped() {
         let now = Arc::new(Mutex::new(1.0));
         let mut pipeline = AudioPipeline::new(settings(2, 8), 8, 2, fixed_clock(now));
-        // Frames (0.5, -0.5) and (1.0, 0.0) average to 0.0 and 0.5, and the lone 0.9 is dropped.
+        // Channel 0 of the two frames is 0.5 and 1.0 and the lone 0.9 is dropped.
         let events = pipeline.push(&[0.5, -0.5, 1.0, 0.0, 0.9]);
-        let expected_rms = f64::from((0.25_f32 / 2.0).sqrt());
+        let expected_rms = f64::from((1.25_f32 / 2.0).sqrt());
         assert_eq!(events.len(), 2, "{events:?}");
         assert_eq!(events[0], AudioEvent::Level(expected_rms));
         // The dropped half frame is not prepended to the next buffer.
