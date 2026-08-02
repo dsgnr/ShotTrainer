@@ -18,6 +18,7 @@ publish = false
 
 [workspace.dependencies]
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+cpal = "0.18"
 log = "0.4"
 proptest = "1"
 rusqlite = { version = "0.32", features = ["bundled"] }

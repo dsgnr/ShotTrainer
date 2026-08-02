@@ -13,7 +13,7 @@ workspace = true
 name = "shottrainer_audio"
 
 [dependencies]
-cpal = "0.18"
+cpal.workspace = true
 log.workspace = true
 thiserror.workspace = true
 
@@ -21,4 +21,3 @@ thiserror.workspace = true
 proptest.workspace = true
 serde_json.workspace = true
 testkit = { path = "../testkit" }
-
