@@ -180,9 +180,10 @@ This is where the Qt application and the core services are connected together.
 
 A Cargo workspace under `crates/` holds Rust implementations of the storage,
 scoring, statistics, services and settings code. Camera capture, target
-detection, the tracker, the controller and the interface are not part of the workspace yet and remain in Python. The Python
-code under `src/shottrainer/` is the reference for behaviour. The Rust crates
-read and write the same `sessions.db`, JSON files and CSV exports.
+detection, the tracker, the controller and the interface are not part of the
+workspace yet and remain in Python. The Python code under `src/shottrainer/`
+is the reference for behaviour. The Rust crates read and write the same
+`sessions.db`, JSON files and CSV exports.
 
 | Crate      | Contents                                                                                                                                         |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -227,9 +228,13 @@ The `audio` crate has three layers.
   device offers one and otherwise falls back to the device rate and channel
   count. `list_audio_inputs` returns the input device names.
 
-Events reach the caller through one callback. `Started` is always the first
-event, `Error` replaces it when the stream cannot be opened or played and
-`Stopped` follows only a `Started` that was not followed by an `Error`.
+Events reach the caller through one callback. A failed open or play yields one
+`Error` and nothing else. Otherwise `Started` is the first event, `Error` may
+arrive any number of times while the stream runs and `Stopped` is emitted
+exactly once by `stop()` or on drop. If the stream thread cannot be spawned the
+`Error` is delivered on the caller's thread before `start` returns. A new
+`block_size` passed to `update_settings` applies from the next block that is
+cut, whereas Python fixes it when the stream opens.
 
 The clock is supplied by the caller as a `ClockFn` returning seconds on the
 shared monotonic timeline. The pipeline reads it once per buffer, treats the
@@ -257,8 +262,8 @@ Behaviour that has to match Python is fixed by JSON fixtures in
 `testdata/golden/`. Each fixture is generated from the Python implementation by
 `scripts/generate_golden.py`, and the Rust tests load it through `testkit`.
 The available names are `preferences`, `scoring`, `shot_stats`, `trace`,
-`export_csv`, `stores`, `target_faces`, `shot_detector` and `audio_pipeline`. To regenerate one and check the Rust
-side against it:
+`export_csv`, `stores`, `target_faces`, `shot_detector` and `audio_pipeline`.
+To regenerate one and check the Rust side against it:
 
 ```bash
 uv run python scripts/generate_golden.py scoring
