@@ -1594,6 +1594,301 @@ def frame_ops() -> dict:
     }
 
 
+def tracker() -> dict:
+    from dataclasses import asdict
+
+    import numpy as np
+
+    from shottrainer.tracking.detector import DetectorSettings
+    from shottrainer.tracking.models import Detection
+    from shottrainer.tracking.tracker import Tracker
+
+    class Scripted:
+        """Stands in for the detector. Returns the detection queued for the next frame."""
+
+        def __init__(self) -> None:
+            self.settings = DetectorSettings()
+            self.next = Detection(found=False)
+
+        def detect(self, frame):
+            return self.next
+
+    def det(x, y, r, conf=0.9, major=0.0, minor=0.0, angle=0.0, found=True):
+        return Detection(
+            found=found,
+            x_px=x,
+            y_px=y,
+            radius_px=r,
+            confidence=conf,
+            semi_major_px=major,
+            semi_minor_px=minor,
+            angle_degrees=angle,
+        )
+
+    def state(t: Tracker) -> dict:
+        zp = t.zero_pixel()
+        return {
+            "mm_per_pixel": t.mm_per_pixel,
+            "zero_pixel": None if zp is None else list(zp),
+            "last_radius_px": t.last_radius_px,
+            "zero_offset_mm": list(t.zero_offset_mm),
+            "region_fraction": t.detector.settings.region_fraction,
+            "diameter": t.circle_diameter_mm,
+        }
+
+    def run(name: str, diameter: float, steps: list[tuple]) -> dict:
+        scripted = Scripted()
+        t = Tracker(diameter, detector=scripted)
+        out = []
+        for step in steps:
+            op = step[0]
+            rec: dict = {"op": op}
+            if op == "process":
+                _, w, h, ts, frame_id, d = step
+                scripted.next = d
+                sample = t.process(np.empty((h, w), dtype=np.uint8), ts, frame_id)
+                rec.update(
+                    w=w,
+                    h=h,
+                    ts=ts,
+                    frame_id=frame_id,
+                    det=asdict(d),
+                    sample=None if sample is None else asdict(sample),
+                )
+            elif op == "diameter":
+                try:
+                    t.set_circle_diameter_mm(step[1])
+                    rec.update(value=encode_number(step[1]), error=False)
+                except ValueError:
+                    rec.update(value=encode_number(step[1]), error=True)
+            elif op == "invert":
+                t.set_trace_inversion(step[1], step[2])
+                rec.update(x=step[1], y=step[2])
+            elif op == "zero":
+                t.set_zero_offset(step[1], step[2])
+                rec.update(x=step[1], y=step[2])
+            elif op == "clear_zero":
+                t.clear_zero_offset()
+            elif op == "zero_last":
+                rec.update(result=t.zero_at_last_sample())
+            elif op == "region":
+                t.set_region_fraction(step[1])
+                rec.update(value=encode_number(step[1]))
+            rec["state"] = state(t)
+            out.append(rec)
+        return {"name": name, "diameter": diameter, "steps": out}
+
+    rng = np.random.default_rng(11)
+    process = "process"
+    cases = []
+    cases.append(
+        run(
+            "converge_left",
+            60.0,
+            [(process, 640, 480, i / 30, None, det(220.0, 240.0, 30.0)) for i in range(60)],
+        )
+    )
+    cases.append(
+        run(
+            "converge_up",
+            60.0,
+            [(process, 640, 480, i / 30, None, det(320.0, 180.0, 30.0)) for i in range(60)],
+        )
+    )
+    cases.append(
+        run(
+            "ellipse_angles",
+            60.0,
+            [
+                (
+                    process,
+                    640,
+                    480,
+                    i / 30,
+                    None,
+                    det(220.0 + i, 260.0 - i, 30.0, major=30.0, minor=18.0, angle=a),
+                )
+                for i, a in enumerate([0.0, 30.0, 90.0, 135.0, 179.5, 45.0, 0.0])
+            ],
+        )
+    )
+    cases.append(
+        run(
+            "fallback_axes",
+            60.0,
+            [
+                (process, 640, 480, 0.0, None, det(300.0, 200.0, 3.0)),
+                (process, 640, 480, 0.1, None, det(300.0, 200.0, 25.0, conf=0.0)),
+                (process, 640, 480, 0.2, None, det(300.0, 200.0, 25.0, conf=-1.0)),
+                (process, 640, 480, 0.3, None, det(300.0, 200.0, 25.0)),
+                (process, 640, 480, 0.4, None, det(300.0, 200.0, 2.0)),
+                (
+                    process,
+                    640,
+                    480,
+                    0.5,
+                    None,
+                    det(300.0, 200.0, 25.0, major=3.0, minor=2.0, angle=60.0),
+                ),
+                (
+                    process,
+                    640,
+                    480,
+                    0.6,
+                    None,
+                    det(300.0, 200.0, 25.0, major=30.0, minor=0.0, angle=60.0),
+                ),
+            ],
+        )
+    )
+    cases.append(
+        run(
+            "misses_and_ids",
+            60.0,
+            [
+                (process, 640, 480, 0.0, None, det(330.0, 250.0, 20.0)),
+                (process, 640, 480, 0.1, None, Detection(found=False)),
+                (process, 640, 480, 0.2, 42, det(331.0, 251.0, 20.0)),
+                (
+                    process,
+                    640,
+                    480,
+                    0.3,
+                    None,
+                    Detection(
+                        found=False,
+                        x_px=50.0,
+                        y_px=50.0,
+                        radius_px=10.0,
+                        confidence=0.5,
+                        rejected_outside_region=True,
+                    ),
+                ),
+                (process, 640, 480, 0.4, None, det(332.0, 252.0, 20.0)),
+                (process, 640, 480, 0.5, 7, det(333.0, 253.0, 20.0)),
+            ],
+        )
+    )
+    cases.append(
+        run(
+            "diameter_and_inversion",
+            60.0,
+            [
+                *[(process, 640, 480, i / 30, None, det(220.0, 300.0, 30.0)) for i in range(5)],
+                ("diameter", 120.0),
+                (process, 640, 480, 0.5, None, det(220.0, 300.0, 30.0)),
+                ("diameter", 0.0),
+                ("diameter", -1.0),
+                ("invert", True, False),
+                (process, 640, 480, 0.6, None, det(220.0, 300.0, 30.0)),
+                ("invert", False, True),
+                (process, 640, 480, 0.7, None, det(220.0, 300.0, 30.0)),
+                ("invert", True, True),
+                (process, 640, 480, 0.8, None, det(220.0, 300.0, 30.0)),
+            ],
+        )
+    )
+    cases.append(
+        run(
+            "zero_offset",
+            60.0,
+            [
+                ("zero_last",),
+                (process, 640, 480, 0.0, None, det(220.0, 240.0, 30.0)),
+                ("zero_last",),
+                (process, 640, 480, 0.1, None, det(230.0, 250.0, 30.0)),
+                ("zero_last",),
+                (process, 640, 480, 0.2, None, det(240.0, 260.0, 30.0)),
+                ("zero", 3.5, -2.25),
+                (process, 640, 480, 0.3, None, Detection(found=False)),
+                (process, 640, 480, 0.4, None, det(240.0, 260.0, 30.0)),
+                ("zero", -0.0, 0.0),
+                ("invert", True, False),
+                ("zero", 10.0, 5.0),
+                (process, 640, 480, 0.5, None, det(250.0, 270.0, 15.0)),
+                ("clear_zero",),
+                (process, 640, 480, 0.6, None, det(250.0, 270.0, 15.0)),
+            ],
+        )
+    )
+    cases.append(
+        run(
+            "region_fraction",
+            60.0,
+            [
+                ("region", 0.5),
+                ("region", 0.0),
+                ("region", -3.0),
+                ("region", 2.0),
+                ("region", 1.0),
+            ],
+        )
+    )
+    cases.append(
+        run(
+            "frame_sizes",
+            45.0,
+            [
+                (process, 641, 479, 0.0, None, det(320.5, 239.5, 22.0)),
+                (process, 480, 640, 0.1, None, det(100.0, 500.0, 22.0)),
+                (process, 1, 1, 0.2, None, det(0.5, 0.5, 5.0)),
+                (
+                    process,
+                    1920,
+                    1080,
+                    0.3,
+                    None,
+                    det(1900.0, 20.0, 80.0, major=82.0, minor=79.0, angle=12.5),
+                ),
+            ],
+        )
+    )
+    random_steps = []
+    for i in range(120):
+        found = bool(rng.random() > 0.15)
+        major = float(rng.uniform(2.0, 60.0))
+        minor = float(rng.uniform(1.0, major)) if rng.random() > 0.3 else 0.0
+        d = (
+            det(
+                float(rng.uniform(0, 640)),
+                float(rng.uniform(0, 480)),
+                float(rng.uniform(1, 60)),
+                conf=float(rng.uniform(-0.2, 1.0)),
+                major=major,
+                minor=minor,
+                angle=float(rng.uniform(0, 180)),
+                found=found,
+            )
+            if found
+            else Detection(found=False)
+        )
+        random_steps.append((process, 640, 480, i / 30, None if i % 7 else i * 10, d))
+        if i == 40:
+            random_steps.append(("invert", True, False))
+        if i == 70:
+            random_steps.append(("zero_last",))
+        if i == 90:
+            random_steps.append(("diameter", 45.0))
+    cases.append(run("random", 60.0, random_steps))
+    return {
+        "constructor": [
+            {"diameter": encode_number(d), "error": _tracker_rejects(d)}
+            for d in (60.0, 0.0, -5.0, 1e-9)
+        ],
+        "cases": cases,
+    }
+
+
+def _tracker_rejects(diameter: float) -> bool:
+    from shottrainer.tracking.tracker import Tracker
+
+    try:
+        Tracker(diameter)
+    except ValueError:
+        return True
+    return False
+
+
 AREAS = {
     "frame_ops": frame_ops,
     "preferences": preferences,
@@ -1605,6 +1900,7 @@ AREAS = {
     "target_faces": target_faces,
     "shot_detector": shot_detector,
     "audio_pipeline": audio_pipeline,
+    "tracker": tracker,
 }
 
 if __name__ == "__main__":
@@ -1635,6 +1931,7 @@ if __name__ == "__main__":
         "shot_detector",
         "audio_pipeline",
         "frame_ops",
+        "tracker",
     ):
 
         def compact(v: object) -> str:
