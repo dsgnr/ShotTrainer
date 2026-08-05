@@ -922,6 +922,7 @@ dependencies = [
 name = "shottrainer-tracking"
 version = "0.1.0"
 dependencies = [
+ "log",
  "serde_json",
  "testkit",
  "thiserror 2.0.21",
