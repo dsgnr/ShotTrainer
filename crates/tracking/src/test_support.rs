@@ -69,3 +69,42 @@ pub fn settings_from_json(v: &Value) -> DetectorSettings {
     }
     s
 }
+
+/// Flags exactly, every float within the `testkit` tolerance.
+#[cfg(feature = "opencv")]
+pub fn assert_detection_close(got: &Detection, expected: &Value, context: &str) {
+    use testkit::assert_close;
+
+    let want = detection_from_json(expected);
+    assert_eq!(got.found, want.found, "{context}: found");
+    assert_eq!(
+        got.rejected_outside_region, want.rejected_outside_region,
+        "{context}: rejected_outside_region"
+    );
+    for (actual, wanted, name) in [
+        (got.x_px, want.x_px, "x_px"),
+        (got.y_px, want.y_px, "y_px"),
+        (got.radius_px, want.radius_px, "radius_px"),
+        (got.confidence, want.confidence, "confidence"),
+        (got.semi_major_px, want.semi_major_px, "semi_major_px"),
+        (got.semi_minor_px, want.semi_minor_px, "semi_minor_px"),
+        (got.angle_degrees, want.angle_degrees, "angle_degrees"),
+    ] {
+        assert_close(actual, wanted, &format!("{context}: {name}"));
+    }
+}
+
+/// Decodes a PNG from `testdata/frames/detector` exactly as it was written.
+#[cfg(feature = "opencv")]
+pub fn load_png_frame(name: &str) -> Frame {
+    use opencv::imgcodecs;
+    use opencv::prelude::*;
+
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../testdata/frames/detector")
+        .join(format!("{name}.png"));
+    let mat = imgcodecs::imread(path.to_str().unwrap(), imgcodecs::IMREAD_UNCHANGED)
+        .unwrap_or_else(|e| panic!("cannot read {path:?}: {e}"));
+    assert!(!mat.empty(), "cannot decode {path:?}");
+    crate::cv::mat::mat_to_frame(&mat).unwrap()
+}
