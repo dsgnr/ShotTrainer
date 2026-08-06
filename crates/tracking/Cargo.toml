@@ -12,9 +12,14 @@ workspace = true
 [lib]
 name = "shottrainer_tracking"
 
+[features]
+# The OpenCV detector and camera capture. Needs OpenCV 4 or 5 and libclang at build time.
+opencv = ["dep:opencv"]
+
 [dependencies]
-thiserror.workspace = true
 log.workspace = true
+opencv = { workspace = true, optional = true }
+thiserror.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

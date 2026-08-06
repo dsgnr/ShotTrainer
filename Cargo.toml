@@ -20,6 +20,7 @@ publish = false
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 cpal = "0.18"
 log = "0.4"
+opencv = { version = "0.101", default-features = false, features = ["clang-runtime", "geometry", "imgcodecs", "imgproc", "videoio"] }
 proptest = "1"
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
