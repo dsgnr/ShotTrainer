@@ -23,3 +23,29 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+
+  opencv:
+    # Best effort. Distribution OpenCV versions are not pinned, so a failure
+    # here is reported without failing the workflow.
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: opencv
+      - name: Install OpenCV and libclang
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libopencv-dev clang libclang-dev pkg-config
+      - name: Install OpenCV
+        if: runner.os == 'macOS'
+        run: brew install opencv pkgconf
+      - run: cargo clippy -p shottrainer-tracking --features opencv --all-targets -- -D warnings
+      - run: cargo test -p shottrainer-tracking --features opencv
