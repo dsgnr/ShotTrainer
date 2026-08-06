@@ -32,6 +32,7 @@ from .replay_controls import ReplayControls
 from .session_controls import SessionControls
 from .shot_list import ShotList
 from .target_view import TargetView
+from .widgets import make_expand_button
 from .zoom_controls import ZoomControls
 
 DeviceOptionsProvider = Callable[[], tuple[list[tuple[int, str]], list[str]]]
@@ -54,6 +55,7 @@ class MainWindow(QMainWindow):
     circle_diameter_changed = Signal(float)
 
     def __init__(self) -> None:
+        """Initialise the main window and assemble its three-column layout."""
         super().__init__()
         self.setWindowTitle("ShotTrainer")
         self.resize(1440, 880)
@@ -129,6 +131,7 @@ class MainWindow(QMainWindow):
         self._install_shortcuts()
 
     def _build_left_column(self) -> QWidget:
+        """Assemble the left column: camera preview, zero buttons, audio meter."""
         col = QFrame()
         col.setObjectName("leftColumn")
         col.setMinimumWidth(220)
@@ -148,22 +151,8 @@ class MainWindow(QMainWindow):
         camera_layout.setContentsMargins(0, 0, 0, 0)
         camera_layout.addWidget(self.camera_view)
 
-        self._expand_button = QPushButton(camera_container)
-        self._expand_button.setFixedSize(26, 26)
+        self._expand_button = make_expand_button(camera_container)
         self._expand_button.setToolTip("Enlarge camera preview")
-        self._expand_button.setStyleSheet(
-            "QPushButton {"
-            "  background: rgba(0, 0, 0, 160);"
-            "  border: none;"
-            "  border-radius: 4px;"
-            "  padding: 4px;"
-            "}"
-            "QPushButton:hover {"
-            "  background: rgba(60, 60, 60, 200);"
-            "}"
-        )
-        self._expand_button.setIcon(self._make_expand_icon())
-        self._expand_button.setIconSize(self._expand_button.size())
         # Position in top-right corner. Repositioned on resize via eventFilter.
         self._expand_button.move(camera_container.width() - 34, 8)
         self._expand_button.raise_()
@@ -185,6 +174,7 @@ class MainWindow(QMainWindow):
         return col
 
     def _build_centre_column(self) -> QWidget:
+        """Assemble the centre column: target view, zoom and replay controls."""
         col = QFrame()
         col.setObjectName("centreColumn")
         layout = QVBoxLayout(col)
@@ -208,6 +198,7 @@ class MainWindow(QMainWindow):
         return col
 
     def _build_right_column(self) -> QWidget:
+        """Assemble the right column: stats, shot list, session controls."""
         col = QFrame()
         col.setObjectName("rightColumn")
         col.setMinimumWidth(280)
@@ -228,6 +219,7 @@ class MainWindow(QMainWindow):
         return col
 
     def _caption_label(self, text: str):
+        """Create a styled uppercase caption label for column sections."""
         from PySide6.QtWidgets import QLabel
 
         label = QLabel(text)
@@ -241,33 +233,6 @@ class MainWindow(QMainWindow):
         if event.type() == QEvent.Type.Resize and hasattr(self, "_expand_button"):
             self._expand_button.move(obj.width() - 34, 8)
         return super().eventFilter(obj, event)
-
-    @staticmethod
-    def _make_expand_icon():
-        """Create a simple expand icon as a QIcon (two outward-pointing corners)."""
-        from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
-
-        pm = QPixmap(18, 18)
-        pm.fill(QColor(0, 0, 0, 0))
-        p = QPainter(pm)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        pen = QPen(QColor(255, 255, 255, 220))
-        pen.setWidth(2)
-        p.setPen(pen)
-        # Top-left corner
-        p.drawLine(2, 6, 2, 2)
-        p.drawLine(2, 2, 6, 2)
-        # Top-right corner
-        p.drawLine(11, 2, 15, 2)
-        p.drawLine(15, 2, 15, 6)
-        # Bottom-left corner
-        p.drawLine(2, 11, 2, 15)
-        p.drawLine(2, 15, 6, 15)
-        # Bottom-right corner
-        p.drawLine(11, 15, 15, 15)
-        p.drawLine(15, 15, 15, 11)
-        p.end()
-        return QIcon(pm)
 
     def set_tracking_status(self, text: str) -> None:
         """Update the header's secondary status line (live mm/px and so on)."""
@@ -311,6 +276,11 @@ class MainWindow(QMainWindow):
             self._main_splitter.setSizes(sizes)
 
     def set_device_options_provider(self, fn: DeviceOptionsProvider) -> None:
+        """Register the callback that enumerates camera and audio devices.
+
+        Args:
+            fn: Callable returning (camera_list, microphone_list).
+        """
         self._device_options_provider = fn
 
     def set_saved_camera_name_provider(self, fn: SavedCameraNameProvider) -> None:
@@ -324,9 +294,19 @@ class MainWindow(QMainWindow):
         self._saved_camera_name_provider = fn
 
     def set_target_faces_provider(self, fn: TargetFacesProvider) -> None:
+        """Register the callback that provides the list of target faces.
+
+        Args:
+            fn: Callable returning a list of (key, label) tuples.
+        """
         self._target_faces_provider = fn
 
     def set_rings_lookup(self, fn: RingsLookup) -> None:
+        """Register the callback that returns rings for a given face key.
+
+        Args:
+            fn: Callable taking a face key and returning its ring tuple.
+        """
         self._rings_lookup = fn
 
     def set_face_lookup(self, fn: FaceLookup) -> None:
@@ -365,6 +345,7 @@ class MainWindow(QMainWindow):
         self._prefs = prefs
 
     def _build_menus(self) -> None:
+        """Build the application menu bar (File, Tools)."""
         menu = self.menuBar()
 
         file_menu = menu.addMenu("&File")
@@ -427,6 +408,7 @@ class MainWindow(QMainWindow):
             self.circle_diameter_changed.emit(chosen)
 
     def _open_preferences_dialog(self) -> None:
+        """Open the preferences dialog with current device options."""
         cameras: list[tuple[int, str]] | None = None
         microphones: list[str] | None = None
         if self._device_options_provider is not None:
@@ -452,6 +434,7 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def _on_preferences_saved(self, prefs: Preferences) -> None:
+        """Handle a save from the preferences dialog."""
         self._prefs = prefs
         cam_text = "no camera" if prefs.camera_id is None else f"camera {prefs.camera_id}"
         self.statusBar().showMessage(f"Saved preferences: {cam_text}", 3000)
@@ -472,7 +455,7 @@ class MainWindow(QMainWindow):
         space.activated.connect(self._toggle_replay)
 
     def _toggle_session(self) -> None:
-        """Route the Ctrl+S shortcut to whichever primary action is active."""
+        """Route Ctrl+S to whichever primary action is active."""
         self.session_controls.primary_action().click()
 
     def _invoke_clear_shots(self) -> None:
