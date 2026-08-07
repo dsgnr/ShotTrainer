@@ -4,5 +4,7 @@
 mod compat;
 pub mod detector;
 pub mod mat;
+pub mod tuning;
 
 pub use detector::CircleTargetDetector;
+pub use tuning::OpenCvHoughScorer;
