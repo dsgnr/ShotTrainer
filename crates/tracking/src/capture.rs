@@ -248,7 +248,7 @@ mod tests {
     }
 
     fn frame() -> Frame {
-        Frame::filled(2, 2, PixelFormat::Grey, 7)
+        Frame::filled(2, 2, PixelFormat::Grey, 7).unwrap()
     }
 
     fn fast() -> CaptureOptions {
@@ -355,7 +355,7 @@ mod tests {
 
     #[test]
     fn empty_frames_count_as_failed_reads() {
-        let empty = Frame::filled(0, 0, PixelFormat::Bgr, 0);
+        let empty = Frame::filled(0, 0, PixelFormat::Bgr, 0).unwrap();
         let script = Script(vec![Some(empty.clone()); 10].into_iter());
         let (_capture, rx) = start(opener(script), fast());
         let events = until_closed(&rx);

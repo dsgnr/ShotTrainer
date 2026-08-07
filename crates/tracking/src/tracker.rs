@@ -391,7 +391,8 @@ mod tests {
                 match step["op"].as_str().unwrap() {
                     "process" => {
                         let dim = |k: &str| u32::try_from(step[k].as_u64().unwrap()).unwrap();
-                        let frame = Frame::filled(dim("w"), dim("h"), PixelFormat::Grey, 0);
+                        let frame =
+                            Frame::filled(dim("w"), dim("h"), PixelFormat::Grey, 0).unwrap();
                         t.detector_mut().next = detection_from_json(&step["det"]);
                         let got = t.process(&frame, f64_at(step, "ts"), step["frame_id"].as_i64());
                         match (&got, &step["sample"]) {
@@ -504,7 +505,11 @@ mod tests {
             },
         ] {
             t.detector_mut().next = d;
-            let _ = t.process(&Frame::filled(0, 0, PixelFormat::Grey, 0), 0.0, None);
+            let _ = t.process(
+                &Frame::filled(0, 0, PixelFormat::Grey, 0).unwrap(),
+                0.0,
+                None,
+            );
             let _ = (t.mm_per_pixel(), t.zero_pixel(), t.zero_at_last_sample());
         }
     }

@@ -443,9 +443,9 @@ mod tests {
     fn degenerate_frames_and_settings_do_not_panic() {
         let target = load_png_frame("centred");
         let frames = [
-            Frame::filled(0, 0, PixelFormat::Grey, 0),
-            Frame::filled(1, 1, PixelFormat::Grey, 0),
-            Frame::filled(3, 200, PixelFormat::Bgr, 0),
+            Frame::filled(0, 0, PixelFormat::Grey, 0).unwrap(),
+            Frame::filled(1, 1, PixelFormat::Grey, 0).unwrap(),
+            Frame::filled(3, 200, PixelFormat::Bgr, 0).unwrap(),
             target.clone(),
         ];
         let settings = [

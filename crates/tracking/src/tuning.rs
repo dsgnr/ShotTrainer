@@ -224,9 +224,9 @@ mod tests {
                 calls: Vec::new(),
             };
             let frame = if case["empty"].as_bool().unwrap() {
-                Frame::filled(0, 0, PixelFormat::Grey, 0)
+                Frame::filled(0, 0, PixelFormat::Grey, 0).unwrap()
             } else {
-                Frame::filled(4, 4, PixelFormat::Grey, 100)
+                Frame::filled(4, 4, PixelFormat::Grey, 100).unwrap()
             };
             let result = optimise_detector_settings(
                 &frame,
@@ -298,7 +298,7 @@ mod tests {
             calls: Vec::new(),
         };
         let result = optimise_detector_settings(
-            &Frame::filled(2, 2, PixelFormat::Grey, 0),
+            &Frame::filled(2, 2, PixelFormat::Grey, 0).unwrap(),
             &base,
             &grid,
             &mut replay,
@@ -326,7 +326,7 @@ mod tests {
             calls: Vec::new(),
         };
         let result = optimise_detector_settings(
-            &Frame::filled(2, 2, PixelFormat::Grey, 0),
+            &Frame::filled(2, 2, PixelFormat::Grey, 0).unwrap(),
             &DetectorSettings::default(),
             &grid,
             &mut replay,
