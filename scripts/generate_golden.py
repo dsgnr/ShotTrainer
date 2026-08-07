@@ -2062,6 +2062,10 @@ def detector() -> dict:
     frames["lock_a"] = disc(canvas(), 320, 240, 25)
     frames["lock_b"] = disc(disc(canvas(), 320, 240, 25), 100, 240, 27)
     frames["lock_c"] = disc(disc(canvas(), 320, 240, 25), 60, 60, 35)
+    # The lock window after lock_a spans x 160 to 480. These discs sit within
+    # the lock radius with their right edges a few pixels inside the window edge.
+    frames["lock_edge_a"] = disc(canvas(), 452, 240, 30)
+    frames["lock_edge_b"] = disc(canvas(), 452, 240, 32)
     for i in range(10):
         frames[f"move_{i:02}"] = disc(disc(canvas(), 300 + 8 * i, 240 + i, 28), 480, 240, 25)
     bgr = np.full((480, 640, 3), (230, 240, 250), dtype=np.uint8)
@@ -2093,6 +2097,11 @@ def detector() -> dict:
             "lock_window",
             {"region_fraction": 1.0, "lock_radius_px": 80.0},
             ["lock_a", "lock_b", "lock_c"],
+        ),
+        (
+            "lock_window_edge",
+            {"region_fraction": 1.0},
+            ["lock_a", "lock_edge_a", "lock_a", "lock_edge_b"],
         ),
         (
             "lock_window_small",
