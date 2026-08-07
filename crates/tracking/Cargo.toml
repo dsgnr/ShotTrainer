@@ -24,3 +24,7 @@ thiserror.workspace = true
 [dev-dependencies]
 serde_json.workspace = true
 testkit = { path = "../testkit" }
+
+[[example]]
+name = "camera_capture"
+required-features = ["opencv"]
