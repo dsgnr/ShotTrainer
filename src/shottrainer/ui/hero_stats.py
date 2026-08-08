@@ -27,6 +27,8 @@ from shottrainer.services.shot_stats import (
 
 
 class _HeroFigure(QWidget):
+    """A single big-number display with a caption and optional subcaption."""
+
     def __init__(
         self,
         caption: str,
@@ -55,7 +57,14 @@ class _HeroFigure(QWidget):
 
 
 class HeroStats(QWidget):
+    """The headline stats panel: total score, group size, tremor, time on target."""
+
     def __init__(self, parent: QWidget | None = None) -> None:
+        """Initialise the four hero figures.
+
+        Args:
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
@@ -77,9 +86,19 @@ class HeroStats(QWidget):
         self._last_trace: list[tuple[float, float]] | None = None
 
     def update_from_positions(self, positions: list[tuple[float, float]]) -> None:
+        """Recompute shot stats from raw (x, y) positions.
+
+        Args:
+            positions: List of shot positions in mm.
+        """
         self.update_from_stats(compute_stats(positions))
 
     def update_from_stats(self, stats: ShotStats) -> None:
+        """Update the group size figure from pre-computed stats.
+
+        Args:
+            stats: Computed shot statistics.
+        """
         if stats.count == 0:
             self._group.value.setText("-")
             self._group.value.setToolTip("")
@@ -107,17 +126,32 @@ class HeroStats(QWidget):
         self._total.value.setText(f"{total:g}")
 
     def set_trace_stats(self, stats: TraceStats | None) -> None:
+        """Update the tremor figure from trace statistics.
+
+        Args:
+            stats: Computed trace stats, or None to clear.
+        """
         if stats is None or stats.samples == 0:
             self._tremor.value.setText("-")
             return
         self._tremor.value.setText(f"{stats.hold_tremor_mm:.1f}\u202fmm")
 
     def set_rings(self, rings: Sequence[TargetRing]) -> None:
+        """Set the target rings used for the time-on-target calculation.
+
+        Args:
+            rings: The active target face's ring definitions.
+        """
         self._rings = tuple(rings)
         self._refresh_inner_caption()
         self._refresh_inner_value()
 
     def set_trace_points(self, points: list[tuple[float, float]] | None) -> None:
+        """Push a new trace for tremor and time-on-target calculations.
+
+        Args:
+            points: Trace positions in mm, or None to clear.
+        """
         self._last_trace = list(points) if points else None
         if not points:
             self.set_trace_stats(None)
@@ -127,6 +161,7 @@ class HeroStats(QWidget):
         self._refresh_inner_value()
 
     def _refresh_inner_caption(self) -> None:
+        """Update the time-on-target label to name the diagnostic ring."""
         chosen = diagnostic_rings(self._rings)
         if chosen:
             ring = chosen[0]
@@ -136,6 +171,7 @@ class HeroStats(QWidget):
             self._inner.caption.setText("TIME ON TARGET")
 
     def _refresh_inner_value(self) -> None:
+        """Recalculate and display the time-on-target percentage."""
         if not self._last_trace:
             self._inner.value.setText("-")
             return

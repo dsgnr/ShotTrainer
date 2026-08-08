@@ -21,11 +21,18 @@ from PySide6.QtWidgets import (
 
 
 class SessionControls(QWidget):
+    """Session control panel with start/stop, name field, and clear button."""
+
     start_requested = Signal(str)
     stop_requested = Signal()
     clear_shots_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
+        """Initialise the session controls layout.
+
+        Args:
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
@@ -59,6 +66,11 @@ class SessionControls(QWidget):
         self._active = False
 
     def set_active(self, active: bool) -> None:
+        """Toggle between the recording and idle UI state.
+
+        Args:
+            active: True when a session is being recorded.
+        """
         self._active = active
         self._name.setEnabled(not active)
         self._clear.setEnabled(not active)
@@ -73,9 +85,15 @@ class SessionControls(QWidget):
         self._primary.style().polish(self._primary)
 
     def set_summary(self, text: str) -> None:
+        """Update the session summary label.
+
+        Args:
+            text: Summary text (e.g. shot count and elapsed time).
+        """
         self._summary.setText(text)
 
     def session_name(self) -> str:
+        """Return the current text in the session name field, stripped."""
         return self._name.text().strip()
 
     def primary_action(self) -> QPushButton:
@@ -91,6 +109,7 @@ class SessionControls(QWidget):
         return self._clear
 
     def _on_primary(self) -> None:
+        """Emit the appropriate signal based on active state."""
         if self._active:
             self.stop_requested.emit()
         else:

@@ -33,6 +33,15 @@ _DEFAULT_PALETTE = Palette()
 
 
 def build_stylesheet(check_path: str = "__CHECK_PATH__", p: Palette = _DEFAULT_PALETTE) -> str:
+    """Generate the application-wide QSS stylesheet.
+
+    Args:
+        check_path: File path to the checkbox check icon SVG.
+        p: Colour palette to use for all tokens.
+
+    Returns:
+        A complete QSS string ready for `QApplication.setStyleSheet`.
+    """
     return f"""
 QWidget {{
     background-color: {p.bg};
