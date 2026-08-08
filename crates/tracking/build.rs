@@ -16,10 +16,17 @@ fn main() {
     if env::var_os("CARGO_FEATURE_OPENCV").is_none() {
         return;
     }
-    let major = match env::var("SHOTTRAINER_OPENCV_MAJOR") {
-        Ok(text) => text.trim().parse::<u32>().ok(),
-        Err(_) => include_dirs().iter().find_map(|dir| major_from_header(dir)),
-    };
+    let overridden = env::var("SHOTTRAINER_OPENCV_MAJOR").ok().and_then(|text| {
+        let parsed = text.trim().parse::<u32>().ok();
+        if parsed.is_none() {
+            println!(
+                "cargo::warning=SHOTTRAINER_OPENCV_MAJOR={text:?} is not a version number, \
+                 ignoring it and reading the OpenCV headers instead."
+            );
+        }
+        parsed
+    });
+    let major = overridden.or_else(|| include_dirs().iter().find_map(|dir| major_from_header(dir)));
     match major {
         Some(5) => println!("cargo::rustc-cfg=opencv_5"),
         Some(_) => {}
