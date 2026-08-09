@@ -10,4 +10,4 @@ pub mod target_faces;
 
 pub use error::SettingsError;
 pub use paths::{Platform, data_dir, data_dir_for, sessions_db_path, settings_path};
-pub use preferences::{Preferences, load_preferences, save_preferences};
+pub use preferences::{Preferences, load_preferences, save_preferences, validate_preferences};

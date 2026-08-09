@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::error::SettingsError;
 use crate::json_values::{
@@ -69,10 +69,23 @@ impl Default for Preferences {
 /// defaults, and an invalid value falls back on its own without affecting the
 /// other keys. Unknown keys are ignored.
 pub fn load_preferences(path: &Path) -> Preferences {
-    let Some(raw) = read_json_object(path, "Settings") else {
-        return Preferences::default();
-    };
+    match read_json_object(path, "Settings") {
+        Some(raw) => preferences_from_object(&raw),
+        None => Preferences::default(),
+    }
+}
 
+/// Applies the loader's per-key rules to preferences that did not come from
+/// the file, such as values sent by the interface. Each invalid or non-finite
+/// value is replaced by its default with a warning.
+pub fn validate_preferences(prefs: &Preferences) -> Preferences {
+    match serde_json::to_value(prefs) {
+        Ok(Value::Object(raw)) => preferences_from_object(&raw),
+        _ => Preferences::default(),
+    }
+}
+
+fn preferences_from_object(raw: &Map<String, Value>) -> Preferences {
     let mut prefs = Preferences::default();
     macro_rules! field {
         ($key:literal, $slot:expr, $read:expr) => {
