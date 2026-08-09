@@ -148,6 +148,7 @@ fn evaluate_cell(
         score: best_score,
     }
 }
+
 #[cfg(test)]
 mod tests {
     use std::collections::VecDeque;
