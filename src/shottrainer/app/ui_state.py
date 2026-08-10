@@ -15,7 +15,14 @@ log = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class UiState:
-    window_geometry_b64: str = ""  # ``QByteArray.toBase64`` of ``saveGeometry``
+    """Persisted window layout: geometry blob and splitter proportions.
+
+    `window_geometry_b64` is the base64 encoding of Qt's
+    ``saveGeometry`` output. `main_splitter_sizes` is the pixel
+    widths of the main horizontal splitter's panes.
+    """
+
+    window_geometry_b64: str = ""
     main_splitter_sizes: list[int] = field(default_factory=list)
 
 
