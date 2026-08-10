@@ -21,11 +21,16 @@ import cv2
 import numpy as np
 
 from .detector import CircleTargetDetector, DetectorSettings
+from .frame_ops import adjust_image
 
 
 @dataclass(slots=True, frozen=True)
 class ImageAdjustment:
-    """The brightness and contrast the optimiser settled on."""
+    """Brightness and contrast values the optimiser settled on.
+
+    Applied to the greyscale frame before the detector runs. The
+    identity values (brightness 0, contrast 1) mean no change.
+    """
 
     brightness: float = 0.0
     contrast: float = 1.0
@@ -105,7 +110,7 @@ def _evaluate_cell(
     returned settings so the live detector applies the same
     blur later.
     """
-    adjusted = _apply_adjustment(grey, brightness, contrast)
+    adjusted = adjust_image(grey, brightness=brightness, contrast=contrast)
     best_score = 0.0
     best_settings: DetectorSettings | None = None
     detector = CircleTargetDetector(base_settings)
@@ -131,10 +136,3 @@ def _evaluate_cell(
         adjustment=ImageAdjustment(brightness=brightness, contrast=contrast),
         score=best_score,
     )
-
-
-def _apply_adjustment(grey: np.ndarray, brightness: float, contrast: float) -> np.ndarray:
-    """Return ``grey`` with the given brightness and contrast applied to a copy."""
-    if brightness == 0.0 and contrast == 1.0:
-        return grey
-    return cv2.convertScaleAbs(grey, alpha=contrast, beta=brightness)
