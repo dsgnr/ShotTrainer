@@ -116,6 +116,52 @@ def test_camera_view_rejects_unknown_status(qtbot):
         view.set_status("nonsense")  # type: ignore[arg-type]
 
 
+def test_camera_view_paint_with_frame_and_overlays(qtbot):
+    """Exercising paintEvent with a real frame catches missing methods."""
+    view = CameraView()
+    qtbot.addWidget(view)
+    view.resize(320, 240)
+    frame = np.full((120, 160), 128, dtype=np.uint8)
+    view.set_frame(frame)
+    view.set_aim_point(80.0, 60.0, radius_px=20.0)
+    view.set_region_fraction(0.8)
+    view.set_status("tracking")
+    # Force a synchronous repaint. If any overlay method is missing
+    # or broken this will raise.
+    view.repaint()
+
+
+def test_camera_view_paint_with_rejected_point(qtbot):
+    """Paint path with a rejected candidate marker."""
+    view = CameraView()
+    qtbot.addWidget(view)
+    view.resize(320, 240)
+    frame = np.zeros((120, 160), dtype=np.uint8)
+    view.set_frame(frame)
+    view.set_rejected_point(40.0, 30.0, radius_px=15.0)
+    view.repaint()
+
+
+def test_camera_view_paint_no_frame(qtbot):
+    """Paint path with no frame shows 'No camera' without crashing."""
+    view = CameraView()
+    qtbot.addWidget(view)
+    view.resize(320, 240)
+    view.repaint()
+
+
+def test_raw_camera_view_paint_with_frame(qtbot):
+    """RawCameraView renders a frame without overlays."""
+    from shottrainer.ui.camera_view import RawCameraView
+
+    view = RawCameraView()
+    qtbot.addWidget(view)
+    view.resize(320, 240)
+    frame = np.full((120, 160, 3), 64, dtype=np.uint8)
+    view.set_frame(frame)
+    view.repaint()
+
+
 def test_zoom_controls_emit_extent(qtbot):
     z = ZoomControls(min_extent_mm=10.0, max_extent_mm=100.0)
     qtbot.addWidget(z)

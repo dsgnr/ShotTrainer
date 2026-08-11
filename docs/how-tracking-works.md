@@ -67,8 +67,8 @@ flowchart LR
    about their hold. The detector's confidence travels with the
    sample so downstream consumers can drop low-quality detections.
 
-5. **Buffer.** Samples are stored in a `TraceBuffer` (a bounded deque) 
-   so the shot coordinator can find the nearest sample by timestamp 
+5. **Buffer.** Samples are stored in a `TraceBuffer` (a bounded deque)
+   so the shot coordinator can find the nearest sample by timestamp
    when a shot fires.
 
 6. **Detect shots.** Concurrently, `audio/shot_detector.py` computes

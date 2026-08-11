@@ -215,8 +215,8 @@ See [`docs/architecture.md`](docs/architecture.md) for a longer description.
 
 Bug reports, fixes, target faces and tested-camera reports are all
 welcome. The full guide lives in [`CONTRIBUTING.md`](CONTRIBUTING.md).
-Branch off `main`, run `make test` and `make lint` before pushing, 
-use conventional commit prefixes (`feat:`, `fix:`, `refactor:`, 
+Branch off `main`, run `make test` and `make lint` before pushing,
+use conventional commit prefixes (`feat:`, `fix:`, `refactor:`,
 `docs:`, `test:`), and open a pull request describing what
 changed and how you tested.
 
