@@ -6,6 +6,7 @@ pub mod cv;
 pub mod detector;
 pub mod frame;
 pub mod frame_ops;
+pub mod log_limit;
 pub mod models;
 pub mod tracker;
 pub mod tuning;

@@ -15,6 +15,7 @@ use crate::detector::{
     lock_adjusted_score, lock_window,
 };
 use crate::frame::{Frame, PixelFormat};
+use crate::log_limit::RepeatLimiter;
 use crate::models::Detection;
 
 /// Hough circle detection with a contour fallback and a soft lock.
@@ -22,6 +23,7 @@ use crate::models::Detection;
 pub struct CircleTargetDetector {
     settings: DetectorSettings,
     lock: SoftLock,
+    warnings: RepeatLimiter,
 }
 
 impl CircleTargetDetector {
@@ -29,6 +31,7 @@ impl CircleTargetDetector {
         CircleTargetDetector {
             settings,
             lock: SoftLock::default(),
+            warnings: RepeatLimiter::default(),
         }
     }
 
@@ -38,6 +41,11 @@ impl CircleTargetDetector {
 
     pub fn consecutive_misses(&self) -> i64 {
         self.lock.consecutive_misses
+    }
+
+    /// Repeats of the current detector error since it was first logged.
+    pub fn repeated_failures(&self) -> u64 {
+        self.warnings.repeats()
     }
 
     fn try_detect(&mut self, frame: &Frame) -> opencv::Result<Detection> {
@@ -263,13 +271,25 @@ impl CircleTargetDetector {
 }
 
 impl TargetDetector for CircleTargetDetector {
-    /// An OpenCV error is logged and reported as no detection, leaving the
-    /// lock untouched, as an exception in the Python frame slot would.
+    /// An OpenCV error is reported as no detection, leaving the lock
+    /// untouched, as an exception in the Python frame slot would. Repeats of
+    /// the same error are logged through a [`RepeatLimiter`].
     fn detect(&mut self, frame: &Frame) -> Detection {
-        self.try_detect(frame).unwrap_or_else(|error| {
-            log::warn!("Circle detector failed: {error}");
-            Detection::default()
-        })
+        match self.try_detect(frame) {
+            Ok(detection) => {
+                self.warnings.reset();
+                detection
+            }
+            Err(error) => {
+                if let Some(text) = self
+                    .warnings
+                    .check(&format!("Circle detector failed: {error}"))
+                {
+                    log::warn!("{text}");
+                }
+                Detection::default()
+            }
+        }
     }
 
     fn reset_lock(&mut self) {
@@ -438,6 +458,22 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn repeated_errors_are_counted_and_a_success_resets_the_count() {
+        let target = load_png_frame("centred");
+        let mut detector = CircleTargetDetector::new(DetectorSettings {
+            blur_kernel: 4,
+            ..DetectorSettings::default()
+        });
+        for _ in 0..5 {
+            assert!(!detector.detect(&target).found);
+        }
+        assert_eq!(detector.repeated_failures(), 4);
+        detector.set_settings(DetectorSettings::default());
+        assert!(detector.detect(&target).found);
+        assert_eq!(detector.repeated_failures(), 0);
     }
 
     #[test]
