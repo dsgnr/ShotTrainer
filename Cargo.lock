@@ -1019,6 +1019,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "shottrainer-controller"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "shottrainer-audio",
+ "shottrainer-core",
+ "shottrainer-settings",
+ "shottrainer-tracking",
+ "tempfile",
+]
+
+[[package]]
 name = "shottrainer-core"
 version = "0.1.0"
 dependencies = [
