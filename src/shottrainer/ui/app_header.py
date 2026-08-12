@@ -46,15 +46,7 @@ class StatePill(QLabel):
         style = _STATE_STYLES.get(state, _STATE_STYLES["idle"])
         self.setText(style.text)
         self.setStyleSheet(
-            "QLabel#statePill {"
-            f"  color: {style.colour};"
-            f"  border: 1px solid {style.colour};"
-            "  border-radius: 12px;"
-            "  padding: 4px 12px;"
-            "  font-size: 11px;"
-            "  letter-spacing: 1.5px;"
-            "  text-transform: uppercase;"
-            "}"
+            f"QLabel#statePill {{ color: {style.colour}; border-color: {style.colour}; }}"
         )
 
 
