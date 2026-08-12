@@ -42,7 +42,7 @@ class CameraPopout(QDialog):
         self._view = CameraView()
 
         self._resolution_label = QLabel()
-        self._resolution_label.setStyleSheet("color: #aaa; font-size: 11px; padding: 4px 8px;")
+        self._resolution_label.setObjectName("cameraResolution")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

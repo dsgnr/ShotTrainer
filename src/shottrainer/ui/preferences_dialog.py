@@ -460,7 +460,6 @@ class PreferencesDialog(QDialog):
         self._detector_status = QLabel("")
         self._detector_status.setObjectName("detectorStatus")
         self._detector_status.setWordWrap(True)
-        self._detector_status.setStyleSheet("color: #8a8a8a;")
         layout.addWidget(self._detector_status)
 
         self._camera_preview = CameraView()
