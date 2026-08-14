@@ -1,9 +1,13 @@
 # Architecture
 
-ShotTrainer is split into small modules with clear responsibilities. Each
-subsystem can be tested in isolation, and Qt signals connect them at the edges.
+This page provides a high-level overview of how ShotTrainer is organised
+internally.
 
-## High level
+The application is split into small, focused modules with clear
+responsibilities. Most of the core logic is implemented independently of the
+user interface, making it easier to test, maintain, and extend.
+
+## High-level overview
 
 ```mermaid
 flowchart TB
@@ -31,16 +35,22 @@ flowchart TB
     class Preview,ReplayUI ui;
 ```
 
-The UI never talks to the camera or audio backends directly. It listens to
-high level signals from the services layer (new tracking sample, shot
-detected, session saved) and reads from the repository when displaying past
-sessions.
+The user interface does not communicate directly with camera or audio hardware.
 
-## Module boundaries
+Instead, it listens for high-level events such as:
+
+- New tracking samples
+- Shot detections
+- Session updates
+- Replay events
+
+This keeps hardware-specific code separate from the presentation layer.
+
+## Module dependencies
 
 ```mermaid
 flowchart LR
-    UI[ui/<br/>widgets &amp. Dialogs] --> App[app/<br/>controller, settings]
+    UI[ui/<br/>widgets &amp; dialogs] --> App[app/<br/>controller, settings]
     App --> Services[services/<br/>recorder, replay, scoring]
     App --> Tracking[tracking/<br/>camera, detector, tracker]
     App --> Audio[audio/<br/>input, detector]
@@ -51,63 +61,189 @@ flowchart LR
     class UI,App,Services,Tracking,Audio,Sessions,Replay layer;
 ```
 
-Arrows point from depends-on to depended-upon. ``ui/`` and ``app/``
-are the only modules that import Qt. Everything below the controller
-is pure Python so it tests cleanly with synthetic data.
+The arrows indicate dependency direction.
 
-## Threads
+Higher-level modules depend on lower-level modules, but not the other way
+around.
 
-Camera capture and audio capture each run on their own thread. Tracking and
-shot detection happen close to the capture loop to keep latency low. Results
-are pushed back to the UI thread via Qt's queued signal/slot connections so
-nothing blocks the event loop.
+In general:
 
-## Modules
+- `ui/` depends on `app/`
+- `app/` coordinates the rest of the system
+- `services/` implements application behaviour
+- `tracking/`, `audio/`, and `sessions/` provide specialised functionality
 
-- `tracking/` Camera capture, target detection, the live tracker that
-  converts detections into millimetre coordinates. Pure functions where
-  possible so they can be tested with synthetic images.
-- `audio/` Microphone input and shot detection. Configurable threshold and
-  refractory window.
-- `sessions/` SQLAlchemy models, repository, schema migrations.
-- `services/` Coordinates capture, tracking, audio, and storage. Pure
-  Python, no Qt. The UI talks to this layer.
-- `replay/` Loads and steps through stored traces for playback.
-- `ui/` PySide6 widgets and dialogs. Thin layer. Widgets only render and
-  expose signals.
-- `app/` Entry point, controller (the place Qt signals meet pure-Python
-  services), settings, paths, persisted UI state.
+## Design principles
 
-## Persistent state files
+A few architectural decisions guide the structure of the project:
 
-These live under the platform-appropriate data directory (see
-`docs/troubleshooting.md` if you need to find them):
+- User interface code is kept separate from domain logic.
+- Hardware access is isolated behind small interfaces.
+- Most functionality can be tested without a camera, microphone, or Qt.
+- Data storage is accessed through repositories rather than directly from UI
+  code.
+- Components communicate through signals and events rather than direct coupling.
 
-- `sessions.db` SQLite database with sessions, shots, and trace samples.
-- `settings.json` user preferences (camera id, rotation, flips, audio
-  device, sensitivity, target face, recording windows). The file is
-  watched while the app is running. External edits are picked up live.
-- `detector_settings.json` last auto-optimised detector parameters.
-- `zero_offset.json` user-set zero offset that shifts the trace origin
-  to match the rifle's actual aim or zeroed group centre.
-- `ui_state.json` window geometry and splitter sizes.
+## Threading model
 
-Each file degrades gracefully if missing or corrupt. The app falls back to
+Camera capture and audio capture run independently on their own worker threads.
+
+This allows frame acquisition and audio processing to continue without blocking
+the user interface.
+
+Results are sent back to the main thread using Qt's queued signal and slot
+system, ensuring that all UI updates occur safely on the GUI thread.
+
+## Module overview
+
+### `tracking/`
+
+Responsible for:
+
+- Camera capture
+- Target detection
+- Coordinate conversion
+- Tracking sample generation
+
+The tracking code is designed to be testable with synthetic images wherever
+possible.
+
+### `audio/`
+
+Responsible for:
+
+- Audio device input
+- Shot detection
+- Threshold handling
+- Refractory window logic
+
+### `sessions/`
+
+Responsible for:
+
+- Database models
+- Data persistence
+- Repository implementations
+- Database migrations
+
+This module is the application's storage layer.
+
+### `services/`
+
+Coordinates the application's core behaviour, including:
+
+- Recording sessions
+- Replay
+- Scoring
+- Trace management
+- Session lifecycle management
+
+The user interface communicates primarily with this layer.
+
+### `replay/`
+
+Responsible for:
+
+- Loading recorded sessions
+- Managing replay timelines
+- Stepping through recorded trace data
+
+### `ui/`
+
+Contains:
+
+- PySide6 widgets
+- Dialogs
+- Window layouts
+- User interaction code
+
+The UI layer focuses on presentation and user interaction rather than
+application logic.
+
+### `app/`
+
+Contains:
+
+- Application startup code
+- Controllers
+- Settings management
+- Path management
+- Persistent UI state
+
+This is where the Qt application and the core services are connected together.
+
+## Persistent data
+
+ShotTrainer stores data in a small number of files within its data directory.
+
+For platform-specific locations, see [Troubleshooting](troubleshooting.md).
+
+### `sessions.db`
+
+SQLite database containing:
+
+- Sessions
+- Shots
+- Tracking samples
+
+### `settings.json`
+
+User preferences, including:
+
+- Camera settings
+- Audio settings
+- Target settings
+- Recording settings
+
+Changes made outside the application are detected and reloaded automatically.
+
+### `detector_settings.json`
+
+Stores the most recent detector optimisation settings.
+
+### `zero_offset.json`
+
+Stores the user's zero offset used by the **Zero on aim** feature.
+
+### `ui_state.json`
+
+Stores window layouts, geometry, splitter positions, and other user interface
+state.
+
+If any of these files are missing or invalid, ShotTrainer falls back to sensible
 defaults rather than failing to start.
 
-## Why detection lives outside the capture loop
+## Why tracking and detection are separate
 
-The original sketch had everything inside the camera loop. Pulling
-detection and coordinate conversion out of the capture loop makes them
-testable without OpenCV or a real camera, and means the same
-conversion logic is used at record time, replay time, and when
-re-analysing past sessions.
+Tracking, detection, and coordinate conversion are implemented as separate
+components rather than being embedded directly in the camera capture loop.
 
-## Replaceable parts
+This provides several advantages:
 
-- The detector is one class with a small surface, so a different
-  algorithm can be slotted in without touching the tracker or UI.
-- The repository hides SQLAlchemy from the rest of the code, so a different
-  storage backend can be substituted by reimplementing the same methods.
-- The audio backend is hidden behind a thin interface so PortAudio can be
-  swapped where it isn't available.
+- Individual components can be tested independently.
+- Detection logic can be replaced without changing the tracker.
+- The same coordinate conversion code can be reused during recording, replay,
+  and analysis.
+- Camera hardware is not required for most automated tests.
+
+## Replaceable components
+
+Several parts of the system are intentionally designed to be interchangeable.
+
+### Detector
+
+The target detector is isolated behind a small interface, making it possible to
+experiment with different detection algorithms without affecting the rest of the
+application.
+
+### Storage backend
+
+The repository layer hides SQLAlchemy details from higher-level code.
+
+In principle, a different storage implementation could be introduced without
+changing the UI or services layers.
+
+### Audio backend
+
+Audio capture is abstracted behind a lightweight interface so alternative
+backends can be supported if PortAudio is unavailable on a particular platform.
