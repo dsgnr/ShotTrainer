@@ -9,7 +9,7 @@
 | Frame rate | Up to 120 fps @ 1280x800 MJPEG |
 | Lens mount | M12 (interchangeable) |
 | Approximate price | ~£30-40 + lenses |
-| Tested by | @dsgnr |
+| Tested by | [@dsgnr](https://github.com/dsgnr){:target="_blank"} |
 
 ## Why this camera
 
@@ -43,19 +43,58 @@ than a typical 30 fps camera should mean smoother traces and tighter
 shot timing. Whether that actually matters for coaching or just looks
 nicer is something to evaluate.
 
+### Lenses tried
+
+| Lens | FoV (approx) | Holder needed | Notes |
+|------|--------------|---------------|-------|
+| Stock (wide-angle) | ~70 deg horizontal | 9 mm (stock) | Useless past ~2 m |
+| [16 mm M12](#16mm-m12-lens) | 27 deg horizontal | 9 mm (stock) | Not usable for 25 yard NSRA targets |
+| [50 mm M12](#50mm-m12-lens) | ~8 deg | 16 mm | Needs taller holder |
+
+Tests below are at a 25 yards indoor range. LED lighting, standard NSRA 25 yard card
+(NSRA 2510 BM/89-18) on firing point 8 (rightmost).
+
+Specifications below are from manufacturer specs. FOV is converted to the OV9281 sensor.
+
+#### 16mm M12 lens
+
+Useless at 25 yards.
+
+Spec:
+
+| Specification | Value |
+|---|---|
+| Focal Length | 16mm |
+| Aperture | F2.0 |
+| FOV (DxHxV) | 16.4° × 13.9° × 8.8° (5.6m x 3.5m x 6.6m at 25y) |
+
+![Arducam OC9281 preview 16mm lens](./images/arducam-ov9281-preview-16mm-lens.jpg)
+
+#### 50mm M12 lens
+
+Each black target is 51.5mm, and this works out to ~33px for the tracker.
+This is probably usable with a single target on the card, but unlikely to get "millimetre accuracy".
+Needs to be tested properly on the rifle.
+
+Spec:
+
+| Specification | Value |
+|---|---|
+| Focal Length | 50mm |
+| Aperture | f/2.8 |
+| FOV (DxHxV) | 5.3° × 4.5° × 2.8° (1.77m x 1.12m x 2.10m at 25y) |
+
+![Arducam OC9281 preview 16mm lens](./images/arducam-ov9281-preview-50mm-lens.jpg)
+
+
 ## Still to do
 
+- Screenshot the stock wide-angle lens at 25 yards.
+- Test with a 90mm focal length lens.
 - Mount the PCB on the rifle and capture some initial test footage.
-- Test the stock wide-angle lens at 25 yards to confirm whether it is
-  too wide to put enough pixels on the target.
-- Try a longer M12 lens, around 16 mm, at 25 yards and measure the
-  pixel diameter of the tracking circle.
 - Test at 50 m and 100 yards using NSRA targets. Since the aiming mark
   scales with distance, the same lens should theoretically keep the
   circle at a similar size in the image.
-- Investigate longer focal lengths such as 50 mm and 90 mm for tighter
-  framing at longer ranges, and check whether the stock 9 mm lens holder
-  provides enough back-focus adjustment.
 - Replace the bare PCB with a 3D-printed enclosure once the lens
   selection is finalised.
 - Measure the noise floor with the rifle clamped to separate system
