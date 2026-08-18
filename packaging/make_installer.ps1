@@ -24,6 +24,17 @@ if (-not (Test-Path $bundle)) {
     Write-Error "$bundle not found. Run 'make package' first."
 }
 
+# The version is owned by pyproject.toml. Read it here and pass it
+# through to Inno Setup so the installer matches the rest of the
+# build artefacts.
+$pyproject = Join-Path $repoRoot "pyproject.toml"
+$pyprojectText = Get-Content $pyproject -Raw
+$versionMatch = [regex]::Match($pyprojectText, '(?m)^version\s*=\s*"([^"]+)"')
+if (-not $versionMatch.Success) {
+    Write-Error "Could not parse version from $pyproject"
+}
+$appVersion = $versionMatch.Groups[1].Value
+
 # Resolve iscc; if the caller didn't pass an explicit path, pick the
 # default install location when 'iscc' isn't already on PATH.
 $resolved = Get-Command $InnoSetupPath -ErrorAction SilentlyContinue
@@ -39,10 +50,10 @@ if (-not $resolved) {
     $InnoSetupPath = $found
 }
 
-& $InnoSetupPath $iss
+& $InnoSetupPath "/DMyAppVersion=$appVersion" $iss
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Inno Setup compiler exited with code $LASTEXITCODE"
 }
 
 $out = Join-Path $repoRoot "dist\ShotTrainer-Setup.exe"
-Write-Host "Wrote $out"
+Write-Host "Wrote $out (version $appVersion)"
