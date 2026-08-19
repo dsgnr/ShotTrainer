@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use shottrainer_audio::models::ShotDetectorSettings;
 use shottrainer_audio::{AudioEvent, DeviceSelector};
@@ -35,6 +35,8 @@ pub struct CameraManager {
     selection_path: PathBuf,
     running: Option<(i32, Box<dyn CameraHandle>)>,
     generation: u64,
+    /// Frames in flight for the current capture. Each start gets its own
+    /// counter so frames of an earlier capture cannot use up its budget.
     pending: Arc<AtomicUsize>,
     cameras: Option<Vec<(i64, String)>>,
 }
@@ -83,7 +85,8 @@ impl CameraManager {
         self.generation += 1;
         let generation = self.generation;
         let forward = self.forward.clone();
-        let pending = self.pending.clone();
+        let pending = Arc::new(AtomicUsize::new(0));
+        self.pending = pending.clone();
         let sink = Box::new(move |event: CameraEvent| {
             if matches!(event, CameraEvent::Frame { .. })
                 && pending.fetch_add(1, Ordering::AcqRel) >= MAX_PENDING_FRAMES
@@ -118,8 +121,13 @@ impl CameraManager {
         self.running.is_some() && generation == self.generation
     }
 
-    /// Called once for every frame event taken off the queue.
-    pub fn frame_done(&self) {
+    /// Called once for every frame event taken off the queue. Frames of an
+    /// earlier generation are ignored, as they were counted against a
+    /// counter that is no longer in use.
+    pub fn frame_done(&self, generation: u64) {
+        if generation != self.generation {
+            return;
+        }
         let mut current = self.pending.load(Ordering::Acquire);
         while current > 0 {
             match self.pending.compare_exchange_weak(
@@ -186,6 +194,9 @@ pub struct AudioManager {
     settings: ShotDetectorSettings,
     device: String,
     running: Option<Box<dyn AudioHandle>>,
+    /// Set when the current stream reported an error. `AudioInput` ends its
+    /// stream thread after a failed open or play, so the handle is dead.
+    failed: Arc<AtomicBool>,
     generation: u64,
 }
 
@@ -198,6 +209,7 @@ impl AudioManager {
             settings: ShotDetectorSettings::default(),
             device: "default".to_owned(),
             running: None,
+            failed: Arc::new(AtomicBool::new(false)),
             generation: 0,
         }
     }
@@ -216,15 +228,26 @@ impl AudioManager {
         device.clone_into(&mut self.device);
     }
 
-    /// Opens the stream unless one is running. Errors arrive as events.
+    /// Opens the stream unless one is running. Errors arrive as events, and
+    /// a start after an error opens a new stream.
     pub fn start(&mut self) {
         if self.running.is_some() {
-            return;
+            if !self.failed.load(Ordering::Acquire) {
+                return;
+            }
+            self.stop();
         }
+        let failed = Arc::new(AtomicBool::new(false));
+        self.failed = failed.clone();
         self.generation += 1;
         let generation = self.generation;
         let forward = self.forward.clone();
-        let sink = Box::new(move |event| forward(DeviceEvent::Audio { generation, event }));
+        let sink = Box::new(move |event| {
+            if matches!(event, AudioEvent::Error(_)) {
+                failed.store(true, Ordering::Release);
+            }
+            forward(DeviceEvent::Audio { generation, event });
+        });
         self.running = Some(self.backend.start(
             self.settings.clone(),
             DeviceSelector::parse(Some(&self.device)),
@@ -401,11 +424,11 @@ mod tests {
         }
         fake.emit(0, CameraEvent::Closed);
         assert_eq!(seen.lock().unwrap().len(), MAX_PENDING_FRAMES + 1);
-        mgr.frame_done();
+        mgr.frame_done(1);
         fake.emit(0, frame_event(5));
         assert_eq!(seen.lock().unwrap().len(), MAX_PENDING_FRAMES + 2);
         for _ in 0..10 {
-            mgr.frame_done();
+            mgr.frame_done(1);
         }
         fake.emit(0, frame_event(6));
         assert_eq!(
@@ -413,6 +436,66 @@ mod tests {
             MAX_PENDING_FRAMES + 3,
             "extra frame_done calls do not underflow"
         );
+    }
+
+    #[test]
+    fn a_restarted_camera_has_its_own_frame_budget() {
+        let (mut mgr, fake, seen, _dir) = manager(&[]);
+        mgr.start(0);
+        fake.emit(0, frame_event(1));
+        fake.emit(0, frame_event(2));
+        mgr.start(0);
+        for id in 3..=5 {
+            fake.emit(1, frame_event(id));
+        }
+        let frames = seen
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|e| matches!(e, DeviceEvent::Camera { generation: 2, .. }))
+            .count();
+        assert_eq!(frames, MAX_PENDING_FRAMES);
+        mgr.frame_done(1);
+        mgr.frame_done(1);
+        fake.emit(1, frame_event(6));
+        assert_eq!(
+            seen.lock().unwrap().len(),
+            2 + MAX_PENDING_FRAMES,
+            "stale frame_done calls do not free the new budget"
+        );
+    }
+
+    #[test]
+    fn effective_index_falls_back_to_the_first_camera() {
+        let (mut mgr, _, _, dir) = manager(&[(4, "Built-in"), (2, "USB Cam")]);
+        save_selection(&dir, "Gone", Some(9));
+        assert_eq!(mgr.effective_index(), Some(4));
+    }
+
+    #[test]
+    fn audio_start_retries_after_a_failed_open() {
+        let fake = FakeAudio::default();
+        let (forward, _) = collector();
+        let mut mgr = AudioManager::new(Box::new(fake.clone()), forward, clock());
+        mgr.start();
+        fake.emit(0, AudioEvent::Error("no device".into()));
+        assert!(mgr.is_current(1), "the error itself is still current");
+        mgr.start();
+        assert_eq!(fake.state().started.len(), 2);
+        assert_eq!(fake.state().stopped, 1, "the failed stream is released");
+        assert!(mgr.is_current(2));
+        assert!(!mgr.is_current(1));
+    }
+
+    #[test]
+    fn audio_is_not_current_after_stop() {
+        let fake = FakeAudio::default();
+        let (forward, _) = collector();
+        let mut mgr = AudioManager::new(Box::new(fake), forward, clock());
+        mgr.start();
+        assert!(mgr.is_current(1));
+        mgr.stop();
+        assert!(!mgr.is_current(1));
     }
 
     #[test]
