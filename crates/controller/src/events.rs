@@ -2,6 +2,7 @@
 //! interface layer can serialise it in whatever form it needs.
 
 use shottrainer_core::services::shot_stats::{ShotStats, TraceStats};
+use shottrainer_core::sessions::SessionSummary;
 
 use crate::player::PlayerEvent;
 use crate::session::{SessionState, ShotEntry};
@@ -58,6 +59,31 @@ pub struct HoldTrace {
     pub stats: TraceStats,
 }
 
+/// The amber circle at the mean pre-shot position with the tremor radius.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HoldZone {
+    pub centre_mm: (f64, f64),
+    pub radius_mm: f64,
+}
+
+/// A saved shot's window loaded for replay. The `Player` events that follow
+/// position the playhead, so a front end applies this first.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReplayView {
+    /// The selected shot's position in the shot list.
+    pub index: usize,
+    pub points: Vec<(f64, f64)>,
+    /// Where the release window starts.
+    pub release_index: Option<usize>,
+    /// The sample nearest the shot.
+    pub split_index: Option<usize>,
+    /// Recorded time from the first to the last point.
+    pub duration_ms: Option<i64>,
+    pub hold_zone: Option<HoldZone>,
+    /// False when the window holds no samples.
+    pub enabled: bool,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum UiEvent {
     Message(StatusMessage),
@@ -74,4 +100,11 @@ pub enum UiEvent {
     /// cleared.
     ReplayCleared,
     Player(PlayerEvent),
+    /// Highlights a shot on the target, whether or not a replay follows.
+    SelectedShot(usize),
+    ReplayLoaded(ReplayView),
+    /// The play or pause glyph of the replay controls.
+    ReplayPlaying(bool),
+    /// The session browser list, newest first.
+    Sessions(Vec<SessionSummary>),
 }
