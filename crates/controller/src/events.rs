@@ -3,7 +3,10 @@
 
 use shottrainer_core::services::shot_stats::{ShotStats, TraceStats};
 use shottrainer_core::sessions::SessionSummary;
+use shottrainer_settings::Preferences;
+use shottrainer_settings::target_faces::{TargetFace, TargetRing};
 
+use crate::frames::FrameView;
 use crate::player::PlayerEvent;
 use crate::session::{SessionState, ShotEntry};
 
@@ -86,6 +89,31 @@ pub struct ReplayView {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UiEvent {
+    Frame(Box<FrameView>),
+    /// The camera was stopped. The view shows its idle state.
+    CameraIdle,
+    /// The microphone level multiplied by the gain, for the meter.
+    AudioLevel(f64),
+    /// The header line, such as `Tracking 60 mm circle - 0.125 mm/px`.
+    TrackingStatusText(String),
+    /// The active preferences and the rings of the active face.
+    Preferences {
+        prefs: Preferences,
+        rings: Vec<TargetRing>,
+    },
+    ZeroOffset {
+        active: bool,
+        offset_mm: (f64, f64),
+    },
+    /// Clears the live target trace and the hold zone.
+    ClearLiveTrace,
+    DeviceOptions {
+        cameras: Vec<(i64, String)>,
+        microphones: Vec<String>,
+        /// The saved camera name, so the dialog can preselect it.
+        saved_camera: String,
+    },
+    TargetFaces(Vec<TargetFace>),
     Message(StatusMessage),
     /// The header state and the summary line under the session controls.
     Session {

@@ -9,8 +9,15 @@ use shottrainer_tracking::capture::{CameraEvent, ClockFn, EventSink};
 use shottrainer_tracking::detector::{DetectorSettings, TargetDetector};
 use shottrainer_tracking::frame::Frame;
 use shottrainer_tracking::models::Detection;
+use shottrainer_tracking::tuning::HoughScorer;
 
-use crate::backends::{AudioBackend, AudioHandle, AudioSink, CameraBackend, CameraHandle};
+use crate::backends::{
+    AudioBackend, AudioHandle, AudioSink, Backends, CameraBackend, CameraHandle,
+};
+use crate::controller::{Controller, ControllerConfig, Input};
+use crate::devices::DeviceEvent;
+use crate::events::UiEvent;
+use crate::paths::DataPaths;
 
 /// Returns queued detections in order, then not-found, and keeps every
 /// frame it is given.
@@ -177,5 +184,102 @@ impl AudioBackend for FakeAudio {
         state.start_settings.push(settings);
         state.sinks.push(Arc::new(on_event));
         Box::new(FakeAudioHandle(self.0.clone()))
+    }
+}
+
+/// Scores every optimiser cell with the queued value, or `None`.
+#[derive(Clone, Default)]
+pub struct FixedScorer(pub Arc<Mutex<Option<f64>>>);
+
+impl HoughScorer for FixedScorer {
+    fn hough_score(
+        &mut self,
+        _adjusted: &Frame,
+        _blur: i32,
+        _base: &DetectorSettings,
+    ) -> Option<f64> {
+        *self.0.lock().unwrap()
+    }
+}
+
+/// A controller over fakes in a temporary data directory, with a clock the
+/// test sets and every event and forwarded device event kept.
+pub struct TestRig {
+    _dir: tempfile::TempDir,
+    pub paths: DataPaths,
+    pub camera: FakeCamera,
+    pub audio: FakeAudio,
+    pub detector: ScriptedDetector,
+    pub scorer: FixedScorer,
+    pub now: Arc<Mutex<f64>>,
+    pub events: Arc<Mutex<Vec<UiEvent>>>,
+    pub forwarded: Arc<Mutex<Vec<DeviceEvent>>>,
+}
+
+impl TestRig {
+    /// Write any settings files into `rig.paths` before calling `build`.
+    pub fn new() -> Self {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = DataPaths::in_dir(dir.path());
+        TestRig {
+            _dir: dir,
+            paths,
+            camera: FakeCamera::default(),
+            audio: FakeAudio::default(),
+            detector: ScriptedDetector::default(),
+            scorer: FixedScorer::default(),
+            now: Arc::new(Mutex::new(0.0)),
+            events: Arc::new(Mutex::new(Vec::new())),
+            forwarded: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    pub fn build(&self) -> Controller {
+        let backends = Backends {
+            camera: Box::new(self.camera.clone()),
+            audio: Box::new(self.audio.clone()),
+            detector: Box::new(self.detector.share()),
+            scorer: Box::new(self.scorer.clone()),
+        };
+        let now = self.now.clone();
+        let events = self.events.clone();
+        let forwarded = self.forwarded.clone();
+        Controller::new(
+            ControllerConfig {
+                paths: self.paths.clone(),
+                app_version: "9.9.9".into(),
+            },
+            backends,
+            Arc::new(move || *now.lock().unwrap()),
+            Arc::new(move |event| forwarded.lock().unwrap().push(event)),
+            Box::new(move |event| events.lock().unwrap().push(event)),
+        )
+        .unwrap()
+    }
+
+    pub fn set_now(&self, seconds: f64) {
+        *self.now.lock().unwrap() = seconds;
+    }
+
+    pub fn take(&self) -> Vec<UiEvent> {
+        std::mem::take(&mut *self.events.lock().unwrap())
+    }
+
+    /// Hands every forwarded device event to the controller, in order.
+    pub fn pump(&self, controller: &mut Controller) {
+        let forwarded = std::mem::take(&mut *self.forwarded.lock().unwrap());
+        for event in forwarded {
+            controller.handle(Input::Device(event));
+        }
+    }
+
+    pub fn messages(&self) -> Vec<String> {
+        self.take()
+            .into_iter()
+            .filter_map(|e| match e {
+                UiEvent::Message(m) => Some(m.text),
+                _ => None,
+            })
+            .collect()
     }
 }
