@@ -190,23 +190,25 @@ def test_zero_on_aim_persists_offset_and_clears(
     assert controller._tracker.zero_offset_mm == (0.0, 0.0)
 
 
-def test_rescore_updates_view_without_writing_to_db(
+def test_rescore_updates_view_and_persists_scores(
     controller: AppController,
 ):
     """Re-scoring against the active face replaces ``score`` on every
-    in-memory shot but does not persist anything. The database keeps
-    whichever score was active at the time of capture."""
+    in-memory shot. For shots that came from the database (loaded
+    sessions or the live recorder), the new score is also written
+    back to the row so it survives reopening the session."""
+    # The centred shot has a database id, so its updated score should
+    # be persisted. The far-out shot is purely in-memory and should
+    # not produce a database write.
     controller._shots_in_view = [
-        _ShotEntry(timestamp=0.0, x_mm=0.0, y_mm=0.0, score="9"),
+        _ShotEntry(timestamp=0.0, x_mm=0.0, y_mm=0.0, score="9", shot_id=7),
         _ShotEntry(timestamp=1.0, x_mm=1000.0, y_mm=1000.0, score=None),
     ]
     controller._on_rescore_requested()
     # Centre shot scores into the smallest ring. Far-out shot scores
     # nothing, so its label should be cleared rather than left as "9".
-    centred = controller._shots_in_view[0]
-    far = controller._shots_in_view[1]
-    assert centred.score not in (None, "")
-    assert far.score is None
+    assert controller._shots_in_view[0].score not in (None, "")
+    assert controller._shots_in_view[1].score is None
 
 
 def test_revert_camera_after_dialog_does_nothing_if_unchanged(
