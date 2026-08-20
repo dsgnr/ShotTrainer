@@ -1055,4 +1055,266 @@ mod tests {
         );
         assert!(matches!(&events[1], UiEvent::TargetFaces(faces) if faces.len() >= 6));
     }
+    /// Emits one frame on capture `start`, checks the capture's sink let it
+    /// through and hands it to the controller.
+    fn pump_one_frame(rig: &TestRig, controller: &mut Controller, start: usize, id: i64) {
+        rig.camera.emit(start, frame_event(id, id as f64));
+        assert_eq!(
+            rig.forwarded.lock().unwrap().len(),
+            1,
+            "frame {id} was dropped at the capture thread, so the budget was not freed"
+        );
+        rig.pump(controller);
+    }
+
+    #[test]
+    fn processed_frames_free_the_frame_budget() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        controller.start();
+        for id in 0..6 {
+            pump_one_frame(&rig, &mut controller, 0, id);
+        }
+        assert_eq!(rig.detector.seen.lock().unwrap().len(), 6);
+    }
+
+    #[test]
+    fn frames_shown_during_review_free_the_frame_budget() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        controller.start();
+        let sid = shottrainer_core::sessions::SessionRepository::new(&controller.db)
+            .create_session(&Default::default())
+            .unwrap();
+        command(&mut controller, Command::OpenSession(sid));
+        for id in 0..6 {
+            pump_one_frame(&rig, &mut controller, 0, id);
+        }
+    }
+
+    #[test]
+    fn frames_dropped_by_the_transform_free_the_frame_budget() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        controller.start();
+        let good = controller.frames.transform().clone();
+        controller
+            .frames
+            .set_transform(shottrainer_tracking::frame_ops::FrameTransform {
+                rotation_degrees: 45,
+                ..good.clone()
+            });
+        for id in 0..6 {
+            pump_one_frame(&rig, &mut controller, 0, id);
+        }
+        assert!(rig.detector.seen.lock().unwrap().is_empty());
+        controller.frames.set_transform(good);
+        pump_one_frame(&rig, &mut controller, 0, 7);
+        assert_eq!(rig.detector.seen.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn frames_arriving_after_the_camera_stopped_free_the_frame_budget() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        controller.start();
+        rig.camera.emit(0, frame_event(0, 0.0));
+        rig.camera.emit(0, frame_event(1, 1.0));
+        controller.stop_camera();
+        rig.pump(&mut controller);
+        for id in 2..6 {
+            pump_one_frame(&rig, &mut controller, 0, id);
+        }
+        assert!(rig.detector.seen.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn stale_frames_neither_free_nor_use_the_new_captures_budget() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        controller.start();
+        command(
+            &mut controller,
+            Command::SetPreferences(Preferences {
+                camera_id: Some(4),
+                ..Preferences::default()
+            }),
+        );
+        rig.camera.emit(1, frame_event(1, 1.0));
+        rig.camera.emit(1, frame_event(2, 2.0));
+        rig.camera.emit(0, frame_event(3, 3.0));
+        let mut queued = std::mem::take(&mut *rig.forwarded.lock().unwrap());
+        let stale = queued.pop().unwrap();
+        controller.handle(Input::Device(stale));
+        rig.camera.emit(1, frame_event(4, 4.0));
+        assert!(
+            rig.forwarded.lock().unwrap().is_empty(),
+            "a stale frame freed the new capture's budget"
+        );
+        for event in queued {
+            controller.handle(Input::Device(event));
+        }
+        for id in 5..8 {
+            pump_one_frame(&rig, &mut controller, 1, id);
+        }
+        assert_eq!(rig.detector.seen.lock().unwrap().len(), 5);
+    }
+
+    #[test]
+    fn a_restarted_microphone_drops_events_of_the_failed_stream() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        controller.start();
+        rig.audio.emit(0, AudioEvent::Error("lost".into()));
+        rig.pump(&mut controller);
+        assert_eq!(rig.messages(), ["Audio: lost"]);
+        controller.start();
+        assert_eq!(rig.audio.state().started.len(), 2);
+        let shot = || {
+            AudioEvent::Shot(ShotEvent {
+                timestamp: 1.0,
+                audio_level: 0.5,
+                sample_rate: 44100,
+            })
+        };
+        rig.audio.emit(0, AudioEvent::Level(0.5));
+        rig.audio.emit(0, shot());
+        rig.audio.emit(0, AudioEvent::Error("late".into()));
+        rig.pump(&mut controller);
+        assert!(rig.take().is_empty());
+        assert!(controller.session().shots().is_empty());
+        rig.audio.emit(1, AudioEvent::Level(0.5));
+        rig.audio.emit(1, shot());
+        rig.pump(&mut controller);
+        assert_eq!(rig.take()[0], UiEvent::AudioLevel(0.5));
+        assert_eq!(controller.session().shots().len(), 1);
+    }
+
+    #[test]
+    fn our_own_saves_are_marked_as_seen() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        command(
+            &mut controller,
+            Command::SetPreferences(Preferences {
+                pre_shot_ms: 2000,
+                ..Preferences::default()
+            }),
+        );
+        assert!(rig.paths.settings.exists());
+        assert_eq!(controller.watcher.poll(), None, "preferences save");
+        std::fs::remove_file(&rig.paths.settings).unwrap();
+        controller.watcher.mark_seen();
+        command(&mut controller, Command::SetCircleDiameter(42.0));
+        assert!(rig.paths.settings.exists());
+        assert_eq!(controller.watcher.poll(), None, "diameter save");
+        std::fs::remove_file(&rig.paths.settings).unwrap();
+        controller.watcher.mark_seen();
+        let sid = shottrainer_core::sessions::SessionRepository::new(&controller.db)
+            .create_session(&shottrainer_core::sessions::NewSession {
+                target_profile: "air_rifle_10m",
+                ..Default::default()
+            })
+            .unwrap();
+        command(&mut controller, Command::OpenSession(sid));
+        assert!(rig.paths.settings.exists());
+        assert_eq!(controller.watcher.poll(), None, "face save");
+    }
+
+    #[test]
+    fn preferences_set_after_start_reach_every_service() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        controller.start();
+        rig.take();
+        let prefs = Preferences {
+            audio_gain: 2.0,
+            shot_threshold: 0.5,
+            camera_rotation: 180,
+            circle_diameter_mm: 80.0,
+            tracking_region_fraction: 0.5,
+            invert_trace_horizontal: true,
+            invert_trace_vertical: true,
+            pre_shot_ms: 2000,
+            post_shot_ms: 100,
+            target_face: "air_rifle_10m".into(),
+            ..Preferences::default()
+        };
+        command(&mut controller, Command::SetPreferences(prefs.clone()));
+        assert_eq!(
+            rig.audio.state().updates.last().unwrap().threshold,
+            0.5 / 2.0
+        );
+        assert_eq!(controller.frames().transform().rotation_degrees, 180);
+        let tracker = controller.frames().tracker();
+        assert_eq!(tracker.circle_diameter_mm(), 80.0);
+        assert_eq!(tracker.detector().settings().region_fraction, 0.5);
+        let events = rig.take();
+        let UiEvent::Preferences { rings, .. } = &events[0] else {
+            panic!("expected the preferences first, got {:?}", events[0]);
+        };
+        let default_rings = rings_for_face(&controller.faces, "default");
+        let face_rings = rings_for_face(&controller.faces, "air_rifle_10m");
+        assert_ne!(face_rings, default_rings);
+        assert_eq!(rings.as_slice(), face_rings);
+
+        // Both trace axes follow the inversion once a frame is tracked.
+        // 80 mm over a 60 px circle puts a 10 px offset at 13.3 mm.
+        rig.detector.push(circle_at(330.0, 250.0));
+        rig.camera.emit(0, frame_event(1, 1.0));
+        rig.pump(&mut controller);
+        let point = rig
+            .take()
+            .into_iter()
+            .find_map(|e| match e {
+                UiEvent::Frame(view) => view.trace_point_mm,
+                _ => None,
+            })
+            .unwrap();
+        assert!(
+            point.0 > 0.0 && point.1 > 0.0,
+            "inverted axes, got {point:?}"
+        );
+
+        // The coordinator keeps 2000 ms before and 100 ms after the shot.
+        let session = &mut controller.session;
+        session.buffer.clear();
+        for ts in [7.9, 8.1, 9.5, 9.95, 10.05, 10.2] {
+            session
+                .buffer
+                .append(shottrainer_tracking::models::TrackingSample::new(
+                    ts, 0.0, 0.0,
+                ));
+        }
+        let result = session.coordinator.handle_shot(
+            &session.buffer,
+            ShotEvent {
+                timestamp: 10.0,
+                audio_level: 0.5,
+                sample_rate: 44100,
+            },
+        );
+        let times: Vec<f64> = result.trace.iter().map(|s| s.timestamp).collect();
+        assert_eq!(times, [8.1, 9.5, 9.95, 10.05]);
+    }
+
+    #[test]
+    fn a_new_microphone_choice_applies_at_the_next_start() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        controller.start();
+        command(
+            &mut controller,
+            Command::SetPreferences(Preferences {
+                audio_device: "USB".into(),
+                ..Preferences::default()
+            }),
+        );
+        rig.audio.emit(0, AudioEvent::Error("lost".into()));
+        controller.start();
+        assert_eq!(
+            rig.audio.state().started[1],
+            shottrainer_audio::DeviceSelector::Name("USB".into())
+        );
+    }
 }
