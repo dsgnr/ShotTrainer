@@ -118,6 +118,8 @@ pub enum ControllerError {
     DatabasePath(PathBuf),
     #[error("could not open the sessions database: {0}")]
     Database(#[from] shottrainer_core::sessions::DatabaseError),
+    #[error("could not start the controller thread: {0}")]
+    Thread(std::io::Error),
 }
 
 pub struct Controller {
