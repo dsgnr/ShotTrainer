@@ -11,11 +11,12 @@ pub(crate) mod fakes;
 pub mod frames;
 pub mod paths;
 pub mod player;
+mod preview;
 pub mod review;
 pub mod session;
 pub mod watcher;
 
 pub use backends::Backends;
-pub use controller::{Command, Controller, ControllerConfig, ControllerError, Input};
+pub use controller::{Command, Controller, ControllerConfig, ControllerError, ImageControl, Input};
 pub use events::{UiEvent, UiSink};
 pub use paths::DataPaths;

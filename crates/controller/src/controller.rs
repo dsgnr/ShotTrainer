@@ -16,6 +16,7 @@ use shottrainer_settings::{Preferences, load_preferences, save_preferences, vali
 use shottrainer_tracking::capture::{CameraEvent, ClockFn};
 use shottrainer_tracking::detector::TargetDetector;
 use shottrainer_tracking::frame::Frame;
+use shottrainer_tracking::tuning::HoughScorer;
 
 use crate::backends::Backends;
 use crate::convert::{
@@ -70,6 +71,32 @@ pub enum Command {
         refresh: bool,
     },
     ListTargetFaces,
+    /// The Preferences dialog opened with `camera_id` selected.
+    BeginPreview {
+        camera_id: Option<i32>,
+    },
+    PreviewCamera(Option<i32>),
+    PreviewImage {
+        control: ImageControl,
+        value: f64,
+    },
+    PreviewTransform {
+        rotation_degrees: i32,
+        flip_horizontal: bool,
+        flip_vertical: bool,
+    },
+    /// The dialog closed. Unsaved camera and image changes are undone.
+    EndPreview {
+        saved: bool,
+    },
+    Optimise,
+    ResetDetector,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageControl {
+    Brightness,
+    Contrast,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -106,6 +133,9 @@ pub struct Controller {
     pub(crate) camera: CameraManager,
     pub(crate) audio: AudioManager,
     pub(crate) watcher: SettingsWatcher,
+    pub(crate) scorer: Box<dyn HoughScorer + Send>,
+    /// The preferences from when the Preferences dialog opened.
+    pub(crate) preview: Option<Preferences>,
 }
 
 impl Controller {
@@ -143,6 +173,8 @@ impl Controller {
             ),
             audio: AudioManager::new(backends.audio, forward, clock.clone()),
             watcher: SettingsWatcher::new(paths.settings.clone()),
+            scorer: backends.scorer,
+            preview: None,
             paths,
             app_version,
             sink,
@@ -297,6 +329,17 @@ impl Controller {
                 });
             }
             Command::ListTargetFaces => self.emit(UiEvent::TargetFaces(self.faces.clone())),
+            Command::BeginPreview { camera_id } => self.begin_preview(camera_id),
+            Command::PreviewCamera(camera_id) => self.preview_camera(camera_id),
+            Command::PreviewImage { control, value } => self.preview_image(control, value),
+            Command::PreviewTransform {
+                rotation_degrees,
+                flip_horizontal,
+                flip_vertical,
+            } => self.preview_transform(rotation_degrees, flip_horizontal, flip_vertical),
+            Command::EndPreview { saved } => self.end_preview(saved),
+            Command::Optimise => self.optimise(),
+            Command::ResetDetector => self.reset_detector(),
         }
     }
 
