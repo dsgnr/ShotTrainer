@@ -350,6 +350,7 @@ class MainWindow(QMainWindow):
 
         file_menu = menu.addMenu("&File")
         sessions_action = QAction("&Sessions...", self)
+        sessions_action.setShortcut(QKeySequence("Ctrl+O"))
         sessions_action.triggered.connect(self.session_browser_requested)
         file_menu.addAction(sessions_action)
         file_menu.addSeparator()
@@ -360,6 +361,7 @@ class MainWindow(QMainWindow):
 
         tools_menu = menu.addMenu("&Tools")
         prefs_action = QAction("&Preferences...", self)
+        prefs_action.setShortcut(QKeySequence("Ctrl+,"))
         prefs_action.triggered.connect(self._open_preferences_dialog)
         tools_menu.addAction(prefs_action)
 
@@ -455,6 +457,56 @@ class MainWindow(QMainWindow):
         space = QShortcut(QKeySequence("Space"), self)
         space.activated.connect(self._toggle_replay)
 
+        # Step through the shot list with the arrow keys. Up and Down
+        # don't have natural menu items, so they live as free-floating
+        # shortcuts that activate as long as the main window has focus.
+        prev_shot = QShortcut(QKeySequence("Up"), self)
+        prev_shot.activated.connect(self._step_prev_shot)
+        next_shot = QShortcut(QKeySequence("Down"), self)
+        next_shot.activated.connect(self._step_next_shot)
+
+        # Zoom shortcuts mirror the +/- buttons in the zoom strip and
+        # the typical "fit" gesture used by image viewers (Ctrl+0).
+        # ``Ctrl+=`` is a synonym for ``Ctrl++`` so users don't have to
+        # press Shift to zoom in on most keyboard layouts.
+        zoom_in = QShortcut(QKeySequence("Ctrl++"), self)
+        zoom_in.activated.connect(self.zoom_controls.zoom_in)
+        zoom_in_alt = QShortcut(QKeySequence("Ctrl+="), self)
+        zoom_in_alt.activated.connect(self.zoom_controls.zoom_in)
+        zoom_out = QShortcut(QKeySequence("Ctrl+-"), self)
+        zoom_out.activated.connect(self.zoom_controls.zoom_out)
+        zoom_reset = QShortcut(QKeySequence("Ctrl+0"), self)
+        zoom_reset.activated.connect(self.target_view.reset_extent_to_rings)
+
+    def _step_prev_shot(self) -> None:
+        """Move the shot-list selection up one row."""
+        if self._input_has_focus():
+            return
+        self.shot_list.step_selection(-1)
+
+    def _step_next_shot(self) -> None:
+        """Move the shot-list selection down one row."""
+        if self._input_has_focus():
+            return
+        self.shot_list.step_selection(1)
+
+    def _input_has_focus(self) -> bool:
+        """Return True when an input widget owns keyboard focus.
+
+        Stops navigation shortcuts (arrow keys, space) from moving the
+        shot selection or replaying while the user is typing into a
+        spinbox or combo box.
+        """
+        focus = self.focusWidget()
+        if focus is None:
+            return False
+        return focus.metaObject().className() in (
+            "QLineEdit",
+            "QSpinBox",
+            "QDoubleSpinBox",
+            "QComboBox",
+        )
+
     def _toggle_session(self) -> None:
         """Route Ctrl+S to whichever primary action is active."""
         self.session_controls.primary_action().click()
@@ -471,14 +523,7 @@ class MainWindow(QMainWindow):
         typing in any spinbox or text field that's open, which
         is jarring.
         """
-        # Don't intercept space when an input has focus.
-        focus = self.focusWidget()
-        if focus is not None and focus.metaObject().className() in (
-            "QLineEdit",
-            "QSpinBox",
-            "QDoubleSpinBox",
-            "QComboBox",
-        ):
+        if self._input_has_focus():
             return
         if self.replay_controls.isEnabled():
             self.replay_controls.toggle_play_pause()
