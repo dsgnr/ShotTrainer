@@ -132,6 +132,9 @@ pub enum UiEvent {
     /// Whether the dialog's Auto-optimise button can be pressed.
     OptimiseEnabled(bool),
     Message(StatusMessage),
+    /// The controller thread panicked and no longer handles commands. The
+    /// front end should tell the user and offer to restart.
+    ControllerFailed(String),
     /// The header state and the summary line under the session controls.
     Session {
         state: SessionState,
