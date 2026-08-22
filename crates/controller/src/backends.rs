@@ -87,3 +87,71 @@ pub struct Backends {
     pub detector: Box<dyn TargetDetector>,
     pub scorer: Box<dyn HoughScorer + Send>,
 }
+
+#[cfg(feature = "opencv")]
+mod system {
+    use shottrainer_tracking::capture::{CameraCapture, CameraConfig, ClockFn, EventSink};
+    use shottrainer_tracking::cv::camera::probe_cameras;
+    use shottrainer_tracking::cv::{CircleTargetDetector, OpenCvHoughScorer};
+
+    use super::{Backends, CameraBackend, CameraHandle, CpalAudio};
+
+    /// Python probes OpenCV indices below 5 when Qt lists no cameras.
+    const PROBE_LIMIT: i32 = 5;
+
+    /// OpenCV `VideoCapture`. Cameras are named `Camera N` by index because
+    /// OpenCV has no device names.
+    pub struct OpenCvCamera;
+
+    impl CameraBackend for OpenCvCamera {
+        fn list_cameras(&mut self) -> Vec<(i64, String)> {
+            probe_cameras(PROBE_LIMIT)
+                .into_iter()
+                .map(|(index, name)| (i64::from(index), name))
+                .collect()
+        }
+
+        fn start(
+            &mut self,
+            device_index: i32,
+            clock: ClockFn,
+            on_event: EventSink,
+        ) -> Box<dyn CameraHandle> {
+            let config = CameraConfig {
+                device_index,
+                ..CameraConfig::default()
+            };
+            Box::new(CameraCapture::start(config, clock, on_event))
+        }
+    }
+
+    impl Backends {
+        /// OpenCV for the camera, detector and optimiser, `cpal` for the
+        /// microphone. Nothing is opened until the controller starts.
+        pub fn system() -> Self {
+            Backends {
+                camera: Box::new(OpenCvCamera),
+                audio: Box::new(CpalAudio),
+                detector: Box::new(CircleTargetDetector::default()),
+                scorer: Box::new(OpenCvHoughScorer),
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn system_backends_use_the_default_detector_settings() {
+            let backends = Backends::system();
+            assert_eq!(
+                backends.detector.settings(),
+                &shottrainer_tracking::detector::DetectorSettings::default()
+            );
+        }
+    }
+}
+
+#[cfg(feature = "opencv")]
+pub use system::OpenCvCamera;
