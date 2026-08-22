@@ -70,6 +70,18 @@ used while recording is active.
 Use it to clear the target view and reset the statistics display before starting
 a new session.
 
+## Removing a single shot
+
+To remove just one shot, useful when the microphone picks up a stray noise
+like another shooter on the line or a knock on the microphone, select it in
+the shot list and press **Delete** or **Backspace**. ShotTrainer will ask you
+to confirm before removing it.
+
+For shots that came from a saved session the change is written back to the
+database, so the deleted shot stays gone the next time you open the session.
+For shots in a session that's still recording, the row is removed from the
+session's saved record at the same time.
+
 ## Where sessions are stored
 
 Sessions are stored locally in a SQLite database within ShotTrainer's data

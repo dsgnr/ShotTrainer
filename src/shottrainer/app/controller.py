@@ -224,6 +224,9 @@ class AppController(QObject):
         self._player.finished.connect(lambda: rc.set_playing(False))
 
         self._window.shot_list.shot_selected.connect(self._session_mgr.on_shot_selected)
+        self._window.shot_list.shot_deletion_requested.connect(
+            self._session_mgr.on_shot_delete_requested
+        )
 
         self._audio.shot_detected.connect(self._on_shot_detected)
         self._audio.error.connect(self._on_audio_error)

@@ -97,6 +97,60 @@ def test_rescore_skips_database_when_no_shot_ids(session_mgr: SessionManager, mo
     session_mgr._repo.update_shot_scores.assert_not_called()
 
 
+def test_delete_shot_removes_entry_and_persists(session_mgr: SessionManager, monkeypatch):
+    """Deleting a shot drops it from the on-screen list and the database."""
+    from PySide6.QtWidgets import QMessageBox
+
+    session_mgr._shots_in_view = [
+        ShotEntry(timestamp=0.0, x_mm=0.0, y_mm=0.0, score="10", shot_id=11),
+        ShotEntry(timestamp=1.0, x_mm=1.0, y_mm=1.0, score="9", shot_id=12),
+    ]
+    monkeypatch.setattr(QMessageBox, "question", lambda *_a, **_k: QMessageBox.StandardButton.Yes)
+
+    session_mgr.on_shot_delete_requested(0)
+
+    assert len(session_mgr._shots_in_view) == 1
+    assert session_mgr._shots_in_view[0].shot_id == 12
+    session_mgr._repo.delete_shot.assert_called_once_with(11)
+
+
+def test_delete_shot_skips_database_when_not_persisted(session_mgr: SessionManager, monkeypatch):
+    """An in-memory-only shot is removed but the repository is not called."""
+    from PySide6.QtWidgets import QMessageBox
+
+    session_mgr._shots_in_view = [
+        ShotEntry(timestamp=0.0, x_mm=0.0, y_mm=0.0, score=None),
+    ]
+    monkeypatch.setattr(QMessageBox, "question", lambda *_a, **_k: QMessageBox.StandardButton.Yes)
+
+    session_mgr.on_shot_delete_requested(0)
+
+    assert session_mgr._shots_in_view == []
+    session_mgr._repo.delete_shot.assert_not_called()
+
+
+def test_delete_shot_cancelled_keeps_everything(session_mgr: SessionManager, monkeypatch):
+    """Saying No to the prompt leaves the list and database untouched."""
+    from PySide6.QtWidgets import QMessageBox
+
+    session_mgr._shots_in_view = [
+        ShotEntry(timestamp=0.0, x_mm=0.0, y_mm=0.0, score="10", shot_id=11),
+    ]
+    monkeypatch.setattr(QMessageBox, "question", lambda *_a, **_k: QMessageBox.StandardButton.No)
+
+    session_mgr.on_shot_delete_requested(0)
+
+    assert len(session_mgr._shots_in_view) == 1
+    session_mgr._repo.delete_shot.assert_not_called()
+
+
+def test_delete_shot_ignores_out_of_range_index(session_mgr: SessionManager):
+    """Out-of-range indices are silently ignored."""
+    session_mgr._shots_in_view = []
+    session_mgr.on_shot_delete_requested(5)
+    session_mgr._repo.delete_shot.assert_not_called()
+
+
 def test_rescore_noop_when_empty(session_mgr: SessionManager):
     """Re-scoring with no shots shows a status message."""
     session_mgr._shots_in_view = []
