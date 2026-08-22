@@ -46,7 +46,7 @@ hide:
       </ul>
     </div>
     <div class="st-showcase__media">
-      <img src="assets/img/replay_shot.webp" alt="ShotTrainer replay view showing a scored target and colour-coded aim trace" class="st-showcase__shot">
+      <video src="assets/img/replay_shot.mp4" autoplay loop muted playsinline class="st-showcase__shot" aria-label="ShotTrainer replay view showing a scored target and colour-coded aim trace"></video>
     </div>
   </div>
 </section>
