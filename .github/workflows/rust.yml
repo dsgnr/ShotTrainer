@@ -43,9 +43,11 @@ jobs:
           key: opencv
       - name: Install OpenCV and libclang
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libopencv-dev clang libclang-dev pkg-config
+        run: sudo apt-get update && sudo apt-get install -y libopencv-dev clang libclang-dev libasound2-dev pkg-config
       - name: Install OpenCV
         if: runner.os == 'macOS'
         run: brew install opencv pkgconf
       - run: cargo clippy -p shottrainer-tracking --features opencv --all-targets -- -D warnings
       - run: cargo test -p shottrainer-tracking --features opencv
+      - run: cargo clippy -p shottrainer-controller --features opencv --all-targets -- -D warnings
+      - run: cargo test -p shottrainer-controller --features opencv
