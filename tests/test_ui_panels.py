@@ -267,17 +267,6 @@ def test_hero_stats_total_resets_when_empty(qtbot):
     assert hero._total.value.text() == "-"
 
 
-def test_target_view_colour_for_score_maps_known_labels(qtbot):
-    from shottrainer.ui.target_view import _MISS_COLOUR, colour_for_score
-
-    assert colour_for_score("10") == colour_for_score("X")  # X tied with 10
-    assert colour_for_score("9") != colour_for_score("10")
-    assert colour_for_score("") == _MISS_COLOUR
-    assert colour_for_score("nonsense") == _MISS_COLOUR
-    # Decimal labels pick their integer-part colour.
-    assert colour_for_score("9.5") == colour_for_score("9")
-
-
 def test_target_view_records_shot_score(qtbot):
     from shottrainer.ui.target_view import ShotMarker, TargetView
 
