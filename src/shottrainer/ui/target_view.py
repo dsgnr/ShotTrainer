@@ -141,6 +141,11 @@ class TargetView(QWidget):
             x_mm: Horizontal offset from centre in mm.
             y_mm: Vertical offset from centre in mm.
         """
+        # Ignore live frames while a saved shot is being reviewed.
+        # Otherwise the live capture loop would corrupt the historical
+        # replay trace by appending fresh points to it.
+        if self._isolate_selected_shot:
+            return
         # Drop points well outside the visible target. A noisy
         # detection (a sliver-of-a-pixel ellipse fit, the camera
         # being swept past the target) can land hundreds of mm
@@ -494,7 +499,15 @@ class TargetView(QWidget):
         return self._playhead_index >= self._shot_index
 
     def _draw_live_aim(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
-        if self._live_aim is None:
+        # Hide the live aim marker in replay mode. The replay's
+        # progressive trace already shows the user where the rifle
+        # is pointing at the playhead, and a stale dot from the end
+        # of the recorded trace would just sit on top of the shot.
+        if (
+            self._live_aim is None
+            or self._playhead_index is not None
+            or self._isolate_selected_shot
+        ):
             return
         x = cx + self._live_aim[0] * scale
         y = cy + self._live_aim[1] * scale
