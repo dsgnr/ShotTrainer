@@ -303,16 +303,23 @@ class AppController(QObject):
                     radius_px=last_detection.radius_px,
                 )
                 self._window.camera_view.set_aim_point(None, None)
+                self._window.camera_view.set_zero_marker(None, None)
                 self._window.camera_view.set_status("rejected")
                 return
             self._window.camera_view.set_rejected_point(None, None)
             self._window.camera_view.set_aim_point(None, None)
+            self._window.camera_view.set_zero_marker(None, None)
             self._window.camera_view.set_status("lost")
             return
 
         self._window.camera_view.set_aim_point(sample.x_px, sample.y_px, radius_px=last_radius_px)
         self._window.camera_view.set_rejected_point(None, None)
         self._window.camera_view.set_status("tracking")
+        zero_px = self._tracker.zero_pixel()
+        if zero_px is not None:
+            self._window.camera_view.set_zero_marker(*zero_px)
+        else:
+            self._window.camera_view.set_zero_marker(None, None)
         if sample.x_mm is not None and sample.y_mm is not None:
             self._window.target_view.append_trace_point(sample.x_mm, sample.y_mm)
         if sample.frame_id % self._STATUS_REFRESH_EVERY_N_FRAMES == 0:
