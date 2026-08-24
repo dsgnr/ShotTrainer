@@ -75,6 +75,12 @@ executed.
 A tight, consistent trace generally indicates a stable hold, while a larger or
 more erratic trace may suggest instability or excessive movement.
 
+The amber dashed circle on the target view marks the **hold zone**. Its centre
+is the mean position of the pre-shot trace and its radius is the hold tremor.
+Together they show roughly where, and how widely, the rifle was settling before
+the shot broke. Toggle it from **Preferences > Recording > Show hold zone on
+replay** if you'd rather see the trace without it.
+
 ### Trigger timing
 
 Replay makes it possible to see whether the shot broke during a stable hold or
