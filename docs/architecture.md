@@ -179,19 +179,19 @@ This is where the Qt application and the core services are connected together.
 ## Rust workspace
 
 A Cargo workspace under `crates/` holds Rust implementations of the storage,
-scoring, statistics, services, settings, audio and tracking code. The
-controller and the interface are not part of the workspace yet and remain in
-Python. The Python code under `src/shottrainer/`
-is the reference for behaviour. The Rust crates read and write the same
-`sessions.db`, JSON files and CSV exports.
+scoring, statistics, services, settings, audio, tracking and controller code.
+The interface is not part of the workspace yet and remains in Python. The
+Python code under `src/shottrainer/` is the reference for behaviour. The Rust
+crates read and write the same `sessions.db`, JSON files and CSV exports.
 
-| Crate      | Contents                                                                                                                                         |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `tracking` | Frames and frame transforms, detector settings and the circle detector, the auto-optimise search, the tracker and camera capture                 |
-| `audio`    | Shot detector, block pipeline and microphone input                                                                                               |
-| `core`     | Sessions database, migrations and repository, scoring, statistics, trace buffer, shot and replay coordinators, session recorder and CSV exporter |
-| `settings` | Data paths, preferences, detector, zero offset, camera and window state stores and the target face catalogue                                     |
-| `testkit`  | Test helpers for loading golden fixtures and comparing floats                                                                                    |
+| Crate        | Contents                                                                                                                                         |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tracking`   | Frames and frame transforms, detector settings and the circle detector, the auto-optimise search, the tracker and camera capture                 |
+| `audio`      | Shot detector, block pipeline and microphone input                                                                                               |
+| `core`       | Sessions database, migrations and repository, scoring, statistics, trace buffer, shot and replay coordinators, session recorder and CSV exporter |
+| `settings`   | Data paths, preferences, detector, zero offset, camera and window state stores and the target face catalogue                                     |
+| `controller` | The application controller, session, replay, preferences and device management, without an interface framework                                   |
+| `testkit`    | Test helpers for loading golden fixtures and comparing floats                                                                                    |
 
 The Rust `SessionRecorder` holds only its batching state. Each method that
 writes takes a `SessionRepository` argument, so the recorder can live beside
@@ -203,6 +203,8 @@ Import rules between the crates:
 
 - `tracking`, `audio` and `settings` import no other workspace crate.
 - `core` imports only `tracking` and `audio`.
+- `controller` imports the four library crates and no JSON or interface
+  library.
 - `testkit` is used only from tests.
 - No crate imports a UI framework.
 
@@ -305,6 +307,51 @@ by hand and not by `cargo test`.
 ```bash
 cargo run -p shottrainer-tracking --features opencv --example camera_capture -- 0 5
 ```
+
+### Controller crate
+
+The `controller` crate ports `AppController` and its camera, preferences and
+session managers. A `Controller` owns the database connection, the loaded
+preferences and target faces, the frame pipeline and tracker, the session
+recorder, the replay player and the device managers. It handles one `Input` at
+a time, either a `Command` from the front end or a tagged device event, and
+reports everything through `UiEvent` values passed to one callback. Prompts
+that ask the user to confirm, and the session browser and Preferences dialogs
+themselves, belong to the front end, so a destructive command arrives already
+confirmed.
+
+`ControllerHandle::spawn` runs the controller on its own thread. Commands and
+device events share one queue, so they are handled in arrival order. The thread
+also wakes when the replay player's next step is due and every 1.5 seconds to
+check `settings.json` for edits made outside the application. If the thread
+panics, the callback receives `UiEvent::ControllerFailed` with the reason and
+`ControllerHandle::is_running` returns false, as it does after a normal
+shutdown. The application asks for camera and microphone access before calling
+`start`, because macOS only shows the prompt for a request made on the main
+thread.
+
+The camera, the microphone, the circle detector and the optimiser's Hough
+scorer are reached through the `CameraBackend`, `AudioBackend`,
+`TargetDetector` and `HoughScorer` traits, so the crate is tested with fakes.
+`Backends::system()` is available with the `opencv` feature and uses OpenCV for
+the camera and detector and `cpal` for the microphone. OpenCV has no device
+names, so cameras are listed as `Camera 0`, `Camera 1` and so on, and a camera
+saved by name from the Python application is found again by its saved index.
+
+Behaviour that differs from the Python controller:
+
+- Each camera or microphone start gets a new generation number, and events
+  from an earlier generation are ignored.
+- At most two camera frames wait for the controller. Later frames are dropped
+  at the capture thread until the controller catches up, where Python processed
+  every frame on the capture thread.
+- A detection with a non-finite value is treated as not found, so it cannot
+  leave NaN in the tracker's moving averages.
+- Preferences sent by the front end are checked with the same per-value rules
+  as `settings.json`. A new session with an unknown category is recorded as
+  `practice`, and changing a saved session to an unknown category is refused.
+- Repeated identical warnings from the detector, the frame transform and trace
+  sample writes are logged once and then every 300th time.
 
 ### Golden fixtures
 
