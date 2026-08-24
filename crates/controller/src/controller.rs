@@ -411,7 +411,10 @@ impl Controller {
             }
             self.camera.persist_selection(self.prefs.camera_id);
         }
-        if persist && previous != self.prefs {
+        // Preview commands edit the cache, so while the dialog is open the
+        // saved values are the ones from when it opened.
+        let saved = self.preview.as_ref().unwrap_or(&previous);
+        if persist && saved != &self.prefs {
             if let Err(error) = save_preferences(&self.prefs, &self.paths.settings) {
                 log::warn!("Could not save preferences: {error}");
             }
