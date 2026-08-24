@@ -88,16 +88,30 @@ impl CameraCapture {
 /// the Python fallback does. Each probe opens the device, so this is slow on
 /// macOS and may trigger the permission prompt.
 pub fn probe_cameras(max_index: i32) -> Vec<(i32, String)> {
+    probe_cameras_skipping(max_index, None)
+}
+
+/// As [`probe_cameras`], but `running` is listed without being opened. A
+/// second open of a device that is in use can fail or interrupt the capture.
+pub fn probe_cameras_skipping(max_index: i32, running: Option<i32>) -> Vec<(i32, String)> {
+    list_probed(max_index, running, |index| {
+        VideoCapture::new(index, videoio::CAP_ANY)
+            .and_then(|mut capture| {
+                let opened = capture.is_opened()?;
+                let _ = capture.release();
+                Ok(opened)
+            })
+            .unwrap_or(false)
+    })
+}
+
+fn list_probed(
+    max_index: i32,
+    running: Option<i32>,
+    mut opens: impl FnMut(i32) -> bool,
+) -> Vec<(i32, String)> {
     (0..max_index.max(0))
-        .filter(|&index| {
-            VideoCapture::new(index, videoio::CAP_ANY)
-                .and_then(|mut capture| {
-                    let opened = capture.is_opened()?;
-                    let _ = capture.release();
-                    Ok(opened)
-                })
-                .unwrap_or(false)
-        })
+        .filter(|&index| running == Some(index) || opens(index))
         .map(|index| (index, format!("Camera {index}")))
         .collect()
 }
@@ -109,6 +123,29 @@ mod tests {
 
     use super::*;
     use crate::capture::CameraEvent;
+
+    #[test]
+    fn the_running_camera_is_listed_without_being_opened() {
+        let mut opened = Vec::new();
+        let listed = list_probed(4, Some(1), |index| {
+            opened.push(index);
+            index != 2
+        });
+        assert_eq!(opened, [0, 2, 3]);
+        assert_eq!(
+            listed,
+            [
+                (0, "Camera 0".to_owned()),
+                (1, "Camera 1".to_owned()),
+                (3, "Camera 3".to_owned())
+            ]
+        );
+    }
+
+    #[test]
+    fn a_running_index_beyond_the_limit_is_not_listed() {
+        assert!(list_probed(2, Some(5), |_| false).is_empty());
+    }
 
     #[test]
     fn a_missing_camera_reports_one_error() {
