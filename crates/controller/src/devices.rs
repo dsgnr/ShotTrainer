@@ -60,19 +60,22 @@ impl CameraManager {
         }
     }
 
-    /// The camera to open at start-up. A saved name wins over the saved
-    /// index, which wins over the first camera. `None` only when the user
-    /// chose no camera and nothing is attached.
+    /// The camera to open at start-up. A saved index is opened as it is,
+    /// without enumerating, because enumerating opens every device. Only a
+    /// selection that has a name and no index enumerates, to find the first
+    /// camera. `None` when the user chose no camera, or nothing is attached.
     pub fn effective_index(&mut self) -> Option<i32> {
         let selection = load_camera_selection(&self.selection_path);
-        if selection.index.is_none() && selection.name.is_empty() {
-            return None;
-        }
-        let available = self.cameras(false);
-        let index = if available.is_empty() {
-            selection.index?
-        } else {
-            resolve_camera_index(&selection, &available)
+        let index = match selection.index {
+            Some(index) => index,
+            None if selection.name.is_empty() => return None,
+            None => {
+                let available = self.cameras(false);
+                if available.is_empty() {
+                    return None;
+                }
+                resolve_camera_index(&selection, &available)
+            }
         };
         i32::try_from(index)
             .inspect_err(|_| log::warn!("Camera index {index} is out of range"))
@@ -142,10 +145,12 @@ impl CameraManager {
         }
     }
 
-    /// The enumerated cameras, cached until a forced refresh.
+    /// The enumerated cameras, cached until a forced refresh. Enumerating
+    /// can open each device, so it only happens when asked for.
     pub fn cameras(&mut self, force_refresh: bool) -> Vec<(i64, String)> {
         if force_refresh || self.cameras.is_none() {
-            self.cameras = Some(self.backend.list_cameras());
+            let running = self.device_index();
+            self.cameras = Some(self.backend.list_cameras(running));
         }
         self.cameras.clone().unwrap_or_default()
     }
@@ -329,10 +334,34 @@ mod tests {
     }
 
     #[test]
-    fn effective_index_prefers_the_saved_name() {
-        let (mut mgr, _, _, dir) = manager(&[(0, "Built-in"), (2, "USB Cam")]);
+    fn effective_index_opens_the_saved_index_without_enumerating() {
+        let (mut mgr, fake, _, dir) = manager(&[(0, "Built-in"), (2, "USB Cam")]);
         save_selection(&dir, "USB Cam", Some(0));
+        assert_eq!(mgr.effective_index(), Some(0));
+        assert_eq!(fake.state().lists, 0, "enumerating opens every device");
+    }
+
+    #[test]
+    fn effective_index_finds_a_name_without_an_index() {
+        let (mut mgr, fake, _, dir) = manager(&[(0, "Built-in"), (2, "USB Cam")]);
+        save_selection(&dir, "USB Cam", None);
         assert_eq!(mgr.effective_index(), Some(2));
+        assert_eq!(fake.state().lists, 1);
+    }
+
+    #[test]
+    fn a_refresh_reports_the_running_camera_instead_of_opening_it() {
+        let (mut mgr, fake, _, _dir) = manager(&[(0, "A"), (2, "B")]);
+        mgr.cameras(false);
+        mgr.start(2);
+        mgr.cameras(true);
+        mgr.stop();
+        mgr.cameras(true);
+        assert_eq!(
+            fake.state().listed_while_running,
+            [None, Some(2), None],
+            "only an open camera is passed to the backend"
+        );
     }
 
     #[test]
@@ -468,7 +497,7 @@ mod tests {
     #[test]
     fn effective_index_falls_back_to_the_first_camera() {
         let (mut mgr, _, _, dir) = manager(&[(4, "Built-in"), (2, "USB Cam")]);
-        save_selection(&dir, "Gone", Some(9));
+        save_selection(&dir, "Gone", None);
         assert_eq!(mgr.effective_index(), Some(4));
     }
 

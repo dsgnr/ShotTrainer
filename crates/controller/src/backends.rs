@@ -19,8 +19,10 @@ impl CameraHandle for CameraCapture {
 }
 
 pub trait CameraBackend: Send {
-    /// `(index, name)` for every attached camera. May be slow.
-    fn list_cameras(&mut self) -> Vec<(i64, String)>;
+    /// `(index, name)` for every attached camera. May be slow, because
+    /// enumerating can mean opening each device. `running` is the index of
+    /// the open camera, which must be listed without being opened again.
+    fn list_cameras(&mut self, running: Option<i32>) -> Vec<(i64, String)>;
     /// Starts capturing without blocking. Events arrive on `on_event` from
     /// the capture thread.
     fn start(
@@ -91,7 +93,7 @@ pub struct Backends {
 #[cfg(feature = "opencv")]
 mod system {
     use shottrainer_tracking::capture::{CameraCapture, CameraConfig, ClockFn, EventSink};
-    use shottrainer_tracking::cv::camera::probe_cameras;
+    use shottrainer_tracking::cv::camera::probe_cameras_skipping;
     use shottrainer_tracking::cv::{CircleTargetDetector, OpenCvHoughScorer};
 
     use super::{Backends, CameraBackend, CameraHandle, CpalAudio};
@@ -104,8 +106,8 @@ mod system {
     pub struct OpenCvCamera;
 
     impl CameraBackend for OpenCvCamera {
-        fn list_cameras(&mut self) -> Vec<(i64, String)> {
-            probe_cameras(PROBE_LIMIT)
+        fn list_cameras(&mut self, running: Option<i32>) -> Vec<(i64, String)> {
+            probe_cameras_skipping(PROBE_LIMIT, running)
                 .into_iter()
                 .map(|(index, name)| (i64::from(index), name))
                 .collect()

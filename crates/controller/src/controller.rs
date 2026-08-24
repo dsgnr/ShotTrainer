@@ -655,7 +655,7 @@ mod tests {
         save_camera_selection(
             &CameraSelection {
                 name: "USB".into(),
-                index: Some(0),
+                index: Some(3),
             },
             &rig.paths.camera_selection,
         )
@@ -674,10 +674,21 @@ mod tests {
         );
         controller.start();
         assert_eq!(rig.camera.state().started, [3]);
+        assert_eq!(rig.camera.state().lists, 0, "no device is probed to start");
         assert_eq!(
             rig.audio.state().started,
             [shottrainer_audio::DeviceSelector::Name("Mic".into())]
         );
+    }
+
+    #[test]
+    fn refreshing_the_device_list_does_not_reopen_the_running_camera() {
+        let rig = TestRig::new();
+        rig.camera.state().cameras = vec![(0, "Built-in".into())];
+        let mut controller = rig.build();
+        controller.start();
+        command(&mut controller, Command::ListDevices { refresh: true });
+        assert_eq!(rig.camera.state().listed_while_running, [Some(0)]);
     }
 
     #[test]

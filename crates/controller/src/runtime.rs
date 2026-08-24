@@ -279,7 +279,7 @@ mod tests {
     }
 
     impl CameraBackend for ThreadCamera {
-        fn list_cameras(&mut self) -> Vec<(i64, String)> {
+        fn list_cameras(&mut self, _running: Option<i32>) -> Vec<(i64, String)> {
             vec![(0, "Test".into())]
         }
 
@@ -529,7 +529,7 @@ mod tests {
     struct PanickingCamera;
 
     impl CameraBackend for PanickingCamera {
-        fn list_cameras(&mut self) -> Vec<(i64, String)> {
+        fn list_cameras(&mut self, _running: Option<i32>) -> Vec<(i64, String)> {
             vec![(0, "Test".into())]
         }
 
