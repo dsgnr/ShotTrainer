@@ -66,6 +66,11 @@ pub enum Command {
     SetCircleDiameter(f64),
     ZeroOnAim,
     ClearZero,
+    /// Re-sends the preferences with their rings, the zero offset, the
+    /// session state and the shot list. A front end sends it once it is
+    /// listening, because the events from [`Controller::new`] were emitted
+    /// before that, and again after reloading its view.
+    Refresh,
     /// `refresh` enumerates the cameras again.
     ListDevices {
         refresh: bool,
@@ -141,7 +146,10 @@ pub struct Controller {
 }
 
 impl Controller {
-    /// Opens the database and loads every settings file. Device events from
+    /// Opens the database and loads every settings file. The preferences and
+    /// zero offset events are emitted here, on the caller's thread and
+    /// possibly before the front end is listening, so the front end sends
+    /// [`Command::Refresh`] once it is. Device events from
     /// the backends are delivered through `forward`, which must queue them
     /// for [`Controller::handle`] on the controller's thread. Nothing is
     /// started until [`Controller::start`], so the caller can first ask the
@@ -198,17 +206,13 @@ impl Controller {
         controller.watcher.start();
         let offset = load_zero_offset(&controller.paths.zero_offset)
             .map_or((0.0, 0.0), |z| (z.x_mm, z.y_mm));
-        let active = offset != (0.0, 0.0);
-        if active {
+        if offset != (0.0, 0.0) {
             controller
                 .frames
                 .tracker_mut()
                 .set_zero_offset(offset.0, offset.1);
         }
-        controller.emit(UiEvent::ZeroOffset {
-            active,
-            offset_mm: offset,
-        });
+        controller.emit_zero_offset();
         Ok(controller)
     }
 
@@ -330,6 +334,7 @@ impl Controller {
                     saved_camera,
                 });
             }
+            Command::Refresh => self.refresh(),
             Command::ListTargetFaces => self.emit(UiEvent::TargetFaces(self.faces.clone())),
             Command::BeginPreview { camera_id } => self.begin_preview(camera_id),
             Command::PreviewCamera(camera_id) => self.preview_camera(camera_id),
@@ -422,6 +427,20 @@ impl Controller {
         }
     }
 
+    fn refresh(&mut self) {
+        self.emit_preferences();
+        self.emit_zero_offset();
+        self.with_session(|s, cx| s.refresh(cx));
+    }
+
+    fn emit_zero_offset(&self) {
+        let offset_mm = self.frames.tracker().zero_offset_mm();
+        self.emit(UiEvent::ZeroOffset {
+            active: offset_mm != (0.0, 0.0),
+            offset_mm,
+        });
+    }
+
     /// Pushes the current preferences into every service and the interface.
     fn push_preferences(&mut self) {
         let prefs = &self.prefs;
@@ -435,7 +454,11 @@ impl Controller {
         }
         tracker.set_region_fraction(prefs.tracking_region_fraction);
         tracker.set_trace_inversion(prefs.invert_trace_horizontal, prefs.invert_trace_vertical);
-        let rings = rings_for_face(&self.faces, &prefs.target_face).to_vec();
+        self.emit_preferences();
+    }
+
+    fn emit_preferences(&self) {
+        let rings = rings_for_face(&self.faces, &self.prefs.target_face).to_vec();
         self.emit(UiEvent::Preferences {
             prefs: self.prefs.clone(),
             rings,
@@ -646,6 +669,109 @@ mod tests {
             active: true,
             offset_mm: (1.5, -2.0)
         }));
+    }
+
+    #[test]
+    fn refresh_re_sends_the_state_a_late_front_end_missed() {
+        let rig = TestRig::new();
+        let prefs = Preferences {
+            target_face: "air_rifle_10m".into(),
+            ..Preferences::default()
+        };
+        save_prefs(&rig, &prefs);
+        save_zero_offset(
+            &ZeroOffset {
+                x_mm: 1.5,
+                y_mm: -2.0,
+            },
+            &rig.paths.zero_offset,
+        )
+        .unwrap();
+        let mut controller = rig.build();
+        controller.start();
+        command(
+            &mut controller,
+            Command::StartSession {
+                name: "S".into(),
+                category: "practice".into(),
+            },
+        );
+        rig.audio.emit(
+            0,
+            AudioEvent::Shot(ShotEvent {
+                timestamp: 1.0,
+                audio_level: 0.5,
+                sample_rate: 44100,
+            }),
+        );
+        rig.pump(&mut controller);
+        rig.take();
+        command(&mut controller, Command::Refresh);
+        let events = rig.take();
+        let UiEvent::Preferences {
+            prefs: shown,
+            rings,
+        } = &events[0]
+        else {
+            panic!("expected the preferences first, got {events:?}");
+        };
+        assert_eq!(shown, &prefs);
+        assert!(!rings.is_empty());
+        assert_eq!(
+            events[1],
+            UiEvent::ZeroOffset {
+                active: true,
+                offset_mm: (1.5, -2.0)
+            }
+        );
+        let session_id = controller.session().recorder.session_id().unwrap();
+        assert_eq!(
+            events[2],
+            UiEvent::Session {
+                state: SessionState::Recording(session_id),
+                summary: format!("Recording session {session_id}"),
+            }
+        );
+        let UiEvent::Shots(view) = &events[3] else {
+            panic!("expected the shot list, got {events:?}");
+        };
+        assert_eq!(view.shots.len(), 1);
+        assert_eq!(events.len(), 4);
+    }
+
+    #[test]
+    fn refresh_of_an_idle_controller_reports_no_active_session() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        rig.take();
+        command(&mut controller, Command::Refresh);
+        let events = rig.take();
+        assert_eq!(
+            events[2],
+            UiEvent::Session {
+                state: SessionState::Idle,
+                summary: "No active session".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn refresh_while_reviewing_reports_the_saved_session() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        let sid = shottrainer_core::sessions::SessionRepository::new(&controller.db)
+            .create_session(&Default::default())
+            .unwrap();
+        command(&mut controller, Command::OpenSession(sid));
+        rig.take();
+        command(&mut controller, Command::Refresh);
+        assert_eq!(
+            rig.take()[2],
+            UiEvent::Session {
+                state: SessionState::Reviewing(sid),
+                summary: format!("Reviewing session {sid}"),
+            }
+        );
     }
 
     #[test]

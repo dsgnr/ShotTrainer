@@ -10,7 +10,11 @@ use crate::frames::FrameView;
 use crate::player::PlayerEvent;
 use crate::session::{SessionState, ShotEntry};
 
-/// Receives every [`UiEvent`], in order, on the controller's thread.
+/// Receives every [`UiEvent`], in order. After `ControllerHandle::spawn` it
+/// is called on the controller's thread, except for the events emitted while
+/// the controller is built, which arrive on the caller's thread before
+/// `spawn` returns. A front end that registers its listener later sends
+/// `Command::Refresh`.
 pub type UiSink = Box<dyn Fn(UiEvent) + Send + 'static>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
