@@ -422,6 +422,34 @@ mod tests {
     }
 
     #[test]
+    fn a_non_finite_value_in_any_detection_field_is_not_found() {
+        type SetField = fn(&mut Detection, f64);
+        let fields: [(&str, SetField); 7] = [
+            ("x_px", |d, v| d.x_px = v),
+            ("y_px", |d, v| d.y_px = v),
+            ("radius_px", |d, v| d.radius_px = v),
+            ("confidence", |d, v| d.confidence = v),
+            ("semi_major_px", |d, v| d.semi_major_px = v),
+            ("semi_minor_px", |d, v| d.semi_minor_px = v),
+            ("angle_degrees", |d, v| d.angle_degrees = v),
+        ];
+        for (name, set) in fields {
+            for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+                let (mut pipeline, detector) = pipeline();
+                let mut detection = circle_at(320.0, 240.0);
+                set(&mut detection, bad);
+                detector.push(detection);
+                let out = pipeline.process(grey(640, 480), 0.0, 1, false).unwrap();
+                assert_eq!(
+                    (out.view.status, out.sample),
+                    (TrackingStatus::Lost, None),
+                    "{name} = {bad}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn a_bad_diameter_falls_back_to_sixty_millimetres() {
         let prefs = Preferences {
             circle_diameter_mm: f64::NAN,
