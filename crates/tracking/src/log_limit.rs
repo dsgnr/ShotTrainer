@@ -25,10 +25,11 @@ impl RepeatLimiter {
     pub fn check(&mut self, message: &str) -> Option<String> {
         if self.last.as_deref() == Some(message) {
             self.repeats += 1;
+            let times = if self.repeats == 1 { "time" } else { "times" };
             return self
                 .repeats
                 .is_multiple_of(self.every)
-                .then(|| format!("{message} (repeated {} times)", self.repeats));
+                .then(|| format!("{message} (repeated {} {times})", self.repeats));
         }
         self.last = Some(message.to_owned());
         self.repeats = 0;
@@ -98,7 +99,7 @@ mod tests {
     fn zero_logs_every_message() {
         let mut limiter = RepeatLimiter::new(0);
         assert!(limiter.check("a").is_some());
-        assert_eq!(limiter.check("a").as_deref(), Some("a (repeated 1 times)"));
+        assert_eq!(limiter.check("a").as_deref(), Some("a (repeated 1 time)"));
     }
 
     #[test]
