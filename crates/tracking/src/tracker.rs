@@ -8,6 +8,8 @@ use crate::models::{Detection, TrackingSample};
 const RADIUS_EMA_ALPHA: f64 = 0.1;
 const CENTROID_EMA_ALPHA: f64 = 0.1;
 const MIN_INFORMATIVE_RADIUS_PX: f64 = 4.0;
+/// Used by [`Tracker::new_or`] when neither diameter it is given is valid.
+const LAST_RESORT_DIAMETER_MM: f64 = 60.0;
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum TrackerError {
@@ -55,7 +57,7 @@ impl<D: TargetDetector> Tracker<D> {
     pub fn new_or(circle_diameter_mm: f64, fallback_mm: f64, detector: D) -> Self {
         let diameter = check_diameter(circle_diameter_mm)
             .or_else(|_| check_diameter(fallback_mm))
-            .unwrap_or(60.0);
+            .unwrap_or(LAST_RESORT_DIAMETER_MM);
         Self::with_diameter(diameter, detector)
     }
 
@@ -335,6 +337,26 @@ mod tests {
         fn set_settings(&mut self, settings: DetectorSettings) {
             self.settings = settings;
         }
+    }
+
+    #[test]
+    fn new_or_keeps_a_valid_diameter() {
+        let tracker = Tracker::new_or(85.0, 40.0, scripted());
+        assert_eq!(tracker.circle_diameter_mm(), 85.0);
+    }
+
+    #[test]
+    fn new_or_uses_the_fallback_for_an_invalid_diameter() {
+        for bad in [0.0, -3.0, f64::NAN, f64::INFINITY] {
+            let tracker = Tracker::new_or(bad, 40.0, scripted());
+            assert_eq!(tracker.circle_diameter_mm(), 40.0, "{bad}");
+        }
+    }
+
+    #[test]
+    fn new_or_ends_at_sixty_millimetres_when_both_are_invalid() {
+        let tracker = Tracker::new_or(f64::NAN, -1.0, scripted());
+        assert_eq!(tracker.circle_diameter_mm(), 60.0);
     }
 
     fn scripted() -> Scripted {
