@@ -69,6 +69,8 @@ pub fn shot_detector_settings(prefs: &Preferences) -> ShotDetectorSettings {
     let defaults = ShotDetectorSettings::default();
     ShotDetectorSettings {
         threshold: prefs.shot_threshold / effective_gain(prefs),
+        // Validated preferences are never negative, so this only catches
+        // values that skipped validation.
         refractory_ms: u32::try_from(prefs.shot_refractory_ms).unwrap_or(defaults.refractory_ms),
         ..defaults
     }
