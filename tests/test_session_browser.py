@@ -81,3 +81,53 @@ def test_back_to_back_refresh_keeps_only_the_latest(qtbot, repo: SessionReposito
     dialog.refresh()
 
     qtbot.waitUntil(lambda: dialog._list.count() == 1, timeout=2000)
+
+
+def test_rename_button_writes_new_name(qtbot, repo: SessionRepository, monkeypatch):
+    """Clicking Rename and accepting the dialog updates the session name."""
+    from PySide6.QtWidgets import QInputDialog
+
+    sid = repo.create_session(name="placeholder")
+
+    dialog = SessionBrowserDialog(repo)
+    qtbot.addWidget(dialog)
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    qtbot.waitUntil(lambda: dialog._list.count() == 1, timeout=2000)
+    dialog._list.setCurrentRow(0)
+
+    monkeypatch.setattr(
+        QInputDialog,
+        "getText",
+        lambda *_a, **_k: ("club night", True),
+    )
+    dialog._on_rename()
+
+    qtbot.waitUntil(
+        lambda: any(s.name == "club night" for s in repo.list_sessions() if s.id == sid),
+        timeout=2000,
+    )
+
+
+def test_rename_dialog_cancelled_keeps_old_name(qtbot, repo: SessionRepository, monkeypatch):
+    """Cancelling the rename dialog leaves the session untouched."""
+    from PySide6.QtWidgets import QInputDialog
+
+    sid = repo.create_session(name="placeholder")
+
+    dialog = SessionBrowserDialog(repo)
+    qtbot.addWidget(dialog)
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    qtbot.waitUntil(lambda: dialog._list.count() == 1, timeout=2000)
+    dialog._list.setCurrentRow(0)
+
+    monkeypatch.setattr(
+        QInputDialog,
+        "getText",
+        lambda *_a, **_k: ("never used", False),
+    )
+    dialog._on_rename()
+
+    summary = next(s for s in repo.list_sessions() if s.id == sid)
+    assert summary.name == "placeholder"

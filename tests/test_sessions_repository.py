@@ -101,6 +101,28 @@ def test_delete_shot_returns_false_for_missing_id(repo: SessionRepository):
     assert repo.delete_shot(999_999) is False
 
 
+def test_rename_session_writes_new_name(repo: SessionRepository):
+    """``rename_session`` updates the row and survives a re-read."""
+    sid = repo.create_session(name="evening practice")
+    assert repo.rename_session(sid, "club night") is True
+    summary = repo.list_sessions()[0]
+    assert summary.name == "club night"
+
+
+def test_rename_session_strips_whitespace(repo: SessionRepository):
+    """Whitespace-only names are stored as the empty string so the
+    browser falls back to the placeholder ``Session #N``."""
+    sid = repo.create_session(name="placeholder")
+    assert repo.rename_session(sid, "   ") is True
+    summary = repo.list_sessions()[0]
+    assert summary.name == ""
+
+
+def test_rename_session_returns_false_for_missing_id(repo: SessionRepository):
+    """Renaming a row that isn't there is reported as a miss."""
+    assert repo.rename_session(999_999, "anything") is False
+
+
 def test_session_summary_includes_total_score(repo: SessionRepository):
     sid = repo.create_session(name="qual")
     repo.add_shot(sid, ts=0.1, x_mm=0.0, y_mm=0.0, audio_level=0.4, confidence=0.9, score="10")

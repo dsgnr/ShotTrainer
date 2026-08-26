@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QFileDialog,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QListWidget,
     QListWidgetItem,
@@ -80,9 +81,11 @@ class SessionBrowserDialog(QDialog):
 
         actions = QHBoxLayout()
         self._open = QPushButton("Open")
+        self._rename = QPushButton("Rename...")
         self._delete = QPushButton("Delete")
         self._export = QPushButton("Export CSV...")
         actions.addWidget(self._open)
+        actions.addWidget(self._rename)
         actions.addWidget(self._delete)
         actions.addWidget(self._export)
         actions.addStretch(1)
@@ -94,6 +97,7 @@ class SessionBrowserDialog(QDialog):
         buttons.accepted.connect(self.accept)
 
         self._open.clicked.connect(self._on_open)
+        self._rename.clicked.connect(self._on_rename)
         self._delete.clicked.connect(self._on_delete)
         self._export.clicked.connect(self._on_export)
 
@@ -157,6 +161,7 @@ class SessionBrowserDialog(QDialog):
         """Enable the action buttons only when a row is selected."""
         has_selection = self._list.currentItem() is not None
         self._open.setEnabled(has_selection)
+        self._rename.setEnabled(has_selection)
         self._delete.setEnabled(has_selection)
         self._export.setEnabled(has_selection)
 
@@ -190,6 +195,26 @@ class SessionBrowserDialog(QDialog):
             self._repo.delete_session(sid)
             self.refresh()
 
+    def _on_rename(self) -> None:
+        """Prompt for a new name and write it to the database."""
+        sid = self._selected_session_id()
+        if sid is None:
+            return
+        # Pre-fill with the current name from the selected row's title.
+        item = self._list.currentItem()
+        widget = self._list.itemWidget(item) if item is not None else None
+        current = widget.session_name() if isinstance(widget, _SessionRow) else ""
+        new_name, ok = QInputDialog.getText(
+            self,
+            "Rename session",
+            "Session name (leave blank to clear):",
+            text=current,
+        )
+        if not ok:
+            return
+        self._repo.rename_session(sid, new_name)
+        self.refresh()
+
     def _on_export(self) -> None:
         """Ask the user for a folder and write the session's CSVs into it."""
         sid = self._selected_session_id()
@@ -219,6 +244,10 @@ class _SessionRow(QWidget):
     def __init__(self, summary: SessionSummary, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("sessionRow")
+        # Keep the unmodified name so the rename dialog can pre-fill
+        # the field with whatever the user previously typed (or an
+        # empty string when the session was unnamed).
+        self._session_name = summary.name
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(12, 8, 12, 8)
@@ -244,6 +273,10 @@ class _SessionRow(QWidget):
             score.setObjectName("sessionRowScore")
             score.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             layout.addWidget(score)
+
+    def session_name(self) -> str:
+        """Return the original session name (empty string when unnamed)."""
+        return self._session_name
 
     def sizeHint(self) -> QSize:  # noqa: N802 (Qt naming)
         return QSize(520, 56)
