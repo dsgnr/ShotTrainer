@@ -411,9 +411,13 @@ mod tests {
             mgr.select_shot(cx, 0);
         });
         let before = mgr.shots.clone();
+        rig.take();
         rig.run(|cx| mgr.on_shot(cx, shot_at(20.0)));
         assert_eq!(mgr.shots, before);
-        assert_eq!(rig.repo().list_shots(sid).unwrap().len(), 1);
+        assert!(
+            rig.take().is_empty(),
+            "a live shot changes nothing on screen"
+        );
         rig.run(|cx| {
             mgr.start(cx, "Next", "practice", "1");
             mgr.on_shot(cx, shot_at(20.0));
