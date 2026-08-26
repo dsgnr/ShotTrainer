@@ -71,6 +71,7 @@ class SessionRecorder:
         notes: str = "",
         target_profile: str = "default",
         app_version: str = "",
+        category: str = "practice",
     ) -> int:
         """Open a new session in the database and return its id.
 
@@ -85,6 +86,7 @@ class SessionRecorder:
             notes=notes,
             target_profile=target_profile,
             app_version=app_version,
+            category=category,
         )
         self._session_id = sid
         self._pending.clear()

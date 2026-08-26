@@ -394,7 +394,11 @@ class AppController(QObject):
 
     def _on_start_requested(self, name: str) -> None:
         """Forward session-start to the session manager."""
-        self._session_mgr.on_start_requested(name, app_version=__version__)
+        self._session_mgr.on_start_requested(
+            name,
+            app_version=__version__,
+            category=self._window.session_controls.session_category(),
+        )
 
     def _on_stop_requested(self) -> None:
         """Forward session-stop to the session manager."""

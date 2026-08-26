@@ -102,7 +102,7 @@ class SessionManager:
         """The replay trace player."""
         return self._player
 
-    def on_start_requested(self, name: str, app_version: str) -> None:
+    def on_start_requested(self, name: str, app_version: str, category: str = "practice") -> None:
         """Open a new recording session.
 
         Resets the trace buffer, the on-screen shot list, and the
@@ -111,6 +111,7 @@ class SessionManager:
         Args:
             name: User-provided session name.
             app_version: Application version string for the session record.
+            category: Session category tag (practice, sighter, match).
         """
         if self._recorder.is_recording:
             return
@@ -127,6 +128,7 @@ class SessionManager:
             name=name,
             app_version=app_version,
             target_profile=self._get_preferences().target_face,
+            category=category,
         )
         self._window.session_controls.set_active(True)
         self._window.session_controls.set_summary(f"Recording session {sid}")

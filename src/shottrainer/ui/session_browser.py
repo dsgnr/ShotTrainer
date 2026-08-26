@@ -13,6 +13,8 @@ placeholder is shown.
 from __future__ import annotations
 
 from PySide6.QtCore import QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QPainter, QPixmap
+from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -30,7 +32,38 @@ from PySide6.QtWidgets import (
 )
 
 from shottrainer.services.exporter import export_session_csv
+from shottrainer.sessions.models import SESSION_CATEGORIES
 from shottrainer.sessions.repository import SessionRepository, SessionSummary
+from shottrainer.ui.assets import asset_path
+
+_CATEGORY_ICON_FILES = {
+    "practice": "category_practice.svg",
+    "sighter": "category_sighter.svg",
+    "match": "category_match.svg",
+}
+
+
+def _category_icon(category: str, size: int = 20) -> QPixmap | None:
+    """Render the icon for a category to a transparent pixmap.
+
+    Returns ``None`` when the category is unknown or the asset file
+    is missing, so the caller can fall back to no icon at all.
+    """
+    filename = _CATEGORY_ICON_FILES.get(category)
+    if filename is None:
+        return None
+    path = asset_path(filename)
+    if not path.exists():
+        return None
+    renderer = QSvgRenderer(str(path))
+    if not renderer.isValid():
+        return None
+    pix = QPixmap(size, size)
+    pix.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pix)
+    renderer.render(painter)
+    painter.end()
+    return pix
 
 
 class SessionBrowserDialog(QDialog):
@@ -82,10 +115,12 @@ class SessionBrowserDialog(QDialog):
         actions = QHBoxLayout()
         self._open = QPushButton("Open")
         self._rename = QPushButton("Rename...")
+        self._category = QPushButton("Category...")
         self._delete = QPushButton("Delete")
         self._export = QPushButton("Export CSV...")
         actions.addWidget(self._open)
         actions.addWidget(self._rename)
+        actions.addWidget(self._category)
         actions.addWidget(self._delete)
         actions.addWidget(self._export)
         actions.addStretch(1)
@@ -98,6 +133,7 @@ class SessionBrowserDialog(QDialog):
 
         self._open.clicked.connect(self._on_open)
         self._rename.clicked.connect(self._on_rename)
+        self._category.clicked.connect(self._on_category)
         self._delete.clicked.connect(self._on_delete)
         self._export.clicked.connect(self._on_export)
 
@@ -162,6 +198,7 @@ class SessionBrowserDialog(QDialog):
         has_selection = self._list.currentItem() is not None
         self._open.setEnabled(has_selection)
         self._rename.setEnabled(has_selection)
+        self._category.setEnabled(has_selection)
         self._delete.setEnabled(has_selection)
         self._export.setEnabled(has_selection)
 
@@ -215,6 +252,37 @@ class SessionBrowserDialog(QDialog):
         self._repo.rename_session(sid, new_name)
         self.refresh()
 
+    def _on_category(self) -> None:
+        """Prompt for a new category and write it to the database."""
+        sid = self._selected_session_id()
+        if sid is None:
+            return
+        item = self._list.currentItem()
+        widget = self._list.itemWidget(item) if item is not None else None
+        current = widget.session_category() if isinstance(widget, _SessionRow) else ""
+        # ``SESSION_CATEGORIES`` is a tuple so cast to a list for the
+        # dialog. The display label uses Title Case while the stored
+        # value stays lowercase.
+        choices = list(SESSION_CATEGORIES)
+        labels = [c.capitalize() for c in choices]
+        try:
+            current_index = choices.index(current)
+        except ValueError:
+            current_index = 0
+        chosen_label, ok = QInputDialog.getItem(
+            self,
+            "Set category",
+            "Category:",
+            labels,
+            current_index,
+            editable=False,
+        )
+        if not ok:
+            return
+        chosen = choices[labels.index(chosen_label)]
+        self._repo.update_session_category(sid, chosen)
+        self.refresh()
+
     def _on_export(self) -> None:
         """Ask the user for a folder and write the session's CSVs into it."""
         sid = self._selected_session_id()
@@ -248,6 +316,7 @@ class _SessionRow(QWidget):
         # the field with whatever the user previously typed (or an
         # empty string when the session was unnamed).
         self._session_name = summary.name
+        self._session_category = summary.category
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(12, 8, 12, 8)
@@ -267,6 +336,22 @@ class _SessionRow(QWidget):
 
         layout.addLayout(text_block, 1)
 
+        # Category icon sits to the left of the score so the score
+        # always stays at the right edge of the row. The tooltip
+        # carries the category name so screen readers and hover
+        # users still see the label even though the icon is silent.
+        if summary.category:
+            icon_pixmap = _category_icon(summary.category)
+            if icon_pixmap is not None:
+                badge = QLabel()
+                badge.setPixmap(icon_pixmap)
+                badge.setObjectName("sessionRowCategory")
+                badge.setProperty("category", summary.category)
+                badge.setToolTip(summary.category.capitalize())
+                badge.setAccessibleName(f"{summary.category.capitalize()} session")
+                badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                layout.addWidget(badge)
+
         score_text = _format_score(summary)
         if score_text:
             score = QLabel(score_text)
@@ -277,6 +362,10 @@ class _SessionRow(QWidget):
     def session_name(self) -> str:
         """Return the original session name (empty string when unnamed)."""
         return self._session_name
+
+    def session_category(self) -> str:
+        """Return the session's category tag."""
+        return self._session_category
 
     def sizeHint(self) -> QSize:  # noqa: N802 (Qt naming)
         return QSize(520, 56)
