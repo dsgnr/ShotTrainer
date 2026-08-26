@@ -131,3 +131,56 @@ def test_rename_dialog_cancelled_keeps_old_name(qtbot, repo: SessionRepository, 
 
     summary = next(s for s in repo.list_sessions() if s.id == sid)
     assert summary.name == "placeholder"
+
+
+def test_search_filters_by_name(qtbot, repo: SessionRepository):
+    """Typing in the search field hides rows whose names don't match."""
+    repo.create_session(name="evening practice")
+    repo.create_session(name="club night")
+    repo.create_session(name="quick sighters")
+
+    dialog = SessionBrowserDialog(repo)
+    qtbot.addWidget(dialog)
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    qtbot.waitUntil(lambda: dialog._list.count() == 3, timeout=2000)
+
+    dialog._search.setText("club")
+    assert dialog._list.count() == 1
+
+
+def test_category_filter_narrows_list(qtbot, repo: SessionRepository):
+    """The category dropdown limits rows to a single tag."""
+    repo.create_session(name="a", category="practice")
+    repo.create_session(name="b", category="match")
+    repo.create_session(name="c", category="sighter")
+    repo.create_session(name="d", category="match")
+
+    dialog = SessionBrowserDialog(repo)
+    qtbot.addWidget(dialog)
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    qtbot.waitUntil(lambda: dialog._list.count() == 4, timeout=2000)
+
+    # Pick "Match" by data value to avoid relying on a label.
+    match_index = dialog._category_filter.findData("match")
+    assert match_index >= 0
+    dialog._category_filter.setCurrentIndex(match_index)
+
+    assert dialog._list.count() == 2
+
+
+def test_filter_with_no_matches_shows_placeholder(qtbot, repo: SessionRepository):
+    """When the filter excludes every row the empty page is shown
+    with a "no matches" message rather than the "no sessions" one."""
+    repo.create_session(name="evening practice")
+
+    dialog = SessionBrowserDialog(repo)
+    qtbot.addWidget(dialog)
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    qtbot.waitUntil(lambda: dialog._list.count() == 1, timeout=2000)
+
+    dialog._search.setText("zzz nothing matches")
+    assert dialog._stack.currentWidget() is dialog._empty
+    assert "match your filter" in dialog._empty.text()

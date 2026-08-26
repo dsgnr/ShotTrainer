@@ -20,10 +20,20 @@ Each row represents a recorded session and shows:
 - The date and time the session started
 - The number of shots recorded
 - The session duration
+- A category icon (target for practice, crosshair for sighter, star for match)
 - A score badge, when scored shots are available
 
 If a session was not given a name, ShotTrainer displays a generated name such as
 **Session #3**.
+
+## Filtering the list
+
+The search field at the top of the dialog matches against session names as you
+type. The category dropdown next to it narrows the list to one of practice,
+sighter, or match. Both filters can be combined.
+
+Clear the search field (or pick **All categories**) to see every session
+again.
 
 ## Opening a session
 
