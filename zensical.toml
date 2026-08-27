@@ -45,6 +45,7 @@ nav = [
     { "Cameras" = [
         "cameras.md",
         { "Camera models" = [
+            "cameras/waveshare-ov9281.md",
             "cameras/arducam-ov9281.md",
         ] },
         "cameras/template.md",

@@ -52,9 +52,10 @@ To contribute a report:
 
 ## Reported cameras
 
-| Camera                                      | Resolution         | Range | Rating | Details                     |
-| ------------------------------------------- | ------------------ | ----- | ------ | --------------------------- |
-| [Arducam OV9281](cameras/arducam-ov9281.md) | 1280 × 800 (~1 MP) | TBC   | TBC    | Initial testing in progress |
+| Camera                                          | Resolution         | Range | Rating | Details                                                |
+| ----------------------------------------------- | ------------------ | ----- | ------ | ------------------------------------------------------ |
+| [Waveshare OV9281](cameras/waveshare-ov9281.md) | 1280 × 800 (~1 MP) | TBC   | TBC    | Preferred OV9281 board (USB-C, smaller PCB)            |
+| [Arducam OV9281](cameras/arducam-ov9281.md)     | 1280 × 800 (~1 MP) | TBC   | TBC    | Same sensor as the Waveshare, larger board, fixed PH   |
 
 ## Factors that affect tracking quality
 
