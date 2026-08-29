@@ -79,10 +79,9 @@ class CameraManager:
         selection = load_camera_selection()
         if selection.index is None and not selection.name:
             return None
-        try:
-            available = list_available_cameras()
-        except Exception:  # pragma: no cover - driver dependent
-            available = []
+        # ``list_available_cameras`` already returns an empty list on
+        # platform errors, so no guard is needed here.
+        available = list_available_cameras()
         if not available:
             return selection.index if selection.index is not None else None
         return resolve_camera_index(selection, available)
