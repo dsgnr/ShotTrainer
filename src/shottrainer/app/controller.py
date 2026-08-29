@@ -178,26 +178,6 @@ class AppController(QObject):
         self._camera_mgr.stop_camera()
         self._audio.stop()
 
-    @property
-    def _camera(self):
-        """Backward-compat shim for tests that access ``_camera`` directly."""
-        return self._camera_mgr.camera
-
-    @_camera.setter
-    def _camera(self, value):
-        """Allow tests to assign a stub camera."""
-        self._camera_mgr._camera = value
-
-    @property
-    def _shots_in_view(self) -> list[ShotEntry]:
-        """Backward-compat shim for tests that access shots directly."""
-        return self._session_mgr.shots_in_view
-
-    @_shots_in_view.setter
-    def _shots_in_view(self, value: list[ShotEntry]) -> None:
-        """Allow tests to seed the shot list."""
-        self._session_mgr.shots_in_view = value
-
     def _set_preferences(self, prefs: Preferences) -> None:
         """Update the cached preferences. Used by delegate managers."""
         self._preferences = prefs
@@ -521,35 +501,3 @@ class AppController(QObject):
             brightness=prefs.camera_brightness,
             contrast=prefs.camera_contrast,
         )
-
-    def _revert_camera_after_dialog(
-        self,
-        original_index: int | None,
-        committed: bool,
-    ) -> None:
-        """Undo any camera change the user made if the dialog wasn't saved.
-
-        Kept on the controller for backward compatibility with
-        existing tests that monkeypatch this method.
-
-        Args:
-            original_index: Camera index before the dialog opened.
-            committed: Whether the user clicked Save.
-        """
-        if committed:
-            return
-        current_index = self._camera_mgr.device_index()
-        if current_index == original_index:
-            return
-        if original_index is None:
-            self._camera_mgr.stop_camera()
-        else:
-            self._camera_mgr.start_camera(original_index)
-
-    def _start_camera(self, device_index: int) -> None:
-        """Backward-compat shim delegating to the camera manager."""
-        self._camera_mgr.start_camera(device_index)
-
-    def _stop_camera(self) -> None:
-        """Backward-compat shim delegating to the camera manager."""
-        self._camera_mgr.stop_camera()

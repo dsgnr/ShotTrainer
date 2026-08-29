@@ -200,45 +200,13 @@ def test_rescore_updates_view_and_persists_scores(
     # The centred shot has a database id, so its updated score should
     # be persisted. The far-out shot is purely in-memory and should
     # not produce a database write.
-    controller._shots_in_view = [
+    controller._session_mgr.shots_in_view = [
         _ShotEntry(timestamp=0.0, x_mm=0.0, y_mm=0.0, score="9", shot_id=7),
         _ShotEntry(timestamp=1.0, x_mm=1000.0, y_mm=1000.0, score=None),
     ]
     controller._on_rescore_requested()
     # Centre shot scores into the smallest ring. Far-out shot scores
     # nothing, so its label should be cleared rather than left as "9".
-    assert controller._shots_in_view[0].score not in (None, "")
-    assert controller._shots_in_view[1].score is None
-
-
-def test_revert_camera_after_dialog_does_nothing_if_unchanged(
-    controller: AppController,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """Closing the Preferences dialog without changing the camera
-    should leave the running capture alone."""
-    starts: list[int] = []
-    stops: list[bool] = []
-    monkeypatch.setattr(AppController, "_start_camera", lambda self, idx: starts.append(idx))
-    monkeypatch.setattr(AppController, "_stop_camera", lambda self: stops.append(True))
-    # Pretend the camera is already running on index 0 so the revert
-    # logic sees the dialog's pre-open and post-close indices match.
-    controller._camera = _StubCameraCapture(type("Cfg", (), {"device_index": 0})())
-    controller._revert_camera_after_dialog(original_index=0, committed=False)
-    assert starts == []
-    assert stops == []
-
-
-def test_revert_camera_after_dialog_committed_is_a_no_op(
-    controller: AppController,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """When the user pressed Save the controller has already applied
-    the change. The post-close revert path must keep its hands off."""
-    starts: list[int] = []
-    stops: list[bool] = []
-    monkeypatch.setattr(AppController, "_start_camera", lambda self, idx: starts.append(idx))
-    monkeypatch.setattr(AppController, "_stop_camera", lambda self: stops.append(True))
-    controller._revert_camera_after_dialog(original_index=0, committed=True)
-    assert starts == []
-    assert stops == []
+    shots = controller._session_mgr.shots_in_view
+    assert shots[0].score not in (None, "")
+    assert shots[1].score is None
