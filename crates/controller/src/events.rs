@@ -82,7 +82,9 @@ pub struct HoldZone {
 }
 
 /// A saved shot's window loaded for replay. The `Player` events that follow
-/// position the playhead, so a front end applies this first.
+/// position the playhead, so a front end applies this first. Receiving it
+/// also means the selected shot is isolated on the target, and
+/// `ReplayCleared` removes that isolation.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReplayView {
     /// The selected shot's position in the shot list.
