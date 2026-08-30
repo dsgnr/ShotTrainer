@@ -340,6 +340,7 @@ class SessionManager:
             self._shots_in_view[index].timestamp,
             pre_ms=prefs.pre_shot_ms,
             post_ms=prefs.post_shot_ms,
+            release_ms=prefs.release_window_ms,
         )
         self._player.load(window.samples)
         self._window.replay_controls.set_playing(False)

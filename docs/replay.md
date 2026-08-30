@@ -33,6 +33,11 @@ The amber section represents the final moments before the shot breaks.
 This is often the most useful part of the trace when analysing hold quality,
 trigger timing, and shot execution.
 
+The length of this phase is set by the **Release window** in
+**Preferences > Recording**. The default of 250 ms suits precision rifle.
+Pistol or other slower-settle disciplines may want a longer window so
+the amber band covers the full settle before the trigger breaks.
+
 ### Green - Follow-through
 
 The follow-through phase begins immediately after the shot and continues until

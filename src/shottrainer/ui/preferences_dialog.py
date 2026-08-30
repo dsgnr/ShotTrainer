@@ -757,6 +757,19 @@ class PreferencesDialog(QDialog):
             self._post,
             "Trace kept after each shot for follow-through review.",
         )
+
+        self._release = QSpinBox()
+        self._release.setRange(50, 2000)
+        self._release.setSuffix(" ms")
+        self._release.setValue(prefs.release_window_ms)
+        add_field_with_hint(
+            form,
+            "Release window",
+            self._release,
+            "How much of the trace before the shot is shown as the "
+            "release phase (amber). The longer approach before this "
+            "is shown in blue.",
+        )
         layout.addLayout(form)
 
         self._show_hold_zone = QCheckBox("Show hold zone on replay")
@@ -843,6 +856,7 @@ class PreferencesDialog(QDialog):
             shot_refractory_ms=int(self._refractory.value()),
             pre_shot_ms=int(self._pre.value()),
             post_shot_ms=int(self._post.value()),
+            release_window_ms=int(self._release.value()),
             target_face=str(target_face),
             shot_diameter_mm=float(self._shot_diameter.value()),
             tracking_region_fraction=float(self._region.value()),
