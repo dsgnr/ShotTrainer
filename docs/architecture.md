@@ -330,6 +330,12 @@ shutdown. The application asks for camera and microphone access before calling
 `start`, because macOS only shows the prompt for a request made on the main
 thread.
 
+`Controller::new` emits the preferences and zero offset events on the thread
+that calls it, before a front end can be listening. The front end sends
+`Command::Refresh` once it is, and again after reloading its view, to receive
+the preferences with their rings, the zero offset, the session state and the
+shot list.
+
 The camera, the microphone, the circle detector and the optimiser's Hough
 scorer are reached through the `CameraBackend`, `AudioBackend`,
 `TargetDetector` and `HoughScorer` traits, so the crate is tested with fakes.
@@ -337,6 +343,10 @@ scorer are reached through the `CameraBackend`, `AudioBackend`,
 the camera and detector and `cpal` for the microphone. OpenCV has no device
 names, so cameras are listed as `Camera 0`, `Camera 1` and so on, and a camera
 saved by name from the Python application is found again by its saved index.
+Listing cameras opens each index below 5 in turn, so it only happens when the
+front end asks for the device list, or at start-up for a selection that has a
+name and no index. A saved index is opened directly, and a refreshed list
+reports the camera that is running without opening it again.
 
 Behaviour that differs from the Python controller:
 
@@ -350,6 +360,13 @@ Behaviour that differs from the Python controller:
 - Preferences sent by the front end are checked with the same per-value rules
   as `settings.json`. A new session with an unknown category is recorded as
   `practice`, and changing a saved session to an unknown category is refused.
+- Saving the Preferences dialog compares the new values with the ones from
+  when the dialog opened, so a change made only through the live preview, such
+  as brightness, contrast, rotation or flips, is saved. Python compares with
+  the preview-modified values and loses such a change. A second
+  `BeginPreview` keeps the first restore point.
+- A non-finite brightness or contrast and a rotation other than 0, 90, 180 or
+  270 sent as a preview value are ignored.
 - Repeated identical warnings from the detector, the frame transform and trace
   sample writes are logged once and then every 300th time.
 
