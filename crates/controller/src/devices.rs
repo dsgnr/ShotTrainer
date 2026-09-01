@@ -275,6 +275,7 @@ impl AudioManager {
         self.backend.list_inputs()
     }
 }
+
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
