@@ -2,6 +2,7 @@
 //! controller, emits controller events and delivers camera pixels.
 
 mod logging;
+pub mod pixels;
 mod shell;
 pub mod wire;
 
