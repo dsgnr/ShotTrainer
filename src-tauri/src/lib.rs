@@ -1,6 +1,7 @@
 //! The Tauri shell. It hosts the webview, forwards commands to the
 //! controller, emits controller events and delivers camera pixels.
 
+pub mod fake;
 mod logging;
 pub mod pixels;
 mod shell;
