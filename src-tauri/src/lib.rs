@@ -3,6 +3,7 @@
 
 pub mod fake;
 mod logging;
+pub mod mode;
 pub mod pixels;
 mod shell;
 pub mod wire;
