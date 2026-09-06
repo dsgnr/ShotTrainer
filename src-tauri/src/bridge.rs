@@ -10,6 +10,7 @@ use shottrainer_controller::{
 };
 
 use crate::mode::DeviceMode;
+use crate::pixels::{FrameGate, rgba_packet, unix_millis};
 use crate::wire::WireEvent;
 
 /// What `send` returns once the controller thread has ended.
@@ -48,11 +49,20 @@ pub struct ShellStatus {
 
 struct Shared<O> {
     outlet: O,
+    gate: FrameGate,
 }
 
 impl<O: Outlet> Shared<O> {
     fn deliver(&self, event: UiEvent) {
         self.outlet.emit(&WireEvent::from(&event));
+        if let UiEvent::Frame(view) = &event
+            && self.gate.try_acquire()
+        {
+            let packet = rgba_packet(&view.frame, view.frame_id, view.timestamp, unix_millis());
+            if !self.outlet.send_pixels(packet) {
+                self.gate.release();
+            }
+        }
     }
 }
 
@@ -72,7 +82,10 @@ pub struct Bridge<O: Outlet> {
 impl<O: Outlet> Bridge<O> {
     pub fn new(outlet: O, config: ShellConfig) -> Self {
         Bridge {
-            shared: Arc::new(Shared { outlet }),
+            shared: Arc::new(Shared {
+                outlet,
+                gate: FrameGate::default(),
+            }),
             config,
             slot: Mutex::new(Slot::Empty),
             denied: Mutex::new(Vec::new()),
@@ -168,6 +181,16 @@ impl<O: Outlet> Bridge<O> {
             .push(media.to_owned());
     }
 
+    /// The webview subscribed a new frame channel, so packets sent to an
+    /// older one will never be reported drawn.
+    pub fn frames_subscribed(&self) {
+        self.shared.gate.reset();
+    }
+
+    pub fn frame_drawn(&self) {
+        self.shared.gate.release();
+    }
+
     fn slot(&self) -> MutexGuard<'_, Slot> {
         self.slot.lock().unwrap_or_else(PoisonError::into_inner)
     }
@@ -175,6 +198,7 @@ impl<O: Outlet> Bridge<O> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Condvar, Mutex};
     use std::time::{Duration, Instant};
 
@@ -182,6 +206,7 @@ mod tests {
 
     use super::*;
     use crate::fake;
+    use crate::pixels::{HEADER_LEN, MAX_FRAMES_IN_FLIGHT};
     use crate::wire::event::WireSessionState;
 
     const WAIT: Duration = Duration::from_secs(10);
@@ -189,12 +214,15 @@ mod tests {
     #[derive(Default)]
     struct Recorded {
         events: Vec<WireEvent>,
+        packets: Vec<Vec<u8>>,
     }
 
-    /// Keeps every event. No frame channel is subscribed.
+    /// Keeps everything delivered. Pixels are accepted only while
+    /// `accepting` is set, as if a frame channel were subscribed.
     #[derive(Clone, Default)]
     struct RecordingOutlet {
         recorded: Arc<(Mutex<Recorded>, Condvar)>,
+        accepting: Arc<AtomicBool>,
     }
 
     impl Outlet for RecordingOutlet {
@@ -204,12 +232,23 @@ mod tests {
             changed.notify_all();
         }
 
-        fn send_pixels(&self, _packet: Vec<u8>) -> bool {
-            false
+        fn send_pixels(&self, packet: Vec<u8>) -> bool {
+            if !self.accepting.load(Ordering::SeqCst) {
+                return false;
+            }
+            let (recorded, changed) = &*self.recorded;
+            recorded.lock().unwrap().packets.push(packet);
+            changed.notify_all();
+            true
         }
     }
 
     impl RecordingOutlet {
+        fn accepting(self) -> Self {
+            self.accepting.store(true, Ordering::SeqCst);
+            self
+        }
+
         /// Waits until `done` holds, failing after [`WAIT`].
         fn wait_for(&self, what: &str, done: impl Fn(&Recorded) -> bool) {
             let (recorded, changed) = &*self.recorded;
@@ -226,9 +265,27 @@ mod tests {
             self.recorded.0.lock().unwrap().events.clone()
         }
 
-        fn clear(&self) {
-            self.recorded.0.lock().unwrap().events.clear();
+        fn packets(&self) -> Vec<Vec<u8>> {
+            self.recorded.0.lock().unwrap().packets.clone()
         }
+
+        fn clear(&self) {
+            let mut recorded = self.recorded.0.lock().unwrap();
+            recorded.events.clear();
+            recorded.packets.clear();
+        }
+
+        fn frame_events(&self) -> usize {
+            frame_count(&self.recorded.0.lock().unwrap())
+        }
+    }
+
+    fn frame_count(recorded: &Recorded) -> usize {
+        recorded
+            .events
+            .iter()
+            .filter(|e| matches!(e, WireEvent::Frame(_)))
+            .count()
     }
 
     fn has_session(recorded: &Recorded, state: WireSessionState) -> bool {
@@ -305,6 +362,126 @@ mod tests {
                 )
             })
         });
+    }
+
+    #[test]
+    fn frames_arrive_as_an_event_and_an_rgba_packet() {
+        let rig = rig(RecordingOutlet::default().accepting());
+        rig.bridge.spawn().unwrap();
+        rig.bridge.start();
+        rig.outlet
+            .wait_for("a pixel packet", |r| !r.packets.is_empty());
+        let packet = &rig.outlet.packets()[0];
+        let width = u32::from_le_bytes(packet[0..4].try_into().unwrap());
+        let height = u32::from_le_bytes(packet[4..8].try_into().unwrap());
+        let frame_id = i64::from_le_bytes(packet[8..16].try_into().unwrap());
+        assert_eq!((width, height), (fake::WIDTH, fake::HEIGHT));
+        assert_eq!(packet.len(), HEADER_LEN + (width * height * 4) as usize);
+        let events = rig.outlet.events();
+        let frame = events.iter().find_map(|e| match e {
+            WireEvent::Frame(f) if f.frame_id == frame_id => Some(f),
+            _ => None,
+        });
+        let frame = frame.expect("a frame event with the packet's id");
+        assert_eq!(frame.status, "tracking");
+        assert!(frame.aim.is_some());
+    }
+
+    /// One delivery as `(is_packet, frame_id)`.
+    type Call = (bool, i64);
+
+    /// Logs the order of deliveries.
+    #[derive(Clone, Default)]
+    struct OrderOutlet {
+        log: Arc<(Mutex<Vec<Call>>, Condvar)>,
+    }
+
+    impl Outlet for OrderOutlet {
+        fn emit(&self, event: &WireEvent) {
+            if let WireEvent::Frame(f) = event {
+                self.log.0.lock().unwrap().push((false, f.frame_id));
+                self.log.1.notify_all();
+            }
+        }
+
+        fn send_pixels(&self, packet: Vec<u8>) -> bool {
+            let id = i64::from_le_bytes(packet[8..16].try_into().unwrap());
+            self.log.0.lock().unwrap().push((true, id));
+            self.log.1.notify_all();
+            true
+        }
+    }
+
+    #[test]
+    fn a_frame_event_precedes_its_packet() {
+        let dir = tempfile::tempdir().unwrap();
+        let outlet = OrderOutlet::default();
+        let bridge = Bridge::new(
+            outlet.clone(),
+            ShellConfig {
+                controller: ControllerConfig {
+                    paths: DataPaths::in_dir(dir.path()),
+                    app_version: "test".into(),
+                },
+                backends: Arc::new(fake::backends),
+                mode: DeviceMode::Fake,
+            },
+        );
+        bridge.spawn().unwrap();
+        bridge.start();
+        let (log, changed) = &*outlet.log;
+        let deadline = Instant::now() + WAIT;
+        let mut guard = log.lock().unwrap();
+        while !guard.iter().any(|(packet, _)| *packet) {
+            let left = deadline.saturating_duration_since(Instant::now());
+            assert!(!left.is_zero(), "timed out waiting for a packet");
+            guard = changed.wait_timeout(guard, left).unwrap().0;
+        }
+        let packet_at = guard.iter().position(|(packet, _)| *packet).unwrap();
+        let id = guard[packet_at].1;
+        let event_at = guard.iter().position(|e| *e == (false, id));
+        assert!(
+            event_at.is_some_and(|at| at < packet_at),
+            "log was {:?}",
+            *guard
+        );
+    }
+
+    #[test]
+    fn pixels_wait_for_the_webview_to_draw() {
+        let rig = rig(RecordingOutlet::default().accepting());
+        rig.bridge.spawn().unwrap();
+        rig.bridge.start();
+        rig.outlet.wait_for("ten frames", |r| frame_count(r) >= 10);
+        assert_eq!(rig.outlet.packets().len(), MAX_FRAMES_IN_FLIGHT);
+        rig.bridge.frame_drawn();
+        let seen = rig.outlet.frame_events();
+        rig.outlet
+            .wait_for("five more frames", |r| frame_count(r) >= seen + 5);
+        assert_eq!(rig.outlet.packets().len(), MAX_FRAMES_IN_FLIGHT + 1);
+    }
+
+    #[test]
+    fn a_new_subscription_reopens_a_full_gate() {
+        let rig = rig(RecordingOutlet::default().accepting());
+        rig.bridge.spawn().unwrap();
+        rig.bridge.start();
+        rig.outlet.wait_for("ten frames", |r| frame_count(r) >= 10);
+        rig.bridge.frames_subscribed();
+        rig.outlet.wait_for("two more packets", |r| {
+            r.packets.len() == MAX_FRAMES_IN_FLIGHT * 2
+        });
+    }
+
+    #[test]
+    fn pixels_without_a_channel_hold_no_slot() {
+        let rig = rig(RecordingOutlet::default());
+        rig.bridge.spawn().unwrap();
+        rig.bridge.start();
+        rig.outlet.wait_for("ten frames", |r| frame_count(r) >= 10);
+        assert!(rig.outlet.packets().is_empty());
+        rig.outlet.accepting.store(true, Ordering::SeqCst);
+        rig.outlet.wait_for("a packet", |r| !r.packets.is_empty());
     }
 
     #[test]
