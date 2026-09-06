@@ -216,9 +216,32 @@ class CircleTargetDetector:
         cx_frame = w / 2.0
         cy_frame = h / 2.0
 
+        # While the detector has a lock, only run Hough inside a
+        # box around the last hit. Full-frame Hough scans every
+        # gradient in the image, so a busy scene (textured walls,
+        # patterned backgrounds) both slows the call and inflates
+        # the candidate list the loop below has to walk. Cropping
+        # to the lock window cuts both. When the lock has been
+        # dropped we scan the whole frame so re-acquiring the
+        # target isn't restricted to where it used to be. Matches
+        # the contour path's behaviour so a single lock state
+        # gates both detectors.
+        offset_x, offset_y = 0, 0
+        search_grey = grey
+        if self._lock_px is not None:
+            roi_radius = max(1.0, s.lock_radius_px) * max(1.0, s.lock_search_radius_factor)
+            lx, ly = self._lock_px
+            x0 = max(0, int(lx - roi_radius))
+            y0 = max(0, int(ly - roi_radius))
+            x1 = min(w, int(lx + roi_radius))
+            y1 = min(h, int(ly + roi_radius))
+            if x1 > x0 and y1 > y0:
+                search_grey = grey[y0:y1, x0:x1]
+                offset_x, offset_y = x0, y0
+
         min_dist = max(s.min_radius_px * 2, 30)
         circles = cv2.HoughCircles(
-            grey,
+            search_grey,
             cv2.HOUGH_GRADIENT,
             dp=1.0,
             minDist=min_dist,
@@ -234,7 +257,9 @@ class CircleTargetDetector:
 
         best_cx, best_cy, best_r = 0.0, 0.0, 0.0
         for circle in circles[0]:
-            cx, cy, r = float(circle[0]), float(circle[1]), float(circle[2])
+            cx = float(circle[0]) + offset_x
+            cy = float(circle[1]) + offset_y
+            r = float(circle[2])
             if r < s.min_radius_px or r > s.max_radius_px:
                 continue
             # Reject candidates outside the tracking region.
@@ -300,7 +325,12 @@ class CircleTargetDetector:
         # Reuse the cached mask buffers between calls. Resized only
         # when the frame shape changes; zeroed each call before the
         # circle draws so the previous frame's bands don't leak in.
-        if self._mask_shape != (h, w) or self._mask_inner is None:
+        if (
+            self._mask_shape != (h, w)
+            or self._mask_inner is None
+            or self._mask_outer is None
+            or self._mask_interior is None
+        ):
             self._mask_inner = np.zeros((h, w), dtype=np.uint8)
             self._mask_outer = np.zeros((h, w), dtype=np.uint8)
             self._mask_interior = np.zeros((h, w), dtype=np.uint8)
@@ -310,9 +340,9 @@ class CircleTargetDetector:
             self._mask_outer.fill(0)
             self._mask_interior.fill(0)
 
-        inner_band = self._mask_inner
-        outer_band = self._mask_outer
-        interior = self._mask_interior
+        inner_band: np.ndarray = self._mask_inner
+        outer_band: np.ndarray = self._mask_outer
+        interior: np.ndarray = self._mask_interior
 
         cv2.circle(inner_band, (int(cx), int(cy)), int(r * 0.99), 255, -1)
         cv2.circle(inner_band, (int(cx), int(cy)), int(r * 0.85), 0, -1)
