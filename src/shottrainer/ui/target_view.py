@@ -294,17 +294,17 @@ class TargetView(QWidget):
     def paintEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        painter.fillRect(self.rect(), QColor("#11161d"))
+        painter.fillRect(self.rect(), QColor("#0e1014"))
 
         size = min(self.width(), self.height())
         cx = self.width() / 2.0
         cy = self.height() / 2.0
         scale = (size - 16) / (2.0 * self._extent_mm)  # px per mm
 
-        # Cream paper-target face fills the visible extent.
+        # A low-contrast dark face keeps the coloured trace in focus.
         face_radius = self._extent_mm * scale * 0.95
-        painter.setBrush(QColor("#f5f1e8"))
-        face_pen = QPen(QColor("#1f2228"))
+        painter.setBrush(QColor("#181e25"))
+        face_pen = QPen(QColor("#667381"))
         face_pen.setWidth(1)
         painter.setPen(face_pen)
         painter.drawEllipse(QPointF(cx, cy), face_radius, face_radius)
@@ -334,7 +334,7 @@ class TargetView(QWidget):
         painter.setBrush(Qt.BrushStyle.NoBrush)
 
     def _draw_rings(self, painter: QPainter, cx: float, cy: float, scale: float) -> None:
-        pen = QPen(QColor("#1f2228"))
+        pen = QPen(QColor("#667381"))
         pen.setWidth(1)
         painter.setPen(pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -347,7 +347,7 @@ class TargetView(QWidget):
                 )
 
     def _draw_crosshair(self, painter: QPainter, cx: float, cy: float, size: float) -> None:
-        pen = QPen(QColor("#888888"))
+        pen = QPen(QColor("#303c48"))
         pen.setStyle(Qt.PenStyle.DashLine)
         painter.setPen(pen)
         painter.drawLine(int(cx - size / 2), int(cy), int(cx + size / 2), int(cy))
@@ -466,14 +466,14 @@ class TargetView(QWidget):
             y = cy + shot.y_mm * scale
             selected = i == self._selected_shot
             # Magenta marker.
-            fill = QColor("#ff1493")
+            fill = QColor("#e2e9ed")
             fill.setAlpha(200 if not selected else 230)
             painter.setBrush(fill)
             painter.setPen(Qt.PenStyle.NoPen)
             r = radius_px * (1.5 if selected else 1.3)
             painter.drawEllipse(QPointF(x, y), r, r)
             if shot.label:
-                painter.setPen(QColor("#1f2228"))
+                painter.setPen(QColor("#667381"))
                 painter.drawText(
                     QRectF(x + r + 4, y - 16, 30, 14), Qt.AlignmentFlag.AlignLeft, shot.label
                 )

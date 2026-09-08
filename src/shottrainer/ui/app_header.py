@@ -22,7 +22,7 @@ class _StateStyle(NamedTuple):
 _STATE_STYLES: dict[str, _StateStyle] = {
     "idle": _StateStyle("Idle", "#7a8090"),
     "recording": _StateStyle("Recording", "#e74c3c"),
-    "replay": _StateStyle("Replay", "#2d6cdf"),
+    "replay": _StateStyle("Replay", "#62d7ac"),
 }
 
 
@@ -61,7 +61,7 @@ class AppHeader(QWidget):
         """
         super().__init__(parent)
         self.setObjectName("appHeader")
-        self.setFixedHeight(48)
+        self.setFixedHeight(60)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         layout = QHBoxLayout(self)
