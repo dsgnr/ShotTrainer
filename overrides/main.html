@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  {% if page and page.meta and page.canonical_url %}
+    {% set share_title = page.meta.title | default(page.title, true) ~ " - " ~ config.site_name %}
+    {% set description = page.meta.description | default(config.site_description, true) %}
+    {% set share_image = config.site_url ~ "assets/img/app.jpg" %}
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ config.site_name }}">
+    <meta property="og:title" content="{{ share_title }}">
+    <meta property="og:description" content="{{ description }}">
+    <meta property="og:url" content="{{ page.canonical_url }}">
+    <meta property="og:image" content="{{ share_image }}">
+    <meta property="og:image:alt" content="ShotTrainer desktop app with target, aim trace and shot analysis">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ share_title }}">
+    <meta name="twitter:description" content="{{ description }}">
+    <meta name="twitter:image" content="{{ share_image }}">
+    <meta name="twitter:image:alt" content="ShotTrainer desktop app with target, aim trace and shot analysis">
+  {% endif %}
+{% endblock %}

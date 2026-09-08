@@ -1,3 +1,8 @@
+---
+title: "Group size, hold stability and shot statistics"
+description: "Understand ShotTrainer’s total score, group size, hold tremor and time-on-target statistics for live shooting practice and recorded shot analysis."
+---
+
 # Understanding the stats panel
 
 ![Stats](./assets/img/stats.jpg)

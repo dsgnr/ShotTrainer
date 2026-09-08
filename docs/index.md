@@ -1,6 +1,6 @@
 ---
-title: ShotTrainer
-description: Camera-based aim tracking and shot scoring for shooting practice.
+title: Free optical shooting trainer
+description: Free, open-source shooting trainer for air rifle, air pistol and smallbore practice. Track aim, score shots and replay sessions with your own camera.
 template: landing.html
 hide:
   - navigation
@@ -15,12 +15,13 @@ hide:
       <img src="assets/img/icon.svg" alt="" class="st-product__logo">
       <span>ShotTrainer</span>
     </p>
-    <p class="st-hero__eyebrow">Camera-based shooting practice</p>
+    <p class="st-hero__eyebrow">Free, open-source optical shooting trainer</p>
     <h1 class="st-hero__title">Track your hold. Review every shot.</h1>
     <p class="st-hero__lede">
       Mount a small camera on your rifle pointed at the target, add a microphone
       for shot detection, and watch your hold trace, score, and replay live on
-      your laptop.
+      your laptop. Built for air rifle, air pistol and smallbore practice on
+      Windows, macOS and Linux.
     </p>
     <div class="st-hero__ctas">
       <a class="st-cta st-cta--primary" href="getting-started/">Get started</a>
@@ -46,7 +47,7 @@ hide:
       </ul>
     </div>
     <div class="st-showcase__media">
-      <video src="assets/img/replay_shot.mp4" autoplay loop muted playsinline class="st-showcase__shot" aria-label="ShotTrainer replay view showing a scored target and colour-coded aim trace"></video>
+      <video poster="assets/img/app.jpg" preload="none" src="assets/img/replay_shot.mp4" autoplay loop muted playsinline class="st-showcase__shot" aria-label="ShotTrainer replay view showing a scored target and colour-coded aim trace"></video>
     </div>
   </div>
 </section>
@@ -157,6 +158,21 @@ hide:
         </p>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="st-section">
+  <div class="st-section__inner">
+    <h2 class="st-section__title">Plan your shooting trainer setup</h2>
+    <p class="st-section__lede">
+      Start with the <a href="installation/">installation guide</a>, compare
+      <a href="cameras/">tested cameras and lenses</a>, and follow the
+      <a href="setup/">camera mounting and alignment guide</a>.
+      Learn about <a href="accuracy/">tracking accuracy and limitations</a>
+      before your first session, then explore
+      <a href="replay/">shot replay</a> and
+      <a href="stats/">group size and hold statistics</a> to review your practice.
+    </p>
   </div>
 </section>
 

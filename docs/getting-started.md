@@ -1,3 +1,8 @@
+---
+title: "Get started with optical shooting practice"
+description: "Start using ShotTrainer with a rifle-mounted camera, microphone and printed target. Track your aim, score shots and save your first practice session."
+---
+
 # Get started
 
 ShotTrainer is a camera-based hold tracking and shot analysis tool for shooting

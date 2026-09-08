@@ -1,7 +1,22 @@
 {% extends "main.html" %}
 
-{% block site_meta %}
+{% block extrahead %}
   {{ super() }}
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "ShotTrainer",
+      "url": {{ config.site_url | tojson }},
+      "description": {{ page.meta.description | tojson }},
+      "applicationCategory": "SportsApplication",
+      "operatingSystem": "Windows, macOS, Linux",
+      "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+      "downloadUrl": "https://github.com/dsgnr/ShotTrainer/releases",
+      "isAccessibleForFree": true,
+      "offers": {"@type": "Offer", "price": "0", "priceCurrency": "GBP"}
+    }
+  </script>
 {% endblock %}
 
 {% block container %}

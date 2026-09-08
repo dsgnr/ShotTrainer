@@ -1,3 +1,7 @@
+---
+description: "Image naming and folder conventions for contributors adding camera photographs to the ShotTrainer documentation."
+---
+
 # Camera photos
 
 Drop per-camera photos in here, one or more per camera page in `docs/cameras/`.

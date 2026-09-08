@@ -1,3 +1,7 @@
+---
+description: "Record a shooting practice session in ShotTrainer. Name and categorise sessions, capture shots and aim traces, then save them for replay and export."
+---
+
 # Running a session
 
 A session is a recording period during which ShotTrainer captures shots and the

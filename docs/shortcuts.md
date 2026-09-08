@@ -1,3 +1,7 @@
+---
+description: "Use ShotTrainer keyboard shortcuts to start sessions, select shots, control replay, zoom the target and open preferences on Windows, macOS and Linux."
+---
+
 # Keyboard shortcuts
 
 | Shortcut | Action |

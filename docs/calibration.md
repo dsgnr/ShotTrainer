@@ -1,3 +1,7 @@
+---
+description: "Set the printed tracking circle diameter in ShotTrainer and learn how camera measurements are converted into millimetres without a separate calibration step."
+---
+
 # Tracking and the printed circle
 
 ShotTrainer uses a known circle diameter to convert camera measurements into

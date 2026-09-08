@@ -1,3 +1,7 @@
+---
+description: "Learn how ShotTrainer scores shots against target rings, including projectile diameter, inward and outward scoring, and target face definitions."
+---
+
 # How shot scoring works
 
 ![Scoring](./assets/img/scoring.jpg)

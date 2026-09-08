@@ -1,3 +1,8 @@
+---
+title: "How optical aim tracking works"
+description: "Learn how ShotTrainer combines camera images and microphone input to measure aim movement, detect shots and record the trace around each shot."
+---
+
 # How tracking works
 
 This page explains how ShotTrainer turns camera images and microphone input into

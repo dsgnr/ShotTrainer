@@ -36,6 +36,9 @@ jobs:
       - name: build
         run: zensical build --strict
 
+      - name: validate search and sharing metadata
+        run: python scripts/check_docs_seo.py
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3

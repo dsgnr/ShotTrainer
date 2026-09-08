@@ -51,6 +51,7 @@ docs-serve:
 # so doc warnings (broken links, missing nav entries) fail the build.
 docs-build:
 	$(ZENSICAL_RUN) build --strict
+	python3 scripts/check_docs_seo.py
 
 docs-clean:
 	rm -rf site

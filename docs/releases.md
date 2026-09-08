@@ -1,3 +1,7 @@
+---
+description: "Find ShotTrainer releases and learn how upgrades, version numbers and configuration changes are handled for this open-source shooting trainer."
+---
+
 # Releases and upgrades
 
 ShotTrainer follows [Semantic Versioning](https://semver.org/) starting from

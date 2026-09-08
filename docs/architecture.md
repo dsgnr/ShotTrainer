@@ -1,3 +1,7 @@
+---
+description: "Explore ShotTrainer’s Python architecture, from camera capture and optical tracking to audio shot detection, session storage and the desktop interface."
+---
+
 # Architecture
 
 This page provides a high-level overview of how ShotTrainer is organised

@@ -1,3 +1,8 @@
+---
+title: "Accuracy and tracking limitations"
+description: "Understand how camera resolution, optics, mounting and distance affect aim tracking accuracy, shot position and hold analysis in ShotTrainer."
+---
+
 # Accuracy notes
 
 ShotTrainer is designed to provide useful feedback on hold quality, shot timing,
