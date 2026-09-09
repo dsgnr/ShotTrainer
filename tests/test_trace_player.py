@@ -128,3 +128,33 @@ def test_pause_keeps_the_playhead_stop_rewinds_it(qtbot, player):
         player.stop()
     assert blocker.args == [0.0]
     assert player._index == 0
+
+
+def test_seeking_to_end_during_playback_finishes_without_advancing_past_trace(player):
+    player.load(_samples(4, dt=10.0))
+    finished = []
+    points = []
+    player.finished.connect(lambda: finished.append(True))
+    player.point.connect(lambda x, y: points.append((x, y)))
+    player.play()
+
+    player.seek_fraction(1.0)
+
+    assert not player.is_playing
+    assert finished == [True]
+    assert points == [(3.0, -3.0)]
+    assert not player._timer.isActive()
+
+
+def test_seeking_during_playback_uses_the_new_sample_timing(qtbot, player):
+    samples = [
+        TrackingSample(timestamp=ts, x_px=0.0, y_px=0.0, x_mm=float(i), y_mm=0.0)
+        for i, ts in enumerate((0.0, 10.0, 10.01, 10.02))
+    ]
+    player.load(samples)
+    player.play()
+
+    with qtbot.waitSignal(player.finished, timeout=500):
+        player.seek_fraction(2 / 3)
+
+    assert not player.is_playing

@@ -92,6 +92,9 @@ class TracePlayer(QObject):
         self._index = round(f * (len(self._samples) - 1))
         self._emit_current()
         self.progress.emit(self._index / max(1, len(self._samples) - 1))
+        if self._playing:
+            self._timer.stop()
+            self._schedule_next()
 
     @property
     def is_playing(self) -> bool:
