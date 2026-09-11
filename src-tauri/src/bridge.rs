@@ -2,6 +2,7 @@
 //! [`WireEvent`] values on an [`Outlet`], frame pixels go to the frame
 //! channel, and commands are refused once the controller thread has ended.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use serde::Serialize;
@@ -76,6 +77,8 @@ pub struct Bridge<O: Outlet> {
     shared: Arc<Shared<O>>,
     config: ShellConfig,
     slot: Mutex<Slot>,
+    /// Set by the first `start`, once device access is settled.
+    started: AtomicBool,
     denied: Mutex<Vec<String>>,
 }
 
@@ -88,6 +91,7 @@ impl<O: Outlet> Bridge<O> {
             }),
             config,
             slot: Mutex::new(Slot::Empty),
+            started: AtomicBool::new(false),
             denied: Mutex::new(Vec::new()),
         }
     }
@@ -127,6 +131,7 @@ impl<O: Outlet> Bridge<O> {
     /// Opens the camera and microphone. Called once device access is
     /// settled.
     pub fn start(&self) {
+        self.started.store(true, Ordering::SeqCst);
         if let Slot::Running(handle) = &*self.slot() {
             handle.start();
         }
@@ -145,6 +150,26 @@ impl<O: Outlet> Bridge<O> {
             }
             Slot::Failed(error) => Err(error.clone()),
             _ => Err(STOPPED.to_owned()),
+        }
+    }
+
+    /// Replaces the controller with a new one, which opens the devices only
+    /// if `start` was already called.
+    pub fn restart(&self) -> Result<(), String> {
+        let mut slot = self.slot();
+        if let Slot::Running(handle) = std::mem::replace(&mut *slot, Slot::Empty) {
+            handle.shutdown();
+        }
+        *slot = self.new_controller();
+        match &*slot {
+            Slot::Running(handle) => {
+                if self.started.load(Ordering::SeqCst) {
+                    handle.start();
+                }
+                Ok(())
+            }
+            Slot::Failed(error) => Err(error.clone()),
+            Slot::Empty => Err(STOPPED.to_owned()),
         }
     }
 
@@ -198,14 +223,19 @@ impl<O: Outlet> Bridge<O> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::atomic::AtomicUsize;
     use std::sync::{Condvar, Mutex};
     use std::time::{Duration, Instant};
 
     use shottrainer_controller::DataPaths;
+    use shottrainer_controller::backends::{CameraBackend, CameraHandle};
+    use shottrainer_tracking::capture::{ClockFn, EventSink};
+    use shottrainer_tracking::detector::{DetectorSettings, TargetDetector};
+    use shottrainer_tracking::frame::Frame;
+    use shottrainer_tracking::models::Detection;
 
     use super::*;
-    use crate::fake;
+    use crate::fake::{self, DarkSpotDetector, SyntheticCamera};
     use crate::pixels::{HEADER_LEN, MAX_FRAMES_IN_FLIGHT};
     use crate::wire::event::WireSessionState;
 
@@ -295,26 +325,86 @@ mod tests {
             .any(|e| matches!(e, WireEvent::Session { state: s, .. } if *s == state))
     }
 
+    /// Opens the synthetic camera and counts how often it was opened.
+    struct CountingCamera(Arc<AtomicUsize>);
+
+    impl CameraBackend for CountingCamera {
+        fn list_cameras(&mut self, running: Option<i32>) -> Vec<(i64, String)> {
+            SyntheticCamera.list_cameras(running)
+        }
+
+        fn start(
+            &mut self,
+            index: i32,
+            clock: ClockFn,
+            on_event: EventSink,
+        ) -> Box<dyn CameraHandle> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            SyntheticCamera.start(index, clock, on_event)
+        }
+    }
+
+    /// Panics on the first frame while `armed` is set.
+    struct PanickingDetector {
+        armed: Arc<AtomicBool>,
+        inner: DarkSpotDetector,
+    }
+
+    impl TargetDetector for PanickingDetector {
+        fn detect(&mut self, frame: &Frame) -> Detection {
+            assert!(!self.armed.load(Ordering::SeqCst), "detector failure");
+            self.inner.detect(frame)
+        }
+
+        fn reset_lock(&mut self) {}
+
+        fn settings(&self) -> &DetectorSettings {
+            self.inner.settings()
+        }
+
+        fn set_settings(&mut self, settings: DetectorSettings) {
+            self.inner.set_settings(settings);
+        }
+    }
+
     struct Rig {
         _dir: tempfile::TempDir,
         outlet: RecordingOutlet,
         bridge: Bridge<RecordingOutlet>,
+        camera_starts: Arc<AtomicUsize>,
+        armed: Arc<AtomicBool>,
     }
 
     fn rig_with(outlet: RecordingOutlet, paths: impl FnOnce(&std::path::Path) -> DataPaths) -> Rig {
         let dir = tempfile::tempdir().unwrap();
+        let camera_starts = Arc::new(AtomicUsize::new(0));
+        let armed = Arc::new(AtomicBool::new(false));
+        let backends: BackendFactory = {
+            let (camera_starts, armed) = (camera_starts.clone(), armed.clone());
+            Arc::new(move || {
+                let mut backends = fake::backends();
+                backends.camera = Box::new(CountingCamera(camera_starts.clone()));
+                backends.detector = Box::new(PanickingDetector {
+                    armed: armed.clone(),
+                    inner: DarkSpotDetector::default(),
+                });
+                backends
+            })
+        };
         let config = ShellConfig {
             controller: ControllerConfig {
                 paths: paths(dir.path()),
                 app_version: "test".into(),
             },
-            backends: Arc::new(fake::backends),
+            backends,
             mode: DeviceMode::Fake,
         };
         Rig {
             _dir: dir,
             bridge: Bridge::new(outlet.clone(), config),
             outlet,
+            camera_starts,
+            armed,
         }
     }
 
@@ -482,6 +572,47 @@ mod tests {
         assert!(rig.outlet.packets().is_empty());
         rig.outlet.accepting.store(true, Ordering::SeqCst);
         rig.outlet.wait_for("a packet", |r| !r.packets.is_empty());
+    }
+
+    #[test]
+    fn a_failed_controller_refuses_commands_until_restarted() {
+        let rig = rig(RecordingOutlet::default());
+        rig.armed.store(true, Ordering::SeqCst);
+        rig.bridge.spawn().unwrap();
+        rig.bridge.start();
+        rig.outlet.wait_for("the failure event", |r| {
+            r.events.iter().any(
+                |e| matches!(e, WireEvent::ControllerFailed { reason } if reason == "detector failure"),
+            )
+        });
+        assert!(!rig.bridge.status().running);
+        assert_eq!(rig.bridge.send(Command::Refresh), Err(STOPPED.to_owned()));
+        rig.armed.store(false, Ordering::SeqCst);
+        rig.bridge.restart().unwrap();
+        assert!(rig.bridge.status().running);
+        rig.outlet.clear();
+        rig.bridge.ready().unwrap();
+        rig.outlet.wait_for("the session state", |r| {
+            has_session(r, WireSessionState::Idle)
+        });
+        rig.outlet
+            .wait_for("a frame from the new controller", |r| frame_count(r) > 0);
+        assert_eq!(rig.camera_starts.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn a_restart_before_start_opens_no_device() {
+        let rig = rig(RecordingOutlet::default());
+        rig.bridge.spawn().unwrap();
+        rig.bridge.restart().unwrap();
+        rig.bridge.ready().unwrap();
+        rig.outlet.wait_for("the session state", |r| {
+            has_session(r, WireSessionState::Idle)
+        });
+        assert_eq!(rig.camera_starts.load(Ordering::SeqCst), 0);
+        rig.bridge.start();
+        rig.outlet.wait_for("a frame", |r| frame_count(r) > 0);
+        assert_eq!(rig.camera_starts.load(Ordering::SeqCst), 1);
     }
 
     #[test]
