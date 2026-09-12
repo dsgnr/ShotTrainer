@@ -62,7 +62,7 @@ class TracePlayer(QObject):
         if not self._samples or self._playing:
             return
         if self._index >= len(self._samples) - 1:
-            self._index = 0
+            self.stop()
         self._playing = True
         self._schedule_next()
 
