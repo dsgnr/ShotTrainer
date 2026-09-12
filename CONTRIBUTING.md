@@ -66,6 +66,14 @@ Run `cargo fmt --all` to apply formatting. The [rust workflow](.github/workflows
 runs the same three commands on Linux, macOS and Windows, so avoid tests that
 depend on POSIX paths, file permissions or the platform clock resolution.
 
+On Debian and Ubuntu the `src-tauri` application crate also needs
+`sudo apt-get install libwebkit2gtk-4.1-dev libxdo-dev libssl-dev librsvg2-dev`.
+
+Run the application with `cargo run -p shottrainer-app -- --fake-devices`, or
+set `SHOTTRAINER_FAKE_DEVICES=1`, to use a synthetic camera and microphone that
+keep their data in the system temporary directory. A build without the `opencv`
+feature always uses them.
+
 The `tracking` crate has an optional `opencv` feature that the commands above
 do not build. It needs OpenCV 4 or 5 and libclang. On macOS run
 `brew install opencv pkgconf`. On Debian and Ubuntu run
@@ -74,7 +82,11 @@ do not build. It needs OpenCV 4 or 5 and libclang. On macOS run
 ```bash
 cargo clippy -p shottrainer-tracking --features opencv --all-targets -- -D warnings
 cargo test -p shottrainer-tracking --features opencv
+cargo clippy -p shottrainer-app --features opencv --all-targets -- -D warnings
 ```
+
+`cargo run -p shottrainer-app --features opencv` runs the application with the
+camera and microphone.
 
 The CI job for these is best effort and is not required to pass.
 

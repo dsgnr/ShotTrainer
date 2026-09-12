@@ -180,9 +180,10 @@ This is where the Qt application and the core services are connected together.
 
 A Cargo workspace under `crates/` holds Rust implementations of the storage,
 scoring, statistics, services, settings, audio, tracking and controller code.
-The interface is not part of the workspace yet and remains in Python. The
-Python code under `src/shottrainer/` is the reference for behaviour. The Rust
-crates read and write the same `sessions.db`, JSON files and CSV exports.
+The Tauri application in `src-tauri/` runs them behind a placeholder page, and
+the released interface remains in Python. The Python code under
+`src/shottrainer/` is the reference for behaviour. The Rust crates read and
+write the same `sessions.db`, JSON files and CSV exports.
 
 | Crate        | Contents                                                                                                                                         |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -191,6 +192,7 @@ crates read and write the same `sessions.db`, JSON files and CSV exports.
 | `core`       | Sessions database, migrations and repository, scoring, statistics, trace buffer, shot and replay coordinators, session recorder and CSV exporter |
 | `settings`   | Data paths, preferences, detector, zero offset, camera and window state stores and the target face catalogue                                     |
 | `controller` | The application controller, session, replay, preferences and device management, without an interface framework                                   |
+| `app`        | The Tauri shell in `src-tauri/` with the webview commands and events, the frame channel, device access prompts and fake devices                  |
 | `testkit`    | Test helpers for loading golden fixtures and comparing floats                                                                                    |
 
 The Rust `SessionRecorder` holds only its batching state. Each method that
@@ -206,7 +208,8 @@ Import rules between the crates:
 - `controller` imports the four library crates and no JSON or interface
   library.
 - `testkit` is used only from tests.
-- No crate imports a UI framework.
+- `app` imports every library crate and is the only crate that imports Tauri.
+- No other crate imports a UI framework.
 
 The Python `sessions` and `services` modules depend on each other through
 scoring, so `core` holds both and the Python `app` stores live in `settings`.
@@ -369,6 +372,70 @@ Behaviour that differs from the Python controller:
   270 sent as a preview value are ignored.
 - Repeated identical warnings from the detector, the frame transform and trace
   sample writes are logged once and then every 300th time.
+
+### Application shell
+
+The `shottrainer-app` crate in `src-tauri/` is the Tauri application. It owns
+one `ControllerHandle` and translates between the controller and the webview.
+The page in `frontend/` is a placeholder that draws camera frames and lists
+recent events until the web front end is written.
+
+The webview calls these Tauri commands:
+
+| Command              | Effect                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `send_command`       | Forwards one controller command, such as `{"type": "deleteShot", "index": 2}`                                            |
+| `frontend_ready`     | Sends `Command::Refresh`, so a page that has just registered its listeners receives the state it missed                  |
+| `subscribe_frames`   | Registers the channel that receives camera pixels                                                                        |
+| `frame_drawn`        | Reports one pixel packet drawn                                                                                           |
+| `controller_status`  | Whether the controller runs, why it could not start, whether fake devices are in use and which device access was refused |
+| `restart_controller` | Replaces a stopped controller with a new one                                                                             |
+
+Every `UiEvent` is emitted as the Tauri event `ui-event` with a camelCase JSON
+payload tagged by `type`, for example `{"type": "audioLevel", "level": 0.12}`.
+Numbers that are not finite arrive as `null`. A command whose JSON does not
+match the expected shape is refused before it reaches the controller.
+
+A camera frame produces a `frame` event with the overlay and the trace point,
+which keeps the trace in order with the other events, and a binary packet on
+the frame channel with the pixels. The packet is a 32 byte little-endian header
+followed by RGBA rows from the top.
+
+| Offset | Type  | Field                                                                                   |
+| ------ | ----- | --------------------------------------------------------------------------------------- |
+| 0      | `u32` | Width                                                                                   |
+| 4      | `u32` | Height                                                                                  |
+| 8      | `i64` | Frame id, matching the `frame` event                                                    |
+| 16     | `f64` | Capture time in seconds on the controller clock                                         |
+| 24     | `f64` | Send time in milliseconds since the Unix epoch, for latency checks against `Date.now()` |
+
+At most two packets wait for `frame_drawn`. Pixels for later frames are
+dropped until the page reports one drawn, and their `frame` events are still
+sent. Subscribing a new channel, as a reloaded page does, forgets the packets
+sent to the old one.
+
+The controller is created in Tauri's `setup` hook and opens no device. On
+macOS the shell then asks for camera and microphone access on the main thread
+and calls `ControllerHandle::start` once both prompts are answered. Refused
+access is listed by `controller_status`. Other platforms start at once. If the
+database cannot be opened, the error is kept and returned by
+`controller_status` and by every command. If the controller thread panics,
+the page receives `controllerFailed`, commands return an error and
+`restart_controller` starts a new controller. On exit the shell shuts the
+controller down, which saves a running recording.
+
+With `--fake-devices`, with `SHOTTRAINER_FAKE_DEVICES` set to `1`, `true` or
+`yes`, or in a build without the `opencv` feature, the shell uses fake devices.
+A synthetic camera draws a dark circle that drifts around the frame centre, a
+simple detector finds it by its dark pixels, and the microphone reports a quiet
+level with a shot every 5 seconds. Fake devices keep their database and
+settings in `ShotTrainer-fake-devices` under the system temporary directory, so
+they never touch the user's data.
+
+The bundle identifier is `org.shottrainer.app`, as in the Nuitka build, because
+macOS stores camera and microphone consent per identifier. The Tauri CLI warns
+that an identifier ending in `.app` is not recommended. `Info.plist` carries
+the camera and microphone usage strings from the Python packaging.
 
 ### Golden fixtures
 
