@@ -180,8 +180,8 @@ This is where the Qt application and the core services are connected together.
 
 A Cargo workspace under `crates/` holds Rust implementations of the storage,
 scoring, statistics, services, settings, audio, tracking and controller code.
-The Tauri application in `src-tauri/` runs them behind a placeholder page, and
-the released interface remains in Python. The Python code under
+The Tauri application in `src-tauri/` runs them behind the web front end in
+`frontend/`, and the released interface remains in Python. The Python code under
 `src/shottrainer/` is the reference for behaviour. The Rust crates read and
 write the same `sessions.db`, JSON files and CSV exports.
 
@@ -377,8 +377,11 @@ Behaviour that differs from the Python controller:
 
 The `shottrainer-app` crate in `src-tauri/` is the Tauri application. It owns
 one `ControllerHandle` and translates between the controller and the webview.
-The page in `frontend/` is a placeholder that draws camera frames and lists
-recent events until the web front end is written.
+The page in `frontend/` is a Svelte and TypeScript application built with Vite.
+`cargo tauri build` runs `npm run build` and embeds `frontend/dist`. Other
+builds, including `cargo build` and `cargo test`, lack Tauri's `custom-protocol`
+feature, so they load the page from the Vite server at `http://localhost:5173`
+and need neither Node nor `frontend/dist`.
 
 The webview calls these Tauri commands:
 

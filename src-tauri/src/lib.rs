@@ -18,6 +18,7 @@ mod tests {
 
     const CONFIG: &str = include_str!("../tauri.conf.json");
     const INFO_PLIST: &str = include_str!("../Info.plist");
+    const VITE_CONFIG: &str = include_str!("../../frontend/vite.config.ts");
 
     #[test]
     fn the_bundle_keeps_the_python_identifier() {
@@ -28,9 +29,20 @@ mod tests {
     }
 
     #[test]
-    fn the_placeholder_page_can_reach_the_tauri_global() {
+    fn the_window_loads_the_vite_front_end() {
         let config: Value = serde_json::from_str(CONFIG).unwrap();
-        assert_eq!(config["app"]["withGlobalTauri"], true);
+        let build = &config["build"];
+        assert_eq!(build["devUrl"], "http://localhost:5173");
+        assert_eq!(build["frontendDist"], "../frontend/dist");
+        assert_eq!(build["beforeDevCommand"]["script"], "npm run dev");
+        assert_eq!(build["beforeDevCommand"]["cwd"], "../frontend");
+        assert_eq!(build["beforeBuildCommand"]["script"], "npm run build");
+        assert_eq!(build["beforeBuildCommand"]["cwd"], "../frontend");
+        assert!(VITE_CONFIG.contains("port: 5173,"));
+        assert!(VITE_CONFIG.contains("strictPort: true,"));
+        assert!(VITE_CONFIG.contains(r#"outDir: "dist","#));
+        // The page imports `@tauri-apps/api`, so no script needs the global.
+        assert_eq!(config["app"].get("withGlobalTauri"), None);
         assert_eq!(config["app"]["windows"][0]["label"], "main");
     }
 

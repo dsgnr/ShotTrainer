@@ -3,10 +3,18 @@
   "productName": "ShotTrainer",
   "identifier": "org.shottrainer.app",
   "build": {
-    "frontendDist": "../frontend"
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../frontend/dist",
+    "beforeDevCommand": {
+      "script": "npm run dev",
+      "cwd": "../frontend"
+    },
+    "beforeBuildCommand": {
+      "script": "npm run build",
+      "cwd": "../frontend"
+    }
   },
   "app": {
-    "withGlobalTauri": true,
     "windows": [
       {
         "label": "main",

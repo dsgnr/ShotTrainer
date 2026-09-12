@@ -52,3 +52,5 @@ local_data/
 
 /target
 /src-tauri/gen/
+/frontend/node_modules/
+/frontend/dist/
