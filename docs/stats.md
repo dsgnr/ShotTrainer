@@ -30,6 +30,11 @@ This is the figure most shooters use when describing a group.
 Hover over the value to see the group's **mean radius**, which measures how
 tightly shots cluster around the group's centre.
 
+Shots detected without a tracked position stay in the shot list as **Position
+unavailable**. They have no target marker and are excluded from group statistics
+and scoring, including when you re-score a session. Check camera tracking if
+this happens repeatedly.
+
 ## Hold tremor
 
 Hold tremor shows how steady the rifle was before the shot broke.
