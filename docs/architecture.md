@@ -391,7 +391,7 @@ The webview calls these Tauri commands:
 | `frontend_ready`     | Sends `Command::Refresh`, so a page that has just registered its listeners receives the state it missed                  |
 | `subscribe_frames`   | Registers the channel that receives camera pixels                                                                        |
 | `frame_drawn`        | Reports one pixel packet drawn                                                                                           |
-| `controller_status`  | Whether the controller runs, why it could not start, whether fake devices are in use and which device access was refused |
+| `controller_status`  | Whether the controller runs, why it could not start, whether fake devices are in use, refused access and pending prompts |
 | `restart_controller` | Replaces a stopped controller with a new one                                                                             |
 
 Every `UiEvent` is emitted as the Tauri event `ui-event` with a camelCase JSON

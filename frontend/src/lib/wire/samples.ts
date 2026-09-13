@@ -1,0 +1,177 @@
+// One example of every event and command, copied from the JSON in the Rust
+// tests in `src-tauri/src/wire/`. The mapped types make `npm run check` fail
+// when a variant is missing or a field does not match its type.
+import type { EventOf, WireCommand, WireEventType, WirePreferences } from "./types";
+
+/** `distinct_preferences()` from `src-tauri/src/wire/preferences.rs`. */
+export const SAMPLE_PREFERENCES: WirePreferences = {
+  cameraId: 3,
+  cameraRotation: 270,
+  cameraFlipH: true,
+  cameraFlipV: false,
+  cameraBrightness: -12.5,
+  cameraContrast: 1.75,
+  audioDevice: "USB mic",
+  audioGain: 2.5,
+  shotThreshold: 0.4,
+  shotRefractoryMs: 450,
+  preShotMs: 1200,
+  postShotMs: 600,
+  releaseWindowMs: 350,
+  targetFace: "air_rifle_10m",
+  shotDiameterMm: 4.5,
+  trackingRegionFraction: 0.6,
+  circleDiameterMm: 42.0,
+  invertTraceHorizontal: false,
+  invertTraceVertical: true,
+  showHoldZone: false,
+};
+
+export const SAMPLE_EVENTS: { [T in WireEventType]: EventOf<T> } = {
+  frame: {
+    type: "frame",
+    frameId: 12,
+    timestamp: 1.25,
+    width: 4,
+    height: 3,
+    status: "rejected",
+    aim: { xPx: 1.0, yPx: 2.0, radiusPx: 3.0 },
+    rejected: null,
+    zeroPx: [0.5, 0.75],
+    tracePointMm: [-1.0, 4.0],
+  },
+  cameraIdle: { type: "cameraIdle" },
+  audioLevel: { type: "audioLevel", level: 0.5 },
+  trackingStatusText: { type: "trackingStatusText", text: "Tracking" },
+  preferences: {
+    type: "preferences",
+    prefs: SAMPLE_PREFERENCES,
+    rings: [{ diameterMm: 30.5, label: null }],
+  },
+  zeroOffset: { type: "zeroOffset", active: true, offsetMm: [1.5, -2.0] },
+  clearLiveTrace: { type: "clearLiveTrace" },
+  deviceOptions: {
+    type: "deviceOptions",
+    cameras: [
+      { index: 0, name: "Built-in" },
+      { index: 3, name: "USB" },
+    ],
+    microphones: ["default"],
+    savedCamera: "USB",
+  },
+  targetFaces: {
+    type: "targetFaces",
+    faces: [
+      {
+        key: "k",
+        label: "Label",
+        rings: [{ diameterMm: 45.5, label: "1" }],
+        shotDiameterMm: 4.5,
+        faceDiameterMm: null,
+        scoringDirection: "outward",
+      },
+    ],
+  },
+  detectorStatus: {
+    type: "detectorStatus",
+    message: { text: "Lost", severity: "warning", durationMs: 0 },
+  },
+  imageControls: { type: "imageControls", brightness: 12.0, contrast: 1.5 },
+  optimiseEnabled: { type: "optimiseEnabled", enabled: true },
+  message: {
+    type: "message",
+    message: { text: "a", severity: "info", durationMs: 1000 },
+  },
+  controllerFailed: { type: "controllerFailed", reason: "boom" },
+  session: { type: "session", state: { kind: "recording", sessionId: 4 }, summary: "S" },
+  shots: {
+    type: "shots",
+    shots: [{ timestamp: 3.5, xMm: 1.0, yMm: null, score: "10", shotId: 6 }],
+    group: { count: 1, meanXMm: 1.0, meanYMm: 2.0, extremeSpreadMm: 3.0, meanRadiusMm: 4.0 },
+    totalScore: 10.0,
+  },
+  holdTrace: {
+    type: "holdTrace",
+    trace: {
+      points: [[1.0, 2.0]],
+      stats: {
+        samples: 1,
+        holdTremorMm: 0.1,
+        traceLengthMm: 0.2,
+        meanXMm: 0.3,
+        meanYMm: 0.4,
+      },
+    },
+  },
+  replayCleared: { type: "replayCleared" },
+  playerPoint: { type: "playerPoint", xMm: 1.0, yMm: 2.0 },
+  playerIndex: { type: "playerIndex", index: 3 },
+  playerProgress: { type: "playerProgress", fraction: 0.5 },
+  playerFinished: { type: "playerFinished" },
+  selectedShot: { type: "selectedShot", index: 5 },
+  replayLoaded: {
+    type: "replayLoaded",
+    index: 2,
+    points: [[0.0, 1.0]],
+    releaseIndex: 3,
+    splitIndex: 4,
+    durationMs: 1500,
+    holdZone: { centreMm: [0.5, -0.5], radiusMm: 1.5 },
+    enabled: true,
+  },
+  replayPlaying: { type: "replayPlaying", playing: true },
+  sessions: {
+    type: "sessions",
+    sessions: [
+      {
+        id: 1,
+        name: "S",
+        startedAt: "1970-01-01T00:00:00",
+        endedAt: null,
+        shotCount: 2,
+        totalScore: 19.5,
+        category: "practice",
+      },
+    ],
+  },
+};
+
+export const SAMPLE_COMMANDS: {
+  [T in WireCommand["type"]]: Extract<WireCommand, { type: T }>;
+} = {
+  startSession: { type: "startSession", name: "Morning", category: "match" },
+  stopSession: { type: "stopSession" },
+  clearShots: { type: "clearShots" },
+  deleteShot: { type: "deleteShot", index: 2 },
+  rescore: { type: "rescore" },
+  selectShot: { type: "selectShot", index: 4 },
+  listSessions: { type: "listSessions" },
+  openSession: { type: "openSession", id: 7 },
+  renameSession: { type: "renameSession", id: 7, name: "Evening" },
+  setSessionCategory: { type: "setSessionCategory", id: 8, category: "sighter" },
+  deleteSession: { type: "deleteSession", id: 9 },
+  exportSession: { type: "exportSession", id: 10, dir: "exports" },
+  replayPlay: { type: "replayPlay" },
+  replayPause: { type: "replayPause" },
+  replayReset: { type: "replayReset" },
+  replaySeek: { type: "replaySeek", fraction: 0.25 },
+  setPreferences: { type: "setPreferences", prefs: SAMPLE_PREFERENCES },
+  setCircleDiameter: { type: "setCircleDiameter", diameterMm: 42.5 },
+  zeroOnAim: { type: "zeroOnAim" },
+  clearZero: { type: "clearZero" },
+  refresh: { type: "refresh" },
+  listDevices: { type: "listDevices", refresh: true },
+  listTargetFaces: { type: "listTargetFaces" },
+  beginPreview: { type: "beginPreview", cameraId: 1 },
+  previewCamera: { type: "previewCamera", cameraId: null },
+  previewImage: { type: "previewImage", control: "brightness", value: 10.0 },
+  previewTransform: {
+    type: "previewTransform",
+    rotationDegrees: 90,
+    flipHorizontal: true,
+    flipVertical: false,
+  },
+  endPreview: { type: "endPreview", saved: true },
+  optimise: { type: "optimise" },
+  resetDetector: { type: "resetDetector" },
+};

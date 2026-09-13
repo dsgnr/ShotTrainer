@@ -46,6 +46,9 @@ pub struct ShellStatus {
     pub fake_devices: bool,
     /// `camera` or `microphone` for each access the user refused.
     pub denied: Vec<String>,
+    /// True until device access is settled and `start` is called, while
+    /// the system prompts for the camera and microphone may be showing.
+    pub awaiting_access: bool,
 }
 
 struct Shared<O> {
@@ -195,6 +198,7 @@ impl<O: Outlet> Bridge<O> {
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)
                 .clone(),
+            awaiting_access: !self.started.load(Ordering::SeqCst),
         }
     }
 
@@ -651,7 +655,15 @@ mod tests {
         assert_eq!(status.denied, ["camera"]);
         assert_eq!(
             serde_json::to_value(&status).unwrap(),
-            serde_json::json!({"running": false, "error": null, "fakeDevices": true, "denied": ["camera"]})
+            serde_json::json!({"running": false, "error": null, "fakeDevices": true, "denied": ["camera"], "awaitingAccess": true})
         );
+    }
+
+    #[test]
+    fn status_reports_access_awaited_until_start() {
+        let rig = rig(RecordingOutlet::default());
+        assert!(rig.bridge.status().awaiting_access);
+        rig.bridge.start();
+        assert!(!rig.bridge.status().awaiting_access);
     }
 }
