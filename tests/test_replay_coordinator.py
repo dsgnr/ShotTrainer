@@ -64,3 +64,31 @@ def test_release_index_default_is_250ms(repo: SessionRepository):
     default = coord.shot_window(sid, shots[0].ts, pre_ms=1000, post_ms=200)
     explicit = coord.shot_window(sid, shots[0].ts, pre_ms=1000, post_ms=200, release_ms=250)
     assert default.release_index == explicit.release_index
+
+
+def test_phase_indices_only_include_samples_with_both_coordinates(repo):
+    sid = repo.create_session()
+    samples = [
+        TrackingSample(timestamp=0.5, x_px=0.0, y_px=0.0),
+        TrackingSample(timestamp=0.6, x_px=0.0, y_px=0.0, x_mm=1.0, y_mm=2.0),
+        TrackingSample(timestamp=0.7, x_px=0.0, y_px=0.0, x_mm=3.0),
+        TrackingSample(timestamp=0.8, x_px=0.0, y_px=0.0, x_mm=4.0, y_mm=5.0),
+        TrackingSample(timestamp=1.0, x_px=0.0, y_px=0.0, x_mm=6.0, y_mm=7.0),
+        TrackingSample(timestamp=1.1, x_px=0.0, y_px=0.0, x_mm=8.0, y_mm=9.0),
+    ]
+    repo.append_trace(sid, samples)
+
+    window = ReplayCoordinator(repo).shot_window(sid, 1.0, pre_ms=500, post_ms=200)
+
+    assert [s.timestamp for s in window.samples] == [0.6, 0.8, 1.0, 1.1]
+    assert window.release_index == 1
+    assert window.split_index == 2
+
+
+def test_unmapped_window_has_no_replay_or_phase_boundaries(repo):
+    sid = repo.create_session()
+    repo.append_trace(sid, [TrackingSample(timestamp=1.0, x_px=0.0, y_px=0.0)])
+    window = ReplayCoordinator(repo).shot_window(sid, 1.0, pre_ms=500, post_ms=200)
+    assert window.samples == []
+    assert window.split_index is None
+    assert window.release_index is None

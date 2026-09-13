@@ -14,6 +14,9 @@ from shottrainer.tracking.models import TrackingSample
 class ShotWindow:
     """A slice of trace samples around a single shot, with phase boundaries.
 
+    Samples without both millimetre coordinates are omitted so every
+    index refers to the same points the player and target view display.
+
     ``split_index`` is the sample nearest the shot timestamp.
     ``release_index`` marks where the short release window starts.
     The replay UI draws the release phase in a different colour
@@ -61,7 +64,11 @@ class ReplayCoordinator:
         """
         start = shot_ts - pre_ms / 1000.0
         end = shot_ts + post_ms / 1000.0
-        samples = self._repo.load_trace(session_id, start_ts=start, end_ts=end)
+        samples = [
+            sample
+            for sample in self._repo.load_trace(session_id, start_ts=start, end_ts=end)
+            if sample.x_mm is not None and sample.y_mm is not None
+        ]
         split = index_of_nearest(samples, shot_ts)
         release = self._release_index(samples, shot_ts, release_ms)
         return ShotWindow(samples=samples, split_index=split, release_index=release)
