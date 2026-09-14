@@ -31,9 +31,12 @@ def load_detector_settings(path: Path | None = None) -> DetectorSettings | None:
     if not p.exists():
         return None
     try:
-        raw = json.loads(p.read_text())
-    except (OSError, json.JSONDecodeError) as exc:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         log.warning("Could not read %s: %s", p, exc)
+        return None
+    if not isinstance(raw, dict):
+        log.warning("Detector settings file must contain a JSON object. Using defaults")
         return None
     valid = {f.name for f in fields(DetectorSettings)}
     filtered = {k: v for k, v in raw.items() if k in valid}

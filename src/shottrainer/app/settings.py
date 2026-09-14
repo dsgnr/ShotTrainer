@@ -29,9 +29,13 @@ def load_preferences(path: Path | None = None) -> Preferences:
     if not p.exists():
         return Preferences()
     try:
-        raw = json.loads(p.read_text())
-    except (OSError, json.JSONDecodeError) as exc:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         log.warning("Could not read %s: %s. Using defaults", p, exc)
+        return Preferences()
+
+    if not isinstance(raw, dict):
+        log.warning("Settings file must contain a JSON object. Using defaults")
         return Preferences()
 
     valid = {f.name for f in fields(Preferences)}

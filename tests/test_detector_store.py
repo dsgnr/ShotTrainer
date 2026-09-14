@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from shottrainer.app.detector_store import (
     clear_detector_settings,
     load_detector_settings,
@@ -54,3 +56,10 @@ def test_clear_removes_existing_file(tmp_path: Path):
 def test_clear_silently_handles_missing_file(tmp_path: Path):
     p = tmp_path / "nope.json"
     clear_detector_settings(p)  # should not raise
+
+
+@pytest.mark.parametrize("payload", [b"null", b"[]", b"42", b"true", b'"text"', b"\xff\xfe"])
+def test_invalid_detector_document_uses_defaults(tmp_path, payload):
+    p = tmp_path / "detector.json"
+    p.write_bytes(payload)
+    assert load_detector_settings(p) is None
