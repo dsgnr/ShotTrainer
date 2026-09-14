@@ -343,7 +343,6 @@ class SessionManager:
             post_ms=prefs.post_shot_ms,
             release_ms=prefs.release_window_ms,
         )
-        self._player.load(window.samples)
         self._window.replay_controls.set_playing(False)
         self._window.target_view.set_trace_segments(
             release_index=window.release_index,
@@ -352,6 +351,8 @@ class SessionManager:
         self._window.target_view.set_isolate_selected_shot(True)
         points = [(s.x_mm or 0.0, s.y_mm or 0.0) for s in window.samples if s.x_mm is not None]
         self._window.target_view.set_trace(points)
+        # Loading emits the initial playhead; set_trace must not clear it afterwards.
+        self._player.load(window.samples)
         self._window.replay_controls.set_window_duration_ms(
             int(prefs.pre_shot_ms) + int(prefs.post_shot_ms)
         )
