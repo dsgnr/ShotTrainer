@@ -247,6 +247,13 @@ class SessionManager:
         )
         self._render_shots()
         self._refresh_stats()
+        self._window.hero_stats.set_trace_points(
+            [
+                (s.x_mm, s.y_mm)
+                for s in result.trace
+                if s.timestamp <= event.timestamp and s.x_mm is not None and s.y_mm is not None
+            ]
+        )
 
     def on_rescore_requested(self) -> None:
         """Re-score every visible shot against the active target face.
@@ -356,7 +363,12 @@ class SessionManager:
         self._window.replay_controls.set_window_duration_ms(
             int(prefs.pre_shot_ms) + int(prefs.post_shot_ms)
         )
-        pre_points = points[: window.split_index + 1] if window.split_index is not None else points
+        shot_ts = self._shots_in_view[index].timestamp
+        pre_points = [
+            (s.x_mm, s.y_mm)
+            for s in window.samples
+            if s.timestamp <= shot_ts and s.x_mm is not None and s.y_mm is not None
+        ]
         self._window.hero_stats.set_trace_points(pre_points)
         if pre_points and prefs.show_hold_zone:
             stats = compute_trace_stats(pre_points)
