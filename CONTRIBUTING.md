@@ -112,9 +112,9 @@ Open Graph and Twitter preview metadata, and Zensical supplies canonical URLs
 and the sitemap. `make docs-build` and CI validate the generated metadata and
 check that local images, videos and posters exist with `scripts/check_docs_seo.py`.
 
-GitHub Pages publishes the site from
-[`.github/workflows/docs.yml`](.github/workflows/docs.yml) on every push to
-`main`.
+The [docs workflow](.github/workflows/docs.yml) builds and validates the site
+on pull requests. GitHub Pages publishes it after a successful build on `main`;
+pull requests do not receive deployment permissions.
 
 ## Tests that need real hardware
 
