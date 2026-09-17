@@ -166,3 +166,33 @@ def test_seeking_during_playback_uses_the_new_sample_timing(qtbot, player):
         player.seek_fraction(2 / 3)
 
     assert not player.is_playing
+
+
+def test_scrubbing_and_progress_follow_elapsed_time_for_irregular_samples(player):
+    samples = [
+        TrackingSample(timestamp=ts, x_px=0.0, y_px=0.0, x_mm=float(i), y_mm=0.0)
+        for i, ts in enumerate((10.0, 10.1, 10.2, 11.0))
+    ]
+    progress = []
+    player.progress.connect(progress.append)
+    player.load(samples)
+    player.play()
+    player._step()
+    player.pause()
+    assert progress[-1] == pytest.approx(0.1)
+
+    player.seek_fraction(0.5)
+    assert player._index == 2
+    assert progress[-1] == pytest.approx(0.2)
+    player.seek_fraction(1.0)
+    assert player._index == 3
+    assert progress[-1] == 1.0
+
+
+def test_replay_with_identical_timestamps_can_seek_without_division_by_zero(player):
+    player.load(_samples(3, dt=0.0))
+    progress = []
+    player.progress.connect(progress.append)
+    player.seek_fraction(1.0)
+    assert player._index == 2
+    assert progress[-1] == 1.0

@@ -6,6 +6,7 @@ from collections.abc import Sequence
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
+from shottrainer.replay.timeline import index_of_nearest
 from shottrainer.tracking.models import TrackingSample
 
 
@@ -89,9 +90,14 @@ class TracePlayer(QObject):
         if not self._samples:
             return
         f = max(0.0, min(1.0, f))
-        self._index = round(f * (len(self._samples) - 1))
+        duration = self._samples[-1].timestamp - self._samples[0].timestamp
+        if duration > 0:
+            timestamp = self._samples[0].timestamp + f * duration
+            self._index = index_of_nearest(self._samples, timestamp) or 0
+        else:
+            self._index = round(f * (len(self._samples) - 1))
         self._emit_current()
-        self.progress.emit(self._index / max(1, len(self._samples) - 1))
+        self._emit_progress()
         if self._playing:
             self._timer.stop()
             self._schedule_next()
@@ -127,8 +133,19 @@ class TracePlayer(QObject):
             return
         self._index += 1
         self._emit_current()
-        self.progress.emit(self._index / max(1, len(self._samples) - 1))
+        self._emit_progress()
         self._schedule_next()
+
+    def _emit_progress(self) -> None:
+        """Report elapsed recording time, with an index fallback for zero duration."""
+        duration = self._samples[-1].timestamp - self._samples[0].timestamp
+        if duration > 0:
+            fraction = (
+                self._samples[self._index].timestamp - self._samples[0].timestamp
+            ) / duration
+        else:
+            fraction = self._index / max(1, len(self._samples) - 1)
+        self.progress.emit(fraction)
 
     def _emit_current(self) -> None:
         """Notify listeners about the sample at ``self._index``."""

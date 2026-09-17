@@ -272,6 +272,7 @@ def test_selecting_a_shot_initialises_the_target_playhead(session_mgr, qtbot):
 
     assert target._playhead_index == 0
     assert not target._playhead_has_reached_shot()
+    session_mgr._window.replay_controls.set_window_duration_ms.assert_called_with(2000)
     player.seek_fraction(1.0)
     assert target._playhead_has_reached_shot()
 
