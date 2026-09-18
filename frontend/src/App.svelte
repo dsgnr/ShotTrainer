@@ -3,6 +3,7 @@
   import AppShell from "./components/AppShell.svelte";
   import CameraView from "./components/CameraView.svelte";
   import LiveRegion from "./components/LiveRegion.svelte";
+  import HeroStats from "./components/HeroStats.svelte";
   import StatusLine from "./components/StatusLine.svelte";
   import TargetView from "./components/TargetView.svelte";
   import ZoomControls from "./components/ZoomControls.svelte";
@@ -61,6 +62,12 @@
     extentMm = next;
   }
 
+  // Time-on-target reads the hold trace points when a shot is reviewed.
+  const tracePoints = $derived<[number, number][]>(
+    (app.shots.holdTrace?.points ?? [])
+      .filter((point): point is [number, number] => point[0] !== null && point[1] !== null),
+  );
+
   // Messages expire on the clock, so the line is worked out again as it runs.
   let now = $state(Date.now());
   $effect(() => {
@@ -104,6 +111,16 @@
       <TargetView model={targetModel} {rings} onextent={setExtent} />
       <ZoomControls {extentMm} onextent={setExtent} />
     </div>
+  {/snippet}
+  {#snippet side()}
+    <HeroStats
+      total={app.shots.totalScore}
+      shotCount={app.shots.shots.length}
+      group={app.shots.group}
+      traceStats={app.shots.holdTrace?.stats ?? null}
+      {tracePoints}
+      {rings}
+    />
   {/snippet}
   {#snippet status()}
     <StatusLine {line} {restarting} onrestart={restart} />
