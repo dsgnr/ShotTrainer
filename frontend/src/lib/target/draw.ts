@@ -1,5 +1,5 @@
-// Target rendering, ported from the paint methods of `target_view.py`. The
-// function is pure given a context, so it is tested against a recording fake.
+// Target rendering. The function is pure given a context, so it is tested
+// against a recording fake.
 import type { WireRing } from "../wire/types";
 import { targetScale } from "./geometry";
 import type { TargetModel, TracePoint } from "./model";
@@ -185,7 +185,7 @@ function drawTrace(
   const visible = model.visibleTrace();
   // The three phases join at their boundary sample, so a release point is
   // repeated at the end of the approach path and the start of the release
-  // path. Python drew them as separate polylines, which left a gap.
+  // path. Drawing them as separate polylines would leave a gap.
   const toView = (points: TracePoint[]): TracePoint[] =>
     points.map(([x, y]) => [cx + x * scale, cy + y * scale]);
   const approach = toView(visible.approach);

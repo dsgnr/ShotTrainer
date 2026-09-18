@@ -1,10 +1,10 @@
-// Target-space geometry, ported from `target_view.py` and `zoom_controls.py`.
+// Target-space geometry: the visible extent, the pixel scale and the zoom range.
 import type { WireRing } from "../wire/types";
 
 /** Default half-width of the view in mm when no rings are set. */
 export const DEFAULT_EXTENT_MM = 90;
 
-/** Zoom range in mm, matching `ZoomControls` in `zoom_controls.py`. */
+/** Zoom range in mm, from fully zoomed in to fully zoomed out. */
 export const ZOOM_MIN_MM = 5;
 export const ZOOM_MAX_MM = 500;
 
