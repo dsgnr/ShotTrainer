@@ -5,6 +5,7 @@ import { mount } from "svelte";
 
 import App from "./App.svelte";
 import { Announcer } from "./lib/app/announcer.svelte";
+import { createCommandSender } from "./lib/app/commands";
 import { Connection } from "./lib/app/connection";
 import { createBridge } from "./lib/bridge";
 import { FrameSink } from "./lib/frames/sink";
@@ -20,7 +21,9 @@ const app = new AppState();
 const frames = new FrameSink();
 const announcer = new Announcer();
 const targetModel = new TargetModel();
-const connection = new Connection(createBridge(), app, frames);
+const bridge = createBridge();
+const connection = new Connection(bridge, app, frames);
+const send = createCommandSender(bridge, app);
 
-mount(App, { target, props: { app, connection, announcer, frames, targetModel } });
+mount(App, { target, props: { app, connection, announcer, frames, targetModel, send } });
 void connection.start();

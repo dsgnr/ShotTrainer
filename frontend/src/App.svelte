@@ -4,10 +4,12 @@
   import CameraView from "./components/CameraView.svelte";
   import LiveRegion from "./components/LiveRegion.svelte";
   import HeroStats from "./components/HeroStats.svelte";
+  import SessionControls from "./components/SessionControls.svelte";
   import StatusLine from "./components/StatusLine.svelte";
   import TargetView from "./components/TargetView.svelte";
   import ZoomControls from "./components/ZoomControls.svelte";
   import type { Announcer } from "./lib/app/announcer.svelte";
+  import type { CommandSender } from "./lib/app/commands";
   import type { Connection } from "./lib/app/connection";
   import { statusLine } from "./lib/app/status-line";
   import type { FrameSink } from "./lib/frames/sink";
@@ -21,9 +23,10 @@
     announcer: Announcer;
     frames: FrameSink;
     targetModel: TargetModel;
+    send: CommandSender;
   }
 
-  let { app, connection, announcer, frames, targetModel }: Props = $props();
+  let { app, connection, announcer, frames, targetModel, send }: Props = $props();
 
   // The target extent follows the rings until the user zooms. A separate
   // reactive value lets the zoom controls and the wheel drive it afterwards.
@@ -113,6 +116,7 @@
     </div>
   {/snippet}
   {#snippet side()}
+    <SessionControls session={app.session.state} summary={app.session.summary} {send} />
     <HeroStats
       total={app.shots.totalScore}
       shotCount={app.shots.shots.length}
