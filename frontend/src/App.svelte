@@ -5,6 +5,7 @@
   import LiveRegion from "./components/LiveRegion.svelte";
   import HeroStats from "./components/HeroStats.svelte";
   import SessionControls from "./components/SessionControls.svelte";
+  import ShotList from "./components/ShotList.svelte";
   import StatusLine from "./components/StatusLine.svelte";
   import TargetView from "./components/TargetView.svelte";
   import ZoomControls from "./components/ZoomControls.svelte";
@@ -117,6 +118,7 @@
   {/snippet}
   {#snippet side()}
     <SessionControls session={app.session.state} summary={app.session.summary} {send} />
+    <ShotList shots={app.shots.shots} selected={app.shots.selected} {send} />
     <HeroStats
       total={app.shots.totalScore}
       shotCount={app.shots.shots.length}
