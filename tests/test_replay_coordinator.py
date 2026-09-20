@@ -92,3 +92,14 @@ def test_unmapped_window_has_no_replay_or_phase_boundaries(repo):
     assert window.samples == []
     assert window.split_index is None
     assert window.release_index is None
+
+
+@pytest.mark.parametrize("timestamps", [(1.1, 1.2), (0.5, 1.1), (0.5, 0.6)])
+def test_missing_release_samples_do_not_mark_follow_through_as_release(repo, timestamps):
+    sid = repo.create_session()
+    repo.append_trace(
+        sid,
+        [TrackingSample(timestamp=ts, x_px=0.0, y_px=0.0, x_mm=1.0, y_mm=2.0) for ts in timestamps],
+    )
+    window = ReplayCoordinator(repo).shot_window(sid, 1.0, pre_ms=500, post_ms=500)
+    assert window.release_index is None
