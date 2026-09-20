@@ -17,6 +17,7 @@
   import type { Announcer } from "./lib/app/announcer.svelte";
   import type { CommandSender } from "./lib/app/commands";
   import type { Connection } from "./lib/app/connection";
+  import { resolveShortcut } from "./lib/app/shortcuts";
   import { statusLine } from "./lib/app/status-line";
   import type { FrameSink } from "./lib/frames/sink";
   import type { AppState } from "./lib/stores/app.svelte";
@@ -124,6 +125,57 @@
   let sessionsOpen = $state(false);
   let popoutOpen = $state(false);
   let sheetOpen = $state(false);
+
+  const anyModalOpen = $derived(preferencesOpen || sessionsOpen || popoutOpen || sheetOpen);
+
+  function closeModals(): void {
+    preferencesOpen = false;
+    sessionsOpen = false;
+    popoutOpen = false;
+    sheetOpen = false;
+  }
+
+  function isTyping(target: EventTarget | null): boolean {
+    return (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement
+    );
+  }
+
+  function onKeydown(event: KeyboardEvent): void {
+    const action = resolveShortcut({
+      key: event.key,
+      typing: isTyping(event.target),
+      modalOpen: anyModalOpen,
+      replayEnabled: app.replay.loaded?.enabled ?? false,
+      replayPlaying: app.replay.playing,
+      shotCount: app.shots.shots.length,
+      selected: app.shots.selected,
+    });
+    if (action === null) {
+      return;
+    }
+    event.preventDefault();
+    switch (action.kind) {
+      case "closeModal":
+        closeModals();
+        break;
+      case "replayToggle":
+        void send({ type: action.play ? "replayPlay" : "replayPause" });
+        break;
+      case "selectShot":
+        void send({ type: "selectShot", index: action.index });
+        break;
+      case "none":
+        break;
+    }
+  }
+
+  $effect(() => {
+    window.addEventListener("keydown", onKeydown);
+    return () => window.removeEventListener("keydown", onKeydown);
+  });
 
   let restarting = $state(false);
   async function restart(): Promise<void> {
