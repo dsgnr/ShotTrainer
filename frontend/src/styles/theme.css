@@ -1,46 +1,89 @@
 /*
- * Colour tokens. The dark values keep the Python palette (src/shottrainer/ui/theme.py)
- * where it meets WCAG AA. The light values apply when the system asks for a light
- * appearance. theme.test.ts checks the contrast of every pair the interface uses.
+ * Design tokens. The dark scheme is the primary appearance, a charcoal
+ * dashboard with a restrained green accent. The light scheme follows the
+ * system setting. theme.test.ts checks the contrast of every pair the
+ * interface relies on.
+ *
+ * Surfaces step from the window background up through two panel levels.
+ * Text steps from headings down through body, dim and muted. The accent is
+ * reserved for live values, active controls and the current selection.
  */
 :root {
   color-scheme: dark light;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --radius: 6px;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", monospace;
 
-  --bg: #0e1014;
-  --bg-sunken: #0a0c10;
-  --panel: #14171c;
-  --panel-raised: #1c2128;
-  --border: #1f242c;
-  --text: #e6e6e6;
-  --text-heading: #d6dae3;
-  --text-dim: #929cab;
-  --accent: #1d7f60;
-  --accent-hover: #176b51;
+  /* Radius. Panels are nearly square, controls take a small radius. */
+  --radius: 4px;
+  --radius-control: 4px;
+
+  /* Spacing scale, a 4 px base. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Type scale. */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-lg: 16px;
+  --text-xl: 22px;
+  --text-2xl: 30px;
+  --tracking-caption: 0.08em;
+
+  /* Surfaces. */
+  --bg: #0d0f12;
+  --bg-sunken: #090a0d;
+  --panel: #15181d;
+  --panel-raised: #1b1f26;
+  --surface-hover: #222730;
+  --border: #23272f;
+  --divider: #1c2026;
+
+  /* Text tiers. */
+  --text: #e4e7ec;
+  --text-heading: #f2f4f7;
+  --text-dim: #98a1b0;
+  --text-muted: #6b7482;
+
+  /* Accent, used sparingly. */
+  --accent: #19785a;
+  --accent-hover: #1c8463;
+  --accent-strong: #45c08f;
   --on-accent: #ffffff;
-  --focus: #62d7ac;
+  --focus: #45c08f;
 
-  --tone-info: #929cab;
-  --tone-success: #62d7ac;
-  --tone-warning: #f39c12;
-  --tone-error: #ff6b5b;
+  /* Status tones. */
+  --tone-info: #98a1b0;
+  --tone-success: #45c08f;
+  --tone-warning: #e0a33a;
+  --tone-error: #ef6a5c;
 
-  --pill-idle: #8a90a0;
-  --pill-recording: #ff6b5b;
-  --pill-replay: #62d7ac;
+  /* Header session pill. */
+  --pill-idle: #8a93a3;
+  --pill-recording: #ef6a5c;
+  --pill-replay: #45c08f;
 
-  --target-bg: #0e1014;
-  --target-face: #181e25;
-  --target-ring: #7a8796;
-  --target-label: #929cab;
-  --target-crosshair: #303c48;
-  --target-shot: #e2e9ed;
-  --target-live-aim: #27ae60;
-  --target-hold-zone: #f39c12;
-  --trace-approach: #00c83c;
-  --trace-release: #ffdc00;
-  --trace-follow: #ff4a4a;
+  /* Data visualisation. */
+  --data-high: #45c08f;
+  --data-mid: #c6cdd8;
+  --data-low: #8a93a3;
+
+  /* Target rendering. */
+  --target-bg: #0d0f12;
+  --target-face: #171b21;
+  --target-ring: #7f8b9a;
+  --target-label: #98a1b0;
+  --target-crosshair: #2b3340;
+  --target-shot: #e8edf2;
+  --target-live-aim: #45c08f;
+  --target-hold-zone: #e0a33a;
+  --trace-approach: #27d07a;
+  --trace-release: #f2c744;
+  --trace-follow: #ef5f52;
 }
 
 @media (prefers-color-scheme: light) {
@@ -48,15 +91,21 @@
     --bg: #f4f5f7;
     --bg-sunken: #ffffff;
     --panel: #ffffff;
-    --panel-raised: #eceef1;
-    --border: #d0d5dc;
+    --panel-raised: #f1f3f6;
+    --surface-hover: #e7eaef;
+    --border: #d4d9e0;
+    --divider: #e3e7ec;
+
     --text: #1b1f24;
-    --text-heading: #111418;
+    --text-heading: #0d1013;
     --text-dim: #4f5966;
+    --text-muted: #727c89;
+
     --accent: #1d7f60;
     --accent-hover: #176b51;
+    --accent-strong: #136048;
     --on-accent: #ffffff;
-    --focus: #1d7f60;
+    --focus: #136048;
 
     --tone-info: #4f5966;
     --tone-success: #17694f;
@@ -66,6 +115,10 @@
     --pill-idle: #5f6672;
     --pill-recording: #b3261e;
     --pill-replay: #17694f;
+
+    --data-high: #17694f;
+    --data-mid: #3a434f;
+    --data-low: #5f6672;
 
     --target-bg: #f4f5f7;
     --target-face: #ffffff;

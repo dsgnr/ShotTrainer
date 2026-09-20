@@ -14,32 +14,99 @@ body,
 body {
   background: var(--bg);
   color: var(--text);
-  font: 13px/1.4 var(--font);
+  font:
+    var(--text-md) / 1.45 var(--font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
+/*
+ * Controls. The default button is a quiet surface control. The accent fill is
+ * reserved for the one primary action in a view through `.primary`.
+ */
 button {
   font: inherit;
-  color: var(--on-accent);
-  background: var(--accent);
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-  padding: 6px 14px;
+  color: var(--text);
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 6px 12px;
   cursor: pointer;
-  transition: background-color 120ms ease-out;
+  transition:
+    background-color 120ms ease-out,
+    border-color 120ms ease-out,
+    color 120ms ease-out;
 }
 
 button:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: var(--surface-hover);
+  border-color: var(--surface-hover);
 }
 
 button:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: default;
+}
+
+button.primary {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: transparent;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: transparent;
+}
+
+input,
+select {
+  color: var(--text);
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 5px 8px;
+  font: inherit;
+  transition:
+    border-color 120ms ease-out,
+    background-color 120ms ease-out;
+}
+
+input:hover:not(:disabled),
+select:hover:not(:disabled) {
+  border-color: var(--surface-hover);
+}
+
+input:disabled,
+select:disabled {
+  opacity: 0.5;
+}
+
+input[type="range"] {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  accent-color: var(--accent-strong);
 }
 
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+/* A panel's header label: small, uppercase, tracked, muted. */
+.panel-title {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caption);
+  text-transform: uppercase;
+}
+
+/* Aligns columns of figures so digits line up and do not reflow. */
+.num {
+  font-variant-numeric: tabular-nums;
 }
 
 .visually-hidden {
