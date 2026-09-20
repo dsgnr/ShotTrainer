@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { CommandSender } from "../lib/app/commands";
+  import { focusTrap } from "../lib/app/focus-trap";
   import { NUMBER_RANGES, ROTATIONS, clampPreferences } from "../lib/preferences/form";
   import type { PreferencesState } from "../lib/stores/preferences";
   import type { WireCamera, WireFace, WirePreferences } from "../lib/wire/types";
@@ -80,6 +81,7 @@
       aria-modal="true"
       aria-label="Preferences"
       tabindex="-1"
+      use:focusTrap
       onclick={(event) => event.stopPropagation()}
     >
       <h2>Preferences</h2>
