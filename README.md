@@ -216,8 +216,9 @@ tests/           pytest suite
 
 The Rust crates cover storage, scoring, statistics, services, settings,
 capture, detection and the controller. The Tauri shell in `src-tauri/` runs them
-behind the web front end in `frontend/`, which does not yet offer every view of
-the Python application.
+behind the web front end in `frontend/`, which draws the live camera and target,
+lists shots, controls sessions and replay, edits preferences and browses saved
+sessions.
 
 See [`docs/architecture.md`](docs/architecture.md) for a longer description.
 

@@ -378,6 +378,10 @@ Behaviour that differs from the Python controller:
 The `shottrainer-app` crate in `src-tauri/` is the Tauri application. It owns
 one `ControllerHandle` and translates between the controller and the webview.
 The page in `frontend/` is a Svelte and TypeScript application built with Vite.
+It draws the live camera with its tracking overlay and the target with its
+trace and shots, and provides the session controls, the shot list, the replay
+transport, the headline statistics, the preferences dialog with a live camera
+preview, the session browser, a camera pop-out and a printable shot sheet.
 `cargo tauri build` runs `npm run build` and embeds `frontend/dist`. Other
 builds, including `cargo build` and `cargo test`, lack Tauri's `custom-protocol`
 feature, so they load the page from the Vite server at `http://localhost:5173`
