@@ -1,11 +1,14 @@
 <script lang="ts">
   import AppHeader from "./components/AppHeader.svelte";
   import AppShell from "./components/AppShell.svelte";
+  import CameraPopout from "./components/CameraPopout.svelte";
   import CameraView from "./components/CameraView.svelte";
   import LiveRegion from "./components/LiveRegion.svelte";
   import HeroStats from "./components/HeroStats.svelte";
+  import MarkerSheet from "./components/MarkerSheet.svelte";
   import PreferencesDialog from "./components/PreferencesDialog.svelte";
   import ReplayControls from "./components/ReplayControls.svelte";
+  import SessionBrowser from "./components/SessionBrowser.svelte";
   import SessionControls from "./components/SessionControls.svelte";
   import ShotList from "./components/ShotList.svelte";
   import StatusLine from "./components/StatusLine.svelte";
@@ -118,6 +121,9 @@
   });
 
   let preferencesOpen = $state(false);
+  let sessionsOpen = $state(false);
+  let popoutOpen = $state(false);
+  let sheetOpen = $state(false);
 
   let restarting = $state(false);
   async function restart(): Promise<void> {
@@ -150,7 +156,12 @@
     </div>
   {/snippet}
   {#snippet side()}
-    <button type="button" onclick={() => (preferencesOpen = true)}>Preferences</button>
+    <div class="toolbar">
+      <button type="button" onclick={() => (sessionsOpen = true)}>Sessions</button>
+      <button type="button" onclick={() => (preferencesOpen = true)}>Preferences</button>
+      <button type="button" onclick={() => (popoutOpen = true)}>Pop out camera</button>
+      <button type="button" onclick={() => (sheetOpen = true)}>Shot sheet</button>
+    </div>
     <SessionControls session={app.session.state} summary={app.session.summary} {send} />
     <ShotList shots={app.shots.shots} selected={app.shots.selected} {send} />
     <HeroStats
@@ -168,6 +179,12 @@
 </AppShell>
 
 <style>
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .target-column {
     display: flex;
     flex: 1;
@@ -184,5 +201,26 @@
   faces={app.preferences.faces}
   {send}
   onclose={() => (preferencesOpen = false)}
+/>
+<SessionBrowser
+  open={sessionsOpen}
+  sessions={app.session.sessions}
+  {send}
+  onclose={() => (sessionsOpen = false)}
+/>
+<CameraPopout
+  open={popoutOpen}
+  camera={app.camera}
+  {frames}
+  regionFraction={app.preferences.prefs?.trackingRegionFraction ?? 1}
+  manualZero={app.preferences.zero.active}
+  onclose={() => (popoutOpen = false)}
+/>
+<MarkerSheet
+  open={sheetOpen}
+  shots={app.shots.shots}
+  session={app.session.state}
+  totalScore={app.shots.totalScore}
+  onclose={() => (sheetOpen = false)}
 />
 <LiveRegion {announcer} />
