@@ -4,6 +4,7 @@
   import CameraView from "./components/CameraView.svelte";
   import LiveRegion from "./components/LiveRegion.svelte";
   import HeroStats from "./components/HeroStats.svelte";
+  import PreferencesDialog from "./components/PreferencesDialog.svelte";
   import ReplayControls from "./components/ReplayControls.svelte";
   import SessionControls from "./components/SessionControls.svelte";
   import ShotList from "./components/ShotList.svelte";
@@ -116,6 +117,8 @@
     announcer.announce(lineText);
   });
 
+  let preferencesOpen = $state(false);
+
   let restarting = $state(false);
   async function restart(): Promise<void> {
     restarting = true;
@@ -147,6 +150,7 @@
     </div>
   {/snippet}
   {#snippet side()}
+    <button type="button" onclick={() => (preferencesOpen = true)}>Preferences</button>
     <SessionControls session={app.session.state} summary={app.session.summary} {send} />
     <ShotList shots={app.shots.shots} selected={app.shots.selected} {send} />
     <HeroStats
@@ -172,4 +176,13 @@
     min-height: 0;
   }
 </style>
+<PreferencesDialog
+  open={preferencesOpen}
+  preferences={app.preferences}
+  cameras={app.devices.cameras}
+  microphones={app.devices.microphones}
+  faces={app.preferences.faces}
+  {send}
+  onclose={() => (preferencesOpen = false)}
+/>
 <LiveRegion {announcer} />
