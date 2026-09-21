@@ -134,6 +134,23 @@ describe("drawTarget", () => {
     expect(holdAfter.length).toBeGreaterThan(0);
   });
 
+  it("rings the selected shot with the accent and leaves the rest plain", () => {
+    const model = new TargetModel();
+    model.setShots([
+      { xMm: 1, yMm: 1, label: "1" },
+      { xMm: 2, yMm: 2, label: "2" },
+    ]);
+    const none = fakeContext();
+    drawTarget(none.ctx, 300, 300, model, RINGS, COLOURS);
+    expect(strokes(none.calls).some((c) => c.strokeStyle === COLOURS.liveAim)).toBe(false);
+
+    model.setSelectedShot(1);
+    const withSelection = fakeContext();
+    drawTarget(withSelection.ctx, 300, 300, model, RINGS, COLOURS);
+    const accentRings = strokes(withSelection.calls).filter((c) => c.strokeStyle === COLOURS.liveAim);
+    expect(accentRings).toHaveLength(1);
+  });
+
   it("gates an isolated shot on the playhead reaching it", () => {
     const model = new TargetModel();
     model.setShots([{ xMm: 1, yMm: 1, label: "1" }]);
