@@ -419,6 +419,12 @@ QPushButton#zoomButton {{
     border-radius: 8px;
 }}
 
+QPushButton#replayTransportButton {{
+    padding: 0;
+    min-height: 0;
+    font-size: 16px;
+}}
+
 QPushButton#expandButton {{
     background: rgba(0, 0, 0, 160);
     border: none;

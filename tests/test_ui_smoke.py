@@ -19,6 +19,7 @@ import pytest
 pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QScrollArea, QStyle, QStyleOptionButton
 
 from shottrainer.app.preferences import Preferences
 from shottrainer.ui.app_header import AppHeader
@@ -26,6 +27,7 @@ from shottrainer.ui.camera_popout import CameraPopout
 from shottrainer.ui.camera_view import CameraView, RawCameraView
 from shottrainer.ui.main_window import MainWindow
 from shottrainer.ui.preferences_dialog import PreferencesDialog
+from shottrainer.ui.theme import apply_dark_theme
 
 
 def test_main_window_constructs(qtbot):
@@ -37,6 +39,39 @@ def test_main_window_constructs(qtbot):
     assert window.camera_view is not None
     assert window.target_view is not None
     assert window.shot_list is not None
+
+
+@pytest.mark.parametrize("size", [(1280, 720), (1024, 768)])
+def test_dark_window_fits_laptop_sizes_with_controls_on_one_row(qtbot, qapp, size):
+    previous_style = qapp.styleSheet()
+    try:
+        apply_dark_theme(qapp)
+        window = MainWindow()
+        qtbot.addWidget(window)
+        window.resize(*size)
+        window.show()
+        qapp.processEvents()
+        assert window.width() <= size[0]
+        assert window.height() <= size[1]
+        zoom = window.zoom_controls
+        replay = window.replay_controls
+        assert zoom.geometry().intersects(replay.geometry()) is False
+        assert abs(zoom.geometry().center().y() - replay.geometry().center().y()) < 8
+        assert zoom._slider.width() >= 32
+        assert replay._slider.width() >= 48
+        for button in (replay._reset, replay._play_pause):
+            option = QStyleOptionButton()
+            button.initStyleOption(option)
+            contents = button.style().subElementRect(
+                QStyle.SubElement.SE_PushButtonContents, option, button
+            )
+            assert contents.width() >= button.fontMetrics().horizontalAdvance(button.text())
+        sidebar = window._main_splitter.widget(2)
+        assert isinstance(sidebar, QScrollArea)
+        sidebar.ensureWidgetVisible(window.session_controls.clear_button())
+        assert sidebar.horizontalScrollBar().maximum() == 0
+    finally:
+        qapp.setStyleSheet(previous_style)
 
 
 def test_main_window_paints_with_no_camera(qtbot):

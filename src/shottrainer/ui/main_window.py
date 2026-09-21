@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSplitter,
     QStatusBar,
     QVBoxLayout,
@@ -134,7 +135,7 @@ class MainWindow(QMainWindow):
         """Assemble the left column: shot history, camera preview, and input controls."""
         col = QFrame()
         col.setObjectName("leftColumn")
-        col.setMinimumWidth(290)
+        col.setMinimumWidth(252)
         col.setMaximumWidth(320)
         layout = QVBoxLayout(col)
         layout.setContentsMargins(16, 20, 16, 20)
@@ -179,14 +180,14 @@ class MainWindow(QMainWindow):
         col = QFrame()
         col.setObjectName("centreColumn")
         layout = QVBoxLayout(col)
-        layout.setContentsMargins(20, 20, 20, 16)
+        layout.setContentsMargins(12, 20, 12, 16)
         layout.setSpacing(16)
 
         layout.addWidget(self._caption_label("TARGET  /  AIM TRACE"))
         layout.addWidget(self.target_view, 1)
 
         controls_row = QHBoxLayout()
-        controls_row.setSpacing(16)
+        controls_row.setSpacing(8)
         controls_row.addWidget(self.zoom_controls, 1)
         controls_row.addWidget(self.replay_controls)
         layout.addLayout(controls_row)
@@ -196,8 +197,6 @@ class MainWindow(QMainWindow):
         """Assemble the right column: analysis cards and session controls."""
         col = QFrame()
         col.setObjectName("rightColumn")
-        col.setMinimumWidth(280)
-        col.setMaximumWidth(380)
         layout = QVBoxLayout(col)
         layout.setContentsMargins(16, 20, 16, 20)
         layout.setSpacing(20)
@@ -209,7 +208,13 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(self._caption_label("SESSION"))
         layout.addWidget(self.session_controls)
-        return col
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setMinimumWidth(240)
+        scroll.setMaximumWidth(380)
+        scroll.setWidget(col)
+        return scroll
 
     def _caption_label(self, text: str):
         """Create a styled uppercase caption label for column sections."""
