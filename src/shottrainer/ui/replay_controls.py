@@ -92,8 +92,9 @@ class ReplayControls(QWidget):
         # human-readable seconds while the user drags. ``None``
         # while no shot is loaded.
         self._window_duration_ms: int | None = None
+        self._scrubbing = False
 
-        self._slider.sliderMoved.connect(self._on_slider_moved)
+        self._slider.valueChanged.connect(self._on_slider_moved)
 
         self.set_enabled(False)
 
@@ -146,9 +147,10 @@ class ReplayControls(QWidget):
             fraction: Position between 0.0 and 1.0.
         """
         v = max(0, min(1000, round(fraction * 1000)))
-        self._slider.blockSignals(True)
-        self._slider.setValue(v)
-        self._slider.blockSignals(False)
+        if not self._scrubbing:
+            self._slider.blockSignals(True)
+            self._slider.setValue(v)
+            self._slider.blockSignals(False)
         self._refresh_time_label(fraction)
 
     def set_time_label(self, text: str) -> None:
@@ -206,15 +208,21 @@ class ReplayControls(QWidget):
     def _on_slider_moved(self, value: int) -> None:
         """Handle manual scrubbing by emitting the fraction and showing a tooltip."""
         fraction = value / 1000.0
-        self.scrubbed.emit(fraction)
         self._refresh_time_label(fraction)
+        # Keep the requested slider position while the player reports the
+        # nearest sample. Otherwise small keyboard steps repeatedly snap back.
+        self._scrubbing = True
+        try:
+            self.scrubbed.emit(fraction)
+        finally:
+            self._scrubbing = False
         # Show a tooltip near the cursor while dragging so the
         # user sees where they're scrubbing to without having to
         # glance at the time label below.
         duration = self._window_duration_ms
-        if duration is None:
+        if duration is None or not self._slider.isSliderDown():
             return
-        offset_ms = round(fraction * duration)
+        offset_ms = round(self._slider.value() / 1000.0 * duration)
         text = f"{offset_ms / 1000:.2f}\u202fs of {duration / 1000:.2f}\u202fs"
         QToolTip.showText(QCursor.pos(), text, self._slider)
 
