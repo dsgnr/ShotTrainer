@@ -43,7 +43,10 @@ describe("FrameSink", () => {
     sink.attach(() => {
       throw new Error("context lost");
     });
-    expect(() => sink.present(packet, drawn)).toThrow("context lost");
+    const other = vi.fn();
+    sink.attach(other);
+    expect(() => sink.present(packet, drawn)).not.toThrow();
+    expect(other).toHaveBeenCalledOnce();
     expect(drawn).toHaveBeenCalledOnce();
   });
 
@@ -61,4 +64,17 @@ describe("FrameSink", () => {
     expect(second).toHaveBeenCalledOnce();
     expect(first).not.toHaveBeenCalled();
   });
+});
+
+it("keeps the inline camera subscribed after closing the popout", () => {
+  const sink = new FrameSink();
+  const inline = vi.fn();
+  const popout = vi.fn();
+  sink.attach(inline);
+  const close = sink.attach(popout);
+  sink.present(packet, () => undefined);
+  close();
+  sink.present(packet, () => undefined);
+  expect(inline).toHaveBeenCalledTimes(2);
+  expect(popout).toHaveBeenCalledOnce();
 });
