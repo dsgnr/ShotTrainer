@@ -83,6 +83,8 @@ class ReplayControls(QWidget):
         self._time_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
         # Reserve room for the running readout so the cluster
         # doesn't jump as the label grows from the placeholder.
+        # Apply the theme before measuring: the system font may be larger.
+        self._time_label.ensurePolished()
         self._time_label.setMinimumWidth(
             self._time_label.fontMetrics().horizontalAdvance(self._default_stamp) + 12
         )

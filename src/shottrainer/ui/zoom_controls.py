@@ -54,6 +54,8 @@ class ZoomControls(QWidget):
 
         self._readout = QLabel("- mm")
         self._readout.setObjectName("zoomReadout")
+        # Use the themed font rather than the platform's initial default.
+        self._readout.ensurePolished()
         self._readout.setMinimumWidth(self._readout.fontMetrics().horizontalAdvance("500 mm"))
         self._readout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(self._readout)
