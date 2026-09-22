@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount, untrack } from "svelte";
   import { drawTarget, type TargetColours } from "../lib/target/draw";
   import { wheelFactor } from "../lib/target/geometry";
   import type { TargetModel } from "../lib/target/model";
@@ -11,6 +12,9 @@
   }
 
   let { model, rings, onextent }: Props = $props();
+
+  let version = $state(0);
+  onMount(() => model.subscribe(() => { untrack(() => { version += 1; }); }));
 
   let canvas: HTMLCanvasElement;
   let width = $state(0);
@@ -36,7 +40,7 @@
   // Redraws when the model version, the rings or the size change.
   $effect(() => {
     // Reference the reactive inputs so the effect re-runs on each.
-    void model.version;
+    void version;
     void rings;
     const ratio = window.devicePixelRatio || 1;
     const pixelWidth = Math.round(width * ratio);

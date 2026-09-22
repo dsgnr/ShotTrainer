@@ -44,3 +44,12 @@ describe("AppState", () => {
     expect(app.status.failure).toBeNull();
   });
 });
+
+it("retains every trace reset across intervening frames", () => {
+  const app = new AppState();
+  app.dispatch({ type: "clearLiveTrace" });
+  app.dispatch(SAMPLE_EVENTS.frame);
+  app.dispatch({ type: "clearLiveTrace" });
+  app.dispatch(SAMPLE_EVENTS.frame);
+  expect(app.traceGeneration).toBe(2);
+});

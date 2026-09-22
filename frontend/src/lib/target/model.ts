@@ -24,6 +24,12 @@ const CLIP_EXTENT_MULTIPLE = 4;
 
 export class TargetModel {
   version = 0;
+  #listeners = new Set<() => void>();
+
+  subscribe(listener: () => void): () => void {
+    this.#listeners.add(listener);
+    return () => { this.#listeners.delete(listener); };
+  }
 
   #trace: TracePoint[] = [];
   #releaseIndex: number | null = null;
@@ -97,6 +103,9 @@ export class TargetModel {
 
   clearTrace(): void {
     this.#trace = [];
+    this.#releaseIndex = null;
+    this.#shotIndex = null;
+    this.holdZone = null;
     this.#playhead = null;
     this.liveAim = null;
     this.#bump();
@@ -189,5 +198,6 @@ export class TargetModel {
 
   #bump(): void {
     this.version += 1;
+    for (const listener of this.#listeners) listener();
   }
 }

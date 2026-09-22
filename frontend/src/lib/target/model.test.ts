@@ -117,3 +117,22 @@ describe("TargetModel playhead", () => {
     ]);
   });
 });
+
+it("notifies redraw subscribers and fully clears replay decoration", () => {
+  const model = new TargetModel();
+  let redraws = 0;
+  const detach = model.subscribe(() => { redraws += 1; });
+  model.setTrace([[1, 1], [2, 2], [3, 3]]);
+  model.setTraceSegments(0, 1);
+  model.setHoldZone([2, 2], 3);
+  model.clearTrace();
+  model.appendTracePoint(4, 4);
+  expect(model.approach).toEqual([[4, 4]]);
+  expect(model.release).toEqual([]);
+  expect(model.follow).toEqual([]);
+  expect(model.holdZone).toBeNull();
+  expect(redraws).toBe(5);
+  detach();
+  model.setExtent(10);
+  expect(redraws).toBe(5);
+});

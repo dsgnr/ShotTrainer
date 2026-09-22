@@ -40,6 +40,15 @@
   // reactive value lets the zoom controls and the wheel drive it afterwards.
   let extentMm = $state(DEFAULT_EXTENT_MM);
 
+  $effect(() => {
+    void app.traceGeneration;
+    targetModel.clearTrace();
+  });
+
+  $effect(() => {
+    targetModel.setShotDiameter(app.preferences.prefs?.shotDiameterMm ?? 4.5);
+  });
+
   // Feed the live aim trace into the model from the camera frames.
   $effect(() => {
     const point = app.camera.frame?.tracePointMm ?? null;
@@ -63,9 +72,11 @@
   // Reflect a loaded replay in the target: the saved trace, its phase
   // boundaries, the playhead and the hold zone. Clearing it returns the
   // model to the live view.
+  const loadedReplay = $derived(app.replay.loaded);
   $effect(() => {
-    const loaded = app.replay.loaded;
+    const loaded = loadedReplay;
     if (loaded === null) {
+      targetModel.clearTrace();
       targetModel.setIsolateSelectedShot(false);
       return;
     }

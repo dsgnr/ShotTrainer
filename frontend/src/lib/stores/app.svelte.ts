@@ -13,6 +13,8 @@ import { initialStatus, reduceStatus, type StatusState } from "./status";
  * readers of a store an event changed.
  */
 export class AppState {
+  traceGeneration = $state(0);
+
   session: SessionState = $state.raw(initialSession);
   shots: ShotsState = $state.raw(initialShots);
   preferences: PreferencesState = $state.raw(initialPreferences);
@@ -28,6 +30,7 @@ export class AppState {
   }
 
   dispatch(event: WireEvent): void {
+    if (event.type === "clearLiveTrace") this.traceGeneration += 1;
     this.session = reduceSession(this.session, event);
     this.shots = reduceShots(this.shots, event);
     this.preferences = reducePreferences(this.preferences, event);
