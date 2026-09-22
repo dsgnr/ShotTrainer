@@ -16,9 +16,20 @@ pub use shell::run;
 mod tests {
     use serde_json::Value;
 
+    const CAPABILITIES: &str = include_str!("../capabilities/default.json");
     const CONFIG: &str = include_str!("../tauri.conf.json");
     const INFO_PLIST: &str = include_str!("../Info.plist");
     const VITE_CONFIG: &str = include_str!("../../frontend/vite.config.ts");
+
+    #[test]
+    fn the_main_window_only_receives_required_event_permissions() {
+        let capability: Value = serde_json::from_str(CAPABILITIES).unwrap();
+        assert_eq!(capability["windows"], serde_json::json!(["main"]));
+        assert_eq!(
+            capability["permissions"],
+            serde_json::json!(["core:event:allow-listen", "core:event:allow-unlisten"])
+        );
+    }
 
     #[test]
     fn the_bundle_keeps_the_python_identifier() {
