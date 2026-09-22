@@ -51,6 +51,13 @@ impl SessionManager {
     }
 
     pub fn delete_session(&self, cx: &SessionContext, id: i64) {
+        if self.recorder.session_id() == Some(id) {
+            cx.message(StatusMessage::info(
+                "Stop recording before deleting this session",
+                4000,
+            ));
+            return;
+        }
         if let Err(error) = cx.repo().delete_session(id) {
             return db_warning(cx, "Could not delete the session", &error);
         }
@@ -321,6 +328,39 @@ mod tests {
             _ => None,
         });
         assert_eq!(texts, ["Stop recording before opening a session"]);
+    }
+
+    #[test]
+    fn deleting_the_recording_session_is_refused_without_interrupting_saves() {
+        let rig = Rig::new();
+        let other = saved_session(&rig, "default");
+        let mut mgr = SessionManager::new(&rig.prefs);
+        rig.run(|cx| mgr.start(cx, "Live", "practice", "1"));
+        let live = mgr.recorder.session_id().unwrap();
+        rig.run(|cx| mgr.on_sample(cx, mapped(1.0, 3.0, 4.0)));
+        rig.take();
+
+        rig.run(|cx| mgr.delete_session(cx, live));
+        assert!(rig.repo().get_session(live).unwrap().is_some());
+        let texts = find(&rig.take(), |e| match e {
+            UiEvent::Message(m) => Some(m.text.clone()),
+            _ => None,
+        });
+        assert_eq!(texts, ["Stop recording before deleting this session"]);
+        // Deleting a different saved session remains allowed.
+        rig.run(|cx| mgr.delete_session(cx, other));
+        assert!(rig.repo().get_session(other).unwrap().is_none());
+
+        rig.run(|cx| {
+            mgr.on_sample(cx, mapped(1.1, 5.0, 6.0));
+            mgr.on_shot(cx, shot_at(1.1));
+            mgr.stop(cx);
+        });
+        assert!(!mgr.is_recording());
+        assert_eq!(rig.repo().trace_count(live).unwrap(), 2);
+        let saved = rig.repo().get_session(live).unwrap().unwrap();
+        assert!(saved.ended_at.is_some());
+        assert_eq!(saved.shots.len(), 1);
     }
 
     #[test]

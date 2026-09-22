@@ -2,102 +2,19 @@
 description: "Record a shooting practice session in ShotTrainer. Name and categorise sessions, capture shots and aim traces, then save them for replay and export."
 ---
 
-# Running a session
+# Recording sessions
 
-A session is a recording period during which ShotTrainer captures shots and the
-aiming trace around them. Once saved, sessions can be replayed, reviewed, and
-exported at any time.
+Enter a name and select a category in the session controls. Press
+**Start session** to begin recording and **Stop session** to finish. The
+summary shows the current recording state. Name and category controls are
+locked while recording. **Clear shots** is also disabled during recording.
 
-## Starting a session
+Shots appear in the shot list with their score and offset. Selecting a shot
+loads its saved trace window for review. Use [replay](replay.md) to inspect
+movement before and after the shot.
 
-Enter a session name if you want one, or leave the field blank and ShotTrainer
-will create a name automatically using the current date and time.
-
-Pick the **category** below the name field to tag the session as **practice**,
-**sighter**, or **match**. The category is stored with the session and shows
-up as a badge in the session browser. You can change it later if you tagged
-it wrong at the time.
-
-To begin recording:
-
-- Click **Start session**
-- Press **Ctrl+S** (or **Cmd+S** on macOS)
-
-Once recording starts, the session name is locked and the Start button changes
-to **Stop session**.
-
-ShotTrainer will begin monitoring the microphone for shots and recording trace
-data around each one. The amount of pre-shot and post-shot trace captured can be
-configured in **Preferences > Recording**.
-
-## While recording
-
-As you shoot:
-
-- Detected shots are added to the shot list.
-- Each shot is scored using the active target face.
-- Aim trace data is continuously buffered so the hold leading up to the shot can
-  be analysed.
-- The session summary shows the current shot count.
-
-## Stopping a session
-
-To finish recording:
-
-- Click **Stop session**
-- Press **Ctrl+S** (or **Cmd+S**) again
-
-The session is saved automatically and becomes available in the session browser
-for replay, analysis, and export.
-
-## Closing the app during a session
-
-If you try to close ShotTrainer while recording, you will be asked what to do
-with the active session.
-
-### Stop and quit
-
-Ends the session normally, saves it, and then closes the application.
-
-### Quit anyway
-
-Closes the application immediately. Any buffered data is written to disk where
-possible, but the session may be incomplete.
-
-### Keep recording
-
-Cancels the close operation and returns to the active session.
-
-## Clearing shots
-
-The **Clear shots** button (or **Ctrl+R** / **Cmd+R**) removes all shots from
-the current view.
-
-This option is only available when a session is not being recorded. It cannot be
-used while recording is active.
-
-Use it to clear the target view and reset the statistics display before starting
-a new session.
-
-## Removing a single shot
-
-To remove just one shot, useful when the microphone picks up a stray noise
-like another shooter on the line or a knock on the microphone, select it in
-the shot list and press **Delete** or **Backspace**. ShotTrainer will ask you
-to confirm before removing it.
-
-For shots that came from a saved session the change is written back to the
-database, so the deleted shot stays gone the next time you open the session.
-For shots in a session that's still recording, the row is removed from the
-session's saved record at the same time.
-
-## Where sessions are stored
-
-Sessions are stored locally in a SQLite database within ShotTrainer's data
-folder.
-
-For platform-specific locations, see the [Troubleshooting](troubleshooting.md)
-guide.
-
-You can also open the folder directly from the application using **Tools > Open
-data folder**.
+Sessions are stored in a local SQLite database. Open **Sessions** from the
+navigation rail to find previous sessions, rename them, change categories,
+delete them or export their data. See [session browser](session-browser.md).
+Stop recording before deleting the active session.
+Synthetic desktop sessions use a separate temporary data directory.
