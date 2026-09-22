@@ -42,9 +42,11 @@ function clamp(value: number, [min, max]: [number, number]): number {
 export function clampPreferences(prefs: WirePreferences): WirePreferences {
   const next: WirePreferences = { ...prefs };
   for (const field of Object.keys(NUMBER_RANGES) as NumberField[]) {
-    next[field] = clamp(prefs[field], NUMBER_RANGES[field]);
+    const value = prefs[field];
+    const bounded = clamp(Number.isFinite(value) ? value : NUMBER_RANGES[field][0], NUMBER_RANGES[field]);
+    next[field] = field.endsWith("Ms") ? Math.round(bounded) : bounded;
   }
-  next.cameraId = prefs.cameraId === null ? null : Math.max(0, Math.round(prefs.cameraId));
+  next.cameraId = prefs.cameraId === null ? null : Math.min(2147483647, Math.max(0, Math.round(Number.isFinite(prefs.cameraId) ? prefs.cameraId : 0)));
   next.cameraRotation = (ROTATIONS as readonly number[]).includes(prefs.cameraRotation)
     ? prefs.cameraRotation
     : 0;

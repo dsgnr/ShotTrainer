@@ -85,3 +85,11 @@ describe("clampPreferences", () => {
     expect(clampPreferences({ ...SAMPLE_PREFERENCES, cameraRotation: 999 }).cameraRotation).toBe(0);
   });
 });
+
+it("serializes cleared and fractional numeric inputs as valid wire numbers", () => {
+  const prefs = clampPreferences({ ...SAMPLE_PREFERENCES, preShotMs: undefined, postShotMs: 123.4, shotDiameterMm: NaN } as unknown as WirePreferences);
+  expect(prefs.preShotMs).toBe(0);
+  expect(prefs.postShotMs).toBe(123);
+  expect(prefs.shotDiameterMm).toBe(0.5);
+  expect(JSON.stringify(prefs)).not.toContain(":null");
+});

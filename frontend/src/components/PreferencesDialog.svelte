@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import type { CommandSender } from "../lib/app/commands";
   import { focusTrap } from "../lib/app/focus-trap";
   import { NUMBER_RANGES, ROTATIONS, clampPreferences } from "../lib/preferences/form";
@@ -20,11 +21,30 @@
   // A draft copy the dialog edits, applied on save and discarded on cancel.
   let draft = $state<WirePreferences | null>(null);
 
+  const preferencesAvailable = $derived(preferences.prefs !== null);
+
   // Load the draft each time the dialog opens, and start the camera preview.
   $effect(() => {
-    if (open && preferences.prefs !== null) {
-      draft = { ...preferences.prefs };
-      void send({ type: "beginPreview", cameraId: preferences.prefs.cameraId });
+    if (open && preferencesAvailable) {
+      untrack(() => {
+        if (preferences.prefs !== null) {
+          draft = { ...preferences.prefs };
+          void send({ type: "beginPreview", cameraId: preferences.prefs.cameraId });
+        }
+      });
+    }
+  });
+
+  const imageControls = $derived(preferences.imageControls);
+  $effect(() => {
+    const controls = imageControls;
+    if (controls !== null) {
+      untrack(() => {
+        if (open && draft !== null) {
+          if (controls.brightness !== null) draft.cameraBrightness = controls.brightness;
+          if (controls.contrast !== null) draft.cameraContrast = controls.contrast;
+        }
+      });
     }
   });
 
