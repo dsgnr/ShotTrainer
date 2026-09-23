@@ -31,7 +31,7 @@ export function resolveShortcut(context: ShortcutContext): ShortcutAction | null
   }
   // A modal owns the keyboard while it is open, so no view shortcut fires.
   if (context.modalOpen) {
-    return { kind: "none" };
+    return null;
   }
   if (context.key === " " && context.replayEnabled) {
     return { kind: "replayToggle", play: !context.replayPlaying };

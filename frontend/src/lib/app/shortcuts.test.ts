@@ -29,9 +29,9 @@ describe("resolveShortcut", () => {
   });
 
   it("suppresses other shortcuts while a modal is open", () => {
-    expect(resolveShortcut(context({ key: " ", replayEnabled: true, modalOpen: true }))).toEqual({
-      kind: "none",
-    });
+    for (const key of [" ", "Enter", "ArrowDown", "Tab"]) {
+      expect(resolveShortcut(context({ key, replayEnabled: true, modalOpen: true }))).toBeNull();
+    }
   });
 
   it("toggles replay with Space when a window is loaded", () => {
