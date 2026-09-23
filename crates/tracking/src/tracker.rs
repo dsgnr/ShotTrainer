@@ -1,5 +1,4 @@
-//! Port of `Tracker` from `tracking/tracker.py`. Converts detections to aim
-//! points in millimetres.
+//! Converts target detections to aim points in millimetres.
 
 use crate::detector::{TargetDetector, effective_region_fraction};
 use crate::frame::Frame;

@@ -1,6 +1,5 @@
-//! Port of `app/session_manager.py`, covering the live recording and the
-//! on-screen shot list. Confirmation prompts belong to the front end, so a
-//! clear or delete command arrives already confirmed.
+//! Manages live recording and the on-screen shot list. Confirmation prompts
+//! belong to the front end, so clear and delete commands arrive already confirmed.
 
 use std::collections::HashMap;
 

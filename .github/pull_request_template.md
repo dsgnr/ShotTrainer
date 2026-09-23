@@ -13,5 +13,5 @@ notable. -->
   `refactor:`, `perf:`, `docs:`, `test:`, `chore:`, `ci:`, `build:`)
 - [ ] `make test` passes
 - [ ] `make lint` is clean
-- [ ] Docstrings, comments and docs updated where the behaviour changed
+- [ ] Comments and docs updated where the behaviour changed
 - [ ] Screenshot or screen capture attached for UI changes

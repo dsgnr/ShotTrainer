@@ -1,6 +1,5 @@
-//! Port of `app/camera_manager.py` and the audio listener lifecycle the
-//! Python controller drives. Device events are tagged with a generation so
-//! late events from a stopped device are ignored.
+//! Manages camera and microphone lifecycles. Device events carry a generation
+//! so late events from a stopped device are ignored.
 
 use std::path::PathBuf;
 use std::sync::Arc;

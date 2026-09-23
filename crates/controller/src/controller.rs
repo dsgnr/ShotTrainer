@@ -1,6 +1,6 @@
-//! Port of `app/controller.py`. The controller owns every service and reacts
-//! to one [`Input`] at a time on a single thread. It has no interface code,
-//! takes [`Command`] values in and reports through [`UiEvent`] values.
+//! Owns the application services and processes one [`Input`] at a time on a
+//! single thread. Receives [`Command`] values and reports through [`UiEvent`]
+//! values without depending on interface code.
 
 use std::path::PathBuf;
 

@@ -28,6 +28,9 @@ jobs:
       - name: build
         run: zensical build --strict
 
+      - name: test documentation validation
+        run: python -m unittest discover -s scripts -p 'test_*.py'
+
       - name: validate search metadata and local media
         run: python scripts/check_docs_seo.py
 

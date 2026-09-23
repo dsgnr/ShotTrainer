@@ -1,5 +1,5 @@
-//! Port of `tracking/frame_ops.py` and the greyscale conversion the
-//! controller runs on every frame. Pure Rust, so it needs no OpenCV.
+//! Transforms frames and converts them to greyscale for the controller.
+//! Implemented in pure Rust without OpenCV.
 
 use crate::frame::{Frame, FrameError, PixelFormat};
 

@@ -1,6 +1,5 @@
-//! Port of `app/settings_watcher.py`. Python polls the modification time of
-//! `settings.json` on a timer. The controller runtime calls
-//! [`SettingsWatcher::poll`] every [`POLL_INTERVAL`].
+//! Watches `settings.json` for changes to its modification time.
+//! The controller runtime calls [`SettingsWatcher::poll`] every [`POLL_INTERVAL`].
 
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};

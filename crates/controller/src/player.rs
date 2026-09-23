@@ -1,7 +1,6 @@
-//! Port of `replay/player.py`. Python drives the player with a single-shot
-//! `QTimer`. Here the caller owns time: [`TracePlayer::deadline`] says when
-//! the next step is due and [`TracePlayer::tick`] performs it, so the state
-//! machine is tested without sleeping.
+//! Schedules trace replay on the caller's clock. [`TracePlayer::deadline`]
+//! says when the next step is due and [`TracePlayer::tick`] advances playback,
+//! so the state machine can be tested without sleeping.
 
 use shottrainer_core::replay::timeline::index_of_nearest;
 use shottrainer_tracking::models::TrackingSample;
@@ -127,7 +126,7 @@ impl TracePlayer {
     }
 
     /// Advances one sample when the deadline has been reached. The next
-    /// deadline is measured from `now`, as a restarted `QTimer` is.
+    /// deadline is measured from `now`, rather than the previous deadline.
     pub fn tick(&mut self, now: f64) -> Vec<PlayerEvent> {
         let mut events = Vec::new();
         if !self.playing || self.deadline.is_none_or(|due| now < due) {

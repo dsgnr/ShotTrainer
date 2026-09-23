@@ -1,6 +1,5 @@
-//! Port of `app/preferences_manager.py`, covering the live preview while the
-//! Preferences dialog is open, auto-optimise and the detector reset. Preview
-//! changes update the cached preferences and the frame transform only, so
+//! Applies live previews, auto-optimisation and detector resets from Preferences.
+//! Preview changes update cached preferences and the frame transform only, so
 //! cancelling restores them and saving goes through `SetPreferences`.
 
 use shottrainer_settings::Preferences;

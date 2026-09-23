@@ -1,4 +1,4 @@
-//! Port of `CircleTargetDetector` from `tracking/detector.py`.
+//! Detects circles with OpenCV and maintains a soft target lock.
 
 use std::f64::consts::PI;
 

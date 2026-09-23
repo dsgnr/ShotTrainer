@@ -1,5 +1,5 @@
-//! Port of `tracking/detector_tuning.py`. The grid search is pure, and the
-//! Hough pass it scores with is supplied through [`HoughScorer`].
+//! Searches detector settings using a pure grid search. The Hough pass used to
+//! score candidates is supplied through [`HoughScorer`].
 
 use crate::detector::DetectorSettings;
 use crate::frame::Frame;

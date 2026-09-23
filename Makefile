@@ -1,66 +1,55 @@
-.PHONY: install sync test lint format run package package-deps clean pylint dmg installer docs docs-serve docs-build docs-clean
+.PHONY: install sync test lint format run run-hardware package package-demo icons docs docs-serve docs-build docs-test docs-clean clean
 
-# Zensical isn't pinned into pyproject.toml since it's only used for
-# documentation builds. uv's --with flag installs it into the run environment
-# on demand, which mirrors what CI does in .github/workflows/docs.yml.
-ZENSICAL_RUN = uv run --with zensical zensical
+ZENSICAL_RUN = uv tool run --from zensical zensical
+DOCS_PYTHON = uv run --no-project --python 3.13 python
 
 install:
-	uv sync
+	npm --prefix frontend ci
 
-sync:
-	uv sync
+sync: install
 
 test:
-	uv run pytest
+	cargo test --workspace
+	npm --prefix frontend test
+	$(MAKE) docs-test
 
 lint:
-	uv run ruff check .
-
-pylint:
-	uv run pylint src/shottrainer
+	cargo fmt --all --check
+	cargo clippy --workspace --all-targets -- -D warnings
+	npm --prefix frontend run check
 
 format:
-	uv run ruff format .
-	uv run ruff check --fix .
+	cargo fmt --all
 
 run:
-	uv run shottrainer
+	cargo tauri dev
 
-package-deps:
-	uv sync --extra package
+run-hardware:
+	cargo tauri dev --features opencv
 
-package: package-deps
-ifeq ($(shell uname -s),Darwin)
-	bash packaging/build_icns.sh
-endif
-	uv run --extra package python packaging/build_nuitka.py
+package:
+	cargo tauri build --features opencv
 
-dmg: package
-	bash packaging/make_dmg.sh
+package-demo:
+	cargo tauri build
 
-installer: package
-	pwsh packaging/make_installer.ps1
+icons:
+	cargo tauri icon frontend/public/icon.svg --output src-tauri/icons
 
-# Live-reload preview at http://127.0.0.1:8000/.
 docs: docs-serve
 docs-serve:
 	$(ZENSICAL_RUN) serve
 
-# Build the static site into site/ with the same --strict gate CI uses,
-# so doc warnings (broken links, missing nav entries) fail the build.
 docs-build:
 	$(ZENSICAL_RUN) build --strict
-	python3 scripts/check_docs_seo.py
+	$(DOCS_PYTHON) scripts/check_docs_seo.py
+
+docs-test:
+	$(DOCS_PYTHON) -m unittest discover -s scripts -p 'test_*.py'
 
 docs-clean:
-	rm -rf site
+	$(DOCS_PYTHON) -c "import shutil; shutil.rmtree('site', ignore_errors=True)"
 
 clean: docs-clean
-	rm -rf build .pytest_cache .ruff_cache .mypy_cache packaging/icon.icns
-	# dist often holds files Nuitka has just released. Retry once
-	# in case the OS hasn't caught up.
-	rm -rf dist || (sleep 1 && rm -rf dist)
-	# Nuitka may leave intermediate build trees if it was killed mid-run.
-	rm -rf packaging/ShotTrainer.build packaging/ShotTrainer.dist packaging/ShotTrainer.onefile-build
-	find . -type d -name __pycache__ -exec rm -rf {} +
+	cargo clean
+	$(DOCS_PYTHON) -c "import shutil; shutil.rmtree('frontend/dist', ignore_errors=True)"

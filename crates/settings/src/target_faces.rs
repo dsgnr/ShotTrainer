@@ -332,40 +332,25 @@ mod tests {
     }
 
     #[test]
-    fn rust_assets_match_the_python_directory() {
-        // Removed together with the Python copy of the face files.
-        let python = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../src/shottrainer/ui/assets/target_faces");
+    fn embedded_catalogue_covers_assets_and_matches_golden_faces() {
         let rust = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/target_faces");
-        let read = |dir: &std::path::Path| {
-            let mut files: Vec<(String, Vec<u8>)> = std::fs::read_dir(dir)
-                .unwrap()
-                .map(|e| {
-                    let e = e.unwrap();
-                    (
-                        e.file_name().to_string_lossy().into_owned(),
-                        std::fs::read(e.path()).unwrap(),
-                    )
-                })
-                .collect();
-            files.sort();
-            files
-        };
-        let rust_files = read(&rust);
-        assert_eq!(read(&python), rust_files);
-        let embedded: Vec<String> = BUILT_IN_SOURCES
+        let mut on_disk: Vec<String> = std::fs::read_dir(&rust)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        on_disk.sort();
+        let mut embedded: Vec<String> = BUILT_IN_SOURCES
             .iter()
             .map(|(stem, _)| format!("{stem}.json"))
             .collect();
-        let mut on_disk: Vec<String> = rust_files.into_iter().map(|(n, _)| n).collect();
-        on_disk.sort();
-        let mut sorted_embedded = embedded.clone();
-        sorted_embedded.sort();
-        assert_eq!(sorted_embedded, on_disk);
+        embedded.sort();
+        assert_eq!(embedded, on_disk);
         for (stem, text) in BUILT_IN_SOURCES {
             let bytes = std::fs::read(rust.join(format!("{stem}.json"))).unwrap();
             assert_eq!(text.as_bytes(), bytes.as_slice(), "{stem}");
         }
+        let golden = load_golden("target_faces");
+        assert_faces_match(&built_in_faces(), &golden["built_in"], "embedded catalogue");
     }
 
     #[test]

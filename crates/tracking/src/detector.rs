@@ -1,10 +1,10 @@
-//! Detector settings, the detector trait and the arithmetic shared by every
-//! detector implementation. Nothing here needs OpenCV.
+//! Defines detector settings, the detector trait and arithmetic shared by
+//! detector implementations. Nothing here needs OpenCV.
 
 use crate::frame::Frame;
 use crate::models::Detection;
 
-/// Python `DetectorSettings` in `tracking/detector.py`, field for field.
+/// Persisted detector settings, retaining the existing field names.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DetectorSettings {
     pub min_radius_px: i32,

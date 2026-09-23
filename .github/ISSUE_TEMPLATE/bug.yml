@@ -14,7 +14,7 @@ body:
     id: version
     attributes:
       label: ShotTrainer version
-      description: From Tools > Preferences > About.
+      description: Include the release version or commit, and whether you used real or synthetic devices.
     validations:
       required: true
   - type: dropdown

@@ -1,6 +1,5 @@
 //! Writes a small sessions database through `SessionRepository` and prints a
-//! JSON summary of what it stored. `scripts/check_rust_db.py` reads the file
-//! back through the Python repository and compares it with that summary.
+//! JSON summary for external SQLite consumers to compare with the stored rows.
 //!
 //! Usage: `write_fixture_db <database path> [<csv export directory>]`
 

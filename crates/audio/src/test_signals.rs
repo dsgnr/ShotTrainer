@@ -1,8 +1,8 @@
-//! Integer signal recipes shared with the Python fixture generator.
+//! Reconstructs deterministic audio signals used by the compatibility fixtures.
 //!
-//! The generator state and every scale factor are integers or dyadic
-//! fractions, so the samples are bit identical to the ones numpy produces in
-//! `scripts/generate_golden.py`.
+//! The generator state and scale factors use integers or dyadic fractions,
+//! matching the samples produced by the historical fixture generator.
+//! See `testdata/README.md` for fixture provenance.
 
 use serde_json::Value;
 
