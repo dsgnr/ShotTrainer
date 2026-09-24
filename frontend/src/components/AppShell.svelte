@@ -15,8 +15,9 @@
   let sessionCollapsed = $state(false);
 </script>
 
-<div class="shell" style:--shots-width={shotsCollapsed ? "0px" : "minmax(248px, 320px)"}
-  style:--session-width={sessionCollapsed ? "0px" : "minmax(260px, 340px)"}>
+<div class="shell" class:shots-collapsed={shotsCollapsed} class:session-collapsed={sessionCollapsed}
+  style:--shots-width={shotsCollapsed ? "0px" : "280px"}
+  style:--session-width={sessionCollapsed ? "0px" : "300px"}>
   {#if nav}
     <nav class="nav" aria-label="Primary">{@render nav()}</nav>
   {/if}
@@ -53,6 +54,9 @@
       "nav shots target side"
       "nav status status status";
     height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    transition: grid-template-columns 160ms ease-out;
     background: var(--bg);
   }
 
@@ -69,6 +73,7 @@
 
   .header {
     grid-area: header;
+    min-width: 0;
     border-bottom: 1px solid var(--divider);
     background: var(--bg-sunken);
   }
@@ -81,7 +86,8 @@
     padding: var(--space-3);
     border-right: 1px solid var(--divider);
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
+    min-width: 0;
   }
 
   .target {
@@ -110,6 +116,11 @@
     flex: 1;
   }
 
+  .pane-controls button {
+    min-height: 32px;
+    font-size: var(--text-sm);
+  }
+
   .pane-controls {
     display: flex;
     justify-content: space-between;
@@ -132,5 +143,28 @@
       "header header header"
       "shots target side"
       "status status status";
+  }
+  @media (max-width: 1050px) {
+    .shell, .shell:not(:has(.nav)) {
+      grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-rows: auto minmax(220px, 1fr) minmax(0, 0.7fr) auto;
+      grid-template-areas:
+        "nav header header"
+        "nav target target"
+        "nav shots side"
+        "nav status status";
+    }
+    .shell:not(:has(.nav)) { grid-template-columns: 0 minmax(0, 1fr) minmax(0, 1fr); }
+    .shell.shots-collapsed .side, .shell.session-collapsed .shots {
+      grid-column: 2 / -1;
+    }
+    .shell.shots-collapsed.session-collapsed {
+      grid-template-rows: auto minmax(220px, 1fr) 0 auto;
+    }
+    .shots, .side { border-top: 1px solid var(--divider); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shell { transition: none; }
   }
 </style>

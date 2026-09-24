@@ -27,6 +27,16 @@ it("collapses and restores each pane while leaving navigation accessible", async
     expect(pane.hidden).toBe(false);
     expect(button.getAttribute("aria-expanded")).toBe("true");
   }
+  const toggles = container.querySelectorAll<HTMLButtonElement>("button[aria-controls]");
+  toggles[0]!.click();
+  toggles[1]!.click();
+  flushSync();
+  expect(container.querySelector<HTMLElement>("#session-shots")!.hidden).toBe(true);
+  expect(container.querySelector<HTMLElement>("#session-controls")!.hidden).toBe(true);
+  toggles[0]!.click();
+  flushSync();
+  expect(container.querySelector<HTMLElement>("#session-shots")!.hidden).toBe(false);
+  expect(container.querySelector<HTMLElement>("#session-controls")!.hidden).toBe(true);
   await unmount(component);
   container.remove();
 });

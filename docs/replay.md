@@ -26,3 +26,7 @@ in the list. The overview includes all positioned shots during replay.
 Use **Hide shots** and **Hide session** above the panes to collapse either side.
 Use **Show shots** or **Show session** to restore it. The camera preview remains
 available through the camera control in the navigation rail.
+
+At narrower window widths, the panes sit below the target to preserve its
+working area. Each pane can still be collapsed independently. Pane transitions
+respect the system reduced-motion setting.
