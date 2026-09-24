@@ -13,10 +13,10 @@ circle, so every frame effectively calibrates itself.
 
 The tracking circle diameter is configured in:
 
-**Preferences > Target > Tracking circle**
+**Preferences > Target > Circle diameter**
 
-The same value is used by the marker sheet printing tool, helping ensure that
-the printed marker and tracking settings remain consistent.
+Measure the finished printed mark and enter its diameter. The current interface
+prints shot results but does not generate a tracking marker.
 
 ## How scaling works
 
@@ -56,89 +56,19 @@ compensate.
 
 ## Setup workflow
 
-Using a marker sheet only requires a few steps.
+Prepare a dark circular mark on a light background, or use the aiming mark on a
+competition target. Print at actual size and measure the finished diameter.
+Mount it flat at the target location, then enter its measured diameter in
+**Preferences > Target > Circle diameter**.
 
-### 1. Print a marker sheet
+Check that the complete mark remains visible within the tracking region during
+normal aiming movement. Tracking updates the scale as the detected apparent size
+changes. An incorrect configured diameter scales all millimetre offsets
+incorrectly.
 
-Open:
+The current interface has no tracking-marker generator or zero-setting controls.
+Existing stored zero offsets can be reflected in the camera overlay. Do not
+assume that an old instruction for a menu action applies to this UI.
 
-**Tools > Print marker sheet**
-
-Choose the diameter you want to use.
-
-The default value of **60 mm** works well for general-purpose testing.
-
-### 2. Mount the marker
-
-Place the marker sheet at the target location and secure it so that it remains
-flat.
-
-Ideally, the marker should be positioned in the same plane as the target you
-intend to shoot.
-
-### 3. Check the tracking circle setting
-
-Open:
-
-**Preferences > Target > Tracking circle**
-
-Ensure the value matches the diameter of the printed marker.
-
-The marker sheet dialog updates this value automatically when the marker is
-generated.
-
-### 4. Start aiming
-
-Once the camera can see the marker, tracking begins automatically.
-
-There is no separate calibration button or setup wizard.
-
-## Zero on aim
-
-The centre of the tracking circle is not necessarily the same as the rifle's
-actual point of aim.
-
-This is because the camera's optical axis is offset from the bore axis.
-
-To compensate, use **Zero on aim**.
-
-When pressed, the current aim position becomes the new `(0, 0)` reference point
-for the trace.
-
-This allows the displayed trace to be centred on your actual aiming point rather
-than the geometric centre of the marker.
-
-The zero offset is saved and restored automatically between sessions.
-
-While the offset is in force, the camera preview shows a magenta cross at
-the chosen zero point so you can see where it sits relative to the printed
-circle, along with a "Manual zero" badge in the bottom-left corner.
-
-To remove the adjustment and return to the marker centre, use **Clear zero**.
-
-## When to check the tracking circle diameter
-
-The tracking circle diameter rarely needs changing, but it is worth verifying
-if:
-
-- You print a marker sheet with a different diameter.
-- You switch to a target with a different aiming mark size.
-- Measured offsets appear consistently larger or smaller than expected.
-
-If the configured diameter does not match the real diameter of the tracked
-circle, all millimetre measurements will be scaled incorrectly.
-
-## Limitations
-
-Tracking depends on the detector being able to see the tracking circle.
-
-If the circle leaves the camera's field of view, tracking cannot continue and
-the trace will pause until the circle becomes visible again.
-
-For best results:
-
-- Keep the tracking circle fully visible.
-- Ensure good contrast between the circle and its background.
-- Avoid glare and reflections on the target surface.
-- Use a camera position that keeps the circle comfortably within the tracking
-  region during normal aiming movement.
+See [printing and target preparation](printing-targets.md) and
+[accuracy](accuracy.md) for practical limitations.

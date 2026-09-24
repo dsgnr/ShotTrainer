@@ -179,10 +179,9 @@ threshold.
 Both use the same monotonic clock source, but camera and audio devices do not
 share a common hardware clock.
 
-In practice, alignment accuracy is typically on the order of a few milliseconds
-rather than microseconds.
-
-For hold analysis and replay, this level of accuracy is generally sufficient.
+Actual timing accuracy depends on device latency and buffering. It has not been
+established for the current Rust build on real hardware. Measure it on the
+intended setup before relying on precise release timing.
 
 ## What ShotTrainer does well
 

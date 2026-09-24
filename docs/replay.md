@@ -3,114 +3,17 @@ title: "Shot replay and aim trace analysis"
 description: "Replay your aim trace before, during and after each shot in ShotTrainer. Review hold stability, trigger release and follow-through with playback controls."
 ---
 
-# Shot replay
+# Reviewing a shot
 
-<video src="./assets/img/replay_shot.mp4" poster="../assets/img/app.jpg" controls muted playsinline preload="metadata" aria-label="Shot replay showing the aim trace before and after a shot"></video>
+Select a shot in the shot list, or open a saved session and select one of its
+shots. The target displays the saved trace window, its phase boundaries and hold
+zone when those data are available.
 
-Shot replay allows you to examine the aiming trace recorded around an individual
-shot. By stepping through the trace, you can see how the rifle moved before the
-shot, at the moment the shot broke, and during follow-through.
+The controls below the target reset to the beginning, play or pause, and seek
+through the shot window. The time label shows progress within that window.
+Replay controls are disabled when no usable replay is loaded. The mouse wheel
+and zoom controls adjust the target view.
 
-## Opening a replay
-
-Open a saved session from the [session browser](session-browser.md), then click
-a shot in the shot list.
-
-The target view switches from the live display to the recorded trace for that
-shot, and the replay controls become available.
-
-While a saved session is open, live camera movement and microphone detections
-do not change its target display or shot list. The camera preview and audio
-meter remain live. Start a new session to resume recording and live target updates.
-
-Replay uses samples with a tracked position. Missing positions are omitted;
-the remaining samples retain their recorded timing. If the shot window has no
-tracked positions, the replay controls stay disabled.
-
-## Understanding the trace
-
-The replay trace is divided into three coloured sections, making it easy to
-identify what happened during each stage of the shot.
-
-### Blue - Approach
-
-The approach phase covers the beginning of the pre-shot window through to the
-point where the aim settles onto the target.
-
-This section shows how the rifle was brought into position and how consistently
-the aim settled before the shot.
-
-### Amber - Shot execution
-
-The amber section represents the final moments before the shot breaks.
-
-This is often the most useful part of the trace when analysing hold quality,
-trigger timing, and shot execution.
-
-The length of this phase is set by the **Release window** in
-**Preferences > Recording**. The default of 250 ms suits precision rifle.
-Pistol or other slower-settle disciplines may want a longer window so
-the amber band covers the full settle before the trigger breaks.
-
-### Green - Follow-through
-
-The follow-through phase begins immediately after the shot and continues until
-the end of the post-shot window.
-
-A smooth follow-through can indicate good shot execution, while sudden movement
-may reveal a flinch or disturbance during the shot.
-
-## Replay controls
-
-| Control           | Action                                   |
-| ----------------- | ---------------------------------------- |
-| ▶ / ⏸ (**Space**) | Play or pause the replay at normal speed |
-| ⏮ Reset          | Return to the start of the replay        |
-| Slider            | Move to any point in the trace           |
-
-You can drag the slider to inspect any moment within the recorded window.
-
-## Time display
-
-The time display beside the slider shows the current replay position and the
-total replay duration.
-
-For example:
-
-```text
-1:02.3 / 2:03.0
-```
-
-The total duration runs from the first to the last available tracking sample
-within the window configured in **Preferences > Recording**. It can be shorter
-than the requested window if tracking starts late or stops early. The slider
-and time display follow the recorded timestamps, including gaps between samples.
-
-## What replay can tell you
-
-Replay is one of the most useful tools for understanding how a shot was
-executed.
-
-### Hold quality
-
-A tight, consistent trace generally indicates a stable hold, while a larger or
-more erratic trace may suggest instability or excessive movement.
-
-The amber dashed circle on the target view marks the **hold zone**. Its centre
-is the mean position of the pre-shot trace and its radius is the hold tremor.
-Together they show roughly where, and how widely, the rifle was settling before
-the shot broke. Toggle it from **Preferences > Recording > Show hold zone on
-replay** if you'd rather see the trace without it.
-
-### Trigger timing
-
-Replay makes it possible to see whether the shot broke during a stable hold or
-while the rifle was still moving across the target.
-
-### Follow-through
-
-The movement after the shot can reveal whether the rifle remained stable through
-the shot or whether there was a flinch, anticipation, or other disturbance.
-
-Studying follow-through is often just as valuable as analysing the hold before
-the shot.
+Use **Space** to play or pause an enabled replay and **Up** or **Down** to
+select adjacent shots when focus is outside an input or dialog. See
+[shortcuts](shortcuts.md).

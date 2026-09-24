@@ -88,7 +88,7 @@ Once the aiming mark has been detected, ShotTrainer calculates a scale factor
 using:
 
 ```text
-Tracking circle diameter (mm)
+Circle diameter (mm)
 ÷
 Detected circle diameter (pixels)
 ```
@@ -139,10 +139,8 @@ This produces the data used for:
 
 ## Step 8: Save the session
 
-Tracking samples and shot events are written to the session database in the
-background.
-
-This allows recording to continue without waiting for disk operations.
+The controller coordinates writing tracking samples and shot events to the local
+session database.
 
 The recorded data can later be used for replay, analysis, export, and
 statistics.
@@ -171,8 +169,8 @@ target.
 
 Audio and video devices do not share a common hardware clock.
 
-ShotTrainer aligns the two streams as closely as practical, but timing
-differences of a few milliseconds are normal.
+The controller uses a shared monotonic time base. Actual camera and microphone
+latency depends on the devices and requires measurement on the target setup.
 
 ### Trace smoothing
 
@@ -188,7 +186,6 @@ A rifle-mounted camera is not perfectly aligned with the bore axis.
 As a result, there is usually a fixed offset between the camera's centre point
 and the actual point of impact.
 
-Use **Zero on aim** to compensate for this offset when shooting against a known
-aiming point. While the offset is set the camera preview marks the chosen zero
-with a magenta cross and shows a "Manual zero" badge in the bottom-left, so the
-adjustment is always visible at a glance.
+The current frontend does not expose zero-setting controls. Stored zero offsets
+can be reflected in the camera overlay. Check the setup rather than assuming the
+camera axis equals the impact point.

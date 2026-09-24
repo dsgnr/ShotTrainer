@@ -4,8 +4,8 @@ description: "Use NSRA, ISSF and other federation targets with ShotTrainer. Conf
 
 # Using federation targets (NSRA, ISSF, and others)
 
-ShotTrainer can track standard competition targets as well as the supplied
-marker sheet.
+ShotTrainer can track the dark aiming centre of a standard competition target or
+a separately prepared circular mark.
 
 The tracker follows any dark circular aiming mark against a lighter background,
 including the black aiming centres found on most NSRA, ISSF, NRA, CMP, and
@@ -29,7 +29,7 @@ See [Accuracy and target sizing](accuracy.md) for guidance on selecting an
 appropriate camera position and target size.
 
 1. Open **Preferences > Target**.
-2. Enter the diameter of the target's black aiming centre in **Tracking circle
+2. Enter the diameter of the target's black aiming centre in **Circle
    diameter**.
 3. Select the target face that matches the target you are shooting.
 
@@ -81,8 +81,8 @@ Create a file named:
 <data dir>/custom_target_faces.json
 ```
 
-See [Troubleshooting](troubleshooting.md#where-the-app-stores-its-data) for the
-location of the data directory on your platform.
+See [Preferences](preferences.md) for the location of the data directory on your
+platform.
 
 The file contains a JSON object whose keys are face identifiers:
 
@@ -99,8 +99,7 @@ The file contains a JSON object whose keys are face identifiers:
 }
 ```
 
-Changes are detected automatically, so updates usually appear without restarting
-the application.
+Restart the application after editing custom target definitions.
 
 If a custom face uses the same identifier as a built-in face, the custom version
 takes precedence.
@@ -110,8 +109,8 @@ takes precedence.
 The selected target face only affects scoring and the rings drawn on the target
 view.
 
-The detector tracks the largest circular dark object visible in
-the image. On most federation targets this will be the black aiming mark.
+The detector tracks the largest circular dark object visible in the image. On
+most federation targets this will be the black aiming mark.
 
 Changing target faces does not change how tracking works.
 
@@ -138,21 +137,11 @@ If a target face includes an X-ring, shots inside that ring are displayed as
 For score totals, X counts as 10 points. The X count is treated as a separate
 tie-break value rather than additional score.
 
-### Re-scoring a session
+## Saved scores
 
-Sessions are scored using the target face that was active when they were
-recorded.
-
-If you load a session and select a different target face, the original scores
-remain unchanged until you ask ShotTrainer to recalculate.
-
-To calculate scores using the currently selected face, choose:
-
-**Tools > Re-score with current face**
-
-The updated scores are shown immediately in the shot list and statistics panel,
-and are saved back to the database so they persist when the session is
-reopened later.
+Existing session scores remain stored with the session. The current frontend
+does not expose the backend re-scoring command. Choose the appropriate target
+face before recording.
 
 ## When a target face cannot be loaded
 

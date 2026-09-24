@@ -5,8 +5,8 @@ description: "Compare cameras tested with ShotTrainer, including OV9281 global s
 
 # Cameras overview
 
-This page collects community reports on cameras that have been tested with
-ShotTrainer.
+This page collects historical community camera reports. They do not establish
+hardware compatibility or measurement accuracy for the current Rust build.
 
 The aim is to help shooters understand what works in practice, how different
 cameras perform at various distances, and what setup considerations may be

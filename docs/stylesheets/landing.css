@@ -160,8 +160,7 @@
       rgba(10, 16, 24, 0.82) 44%,
       rgba(10, 22, 34, 0.4) 100%
     ),
-    linear-gradient(180deg, rgba(45, 108, 223, 0.08), rgba(7, 10, 15, 0.68)),
-    url("../assets/img/scoring.jpg") center right / cover no-repeat;
+    linear-gradient(180deg, rgba(45, 108, 223, 0.08), rgba(7, 10, 15, 0.68));
 }
 
 .st-hero::after {
@@ -643,8 +642,7 @@
     min-height: 500px;
     padding: 3rem 1rem;
     background:
-      linear-gradient(180deg, rgba(7, 10, 15, 0.92), rgba(10, 22, 34, 0.76)),
-      url("../assets/img/scoring.jpg") center / cover no-repeat;
+      linear-gradient(180deg, rgba(7, 10, 15, 0.92), rgba(10, 22, 34, 0.76));
   }
 
   .st-hero__title {

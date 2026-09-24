@@ -1,111 +1,68 @@
 ---
 title: "Install on Windows, macOS and Linux"
-description: "Download and install ShotTrainer on Windows, macOS or Linux. Follow platform-specific setup steps for the free, open-source optical shooting trainer."
+description: "Build and run ShotTrainer from source with Rust, Tauri and Svelte, including native dependencies and synthetic or real-device modes."
 ---
 
 # Installation
 
-Pre-built versions of ShotTrainer are available from the project's
-[GitHub Releases](https://github.com/dsgnr/ShotTrainer/releases) page.
+The current application runs from the Rust workspace. It does not require a
+Python runtime. Install Rust with Cargo (Rust 1.88 or newer), Node.js 26 and npm
+11. Install the native desktop prerequisites for Tauri 2 on your platform: a
+C/C++ toolchain and platform webview libraries. Linux also needs the ALSA
+development libraries for audio.
 
-Download the package for your operating system and follow the instructions
-below.
-
-## Windows
-
-### Installer
-
-1. Download **ShotTrainer-Setup.exe** from the latest release.
-2. Run the installer.
-3. Follow the on-screen instructions.
-4. Launch ShotTrainer from the Start menu.
-
-### Portable version
-
-If you prefer not to install the application:
-
-1. Download **ShotTrainer-Windows.zip**.
-2. Extract the archive to any folder.
-3. Run **ShotTrainer.exe** from the extracted directory.
-
-## macOS
-
-1. Download **ShotTrainer-macOS.dmg** from the latest release.
-2. Open the disk image.
-3. Drag **ShotTrainer.app** into your **Applications** folder.
-4. Launch ShotTrainer.
-
-The first time the application starts, macOS will request permission to access
-the camera and microphone. Both permissions are required for normal operation.
-
-### Gatekeeper warning
-
-ShotTrainer is not currently signed with an Apple Developer ID certificate.
-
-Because of this, macOS may display a warning stating that it cannot verify the
-application.
-
-To open the application:
-
-1. Right-click **ShotTrainer.app**
-2. Select **Open**
-3. Confirm the prompt
-
-macOS remembers this decision, so you only need to do it once.
-
-## Linux
-
-1. Download **ShotTrainer-Linux.tar.gz** from the latest release.
-2. Extract the archive:
+ On macOS, install Xcode Command Line Tools and use:
 
 ```bash
-tar -xzf ShotTrainer-Linux.tar.gz
+brew install opencv pkgconf
 ```
 
-1. Start the application:
+On Debian/Ubuntu, the native dependencies used by the Rust workflow are:
 
 ```bash
-./ShotTrainer/ShotTrainer
+sudo apt-get update
+sudo apt-get install -y libopencv-dev clang libclang-dev libasound2-dev \
+  pkg-config libwebkit2gtk-4.1-dev libxdo-dev libssl-dev librsvg2-dev
 ```
 
-### Linux requirements
+On Windows, follow the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
+for the Microsoft C++ build tools and WebView2, and the
+[OpenCV Rust crate setup instructions](https://github.com/twistedfall/opencv-rust#installation)
+for native OpenCV and binding dependencies. These dependency steps do not
+establish successful packaging or hardware support on that platform.
 
-ShotTrainer requires:
-
-- Access to a camera device (`/dev/video*`)
-- A supported audio backend (PipeWire, PulseAudio, or ALSA)
-- A working Qt platform plugin
-
-Depending on your distribution and desktop environment, additional packages may
-be required.
-
-On some Wayland systems, you may need to install the X11 compatibility plugin if
-Qt cannot find a suitable Wayland platform plugin.
-
-## Running from source
-
-If you would like to run ShotTrainer directly from source, install:
-
-- Python 3.13 or newer
-- [uv](https://docs.astral.sh/uv/)
-
-Clone the repository, then run:
+From the repository root:
 
 ```bash
-uv sync
-uv run shottrainer
+npm --prefix frontend ci
+cargo install tauri-cli --version 2.12.1 --locked
+cargo tauri dev
 ```
 
-For development workflows and contributor setup, see the project's README.
+The CLI install is only needed if that version is not already installed. The
+last command starts the desktop application with synthetic devices because the
+default build omits OpenCV. To explicitly request synthetic devices:
 
-## Hardware requirements
+```bash
+SHOTTRAINER_FAKE_DEVICES=1 cargo tauri dev
+```
 
-To use ShotTrainer you will need:
+Synthetic sessions and settings live under `ShotTrainer-fake-devices` in the
+system temporary directory, separate from real-device data.
 
-- A USB camera (manual focus is recommended)
-- A microphone within range of the firing point
-- A printed target or marker sheet
-- Windows, macOS, or Linux
+For real camera and microphone input, install OpenCV and the native compiler and
+libclang dependencies needed by its Rust bindings, then run:
 
-For information on creating a marker sheet, see
-[Printing a marker sheet](printing-targets.md).
+```bash
+cargo tauri dev --features opencv
+```
+
+For a browser-only interface preview:
+
+```bash
+npm --prefix frontend run dev
+```
+
+Open the URL Vite prints. The browser uses a mock bridge. It does not capture
+hardware or access the desktop session database. See [setup](setup.md) for
+physical setup and [troubleshooting](troubleshooting.md) for device problems.

@@ -4,20 +4,12 @@ description: "Use ShotTrainer keyboard shortcuts to start sessions, select shots
 
 # Keyboard shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| Ctrl+S (Cmd+S on macOS) | Start or stop a session |
-| Ctrl+R (Cmd+R on macOS) | Clear shots (only when not recording) |
-| Space | Play or pause replay (when a shot is selected) |
-| Up | Select the previous shot in the list |
-| Down | Select the next shot in the list |
-| Delete (or Backspace) | Remove the selected shot after confirmation |
-| Ctrl+O | Open the session browser |
-| Ctrl+, | Open Preferences |
-| Ctrl++ (or Ctrl+=) | Zoom the target view in |
-| Ctrl+- | Zoom the target view out |
-| Ctrl+0 | Reset zoom to fit the target face |
+| Key       | Action                                              |
+| --------- | --------------------------------------------------- |
+| Space     | Play or pause an enabled shot replay                |
+| Up / Down | Select the previous / next shot                     |
+| Escape    | Close an open dialog when focus is outside an input |
 
-If you're typing into a settings field or editing a number, the
-Space, Up, and Down shortcuts step out of the way so they don't
-interrupt what you're doing.
+View shortcuts are suppressed while typing in an input, text area or select, and
+while a dialog owns the keyboard. Use the visible session controls and
+navigation rail for recording, preferences and the session browser.

@@ -4,8 +4,6 @@ description: "Learn how ShotTrainer scores shots against target rings, including
 
 # How shot scoring works
 
-![Scoring](./assets/img/scoring.jpg)
-
 ShotTrainer calculates a score for each shot using the currently selected target
 face. The scoring rules are designed to match the way paper targets are scored
 in competition.
@@ -28,7 +26,9 @@ Because the projectile has a physical size, scoring is based on the **outer
 edge** of the shot rather than its centre. If the edge of the shot touches a
 higher-value scoring ring, the shot receives that score.
 
-This matches the scoring method used by organisations such as ISSF and NSRA.
+This describes inward scoring. Outward target definitions use a strict boundary
+comparison, so a shot exactly on the boundary can receive a different label. The
+supplied definitions are training aids, not certified competition scoring.
 
 ## Shot diameter and calibre
 
@@ -71,22 +71,11 @@ You can also create your own target definitions.
 For details of the built-in faces and custom face format, see
 [Provided targets](provided-targets.md).
 
-## Re-scoring a session
+## Saved scores
 
-Changing the selected target face does not automatically change the scores
-stored with an existing session.
-
-To calculate scores using a different face, choose:
-
-**Tools > Re-score with current face**
-
-All shots currently loaded in the main window are re-evaluated using the active
-target face, and the updated scores are shown immediately in the shot list and
-statistics panel.
-
-The new scores are also written back to the database, so reopening the session
-later shows the re-scored values rather than the originals. If you change your
-mind, switch back to the original face and re-score again.
+Existing session scores remain stored with the session. The current frontend
+does not expose the backend re-scoring command. Choose the appropriate target
+face before recording.
 
 ## When no target face is available
 
