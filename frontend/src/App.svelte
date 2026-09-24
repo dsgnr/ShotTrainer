@@ -2,7 +2,7 @@
   import AppHeader from "./components/AppHeader.svelte";
   import AppShell from "./components/AppShell.svelte";
   import CameraPopout from "./components/CameraPopout.svelte";
-  import CameraView from "./components/CameraView.svelte";
+  import SessionOverview from "./components/SessionOverview.svelte";
   import LiveRegion from "./components/LiveRegion.svelte";
   import HeroStats from "./components/HeroStats.svelte";
   import MarkerSheet from "./components/MarkerSheet.svelte";
@@ -212,13 +212,15 @@
   {#snippet header()}
     <AppHeader session={app.session.state} trackingText={app.status.trackingText} />
   {/snippet}
-  {#snippet camera()}
-    <CameraView
-      camera={app.camera}
-      {frames}
-      regionFraction={app.preferences.prefs?.trackingRegionFraction ?? 1}
-      manualZero={app.preferences.zero.active}
+  {#snippet shots()}
+    <SessionOverview
+      shots={app.shots.shots}
+      selected={app.shots.selected}
+      {rings}
+      shotDiameterMm={app.preferences.prefs?.shotDiameterMm ?? 4.5}
+      {send}
     />
+    <ShotList shots={app.shots.shots} selected={app.shots.selected} {send} />
   {/snippet}
   {#snippet target()}
     <div class="target-column">
@@ -229,7 +231,6 @@
   {/snippet}
   {#snippet side()}
     <SessionControls session={app.session.state} summary={app.session.summary} {send} />
-    <ShotList shots={app.shots.shots} selected={app.shots.selected} {send} />
     <HeroStats
       total={app.shots.totalScore}
       shotCount={app.shots.shots.length}

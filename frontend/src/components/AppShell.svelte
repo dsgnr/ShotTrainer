@@ -5,22 +5,37 @@
     header: Snippet;
     status: Snippet;
     nav?: Snippet;
-    camera?: Snippet;
+    shots?: Snippet;
     target?: Snippet;
     side?: Snippet;
   }
 
-  let { header, status, nav, camera, target, side }: Props = $props();
+  let { header, status, nav, shots, target, side }: Props = $props();
+  let shotsCollapsed = $state(false);
+  let sessionCollapsed = $state(false);
 </script>
 
-<div class="shell">
+<div class="shell" style:--shots-width={shotsCollapsed ? "0px" : "minmax(248px, 320px)"}
+  style:--session-width={sessionCollapsed ? "0px" : "minmax(260px, 340px)"}>
   {#if nav}
     <nav class="nav" aria-label="Primary">{@render nav()}</nav>
   {/if}
-  <header class="header">{@render header()}</header>
-  <aside class="camera" aria-label="Camera">{@render camera?.()}</aside>
+  <header class="header">
+    {@render header()}
+    <div class="pane-controls">
+      <button aria-expanded={!shotsCollapsed} aria-controls="session-shots"
+        onclick={() => (shotsCollapsed = !shotsCollapsed)}>
+        {shotsCollapsed ? "Show shots" : "Hide shots"}
+      </button>
+      <button aria-expanded={!sessionCollapsed} aria-controls="session-controls"
+        onclick={() => (sessionCollapsed = !sessionCollapsed)}>
+        {sessionCollapsed ? "Show session" : "Hide session"}
+      </button>
+    </div>
+  </header>
+  <aside id="session-shots" class="shots" hidden={shotsCollapsed} aria-label="Session shots">{@render shots?.()}</aside>
   <main class="target">{@render target?.()}</main>
-  <aside class="side" aria-label="Session">{@render side?.()}</aside>
+  <aside id="session-controls" class="side" hidden={sessionCollapsed} aria-label="Session">{@render side?.()}</aside>
   <footer class="status">{@render status()}</footer>
 </div>
 
@@ -29,13 +44,13 @@
     display: grid;
     grid-template-columns:
       auto
-      minmax(248px, 320px)
+      var(--shots-width)
       minmax(0, 1fr)
-      minmax(260px, 340px);
+      var(--session-width);
     grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas:
       "nav header header header"
-      "nav camera target side"
+      "nav shots target side"
       "nav status status status";
     height: 100%;
     background: var(--bg);
@@ -58,8 +73,8 @@
     background: var(--bg-sunken);
   }
 
-  .camera {
-    grid-area: camera;
+  .shots {
+    grid-area: shots;
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
@@ -87,6 +102,20 @@
     overflow: auto;
   }
 
+  .shots[hidden], .side[hidden] {
+    display: none;
+  }
+
+  .shots :global(.shot-list) {
+    flex: 1;
+  }
+
+  .pane-controls {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-3);
+  }
+
   .status {
     grid-area: status;
     border-top: 1px solid var(--divider);
@@ -96,12 +125,12 @@
   /* When no nav rail is supplied the grid collapses its column cleanly. */
   .shell:not(:has(.nav)) {
     grid-template-columns:
-      minmax(248px, 320px)
+      var(--shots-width)
       minmax(0, 1fr)
-      minmax(260px, 340px);
+      var(--session-width);
     grid-template-areas:
       "header header header"
-      "camera target side"
+      "shots target side"
       "status status status";
   }
 </style>

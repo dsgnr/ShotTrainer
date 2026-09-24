@@ -17,3 +17,12 @@ and zoom controls adjust the target view.
 Use **Space** to play or pause an enabled replay and **Up** or **Down** to
 select adjacent shots when focus is outside an input or dialog. See
 [shortcuts](shortcuts.md).
+
+The left pane shows all session shot positions on a compact target above a
+scrollable shot list with scores and offsets. Select a numbered marker or list
+row to highlight the shot and load its replay. Shots without positions remain
+in the list. The overview includes all positioned shots during replay.
+
+Use **Hide shots** and **Hide session** above the panes to collapse either side.
+Use **Show shots** or **Show session** to restore it. The camera preview remains
+available through the camera control in the navigation rail.
