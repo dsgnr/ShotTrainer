@@ -19,7 +19,7 @@ import pytest
 pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QFontDatabase
 from PySide6.QtWidgets import QScrollArea, QStyle, QStyleOptionButton
 
 from shottrainer.app.preferences import Preferences
@@ -29,6 +29,11 @@ from shottrainer.ui.camera_view import CameraView, RawCameraView
 from shottrainer.ui.main_window import MainWindow
 from shottrainer.ui.preferences_dialog import PreferencesDialog
 from shottrainer.ui.theme import apply_dark_theme
+
+
+def test_ui_font_database_has_fonts(qapp):
+    """Layout tests must measure real text, not missing-glyph boxes."""
+    assert QFontDatabase.families(), "Qt cannot find fonts for the UI tests"
 
 
 def test_main_window_constructs(qtbot):
