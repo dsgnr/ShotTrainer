@@ -77,6 +77,13 @@
     background: var(--panel);
     font-size: var(--text-xs);
   }
+  .marker:hover {
+    border-color: var(--accent-strong);
+    background: var(--surface-hover);
+    z-index: 2;
+  }
+  .marker:active { background: var(--accent); }
+  .marker:focus-visible { z-index: 3; }
   .marker.selected {
     border-color: var(--accent-strong);
     color: var(--accent-strong);
@@ -86,5 +93,10 @@
     color: var(--text-muted);
     text-align: center;
     font-size: var(--text-sm);
+  }
+  @media (max-width: 1050px) {
+    .overview { padding: var(--space-2); }
+    .mini-target { height: 100px; aspect-ratio: auto; }
+    h3 { margin-bottom: var(--space-2); }
   }
 </style>

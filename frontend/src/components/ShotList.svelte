@@ -11,7 +11,16 @@
 
   let { shots, selected, send }: Props = $props();
 
+  let list = $state<HTMLUListElement>();
+
   const rows = $derived(shotRows(shots));
+
+  $effect(() => {
+    if (selected !== null && list) {
+      const row = list.children[selected] as HTMLElement | undefined;
+      row?.scrollIntoView?.({ block: "nearest" });
+    }
+  });
 
   function select(index: number): void {
     void send({ type: "selectShot", index });
@@ -55,7 +64,7 @@
       <span class="right">Offset</span>
     </div>
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <ul class="shots" role="listbox" aria-label="Shots" tabindex="0" onkeydown={onKeydown}>
+    <ul bind:this={list} class="shots" role="listbox" aria-label="Shots" tabindex="0" onkeydown={onKeydown}>
       {#each rows as row, i (i)}
         <li
           role="option"
@@ -78,6 +87,8 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
+    overflow: hidden;
     background: var(--panel);
     border: 1px solid var(--divider);
     border-radius: var(--radius);
@@ -101,6 +112,8 @@
     margin: 0;
     padding: var(--space-5) var(--space-4);
     color: var(--text-muted);
+    overflow: auto;
+    min-height: 0;
     text-align: center;
     font-size: var(--text-sm);
   }
@@ -132,6 +145,8 @@
     list-style: none;
     overflow: auto;
     min-height: 0;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
   }
 
   .shots:focus-visible {

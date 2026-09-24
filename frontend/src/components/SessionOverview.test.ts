@@ -26,6 +26,21 @@ it("shows numbered selection controls only for mapped shots", async () => {
   markers[0]?.click();
   expect(send).toHaveBeenCalledWith({ type: "selectShot", index: 1 });
   await unmount(component);
+  const single = mount(SessionOverview, { target: container, props: {
+    shots: [{ timestamp: 1, xMm: 1, yMm: 2, score: "9", shotId: 1 }],
+    selected: null, rings: [], shotDiameterMm: 4.5, send,
+  } });
+  flushSync();
+  expect(container.querySelectorAll("button")).toHaveLength(1);
+  await unmount(single);
+  const many = mount(SessionOverview, { target: container, props: {
+    shots: Array.from({ length: 100 }, (_, i) => ({ timestamp: i, xMm: i, yMm: -i, score: "9", shotId: i })),
+    selected: 99, rings: [], shotDiameterMm: 4.5, send,
+  } });
+  flushSync();
+  expect(container.querySelectorAll("button")).toHaveLength(100);
+  expect(container.querySelector('[aria-label="Select shot 100"]')?.getAttribute("aria-pressed")).toBe("true");
+  await unmount(many);
   const empty = mount(SessionOverview, { target: container, props: {
     shots: [], selected: null, rings: [], shotDiameterMm: 4.5, send,
   } });
