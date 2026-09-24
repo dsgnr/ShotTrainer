@@ -88,6 +88,9 @@ def test_dark_window_fits_laptop_sizes_with_controls_on_one_row(
         assert abs(zoom.geometry().center().y() - replay.geometry().center().y()) < 8
         assert zoom._slider.width() >= 32
         assert replay._slider.width() >= 48
+        assert replay._time_label.width() >= replay._time_label.fontMetrics().horizontalAdvance(
+            replay._time_label.text()
+        )
         for button in (replay._reset, replay._play_pause):
             option = QStyleOptionButton()
             button.initStyleOption(option)

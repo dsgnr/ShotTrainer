@@ -86,7 +86,7 @@ class ReplayControls(QWidget):
         # Apply the theme before measuring: the system font may be larger.
         self._time_label.ensurePolished()
         self._time_label.setMinimumWidth(
-            self._time_label.fontMetrics().horizontalAdvance(self._default_stamp) + 12
+            self._time_label.fontMetrics().horizontalAdvance(self._default_stamp)
         )
         layout.addWidget(self._time_label)
 
