@@ -91,6 +91,10 @@
   }
 
   .hint {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     margin: 0;
     color: var(--text-muted);
     font-size: var(--text-sm);

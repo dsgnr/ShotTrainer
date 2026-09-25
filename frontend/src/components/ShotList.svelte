@@ -121,8 +121,8 @@
   .columns,
   li {
     display: grid;
-    grid-template-columns: 2.5rem 1fr 1fr;
-    gap: var(--space-3);
+    grid-template-columns: 1.8rem 2.8rem minmax(0, 1fr);
+    gap: var(--space-2);
     align-items: center;
   }
 

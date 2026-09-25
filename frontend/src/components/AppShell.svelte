@@ -56,7 +56,7 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    transition: grid-template-columns 160ms ease-out;
+    transition: grid-template-columns 160ms ease-out, grid-template-rows 160ms ease-out;
     background: var(--bg);
   }
 
@@ -162,6 +162,26 @@
       grid-template-rows: auto minmax(220px, 1fr) 0 auto;
     }
     .shots, .side { border-top: 1px solid var(--divider); }
+  }
+
+  @media (max-width: 650px) {
+    .shell, .shell:not(:has(.nav)) {
+      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-rows: auto minmax(240px, 1fr) minmax(0, 0.45fr) minmax(0, 0.45fr) auto;
+      grid-template-areas: "nav header" "nav target" "nav shots" "nav side" "nav status";
+    }
+    .shell:not(:has(.nav)) { grid-template-columns: 0 minmax(0, 1fr); }
+    .shell.shots-collapsed {
+      grid-template-rows: auto minmax(240px, 1fr) 0 minmax(0, 0.65fr) auto;
+    }
+    .shell.session-collapsed {
+      grid-template-rows: auto minmax(240px, 1fr) minmax(0, 0.65fr) 0 auto;
+    }
+    .shell.shots-collapsed.session-collapsed {
+      grid-template-rows: auto minmax(240px, 1fr) 0 0 auto;
+    }
+    .shots { flex-direction: row; padding: var(--space-2); gap: var(--space-2); }
+    .shots :global(.overview) { width: 100px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
