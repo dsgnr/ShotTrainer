@@ -1,7 +1,7 @@
 // Target rendering. The function is pure given a context, so it is tested
 // against a recording fake.
 import type { WireRing } from "../wire/types";
-import { targetScale } from "./geometry";
+import { DEFAULT_EXTENT_MM, targetScale } from "./geometry";
 import type { TargetModel, TracePoint } from "./model";
 
 export interface TargetColours {
@@ -29,16 +29,18 @@ export function drawTarget(
   model: TargetModel,
   rings: WireRing[],
   colours: TargetColours,
+  extentMm = model.extentMm,
 ): void {
   const size = Math.min(width, height);
   const cx = width / 2;
   const cy = height / 2;
-  const scale = targetScale(size, model.extentMm);
+  const scale = targetScale(size, extentMm);
 
   ctx.clearRect(0, 0, width, height);
 
   // A low-contrast dark face keeps the coloured trace in focus.
-  const faceRadius = model.extentMm * scale * 0.95;
+  const outerRadius = Math.max(0, ...rings.map((ring) => (ring.diameterMm ?? 0) / 2));
+  const faceRadius = (outerRadius || DEFAULT_EXTENT_MM * 0.95) * scale;
   ctx.beginPath();
   ctx.arc(cx, cy, faceRadius, 0, Math.PI * 2);
   ctx.fillStyle = colours.face;
@@ -48,7 +50,7 @@ export function drawTarget(
   ctx.stroke();
 
   drawRings(ctx, cx, cy, scale, rings, colours);
-  drawCrosshair(ctx, cx, cy, size, colours);
+  drawCrosshair(ctx, cx, cy, faceRadius * 2, colours);
   drawHoldZone(ctx, cx, cy, scale, model, colours);
   drawShots(ctx, cx, cy, scale, model, colours);
   drawTrace(ctx, cx, cy, scale, model, colours);

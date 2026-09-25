@@ -31,26 +31,33 @@
   }
 </script>
 
-<div class="replay" role="group" aria-label="Replay">
+<div class="replay instrument" role="group" aria-label="Replay">
+  <span class="tool-caption">Replay</span>
   <button
     type="button"
-    class="transport"
+    class="transport tool-button"
     aria-label="Reset replay"
     title="Reset to the start of the shot window"
     disabled={!enabled}
     onclick={reset}
   >
-    &#9198;
+    <svg viewBox="0 0 20 20" aria-hidden="true" width="16" height="16">
+      <path d="M4 4v12M15 4l-8 6 8 6z" />
+    </svg>
   </button>
   <button
     type="button"
-    class="transport"
+    class="transport play tool-button"
     aria-label={playing ? "Pause replay" : "Play replay"}
-    title={playing ? "Pause" : "Play"}
+    title={!enabled ? "Select a shot with a saved trace to replay" : playing ? "Pause replay" : "Play replay"}
+    aria-pressed={playing}
     disabled={!enabled}
     onclick={togglePlay}
   >
-    {playing ? "\u23f8" : "\u25b6"}
+    <svg viewBox="0 0 20 20" aria-hidden="true" width="16" height="16">
+      {#if playing}<path d="M6 4v12M14 4v12" />{:else}<path d="M6 3l10 7-10 7z" />{/if}
+    </svg>
+    <span>{playing ? "Pause" : "Play"}</span>
   </button>
   <input
     type="range"
@@ -66,30 +73,20 @@
 </div>
 
 <style>
-  .replay {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 8px;
-  }
-
-  .transport {
-    width: 32px;
-    height: 28px;
-    padding: 0;
-    font-size: 14px;
-  }
-
-  input {
-    flex: 1;
-    min-width: 48px;
-    max-width: 150px;
-  }
-
+  .replay { flex: 1 1 310px; }
+  .transport { width: 32px; padding: 0; }
+  .play { width: auto; min-width: 76px; padding: 0 var(--space-2); }
+  svg { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  input { flex: 1; min-width: 36px; width: 80px; }
   .time {
-    min-width: 112px;
+    min-width: 100px;
     text-align: right;
     color: var(--text-dim);
+    font-size: var(--text-xs);
     font-variant-numeric: tabular-nums;
+  }
+  @media (max-width: 480px) {
+    .tool-caption { display: none; }
+    .replay { gap: var(--space-1); padding: var(--space-1); }
   }
 </style>

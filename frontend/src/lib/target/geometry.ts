@@ -37,5 +37,10 @@ export function ratioFromExtent(extentMm: number): number {
 
 /** The multiplier a wheel step applies to the extent. Scroll up zooms in. */
 export function wheelFactor(deltaY: number): number {
-  return deltaY > 0 ? 0.9 : 1.1;
+  return deltaY < 0 ? 0.9 : 1.1;
+}
+
+/** Keep every zoom input within the same visible-extent limits. */
+export function clampExtent(extentMm: number): number {
+  return Math.min(ZOOM_MAX_MM, Math.max(ZOOM_MIN_MM, extentMm));
 }

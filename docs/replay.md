@@ -30,3 +30,12 @@ available through the camera control in the navigation rail.
 At narrower window widths, the panes sit below the target to preserve its
 working area. Each pane can still be collapsed independently. Pane transitions
 respect the system reduced-motion setting.
+
+The **Zoom** slider, minus and plus buttons change the main target scale
+around its centre. Drag right or scroll up to enlarge it. The percentage is
+relative to the fitted target face. Select the percentage to return to 100%.
+Wheel and button zoom use the same limits. Zoom leaves the session overview
+unchanged.
+
+The **Replay** toolbar shows labelled play/pause and reset controls beside the
+shot timeline. Select a shot with a saved trace to enable playback.

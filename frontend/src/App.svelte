@@ -22,7 +22,7 @@
   import { statusLine } from "./lib/app/status-line";
   import type { FrameSink } from "./lib/frames/sink";
   import type { AppState } from "./lib/stores/app.svelte";
-  import { DEFAULT_EXTENT_MM, extentForRings } from "./lib/target/geometry";
+  import { DEFAULT_EXTENT_MM, clampExtent, extentForRings } from "./lib/target/geometry";
   import type { TargetModel } from "./lib/target/model";
 
   interface Props {
@@ -102,14 +102,14 @@
   // Fit the extent to the active face's rings when they arrive.
   const rings = $derived(app.preferences.rings);
   $effect(() => {
-    extentMm = extentForRings(rings);
+    extentMm = clampExtent(extentForRings(rings));
   });
   $effect(() => {
     targetModel.setExtent(extentMm);
   });
 
   function setExtent(next: number): void {
-    extentMm = next;
+    extentMm = clampExtent(next);
   }
 
   // Time-on-target reads the hold trace points when a shot is reviewed.
@@ -225,8 +225,10 @@
   {#snippet target()}
     <div class="target-column">
       <TargetView model={targetModel} {rings} onextent={setExtent} />
-      <ReplayControls replay={app.replay} {send} />
-      <ZoomControls {extentMm} onextent={setExtent} />
+      <div class="target-tools">
+        <ReplayControls replay={app.replay} {send} />
+        <ZoomControls {extentMm} referenceExtentMm={extentForRings(rings)} onextent={setExtent} />
+      </div>
     </div>
   {/snippet}
   {#snippet side()}
@@ -252,6 +254,15 @@
     flex-direction: column;
     min-width: 0;
     min-height: 0;
+  }
+  .target-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-top: 1px solid var(--divider);
+    background: var(--bg-sunken);
   }
 </style>
 <PreferencesDialog

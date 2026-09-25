@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   ZOOM_MAX_MM,
   ZOOM_MIN_MM,
+  clampExtent,
   extentForRings,
   extentFromRatio,
   ratioFromExtent,
@@ -50,7 +51,18 @@ describe("targetScale", () => {
 
 describe("wheelFactor", () => {
   it("zooms in on a scroll up and out on a scroll down", () => {
-    expect(wheelFactor(120)).toBe(0.9);
-    expect(wheelFactor(-120)).toBe(1.1);
+    expect(wheelFactor(120)).toBe(1.1);
+    expect(wheelFactor(-120)).toBe(0.9);
   });
+});
+
+it("bounds repeated wheel zoom and preserves in-range extents", () => {
+  expect(clampExtent(0)).toBe(ZOOM_MIN_MM);
+  expect(clampExtent(10000)).toBe(ZOOM_MAX_MM);
+  expect(clampExtent(85)).toBe(85);
+  let extent = 90;
+  for (let i = 0; i < 1000; i++) extent = clampExtent(extent * wheelFactor(-120));
+  expect(extent).toBe(ZOOM_MIN_MM);
+  for (let i = 0; i < 1000; i++) extent = clampExtent(extent * wheelFactor(120));
+  expect(extent).toBe(ZOOM_MAX_MM);
 });

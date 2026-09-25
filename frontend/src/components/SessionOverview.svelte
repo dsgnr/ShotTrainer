@@ -35,7 +35,7 @@
     <p class="empty">No shots yet. Recorded positions will appear here.</p>
   {:else}
     <div class="mini-target" bind:clientWidth={width} bind:clientHeight={height}>
-      <TargetView {model} {rings} onextent={() => model.setExtent(extent)} />
+      <TargetView {model} {rings} animateZoom={false} onextent={() => model.setExtent(extent)} />
       {#each shots as shot, index}
         {#if shot.xMm !== null && shot.yMm !== null}
           <button class="marker" class:selected={index === selected}

@@ -168,3 +168,21 @@ describe("drawTarget", () => {
     expect(shotFillsAfter.length).toBeGreaterThan(shotFillsBefore.length);
   });
 });
+
+it("zooms the face, rings and shot coordinates together around a fixed centre", () => {
+  const model = new TargetModel();
+  model.setShots([{ xMm: 10, yMm: -5, label: "1" }]);
+  const wide = fakeContext();
+  const close = fakeContext();
+  drawTarget(wide.ctx, 416, 416, model, RINGS, COLOURS, 100);
+  drawTarget(close.ctx, 416, 416, model, RINGS, COLOURS, 50);
+  const before = wide.calls.filter((call) => call.method === "arc");
+  const after = close.calls.filter((call) => call.method === "arc");
+  for (let i = 0; i < before.length; i++) {
+    const a = before[i]!.args as number[];
+    const b = after[i]!.args as number[];
+    expect(b[0]! - 208).toBeCloseTo((a[0]! - 208) * 2);
+    expect(b[1]! - 208).toBeCloseTo((a[1]! - 208) * 2);
+    expect(b[2]).toBeCloseTo(a[2]! * 2);
+  }
+});

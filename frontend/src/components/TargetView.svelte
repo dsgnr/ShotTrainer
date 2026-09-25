@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
   import { drawTarget, type TargetColours } from "../lib/target/draw";
-  import { wheelFactor } from "../lib/target/geometry";
+  import { clampExtent, wheelFactor } from "../lib/target/geometry";
   import type { TargetModel } from "../lib/target/model";
   import type { WireRing } from "../lib/wire/types";
 
@@ -9,9 +9,10 @@
     model: TargetModel;
     rings: WireRing[];
     onextent: (extentMm: number) => void;
+    animateZoom?: boolean;
   }
 
-  let { model, rings, onextent }: Props = $props();
+  let { model, rings, onextent, animateZoom = true }: Props = $props();
 
   let version = $state(0);
   onMount(() => model.subscribe(() => { untrack(() => { version += 1; }); }));
@@ -37,24 +38,45 @@
     };
   }
 
-  // Redraws when the model version, the rings or the size change.
+  let displayedExtent: number | undefined;
+  let zoomFrom = 0;
+  let zoomTo = 0;
+  let zoomStarted = 0;
+
   $effect(() => {
-    // Reference the reactive inputs so the effect re-runs on each.
     void version;
-    void rings;
+    const currentRings = rings;
+    const currentWidth = width;
+    const currentHeight = height;
+    const now = performance.now();
+    if (zoomTo !== model.extentMm) {
+      zoomFrom = displayedExtent ?? model.extentMm;
+      zoomTo = model.extentMm;
+      zoomStarted = now;
+    }
     const ratio = window.devicePixelRatio || 1;
-    const pixelWidth = Math.round(width * ratio);
-    const pixelHeight = Math.round(height * ratio);
+    const pixelWidth = Math.round(currentWidth * ratio);
+    const pixelHeight = Math.round(currentHeight * ratio);
     if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
       canvas.width = pixelWidth;
       canvas.height = pixelHeight;
     }
     const context = canvas.getContext("2d");
-    if (context === null || width === 0 || height === 0) {
-      return;
+    if (context === null || currentWidth === 0 || currentHeight === 0) return;
+    const palette = colours(canvas);
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const animate = animateZoom && !reduceMotion;
+    let frame: number | undefined;
+    function draw(time: number): void {
+      const progress = animate ? Math.min(1, (time - zoomStarted) / 120) : 1;
+      const eased = 1 - (1 - progress) ** 3;
+      displayedExtent = zoomFrom + (zoomTo - zoomFrom) * eased;
+      context!.setTransform(ratio, 0, 0, ratio, 0, 0);
+      drawTarget(context!, currentWidth, currentHeight, model, currentRings, palette, displayedExtent);
+      if (progress < 1) frame = requestAnimationFrame(draw);
     }
-    context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    drawTarget(context, width, height, model, rings, colours(canvas));
+    draw(now);
+    return () => { if (frame !== undefined) cancelAnimationFrame(frame); };
   });
 
   function onWheel(event: WheelEvent): void {
@@ -62,8 +84,7 @@
     if (event.deltaY === 0) {
       return;
     }
-    model.setExtent(model.extentMm * wheelFactor(event.deltaY));
-    onextent(model.extentMm);
+    onextent(clampExtent(model.extentMm * wheelFactor(event.deltaY)));
   }
 </script>
 

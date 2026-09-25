@@ -1,78 +1,45 @@
 <script lang="ts">
-  import { extentFromRatio, ratioFromExtent } from "../lib/target/geometry";
+  import { clampExtent, DEFAULT_EXTENT_MM, extentFromRatio, ratioFromExtent, ZOOM_MIN_MM, ZOOM_MAX_MM } from "../lib/target/geometry";
 
   interface Props {
     extentMm: number;
+    referenceExtentMm?: number;
     onextent: (extentMm: number) => void;
   }
-
-  let { extentMm, onextent }: Props = $props();
-
+  let { extentMm, referenceExtentMm = DEFAULT_EXTENT_MM, onextent }: Props = $props();
   const SLIDER_MAX = 1000;
-  const STEP = 50;
-
-  const ratio = $derived(ratioFromExtent(extentMm));
-  const sliderValue = $derived(Math.round(ratio * SLIDER_MAX));
+  const STEP = 25;
+  const sliderValue = $derived(Math.round((1 - ratioFromExtent(extentMm)) * SLIDER_MAX));
+  const percentage = $derived(Math.round(referenceExtentMm / extentMm * 100));
 
   function emitFromSlider(value: number): void {
     const clamped = Math.max(0, Math.min(SLIDER_MAX, value));
-    onextent(extentFromRatio(clamped / SLIDER_MAX));
-  }
-
-  function onInput(event: Event): void {
-    emitFromSlider(Number((event.currentTarget as HTMLInputElement).value));
-  }
-
-  function zoomIn(): void {
-    emitFromSlider(sliderValue - STEP);
-  }
-
-  function zoomOut(): void {
-    emitFromSlider(sliderValue + STEP);
+    onextent(clampExtent(extentFromRatio(1 - clamped / SLIDER_MAX)));
   }
 </script>
 
-<div class="zoom">
-  <span class="caption">Zoom</span>
-  <button type="button" class="step" aria-label="Zoom out" onclick={zoomOut}>&minus;</button>
-  <input
-    type="range"
-    min="0"
-    max={SLIDER_MAX}
-    value={sliderValue}
-    aria-label="Target zoom"
-    title="Drag or scroll to zoom the target view."
-    oninput={onInput}
-  />
-  <button type="button" class="step" aria-label="Zoom in" onclick={zoomIn}>+</button>
-  <span class="readout">{Math.round(extentMm)} mm</span>
+<div class="zoom instrument" role="group" aria-label="Target zoom controls">
+  <span class="tool-caption">Zoom</span>
+  <button type="button" class="tool-button step" aria-label="Zoom out" title="Zoom out"
+    disabled={extentMm >= ZOOM_MAX_MM} onclick={() => emitFromSlider(sliderValue - STEP)}>&minus;</button>
+  <input type="range" min="0" max={SLIDER_MAX} value={sliderValue}
+    aria-label="Target zoom" aria-valuetext={`${percentage}%`}
+    title="Drag right to enlarge the target"
+    oninput={(event) => emitFromSlider(Number(event.currentTarget.value))} />
+  <button type="button" class="tool-button step" aria-label="Zoom in" title="Zoom in"
+    disabled={extentMm <= ZOOM_MIN_MM} onclick={() => emitFromSlider(sliderValue + STEP)}>+</button>
+  <button class="tool-button readout num" aria-label="Reset target zoom" title="Fit target (100%)"
+    onclick={() => onextent(clampExtent(referenceExtentMm))}>{percentage}%</button>
 </div>
 
 <style>
-  .zoom {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 8px 4px;
-  }
-
-  .caption {
-    color: var(--text-dim);
-  }
-
-  .step {
-    width: 32px;
-    height: 28px;
-    padding: 0;
-  }
-
-  input {
-    flex: 1;
-    min-width: 32px;
-  }
-
-  .readout {
-    min-width: 56px;
-    color: var(--text-dim);
+  .zoom { flex: 1 1 260px; }
+  .step { width: 32px; padding: 0; font-size: var(--text-lg); }
+  input { flex: 1; min-width: 40px; width: 80px; }
+  .readout { min-width: 64px; padding: 0 var(--space-2); color: var(--text-dim); }
+  @media (max-width: 480px) {
+    .zoom { gap: var(--space-1); padding: var(--space-1); }
+    .tool-caption { display: none; }
+    .readout { min-width: 56px; }
   }
 </style>
