@@ -4,10 +4,11 @@ description: "Record a shooting practice session in ShotTrainer. Name and catego
 
 # Recording sessions
 
-Enter a name and select a category in the session controls. Press **Start
-session** to begin recording and **Stop session** to finish. The summary shows
-the current recording state. Name and category controls are locked while
-recording. **Clear shots** is also disabled during recording.
+Press **Start session** to open the dialog. Enter a name and select a category,
+then press **Start session** to begin recording or
+**Cancel** to return without recording. Press **Stop session** to finish.
+The summary shows the current recording state. **Clear shots** is disabled
+during recording.
 
 **Clear shots** removes the displayed shots and clears the main target trace
 and replay overlays. Saved sessions are unchanged.
