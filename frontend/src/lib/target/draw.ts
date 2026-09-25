@@ -30,11 +30,12 @@ export function drawTarget(
   rings: WireRing[],
   colours: TargetColours,
   extentMm = model.extentMm,
+  centre: readonly [number, number] = [0, 0],
 ): void {
   const size = Math.min(width, height);
-  const cx = width / 2;
-  const cy = height / 2;
   const scale = targetScale(size, extentMm);
+  const cx = width / 2 - centre[0] * scale;
+  const cy = height / 2 - centre[1] * scale;
 
   ctx.clearRect(0, 0, width, height);
 

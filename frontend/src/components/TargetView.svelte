@@ -10,9 +10,10 @@
     rings: WireRing[];
     onextent: (extentMm: number) => void;
     animateZoom?: boolean;
+    centre?: readonly [number, number];
   }
 
-  let { model, rings, onextent, animateZoom = true }: Props = $props();
+  let { model, rings, onextent, animateZoom = true, centre = [0, 0] }: Props = $props();
 
   let version = $state(0);
   onMount(() => model.subscribe(() => { untrack(() => { version += 1; }); }));
@@ -46,6 +47,7 @@
   $effect(() => {
     void version;
     const currentRings = rings;
+    const currentCentre = centre;
     const currentWidth = width;
     const currentHeight = height;
     const now = performance.now();
@@ -72,7 +74,7 @@
       const eased = 1 - (1 - progress) ** 3;
       displayedExtent = zoomFrom + (zoomTo - zoomFrom) * eased;
       context!.setTransform(ratio, 0, 0, ratio, 0, 0);
-      drawTarget(context!, currentWidth, currentHeight, model, currentRings, palette, displayedExtent);
+      drawTarget(context!, currentWidth, currentHeight, model, currentRings, palette, displayedExtent, currentCentre);
       if (progress < 1) frame = requestAnimationFrame(draw);
     }
     draw(now);

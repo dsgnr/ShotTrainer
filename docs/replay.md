@@ -21,7 +21,11 @@ select adjacent shots when focus is outside an input or dialog. See
 The left pane shows all session shot positions on a compact target above a
 scrollable shot list with scores and offsets. Select a numbered marker or list
 row to highlight the shot and load its replay. Shots without positions remain
-in the list. The overview includes all positioned shots during replay.
+in the list. The overview centres on the median horizontal and vertical shot
+positions and automatically zooms to the group, with padding for the shot
+markers. Tight groups show the relevant inner rings rather than the whole
+face. All positioned shots, including outliers, remain visible during replay.
+Adding or removing a shot updates the framing.
 
 Use **Hide shots** and **Hide session** above the panes to collapse either side.
 Use **Show shots** or **Show session** to restore it. The camera preview remains

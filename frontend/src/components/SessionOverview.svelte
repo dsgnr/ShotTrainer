@@ -3,7 +3,7 @@
   import type { CommandSender } from "../lib/app/commands";
   import { targetScale } from "../lib/target/geometry";
   import { TargetModel } from "../lib/target/model";
-  import { sessionExtent } from "../lib/target/session";
+  import { sessionViewport } from "../lib/target/session";
   import type { WireRing, WireShot } from "../lib/wire/types";
 
   interface Props {
@@ -18,7 +18,8 @@
   const model = new TargetModel();
   let width = $state(0);
   let height = $state(0);
-  const extent = $derived(sessionExtent(rings, shots, shotDiameterMm));
+  const viewport = $derived(sessionViewport(rings, shots, shotDiameterMm));
+  const extent = $derived(viewport.extentMm);
   const scale = $derived(targetScale(Math.min(width, height), extent));
 
   $effect(() => {
@@ -35,12 +36,12 @@
     <p class="empty">No shots yet. Recorded positions will appear here.</p>
   {:else}
     <div class="mini-target" bind:clientWidth={width} bind:clientHeight={height}>
-      <TargetView {model} {rings} animateZoom={false} onextent={() => model.setExtent(extent)} />
+      <TargetView {model} {rings} centre={viewport.centre} animateZoom={false} onextent={() => model.setExtent(extent)} />
       {#each shots as shot, index}
         {#if shot.xMm !== null && shot.yMm !== null}
           <button class="marker" class:selected={index === selected}
-            style:left={`${width / 2 + shot.xMm * scale}px`}
-            style:top={`${height / 2 + shot.yMm * scale}px`}
+            style:left={`${width / 2 + (shot.xMm - viewport.centre[0]) * scale}px`}
+            style:top={`${height / 2 + (shot.yMm - viewport.centre[1]) * scale}px`}
             aria-label={`Select shot ${index + 1}`} aria-pressed={index === selected}
             onclick={() => void send({ type: "selectShot", index })}>
             {index + 1}

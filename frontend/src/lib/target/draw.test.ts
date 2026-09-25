@@ -186,3 +186,13 @@ it("zooms the face, rings and shot coordinates together around a fixed centre", 
     expect(b[2]).toBeCloseTo(a[2]! * 2);
   }
 });
+
+it("uses the same translated origin for target rings and session shot markers", () => {
+  const model = new TargetModel();
+  model.setShots([{ xMm: 10, yMm: -5, label: "1" }]);
+  const { ctx, calls } = fakeContext();
+  drawTarget(ctx, 416, 416, model, RINGS, COLOURS, 100, [10, -5]);
+  const arcs = calls.filter((call) => call.method === "arc");
+  expect(arcs[0]!.args.slice(0, 2)).toEqual([188, 218]);
+  expect(arcs.at(-1)!.args.slice(0, 2)).toEqual([208, 208]);
+});
