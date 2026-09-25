@@ -19,6 +19,10 @@ a shot in the shot list.
 The target view switches from the live display to the recorded trace for that
 shot, and the replay controls become available.
 
+While a saved session is open, live camera movement and microphone detections
+do not change its target display or shot list. The camera preview and audio
+meter remain live. Start a new session to resume recording and live target updates.
+
 Replay uses samples with a tracked position. Missing positions are omitted;
 the remaining samples retain their recorded timing. If the shot window has no
 tracked positions, the replay controls stay disabled.

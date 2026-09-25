@@ -300,7 +300,11 @@ class AppController(QObject):
             self._window.camera_view.set_zero_marker(*zero_px)
         else:
             self._window.camera_view.set_zero_marker(None, None)
-        if sample.x_mm is not None and sample.y_mm is not None:
+        if (
+            not self._session_mgr.is_reviewing
+            and sample.x_mm is not None
+            and sample.y_mm is not None
+        ):
             self._window.target_view.append_trace_point(sample.x_mm, sample.y_mm)
         if sample.frame_id % self._STATUS_REFRESH_EVERY_N_FRAMES == 0:
             self._refresh_tracking_status()

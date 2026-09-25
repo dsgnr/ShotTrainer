@@ -102,6 +102,11 @@ class SessionManager:
         """The replay trace player."""
         return self._player
 
+    @property
+    def is_reviewing(self) -> bool:
+        """Whether the display belongs to a saved session."""
+        return self._current_view_session_id is not None
+
     def on_start_requested(self, name: str, app_version: str, category: str = "practice") -> None:
         """Open a new recording session.
 
@@ -216,6 +221,8 @@ class SessionManager:
         Args:
             event: The audio-detected shot event.
         """
+        if self.is_reviewing:
+            return
         result = self._coordinator.handle_shot(event)
         sample = result.sample
         x_mm = sample.x_mm if sample else None
@@ -406,6 +413,8 @@ class SessionManager:
 
         self._current_view_session_id = session_id
         self._clear_replay()
+        self._window.header.set_state("replay")
+        self._window.session_controls.set_summary(f"Reviewing session {session_id}")
         self._shots_in_view = [
             ShotEntry(
                 timestamp=s.ts,
