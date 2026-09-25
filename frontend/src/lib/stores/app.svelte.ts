@@ -30,7 +30,9 @@ export class AppState {
   }
 
   dispatch(event: WireEvent): void {
-    if (event.type === "clearLiveTrace") this.traceGeneration += 1;
+    if (event.type === "clearLiveTrace" || event.type === "replayCleared") {
+      this.traceGeneration += 1;
+    }
     this.session = reduceSession(this.session, event);
     this.shots = reduceShots(this.shots, event);
     this.preferences = reducePreferences(this.preferences, event);

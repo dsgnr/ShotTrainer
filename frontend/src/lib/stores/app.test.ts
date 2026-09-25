@@ -53,3 +53,13 @@ it("retains every trace reset across intervening frames", () => {
   app.dispatch(SAMPLE_EVENTS.frame);
   expect(app.traceGeneration).toBe(2);
 });
+
+it("requests a target trace reset whenever replay is cleared without a loaded shot", () => {
+  const app = new AppState();
+  const replay = app.replay;
+  app.dispatch(SAMPLE_EVENTS.replayCleared);
+  app.dispatch(SAMPLE_EVENTS.frame);
+  app.dispatch(SAMPLE_EVENTS.replayCleared);
+  expect(app.replay).toBe(replay);
+  expect(app.traceGeneration).toBe(2);
+});

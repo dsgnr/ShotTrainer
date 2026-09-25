@@ -9,6 +9,9 @@ session** to begin recording and **Stop session** to finish. The summary shows
 the current recording state. Name and category controls are locked while
 recording. **Clear shots** is also disabled during recording.
 
+**Clear shots** removes the displayed shots and clears the main target trace
+and replay overlays. Saved sessions are unchanged.
+
 Shots appear in the shot list with their score and offset. Selecting a shot
 loads its saved trace window for review. Use [replay](replay.md) to inspect
 movement before and after the shot.
