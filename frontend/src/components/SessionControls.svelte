@@ -49,7 +49,9 @@
     {label}
   </button>
 
-  <button type="button" class="clear" disabled={locked} onclick={onClear}>Clear shots</button>
+  {#if !locked}
+    <button type="button" class="clear" onclick={onClear}>Clear shots</button>
+  {/if}
 
   <p class="summary">{summary || "Not recording"}</p>
 </div>

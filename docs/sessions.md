@@ -7,7 +7,7 @@ description: "Record a shooting practice session in ShotTrainer. Name and catego
 Press **Start session** to open the dialog. Enter a name and select a category,
 then press **Start session** to begin recording or
 **Cancel** to return without recording. Press **Stop session** to finish.
-The summary shows the current recording state. **Clear shots** is disabled
+The summary shows the current recording state. **Clear shots** is hidden
 during recording.
 
 **Clear shots** removes the displayed shots and clears the main target trace
