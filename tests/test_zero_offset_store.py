@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from shottrainer.app.zero_offset_store import load_zero_offset, save_zero_offset
 
 
@@ -35,4 +37,18 @@ def test_none_removes_file(tmp_path: Path):
 def test_garbage_file_returns_zero(tmp_path: Path):
     p = tmp_path / "zero.json"
     p.write_text("not json")
+    assert load_zero_offset(p) == (0.0, 0.0)
+
+
+@pytest.mark.parametrize("axis", ["x_mm", "y_mm"])
+@pytest.mark.parametrize(
+    "value",
+    ["NaN", "Infinity", "-Infinity", "1e999", "9" * 400, "true", "null", "[]"],
+    ids=["nan", "infinity", "negative-infinity", "exponent", "huge-int", "bool", "null", "list"],
+)
+def test_invalid_coordinate_discards_saved_offset(tmp_path: Path, axis: str, value: str):
+    p = tmp_path / "zero.json"
+    other_axis = "y_mm" if axis == "x_mm" else "x_mm"
+    p.write_text(f'{{"{axis}": {value}, "{other_axis}": 2.5}}')
+
     assert load_zero_offset(p) == (0.0, 0.0)

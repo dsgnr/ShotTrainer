@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from pathlib import Path
 
 from .paths import data_dir
@@ -49,7 +50,12 @@ def load_zero_offset(path: Path | None = None) -> tuple[float, float]:
         return (0.0, 0.0)
     try:
         raw = json.loads(p.read_text())
-        return (float(raw["x_mm"]), float(raw["y_mm"]))
-    except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+        if isinstance(raw["x_mm"], bool) or isinstance(raw["y_mm"], bool):
+            raise ValueError("Zero offset coordinates must be numbers")
+        offset = (float(raw["x_mm"]), float(raw["y_mm"]))
+        if not all(math.isfinite(value) for value in offset):
+            raise ValueError("Zero offset coordinates must be finite")
+        return offset
+    except (OSError, KeyError, TypeError, ValueError, OverflowError) as exc:
         log.warning("Could not read %s: %s", p, exc)
         return (0.0, 0.0)
