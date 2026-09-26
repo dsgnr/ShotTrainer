@@ -23,7 +23,7 @@ it("uses the same bounded extent for slider, buttons and fitted percentage", asy
       expect(onextent.mock.lastCall![0]).toBeLessThan(extent);
       zoomOut.click();
       expect(onextent.mock.lastCall![0]).toBeGreaterThan(extent);
-      expect(container.querySelector<HTMLSelectElement>("select")!.value).toBe("100");
+      expect(container.querySelector('[aria-haspopup="menu"]')!.textContent).toContain("100%");
     }
     const slider = container.querySelector<HTMLInputElement>('input[type="range"]')!;
     slider.value = "1000";
@@ -32,9 +32,10 @@ it("uses the same bounded extent for slider, buttons and fitted percentage", asy
     slider.value = "0";
     slider.dispatchEvent(new Event("input", { bubbles: true }));
     expect(onextent.mock.lastCall![0]).toBeCloseTo(ZOOM_MAX_MM);
-    const mode = container.querySelector<HTMLSelectElement>("select")!;
-    mode.value = "100";
-    mode.dispatchEvent(new Event("change", { bubbles: true }));
+    container.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!.click();
+    flushSync();
+    const fit = [...container.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]')].find((item) => item.textContent === "100%")!;
+    fit.click();
     expect(onextent.mock.lastCall![0]).toBe(90);
     await unmount(component);
   }
@@ -49,12 +50,44 @@ it("offers automatic framing in the percentage selector", async () => {
     extentMm: 9, auto: true, onauto, onextent,
   } });
   flushSync();
-  const mode = container.querySelector<HTMLSelectElement>("select")!;
-  expect(mode.value).toBe("auto");
-  mode.dispatchEvent(new Event("change", { bubbles: true }));
+  const mode = container.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
+  expect(mode.textContent).toContain("Auto");
+  mode.click();
+  flushSync();
+  container.querySelector<HTMLButtonElement>('[role="menuitemradio"][aria-checked="true"]')!.click();
   expect(onauto).toHaveBeenCalledOnce();
   expect(onextent).not.toHaveBeenCalled();
   container.querySelector<HTMLButtonElement>('[aria-label="Zoom out"]')!.click();
   expect(onextent).toHaveBeenCalledOnce();
   await unmount(component);
+});
+
+it("navigates the themed menu with arrow keys and dismisses with Escape or an outside click", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const onextent = vi.fn();
+  const component = mount(ZoomControls, { target: container, props: {
+    extentMm: 90, auto: true, onauto: vi.fn(), onextent,
+  } });
+  flushSync();
+  const trigger = container.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
+  trigger.focus();
+  trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+  flushSync();
+  await Promise.resolve();
+  expect(document.activeElement?.textContent?.trim()).toBe("Auto");
+  document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+  expect(document.activeElement?.textContent?.trim()).toBe("100%");
+  document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  flushSync();
+  expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  expect(document.activeElement).toBe(trigger);
+  expect(onextent).not.toHaveBeenCalled();
+  trigger.click();
+  flushSync();
+  document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+  flushSync();
+  expect(container.querySelector('[role="menu"]')).toBeNull();
+  await unmount(component);
+  container.remove();
 });
