@@ -23,6 +23,7 @@
   import type { FrameSink } from "./lib/frames/sink";
   import type { AppState } from "./lib/stores/app.svelte";
   import { DEFAULT_EXTENT_MM, clampExtent, extentForRings } from "./lib/target/geometry";
+  import { sessionViewport } from "./lib/target/session";
   import type { TargetModel } from "./lib/target/model";
 
   interface Props {
@@ -39,6 +40,7 @@
   // The target extent follows the rings until the user zooms. A separate
   // reactive value lets the zoom controls and the wheel drive it afterwards.
   let extentMm = $state(DEFAULT_EXTENT_MM);
+  let autoZoom = $state(false);
 
   $effect(() => {
     void app.traceGeneration;
@@ -104,11 +106,17 @@
   $effect(() => {
     extentMm = clampExtent(extentForRings(rings));
   });
+  const automaticViewport = $derived(sessionViewport(
+    rings, app.shots.shots, app.preferences.prefs?.shotDiameterMm ?? 4.5,
+  ));
+  const visibleExtent = $derived(autoZoom ? automaticViewport.extentMm : extentMm);
+  const targetCentre = $derived<readonly [number, number]>(autoZoom ? automaticViewport.centre : [0, 0]);
   $effect(() => {
-    targetModel.setExtent(extentMm);
+    targetModel.setExtent(visibleExtent);
   });
 
   function setExtent(next: number): void {
+    autoZoom = false;
     extentMm = clampExtent(next);
   }
 
@@ -224,10 +232,11 @@
   {/snippet}
   {#snippet target()}
     <div class="target-column">
-      <TargetView model={targetModel} {rings} onextent={setExtent} />
+      <TargetView model={targetModel} {rings} centre={targetCentre} onextent={setExtent} />
       <div class="target-tools">
         <ReplayControls replay={app.replay} {send} />
-        <ZoomControls {extentMm} referenceExtentMm={extentForRings(rings)} onextent={setExtent} />
+        <ZoomControls extentMm={visibleExtent} auto={autoZoom} onauto={() => autoZoom = true}
+          referenceExtentMm={extentForRings(rings)} onextent={setExtent} />
       </div>
     </div>
   {/snippet}

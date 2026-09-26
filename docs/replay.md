@@ -37,7 +37,10 @@ respect the system reduced-motion setting.
 
 The **Zoom** slider, minus and plus buttons change the main target scale
 around its centre. Drag right or scroll up to enlarge it. The percentage is
-relative to the fitted target face. Select the percentage to return to 100%.
+relative to the fitted target face. Choose **100%** in the percentage dropdown
+to fit the face, or **Auto** to centre on the median shot position and fit all
+positioned shots, like the session overview. Auto updates as shots change.
+Using the slider, wheel or zoom buttons returns to manual zoom.
 Wheel and button zoom use the same limits. Zoom leaves the session overview
 unchanged.
 

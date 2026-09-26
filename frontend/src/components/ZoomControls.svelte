@@ -3,10 +3,12 @@
 
   interface Props {
     extentMm: number;
+    auto: boolean;
+    onauto: () => void;
     referenceExtentMm?: number;
     onextent: (extentMm: number) => void;
   }
-  let { extentMm, referenceExtentMm = DEFAULT_EXTENT_MM, onextent }: Props = $props();
+  let { extentMm, auto, onauto, referenceExtentMm = DEFAULT_EXTENT_MM, onextent }: Props = $props();
   const SLIDER_MAX = 1000;
   const STEP = 25;
   const sliderValue = $derived(Math.round((1 - ratioFromExtent(extentMm)) * SLIDER_MAX));
@@ -28,8 +30,18 @@
     oninput={(event) => emitFromSlider(Number(event.currentTarget.value))} />
   <button type="button" class="tool-button step" aria-label="Zoom in" title="Zoom in"
     disabled={extentMm <= ZOOM_MIN_MM} onclick={() => emitFromSlider(sliderValue + STEP)}>+</button>
-  <button class="tool-button readout num" aria-label="Reset target zoom" title="Fit target (100%)"
-    onclick={() => onextent(clampExtent(referenceExtentMm))}>{percentage}%</button>
+  <select class="tool-button readout num" aria-label="Target zoom mode"
+    value={auto ? "auto" : String(percentage)}
+    onchange={(event) => {
+      if (event.currentTarget.value === "auto") onauto();
+      else onextent(clampExtent(referenceExtentMm * 100 / Number(event.currentTarget.value)));
+    }}>
+    <option value="auto">Auto</option>
+    <option value="100">100%</option>
+    {#if percentage !== 100}
+      <option value={String(percentage)}>{percentage}%</option>
+    {/if}
+  </select>
 </div>
 
 <style>
