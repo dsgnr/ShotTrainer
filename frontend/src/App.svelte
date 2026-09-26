@@ -218,7 +218,7 @@
     />
   {/snippet}
   {#snippet header()}
-    <AppHeader session={app.session.state} trackingText={app.status.trackingText} />
+    <AppHeader />
   {/snippet}
   {#snippet shots()}
     <SessionOverview
@@ -254,7 +254,8 @@
     </div>
   {/snippet}
   {#snippet status()}
-    <StatusLine {line} {restarting} onrestart={restart} />
+    <StatusLine {line} {restarting} onrestart={restart}
+      session={app.session.state} trackingText={app.status.trackingText} />
   {/snippet}
 </AppShell>
 

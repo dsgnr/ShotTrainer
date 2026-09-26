@@ -20,6 +20,8 @@ and browser mock mode cannot diagnose hardware capture.
 
 ## Unstable tracking or wrong scale
 
+The bottom status bar shows the session state and live tracking scale in mm/px.
+
 Use even lighting, a sharp high-contrast circular mark and a rigid camera mount.
 Keep the mark inside the tracking region. Check rotation and flips, then confirm
 **Circle diameter** matches the measured mark in millimetres. See
