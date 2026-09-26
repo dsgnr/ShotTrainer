@@ -232,7 +232,6 @@
     </div>
   {/snippet}
   {#snippet side()}
-    <SessionControls session={app.session.state} summary={app.session.summary} {send} />
     <HeroStats
       total={app.shots.totalScore}
       shotCount={app.shots.shots.length}
@@ -241,6 +240,9 @@
       {tracePoints}
       {rings}
     />
+    <div class="session-footer">
+      <SessionControls session={app.session.state} summary={app.session.summary} {send} />
+    </div>
   {/snippet}
   {#snippet status()}
     <StatusLine {line} {restarting} onrestart={restart} />
@@ -248,6 +250,11 @@
 </AppShell>
 
 <style>
+  .session-footer {
+    margin-top: auto;
+    flex-shrink: 0;
+  }
+
   .target-column {
     display: flex;
     flex: 1;
