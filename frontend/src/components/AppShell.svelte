@@ -24,13 +24,25 @@
   <header class="header">
     {@render header()}
     <div class="pane-controls">
-      <button aria-expanded={!shotsCollapsed} aria-controls="session-shots"
+      <button type="button" aria-expanded={!shotsCollapsed} aria-controls="session-shots"
+        aria-label={shotsCollapsed ? "Show shots" : "Hide shots"}
+        title={shotsCollapsed ? "Show shots" : "Hide shots"}
         onclick={() => (shotsCollapsed = !shotsCollapsed)}>
-        {shotsCollapsed ? "Show shots" : "Hide shots"}
+        <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M9 4v16" />
+          <path d={shotsCollapsed ? "M13 9l3 3-3 3" : "M16 9l-3 3 3 3"} />
+        </svg>
       </button>
-      <button aria-expanded={!sessionCollapsed} aria-controls="session-controls"
+      <button type="button" aria-expanded={!sessionCollapsed} aria-controls="session-controls"
+        aria-label={sessionCollapsed ? "Show session" : "Hide session"}
+        title={sessionCollapsed ? "Show session" : "Hide session"}
         onclick={() => (sessionCollapsed = !sessionCollapsed)}>
-        {sessionCollapsed ? "Show session" : "Hide session"}
+        <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M15 4v16" />
+          <path d={sessionCollapsed ? "M11 9l-3 3 3 3" : "M8 9l3 3-3 3"} />
+        </svg>
       </button>
     </div>
   </header>
@@ -117,8 +129,20 @@
   }
 
   .pane-controls button {
-    min-height: 32px;
-    font-size: var(--text-sm);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+  }
+
+  .pane-controls svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   .pane-controls {

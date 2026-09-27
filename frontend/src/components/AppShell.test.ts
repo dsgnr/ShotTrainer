@@ -17,8 +17,18 @@ it("collapses and restores each pane while leaving navigation accessible", async
   for (const id of ["session-shots", "session-controls"]) {
     const button = container.querySelector<HTMLButtonElement>(`button[aria-controls="${id}"]`)!;
     const pane = container.querySelector<HTMLElement>(`#${id}`)!;
+    const name = id === "session-shots" ? "shots" : "session";
+    expect(button.getAttribute("aria-label")).toBe(`Hide ${name}`);
+    expect(button.title).toBe(`Hide ${name}`);
+    expect(button.textContent!.trim()).toBe("");
+    expect(button.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    const arrow = button.querySelector("path:last-child")!;
+    const expandedArrow = arrow.getAttribute("d");
     button.click();
     flushSync();
+    expect(button.getAttribute("aria-label")).toBe(`Show ${name}`);
+    expect(button.title).toBe(`Show ${name}`);
+    expect(arrow.getAttribute("d")).not.toBe(expandedArrow);
     expect(pane.hidden).toBe(true);
     expect(button.getAttribute("aria-expanded")).toBe("false");
     expect(container.querySelector("nav")).not.toBeNull();
@@ -26,6 +36,9 @@ it("collapses and restores each pane while leaving navigation accessible", async
     flushSync();
     expect(pane.hidden).toBe(false);
     expect(button.getAttribute("aria-expanded")).toBe("true");
+    expect(button.getAttribute("aria-label")).toBe(`Hide ${name}`);
+    expect(button.title).toBe(`Hide ${name}`);
+    expect(arrow.getAttribute("d")).toBe(expandedArrow);
   }
   const toggles = container.querySelectorAll<HTMLButtonElement>("button[aria-controls]");
   toggles[0]!.click();

@@ -27,9 +27,10 @@ markers. Tight groups show the relevant inner rings rather than the whole
 face. All positioned shots, including outliers, remain visible during replay.
 Adding or removing a shot updates the framing.
 
-Use **Hide shots** and **Hide session** above the panes to collapse either side.
-Use **Show shots** or **Show session** to restore it. The camera preview remains
-available through the camera control in the navigation rail.
+Use the left and right pane icons above the panes to collapse either side.
+Click an icon again to restore its pane. Hover over an icon for its **Hide shots**,
+**Show shots**, **Hide session** or **Show session** tooltip. The camera preview
+remains available through the camera control in the navigation rail.
 
 At narrower window widths, the panes sit below the target to preserve its
 working area. Each pane can still be collapsed independently. Pane transitions
