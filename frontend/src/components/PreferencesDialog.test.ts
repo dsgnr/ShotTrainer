@@ -43,3 +43,46 @@ it("preserves a draft across detector updates and saves optimised image controls
   await unmount(component);
   container.remove();
 });
+
+it("uses themed device and face choices while preserving preview and saved values", async () => {
+  const app = new AppState();
+  app.dispatch(SAMPLE_EVENTS.preferences);
+  const send = vi.fn(async (_command: WireCommand) => undefined);
+  const onclose = vi.fn();
+  const container = document.createElement("div");
+  document.body.append(container);
+  const component = mount(PreferencesDialog, { target: container, props: {
+    open: true, preferences: app.preferences, cameras: [{ index: 2, name: "USB camera" }],
+    microphones: ["USB microphone"], faces: [{ key: "test", label: "Test target", rings: [],
+      shotDiameterMm: 4.5, faceDiameterMm: 100, scoringDirection: "inward" }], send, onclose,
+  } });
+  flushSync();
+  expect(container.querySelector("select")).toBeNull();
+  const choose = (label: string, option: string) => {
+    container.querySelector<HTMLButtonElement>(`[aria-label="${label}"][aria-haspopup="menu"]`)!.click();
+    flushSync();
+    [...container.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]')]
+      .find((item) => item.textContent === option)!.click();
+    flushSync();
+  };
+  choose("Camera", "USB camera");
+  expect(send).toHaveBeenCalledWith({ type: "previewCamera", cameraId: 2 });
+  choose("Camera", "None");
+  expect(send).toHaveBeenCalledWith({ type: "previewCamera", cameraId: null });
+  choose("Rotation", "90°");
+  expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: "previewTransform", rotationDegrees: 90 }));
+  choose("Microphone", "USB microphone");
+  choose("Target face", "Test target");
+  container.querySelector<HTMLButtonElement>('[aria-label="Target face"][aria-haspopup="menu"]')!.click();
+  flushSync();
+  container.querySelector('[role="menu"]')!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  flushSync();
+  expect(onclose).not.toHaveBeenCalled();
+  expect(container.querySelector('[role="menu"]')).toBeNull();
+  [...container.querySelectorAll("button")].find((button) => button.textContent === "Save")!.click();
+  expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: "setPreferences",
+    prefs: expect.objectContaining({ cameraId: null, cameraRotation: 90, audioDevice: "USB microphone", targetFace: "test" }),
+  }));
+  await unmount(component);
+  container.remove();
+});

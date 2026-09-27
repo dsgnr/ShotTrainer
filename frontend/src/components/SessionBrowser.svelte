@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Dropdown from "./Dropdown.svelte";
   import type { CommandSender } from "../lib/app/commands";
   import { focusTrap } from "../lib/app/focus-trap";
   import { filterSessions, scoreBadge, sessionMeta } from "../lib/sessions/rows";
@@ -98,12 +99,8 @@
 
       <div class="filters">
         <input type="search" placeholder="Search session names..." bind:value={query} />
-        <select bind:value={categoryFilter} aria-label="Filter by category">
-          <option value="">All categories</option>
-          {#each SESSION_CATEGORIES as value (value)}
-            <option {value}>{categoryLabel(value)}</option>
-          {/each}
-        </select>
+        <Dropdown label="Filter by category" bind:value={categoryFilter}
+          options={[{ value: "", label: "All categories" }, ...SESSION_CATEGORIES.map((value) => ({ value, label: categoryLabel(value) }))]} />
       </div>
 
       {#if matches.length === 0}
@@ -182,8 +179,7 @@
     flex: 1;
   }
 
-  input,
-  select {
+  input {
     padding: 6px 8px;
     color: var(--text);
     background: var(--panel-raised);

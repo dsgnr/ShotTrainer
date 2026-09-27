@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Dropdown from "./Dropdown.svelte";
   import { untrack } from "svelte";
   import type { CommandSender } from "../lib/app/commands";
   import { focusTrap } from "../lib/app/focus-trap";
@@ -112,30 +113,20 @@
         <section class="group" aria-label="Camera">
           <h3 class="panel-title">Camera</h3>
           <div class="fields">
-            <label class="field">
+            <label class="field" for="camera-choice">
               <span class="field-label">Camera</span>
-              <select
-                value={draft.cameraId ?? ""}
-                onchange={(event) => {
-                  const raw = event.currentTarget.value;
+              <Dropdown id="camera-choice" label="Camera" value={draft.cameraId ?? ""}
+                options={[{ value: "", label: "None" }, ...cameras.map((camera) => ({ value: camera.index, label: camera.name }))]}
+                onchange={(raw) => {
                   draft!.cameraId = raw === "" ? null : Number(raw);
                   previewCamera(draft!.cameraId);
-                }}
-              >
-                <option value="">None</option>
-                {#each cameras as camera (camera.index)}
-                  <option value={camera.index}>{camera.name}</option>
-                {/each}
-              </select>
+                }} />
             </label>
 
-            <label class="field">
+            <label class="field" for="camera-rotation">
               <span class="field-label">Rotation</span>
-              <select bind:value={draft.cameraRotation} onchange={previewTransform}>
-                {#each ROTATIONS as degrees (degrees)}
-                  <option value={degrees}>{degrees}&deg;</option>
-                {/each}
-              </select>
+              <Dropdown id="camera-rotation" label="Rotation" bind:value={draft.cameraRotation}
+                options={ROTATIONS.map((degrees) => ({ value: degrees, label: `${degrees}°` }))} onchange={previewTransform} />
             </label>
 
             <label class="field slider">
@@ -188,13 +179,10 @@
         <section class="group" aria-label="Audio">
           <h3 class="panel-title">Audio</h3>
           <div class="fields">
-            <label class="field">
+            <label class="field" for="microphone-choice">
               <span class="field-label">Microphone</span>
-              <select bind:value={draft.audioDevice}>
-                {#each microphones as device (device)}
-                  <option value={device}>{device}</option>
-                {/each}
-              </select>
+              <Dropdown id="microphone-choice" label="Microphone" bind:value={draft.audioDevice}
+                options={microphones.map((device) => ({ value: device, label: device }))} />
             </label>
             <label class="field slider">
               <span class="field-label">Gain</span>
@@ -278,13 +266,10 @@
         <section class="group" aria-label="Target">
           <h3 class="panel-title">Target</h3>
           <div class="fields">
-            <label class="field">
+            <label class="field" for="face-choice">
               <span class="field-label">Target face</span>
-              <select bind:value={draft.targetFace}>
-                {#each faces as face (face.key)}
-                  <option value={face.key}>{face.label}</option>
-                {/each}
-              </select>
+              <Dropdown id="face-choice" label="Target face" bind:value={draft.targetFace}
+                options={faces.map((face) => ({ value: face.key, label: face.label }))} />
             </label>
             <label class="field">
               <span class="field-label">Shot diameter</span>
@@ -427,7 +412,6 @@
     text-align: right;
   }
 
-  .field select,
   .field input[type="number"] {
     width: 100%;
   }

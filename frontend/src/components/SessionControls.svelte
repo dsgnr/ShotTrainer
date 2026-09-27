@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Dropdown from "./Dropdown.svelte";
   import { focusTrap } from "../lib/app/focus-trap";
   import type { CommandSender } from "../lib/app/commands";
   import { primaryLabel, secondaryDisabled } from "../lib/app/session-controls";
@@ -86,13 +87,11 @@
           <input type="text" bind:value={name} />
         </label>
 
-        <label class="field">
+        <label class="field" for="session-category">
           <span>Session category</span>
-          <select bind:value={category} title="Tag this session as practice, sighters, or a match.">
-            {#each SESSION_CATEGORIES as value (value)}
-              <option {value}>{categoryLabel(value)}</option>
-            {/each}
-          </select>
+          <Dropdown id="session-category" label="Session category" bind:value={category}
+            title="Tag this session as practice, sighters, or a match."
+            options={SESSION_CATEGORIES.map((value) => ({ value, label: categoryLabel(value) }))} />
         </label>
         <div class="actions">
           <button type="button" onclick={() => naming = false}>Cancel</button>
@@ -153,8 +152,7 @@
     display: block;
   }
 
-  input,
-  select {
+  input {
     width: 100%;
     padding: 6px 8px;
     color: var(--text);
@@ -164,8 +162,7 @@
     font: inherit;
   }
 
-  input:disabled,
-  select:disabled {
+  input:disabled {
     opacity: 0.6;
   }
 

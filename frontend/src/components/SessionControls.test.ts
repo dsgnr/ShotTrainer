@@ -21,9 +21,11 @@ it("asks for a name only when starting and submits the trimmed name and category
   flushSync();
   expect(send).not.toHaveBeenCalled();
   const input = container.querySelector<HTMLInputElement>("[role=dialog] input")!;
-  const category = container.querySelector<HTMLSelectElement>("select")!;
-  category.value = "match";
-  category.dispatchEvent(new Event("change", { bubbles: true }));
+  container.querySelector<HTMLButtonElement>('[aria-label="Session category"]')!.click();
+  flushSync();
+  [...container.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]')]
+    .find((item) => item.textContent === "Match")!.click();
+  flushSync();
   input.value = "  Morning practice  ";
   input.dispatchEvent(new Event("input", { bubbles: true }));
   container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
