@@ -17,8 +17,9 @@ export interface TargetColours {
   follow: string;
 }
 
-/** Ring and shot labels use a compact technical face at a fixed pixel size. */
+/** Shot labels use a compact technical face at a fixed pixel size. */
 const LABEL_PX = 10;
+const RING_LABEL_PX = 14;
 const LABEL_FONT = 'ui-monospace, "SF Mono", "Cascadia Code", monospace';
 
 /** Draw the target, its rings, trace, shots and live aim into a view of the given CSS size. */
@@ -39,7 +40,6 @@ export function drawTarget(
 
   ctx.clearRect(0, 0, width, height);
 
-  // A low-contrast dark face keeps the coloured trace in focus.
   const outerRadius = Math.max(0, ...rings.map((ring) => (ring.diameterMm ?? 0) / 2));
   const faceRadius = (outerRadius || DEFAULT_EXTENT_MM * 0.95) * scale;
   ctx.beginPath();
@@ -50,8 +50,8 @@ export function drawTarget(
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  drawRings(ctx, cx, cy, scale, rings, colours);
   drawCrosshair(ctx, cx, cy, faceRadius * 2, colours);
+  drawRings(ctx, cx, cy, scale, rings, colours);
   drawHoldZone(ctx, cx, cy, scale, model, colours);
   drawShots(ctx, cx, cy, scale, model, colours);
   drawTrace(ctx, cx, cy, scale, model, colours);
@@ -66,24 +66,31 @@ function drawRings(
   rings: WireRing[],
   colours: TargetColours,
 ): void {
+  const ordered = rings.filter((ring): ring is WireRing & { diameterMm: number } =>
+    ring.diameterMm !== null,
+  ).sort((a, b) => a.diameterMm - b.diameterMm);
   ctx.strokeStyle = colours.ring;
   ctx.lineWidth = 1;
-  ctx.font = `${LABEL_PX}px ${LABEL_FONT}`;
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "right";
-  for (const ring of rings) {
-    if (ring.diameterMm === null) {
-      continue;
-    }
-    const r = (ring.diameterMm / 2) * scale;
+  for (const ring of ordered) {
     ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.arc(cx, cy, ring.diameterMm / 2 * scale, 0, Math.PI * 2);
     ctx.stroke();
-    if (ring.label !== null && ring.label !== "") {
-      ctx.fillStyle = colours.label;
-      ctx.fillText(ring.label, cx + r - 4, cy);
-    }
   }
+
+  ctx.font = `600 ${RING_LABEL_PX}px ${LABEL_FONT}`;
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "center";
+  ctx.fillStyle = colours.label;
+  ctx.strokeStyle = colours.face;
+  ctx.lineWidth = 4;
+  ctx.lineJoin = "round";
+  ordered.forEach((ring, index) => {
+    if (ring.label === null || ring.label === "") return;
+    const innerDiameter = ordered[index - 1]?.diameterMm ?? 0;
+    const x = index === 0 ? cx : cx + (innerDiameter + ring.diameterMm) / 4 * scale;
+    ctx.strokeText(ring.label, x, cy);
+    ctx.fillText(ring.label, x, cy);
+  });
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
 }

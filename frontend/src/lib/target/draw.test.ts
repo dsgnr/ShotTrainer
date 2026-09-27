@@ -22,6 +22,10 @@ interface Call {
   args: unknown[];
   strokeStyle: unknown;
   fillStyle: unknown;
+  font: string;
+  textAlign: string;
+  textBaseline: string;
+  lineWidth: number;
   /** The path accumulated since the last beginPath, for stroke calls. */
   path: [number, number][];
 }
@@ -29,7 +33,7 @@ interface Call {
 /** A 2D context that records the drawing calls with the style and path active at each. */
 function fakeContext(): { ctx: CanvasRenderingContext2D; calls: Call[] } {
   const calls: Call[] = [];
-  const state = { strokeStyle: "", fillStyle: "", lineWidth: 1 };
+  const state = { strokeStyle: "", fillStyle: "", lineWidth: 1, font: "", textAlign: "left", textBaseline: "alphabetic" };
   let path: [number, number][] = [];
   const record =
     (method: string) =>
@@ -44,6 +48,10 @@ function fakeContext(): { ctx: CanvasRenderingContext2D; calls: Call[] } {
         args,
         strokeStyle: state.strokeStyle,
         fillStyle: state.fillStyle,
+        font: state.font,
+        textAlign: state.textAlign,
+        textBaseline: state.textBaseline,
+        lineWidth: state.lineWidth,
         path: [...path],
       });
     };
@@ -195,4 +203,36 @@ it("uses the same translated origin for target rings and session shot markers", 
   const arcs = calls.filter((call) => call.method === "arc");
   expect(arcs[0]!.args.slice(0, 2)).toEqual([188, 218]);
   expect(arcs.at(-1)!.args.slice(0, 2)).toEqual([208, 208]);
+});
+
+it.each([50, 100])("centres readable labels within scoring bands at extent %d", (extent) => {
+  const rings: WireRing[] = [
+    { diameterMm: 100, label: "7" },
+    { diameterMm: null, label: "unknown" },
+    { diameterMm: 20, label: "X" },
+    { diameterMm: 60, label: "9" },
+    { diameterMm: 40, label: null },
+  ];
+  const original = structuredClone(rings);
+  const model = new TargetModel();
+  const { ctx, calls } = fakeContext();
+  drawTarget(ctx, 416, 416, model, rings, COLOURS, extent, [10, -5]);
+  const scale = 200 / extent;
+  const cx = 208 - 10 * scale;
+  const cy = 208 + 5 * scale;
+  const labels = calls.filter((call) => call.method === "fillText");
+  expect(labels.map((call) => call.args)).toEqual([
+    ["X", cx, cy], ["9", cx + 25 * scale, cy], ["7", cx + 40 * scale, cy],
+  ]);
+  for (const label of labels) {
+    expect(label.font).toContain("600 14px");
+    expect(label.textAlign).toBe("center");
+    expect(label.textBaseline).toBe("middle");
+    const halo = calls[calls.indexOf(label) - 1]!;
+    expect(halo.method).toBe("strokeText");
+    expect(halo.args).toEqual(label.args);
+    expect(halo.strokeStyle).toBe(COLOURS.face);
+    expect(halo.lineWidth).toBe(4);
+  }
+  expect(rings).toEqual(original);
 });

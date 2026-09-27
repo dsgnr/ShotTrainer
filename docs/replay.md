@@ -8,7 +8,8 @@ description: "Replay your aim trace before, during and after each shot in ShotTr
 Select a shot in the shot list, or open a saved session and select one of its
 shots. The target displays the saved trace window, its phase boundaries and hold
 zone when those data are available. The lighter target face separates its rings
-and trace from the surrounding controls.
+and trace from the surrounding controls. Ring labels sit in the centre of each
+scoring band, with the innermost label at the target centre.
 
 The controls below the target reset to the beginning, play or pause, and seek
 through the shot window. The time label shows progress within that window.
