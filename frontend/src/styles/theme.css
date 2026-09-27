@@ -74,9 +74,9 @@
 
   /* Target rendering. */
   --target-bg: #0d0f12;
-  --target-face: #171b21;
-  --target-ring: #7f8b9a;
-  --target-label: #98a1b0;
+  --target-face: #303943;
+  --target-ring: #9aa7b7;
+  --target-label: #c6cdd8;
   --target-crosshair: #2b3340;
   --target-shot: #e8edf2;
   --target-live-aim: #45c08f;
@@ -120,7 +120,7 @@
     --data-mid: #3a434f;
     --data-low: #5f6672;
 
-    --target-bg: #f4f5f7;
+    --target-bg: #e4e8ed;
     --target-face: #ffffff;
     --target-ring: #6b7684;
     --target-label: #4f5966;

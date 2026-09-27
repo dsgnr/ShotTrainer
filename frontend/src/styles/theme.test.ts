@@ -59,6 +59,7 @@ const PAIRS: [string, string, number][] = [
   ["pill-idle", "bg", 4.5],
   ["pill-recording", "bg", 4.5],
   ["pill-replay", "bg", 4.5],
+  ["target-face", "target-bg", 1.2],
   ["target-ring", "target-face", 3],
   ["target-label", "target-face", 4.5],
   ["target-shot", "target-face", 3],
@@ -82,6 +83,13 @@ describe("theme tokens", () => {
       expect(contrast(fg ?? "", bg ?? "")).toBeGreaterThanOrEqual(minimum);
     });
   }
+
+  it("makes the target face lighter than its surround in both schemes", () => {
+    for (const tokens of [dark, light]) {
+      expect(luminance(tokens["target-face"]!)).toBeGreaterThan(luminance(tokens["target-bg"]!));
+    }
+    expect(contrast(dark["target-face"]!, dark.bg!)).toBeGreaterThanOrEqual(1.6);
+  });
 
   it("gives the light scheme its own value for every colour", () => {
     const colours = Object.keys(dark).filter((name) => dark[name]?.startsWith("#"));
