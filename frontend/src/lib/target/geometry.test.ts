@@ -66,3 +66,9 @@ it("bounds repeated wheel zoom and preserves in-range extents", () => {
   for (let i = 0; i < 1000; i++) extent = clampExtent(extent * wheelFactor(120));
   expect(extent).toBe(ZOOM_MAX_MM);
 });
+
+it("limits the manual view to 400 mm across while fitting the largest built-in face", () => {
+  expect(clampExtent(500)).toBe(200);
+  expect(extentFromRatio(1)).toBe(200);
+  expect(extentForRings([{ diameterMm: 205, label: "4" }])).toBeLessThan(ZOOM_MAX_MM);
+});

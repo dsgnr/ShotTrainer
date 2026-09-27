@@ -6,7 +6,7 @@ export const DEFAULT_EXTENT_MM = 90;
 
 /** Zoom range in mm, from fully zoomed in to fully zoomed out. */
 export const ZOOM_MIN_MM = 5;
-export const ZOOM_MAX_MM = 500;
+export const ZOOM_MAX_MM = 200;
 
 /** The visible extent that fits the largest ring with 15 % headroom. */
 export function extentForRings(rings: WireRing[]): number {

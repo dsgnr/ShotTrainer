@@ -27,9 +27,9 @@ it("invalidates the mounted canvas when the model changes without resizing", asy
   expect(context.mock.calls.length).toBeGreaterThan(beforeZoom);
   container.querySelector("canvas")!.dispatchEvent(new WheelEvent("wheel", { deltaY: -120, cancelable: true }));
   expect(onextent).toHaveBeenLastCalledWith(40.5);
-  model.setExtent(500);
+  model.setExtent(200);
   container.querySelector("canvas")!.dispatchEvent(new WheelEvent("wheel", { deltaY: 120, cancelable: true }));
-  expect(onextent).toHaveBeenLastCalledWith(500);
+  expect(onextent).toHaveBeenLastCalledWith(200);
   await unmount(component);
   const finalDraws = context.mock.calls.length;
   model.setExtent(10);
