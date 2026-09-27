@@ -2,6 +2,7 @@
 import { expect, it, vi } from "vitest";
 import { createRawSnippet, flushSync, mount, unmount } from "svelte";
 import AppShell from "./AppShell.svelte";
+import NavRail from "./NavRail.svelte";
 
 // @ts-expect-error Svelte exposes types for its public entry, not this internal file.
 vi.mock("svelte", () => import("../../node_modules/svelte/src/index-client.js"));
@@ -52,4 +53,26 @@ it("collapses and restores each pane while leaving navigation accessible", async
   expect(container.querySelector<HTMLElement>("#session-controls")!.hidden).toBe(true);
   await unmount(component);
   container.remove();
+});
+
+it("shows the app logo in navigation with only pane toggles in the header", async () => {
+  const content = createRawSnippet(() => ({ render: () => "<span>Content</span>" }));
+  const container = document.createElement("div");
+  const component = mount(AppShell, { target: container, props: {
+    status: content, nav: content,
+  } });
+  const nav = container.querySelector("nav")!;
+  const rail = mount(NavRail, { target: nav, props: {
+    onsessions: vi.fn(), onpreferences: vi.fn(), onpopout: vi.fn(), onsheet: vi.fn(),
+  } });
+  flushSync();
+  const logo = nav.querySelector<HTMLImageElement>('img[alt="ShotTrainer"]')!;
+  expect(logo.getAttribute("src")).toBe("/icon.svg");
+  expect(logo.closest('[aria-current="page"]')!.getAttribute("title")).toBe("Target");
+  const header = container.querySelector("header")!;
+  expect(header.querySelector("img")).toBeNull();
+  expect(header.textContent!.trim()).toBe("");
+  expect(header.querySelectorAll("button")).toHaveLength(2);
+  await unmount(rail);
+  await unmount(component);
 });

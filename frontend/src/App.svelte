@@ -1,5 +1,4 @@
 <script lang="ts">
-  import AppHeader from "./components/AppHeader.svelte";
   import AppShell from "./components/AppShell.svelte";
   import CameraPopout from "./components/CameraPopout.svelte";
   import SessionOverview from "./components/SessionOverview.svelte";
@@ -216,9 +215,6 @@
       onpopout={() => (popoutOpen = true)}
       onsheet={() => (sheetOpen = true)}
     />
-  {/snippet}
-  {#snippet header()}
-    <AppHeader />
   {/snippet}
   {#snippet shots()}
     <SessionOverview

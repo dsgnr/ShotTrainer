@@ -27,7 +27,8 @@ markers. Tight groups show the relevant inner rings rather than the whole
 face. All positioned shots, including outliers, remain visible during replay.
 Adding or removing a shot updates the framing.
 
-Use the left and right pane icons above the panes to collapse either side.
+The app logo sits at the top of the navigation rail. The header contains the
+pane controls. Use the left and right pane icons to collapse either side.
 Click an icon again to restore its pane. Hover over an icon for its **Hide shots**,
 **Show shots**, **Hide session** or **Show session** tooltip. The camera preview
 remains available through the camera control in the navigation rail.

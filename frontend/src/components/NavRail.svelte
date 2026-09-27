@@ -10,13 +10,8 @@
 </script>
 
 <div class="rail">
-  <!-- The target view is the home surface, so its icon marks the current place. -->
   <span class="item current" aria-current="page" title="Target">
-    <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">
-      <circle cx="12" cy="12" r="9" />
-      <circle cx="12" cy="12" r="5" />
-      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
-    </svg>
+    <img src="/icon.svg" alt="ShotTrainer" width="32" height="32" />
   </span>
 
   <button type="button" class="item" title="Sessions" aria-label="Sessions" onclick={onsessions}>

@@ -2,7 +2,7 @@
   import type { Snippet } from "svelte";
 
   interface Props {
-    header: Snippet;
+    header?: Snippet;
     status: Snippet;
     nav?: Snippet;
     shots?: Snippet;
@@ -22,7 +22,7 @@
     <nav class="nav" aria-label="Primary">{@render nav()}</nav>
   {/if}
   <header class="header">
-    {@render header()}
+    {@render header?.()}
     <div class="pane-controls">
       <button type="button" aria-expanded={!shotsCollapsed} aria-controls="session-shots"
         aria-label={shotsCollapsed ? "Show shots" : "Hide shots"}
