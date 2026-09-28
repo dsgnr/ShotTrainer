@@ -51,7 +51,8 @@
   }
 
   .popout {
-    width: min(80vw, 1024px);
+    width: min(1024px, calc(100vw - 32px), calc((100dvh - 112px) * 4 / 3));
+    max-height: calc(100dvh - 32px);
     display: flex;
     flex-direction: column;
     gap: 12px;
