@@ -50,6 +50,8 @@
         {/if}
       </header>
 
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+      <div class="sheet-body" role="region" aria-label="Shot results" tabindex="0">
       <table>
         <thead>
           <tr>
@@ -68,6 +70,7 @@
           {/each}
         </tbody>
       </table>
+      </div>
 
       <div class="actions">
         <button type="button" onclick={onclose}>Close</button>
@@ -89,15 +92,24 @@
 
   .sheet {
     width: min(520px, 92vw);
-    max-height: 90vh;
-    overflow: auto;
+    max-height: calc(100dvh - 32px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     padding: 20px 24px;
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: var(--radius);
   }
 
+  .sheet-body {
+    min-height: 0;
+    max-height: 352px;
+    overflow: auto;
+  }
+
   header {
+    flex: none;
     display: flex;
     align-items: baseline;
     justify-content: space-between;
@@ -119,10 +131,30 @@
   }
 
   th,
+  th {
+    position: sticky;
+    top: 0;
+    background: var(--panel);
+  }
+
+  tbody tr {
+    height: 32px;
+  }
+
   td {
     padding: 6px 8px;
     text-align: left;
     border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    position: sticky;
+    top: 0;
+    background: var(--panel);
+  }
+
+  tbody tr {
+    height: 32px;
   }
 
   td {
@@ -130,9 +162,25 @@
   }
 
   .actions {
+    flex: none;
     display: flex;
     justify-content: flex-end;
     gap: 8px;
     margin-top: 16px;
+  }
+  @media print {
+    .sheet,
+    .sheet-body {
+      max-height: none;
+      overflow: visible;
+    }
+
+    th {
+      position: static;
+    }
+
+    .actions {
+      display: none;
+    }
   }
 </style>
