@@ -62,6 +62,10 @@
   }
   h3 { margin: 0 0 var(--space-3); }
   .mini-target {
+    --target-bg: var(--panel);
+    --target-face: var(--panel);
+    --target-ring: var(--text-muted);
+    --target-label: var(--text-dim);
     position: relative;
     display: flex;
     aspect-ratio: 1;

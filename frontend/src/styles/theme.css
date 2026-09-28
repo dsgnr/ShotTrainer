@@ -74,7 +74,7 @@
 
   /* Target rendering. */
   --target-bg: #0d0f12;
-  --target-face: #303943;
+  --target-face: #252d36;
   --target-ring: #9aa7b7;
   --target-label: #c6cdd8;
   --target-crosshair: #2b3340;
@@ -120,8 +120,8 @@
     --data-mid: #3a434f;
     --data-low: #5f6672;
 
-    --target-bg: #e4e8ed;
-    --target-face: #ffffff;
+    --target-bg: #dfe4ea;
+    --target-face: #f8f9fb;
     --target-ring: #6b7684;
     --target-label: #4f5966;
     --target-crosshair: #c3c9d1;

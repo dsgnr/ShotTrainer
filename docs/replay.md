@@ -7,7 +7,7 @@ description: "Replay your aim trace before, during and after each shot in ShotTr
 
 Select a shot in the shot list, or open a saved session and select one of its
 shots. The target displays the saved trace window, its phase boundaries and hold
-zone when those data are available. The lighter target face separates its rings
+zone when those data are available. The subdued target face separates its rings
 and trace from the surrounding controls. Ring labels sit in the centre of each
 scoring band, with the innermost label at the target centre.
 
@@ -20,8 +20,8 @@ Use **Space** to play or pause an enabled replay and **Up** or **Down** to
 select adjacent shots when focus is outside an input or dialog. See
 [shortcuts](shortcuts.md).
 
-The left pane shows all session shot positions on a compact target above a
-scrollable shot list with scores and offsets. Select a numbered marker or list
+The left pane shows all session shot positions on a compact target that blends
+into the pane background, above a scrollable shot list with scores and offsets. Select a numbered marker or list
 row to highlight the shot and load its replay. Arrow keys move focus and the
 selection together. Shots without positions remain
 in the list. The overview centres on the median horizontal and vertical shot

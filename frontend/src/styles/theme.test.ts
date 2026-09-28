@@ -88,7 +88,7 @@ describe("theme tokens", () => {
     for (const tokens of [dark, light]) {
       expect(luminance(tokens["target-face"]!)).toBeGreaterThan(luminance(tokens["target-bg"]!));
     }
-    expect(contrast(dark["target-face"]!, dark.bg!)).toBeGreaterThanOrEqual(1.6);
+    expect(contrast(dark["target-face"]!, dark.bg!)).toBeGreaterThanOrEqual(1.35);
   });
 
   it("gives the light scheme its own value for every colour", () => {
