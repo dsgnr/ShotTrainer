@@ -236,3 +236,20 @@ it.each([50, 100])("centres readable labels within scoring bands at extent %d", 
   }
   expect(rings).toEqual(original);
 });
+
+ it("scales thin trace strokes with zoom and caps extreme widths", () => {
+  const widths = [200, 100, 50, 5].map((extent) => {
+    const model = new TargetModel();
+    model.setExtent(extent);
+    model.setTrace([[0, 0], [1, 1], [2, 2], [3, 3]]);
+    model.setTraceSegments(1, 2);
+    const { ctx, calls } = fakeContext();
+    drawTarget(ctx, 416, 416, model, RINGS, COLOURS);
+    const phases = strokes(calls).filter((call) =>
+      [COLOURS.approach, COLOURS.release, COLOURS.follow].includes(call.strokeStyle as string));
+    expect(phases).toHaveLength(3);
+    expect(new Set(phases.map((call) => call.lineWidth)).size).toBe(1);
+    return phases[0]!.lineWidth;
+  });
+  expect(widths).toEqual([0.5, 0.8, 1.6, 3]);
+});

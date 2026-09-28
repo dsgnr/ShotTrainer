@@ -13,7 +13,8 @@ scoring band, with the innermost label at the target centre.
 
 The controls below the target reset to the beginning, play or pause, and seek
 through the shot window. The time label shows progress within that window.
-Replay controls are disabled when no usable replay is loaded. The mouse wheel
+Trace lines become thinner as you zoom out, with bounded widths at extreme
+scales. Replay controls are disabled when no usable replay is loaded. The mouse wheel
 and zoom controls adjust the target view.
 
 Use **Space** to play or pause an enabled replay and **Up** or **Down** to

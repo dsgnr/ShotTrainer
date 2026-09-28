@@ -185,12 +185,12 @@ function drawShots(
   });
 }
 
-function strokePolyline(ctx: CanvasRenderingContext2D, points: TracePoint[], colour: string): void {
+function strokePolyline(ctx: CanvasRenderingContext2D, points: TracePoint[], colour: string, width: number): void {
   if (points.length === 0) {
     return;
   }
   ctx.strokeStyle = colour;
-  ctx.lineWidth = 8;
+  ctx.lineWidth = width;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.beginPath();
@@ -225,9 +225,10 @@ function drawTrace(
     const last = a.at(-1);
     return last !== undefined && b.length > 0 ? [last, ...b] : b;
   };
-  strokePolyline(ctx, approach, colours.approach);
-  strokePolyline(ctx, bridge(approach, release), colours.release);
-  strokePolyline(ctx, bridge(release.length > 0 ? release : approach, follow), colours.follow);
+  const width = Math.max(0.5, Math.min(3, scale * 0.4));
+  strokePolyline(ctx, approach, colours.approach, width);
+  strokePolyline(ctx, bridge(approach, release), colours.release, width);
+  strokePolyline(ctx, bridge(release.length > 0 ? release : approach, follow), colours.follow, width);
 }
 
 function drawLiveAim(
