@@ -2,7 +2,7 @@
   import Dropdown from "./Dropdown.svelte";
   import { focusTrap } from "../lib/app/focus-trap";
   import type { CommandSender } from "../lib/app/commands";
-  import { primaryLabel, secondaryDisabled } from "../lib/app/session-controls";
+  import { primaryLabel } from "../lib/app/session-controls";
   import {
     DEFAULT_SESSION_CATEGORY,
     SESSION_CATEGORIES,
@@ -24,7 +24,6 @@
 
   const recording = $derived(session.kind === "recording");
   const label = $derived(primaryLabel(session));
-  const locked = $derived(secondaryDisabled(session));
 
   function onPrimary(): void {
     if (recording) {
@@ -40,19 +39,12 @@
     void send({ type: "startSession", name: name.trim(), category });
   }
 
-  function onClear(): void {
-    void send({ type: "clearShots" });
-  }
 </script>
 
 <div class="session">
   <button type="button" class="primary" data-variant={recording ? "stop" : ""} onclick={onPrimary}>
     {label}
   </button>
-
-  {#if !locked}
-    <button type="button" class="clear" onclick={onClear}>Clear shots</button>
-  {/if}
 
   <p class="summary">{summary || "Not recording"}</p>
 </div>

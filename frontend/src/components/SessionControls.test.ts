@@ -14,7 +14,7 @@ it("asks for a name only when starting and submits the trimmed name and category
     target: container, props: { session: { kind: "idle" }, summary: "", send },
   });
   flushSync();
-  expect(container.querySelector(".clear")).not.toBeNull();
+  expect(container.querySelector(".clear")).toBeNull();
   expect(container.querySelector("input")).toBeNull();
   expect(container.querySelector("select")).toBeNull();
   container.querySelector<HTMLButtonElement>(".session .primary")!.click();
@@ -44,7 +44,7 @@ it("cancels the name dialog with Cancel or Escape without starting", async () =>
     target: container, props: { session: { kind: "reviewing", sessionId: 1 }, summary: "", send },
   });
   flushSync();
-  expect(container.querySelector(".clear")).not.toBeNull();
+  expect(container.querySelector(".clear")).toBeNull();
   for (const action of ["cancel", "escape"]) {
     container.querySelector<HTMLButtonElement>(".session .primary")!.click();
     flushSync();
