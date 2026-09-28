@@ -12,6 +12,7 @@
   let { shots, selected, send }: Props = $props();
 
   let list = $state<HTMLUListElement>();
+  let keyboardNavigation = $state(false);
 
   const rows = $derived(shotRows(shots));
 
@@ -19,6 +20,9 @@
     if (selected !== null && list) {
       const row = list.children[selected] as HTMLElement | undefined;
       row?.scrollIntoView?.({ block: "nearest" });
+      if (row && list.contains(document.activeElement)) {
+        row.focus({ preventScroll: true });
+      }
     }
   });
 
@@ -29,6 +33,7 @@
   function onRowKeydown(event: KeyboardEvent, index: number): void {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
+      event.stopPropagation();
       select(index);
     }
   }
@@ -38,10 +43,13 @@
       const next = stepSelection(selected, event.key === "ArrowDown" ? 1 : -1, shots.length);
       if (next !== null) {
         event.preventDefault();
+        event.stopPropagation();
+        keyboardNavigation = true;
         select(next);
       }
     } else if ((event.key === "Delete" || event.key === "Backspace") && selected !== null) {
       event.preventDefault();
+      event.stopPropagation();
       void send({ type: "deleteShot", index: selected });
     }
   }
@@ -64,10 +72,11 @@
       <span class="right">Offset</span>
     </div>
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <ul bind:this={list} class="shots" role="listbox" aria-label="Shots" tabindex="0" onkeydown={onKeydown}>
+    <ul bind:this={list} class="shots" class:keyboard-navigation={keyboardNavigation} role="listbox" aria-label="Shots" tabindex="-1" onkeydown={onKeydown} onpointermove={() => keyboardNavigation = false}>
       {#each rows as row, i (i)}
         <li
           role="option"
+          tabindex={i === (selected ?? 0) ? 0 : -1}
           aria-selected={i === selected}
           class:selected={i === selected}
           onclick={() => select(i)}
@@ -150,8 +159,7 @@
   }
 
   .shots:focus-visible {
-    outline: 2px solid var(--focus);
-    outline-offset: -2px;
+    outline: none;
   }
 
   li {
@@ -161,7 +169,7 @@
     transition: background-color 100ms ease-out;
   }
 
-  li:hover {
+  .shots:not(.keyboard-navigation) li:hover:not(.selected) {
     background: var(--surface-hover);
   }
 
@@ -169,7 +177,6 @@
     background: var(--panel-raised);
   }
 
-  /* A thin accent edge marks the selected row without recolouring it. */
   li.selected::before {
     content: "";
     position: absolute;
