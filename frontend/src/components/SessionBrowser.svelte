@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import Dropdown from "./Dropdown.svelte";
   import type { CommandSender } from "../lib/app/commands";
   import { filterSessions, scoreBadge, sessionMeta } from "../lib/sessions/rows";
@@ -23,7 +24,7 @@
   // Ask the controller to refresh the list each time the browser opens.
   $effect(() => {
     if (open) {
-      void send({ type: "listSessions" });
+      untrack(() => { void send({ type: "listSessions" }); });
     }
   });
 

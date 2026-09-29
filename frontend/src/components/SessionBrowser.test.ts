@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
+import { AppState } from "../lib/stores/app.svelte";
 import SessionBrowser from "./SessionBrowser.svelte";
 
 // @ts-expect-error Svelte exposes types for its public entry, not this internal file.
@@ -23,4 +24,21 @@ it("offers a new session on the page and disables it during recording", async ()
     expect(onnew).toHaveBeenCalledTimes(recording ? 0 : 1);
     await unmount(component);
   }
+});
+
+it("requests sessions once when the response updates reactive state", async () => {
+  const state = new AppState();
+  const target = document.createElement("div");
+  const send = vi.fn(async () => {
+    state.dispatch({ type: "sessions", sessions: [] });
+  });
+  const component = mount(SessionBrowser, { target, props: {
+    open: true, get sessions() { return state.session.sessions; },
+    send, onnew: vi.fn(), onopen: vi.fn(),
+  } });
+  flushSync();
+  state.dispatch({ type: "sessions", sessions: [] });
+  flushSync();
+  expect(send).toHaveBeenCalledOnce();
+  await unmount(component);
 });
