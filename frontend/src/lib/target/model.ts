@@ -150,7 +150,7 @@ export class TargetModel {
       return true;
     }
     if (this.#playhead === null) {
-      return false;
+      return true;
     }
     return this.#playhead >= this.#shotIndex;
   }

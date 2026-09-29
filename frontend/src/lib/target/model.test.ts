@@ -136,3 +136,18 @@ it("notifies redraw subscribers and fully clears replay decoration", () => {
   model.setExtent(10);
   expect(redraws).toBe(5);
 });
+
+it("previews the complete saved shot before playback starts", () => {
+  const model = new TargetModel();
+  model.setTrace([[0, 0], [1, 1], [2, 2], [3, 3]]);
+  model.setTraceSegments(1, 2);
+  expect(model.visibleTrace()).toEqual({
+    approach: [[0, 0], [1, 1]], release: [[2, 2]], follow: [[3, 3]],
+  });
+  expect(model.playheadReachedShot()).toBe(true);
+  model.setPlayhead(0);
+  expect(model.playheadReachedShot()).toBe(false);
+  expect(model.visibleTrace().follow).toEqual([]);
+  model.setPlayhead(2);
+  expect(model.playheadReachedShot()).toBe(true);
+});

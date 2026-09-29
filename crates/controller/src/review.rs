@@ -177,13 +177,23 @@ impl SessionManager {
             enabled: !samples.is_empty(),
         }));
         let events = self.player.load(samples);
-        emit_player(cx, events);
+        // Keep the full trace preview until playback or seeking starts.
+        emit_player(
+            cx,
+            events
+                .into_iter()
+                .filter(|event| !matches!(event, PlayerEvent::Index(_)))
+                .collect(),
+        );
         (cx.emit)(UiEvent::HoldTrace(Some(hold_trace(pre_points))));
     }
 
     pub fn replay_play(&mut self, cx: &SessionContext, now: f64) {
         let events = self.player.play(now);
         emit_player(cx, events);
+        if self.player.is_playing() {
+            (cx.emit)(UiEvent::Player(PlayerEvent::Index(self.player.index())));
+        }
         (cx.emit)(UiEvent::ReplayPlaying(self.player.is_playing()));
     }
 
@@ -399,6 +409,11 @@ mod tests {
             })
         );
         assert_eq!(mgr.player().len(), 4);
+        assert!(
+            !events
+                .iter()
+                .any(|event| matches!(event, UiEvent::Player(PlayerEvent::Index(_))))
+        );
         assert_eq!(
             events.last(),
             Some(&UiEvent::HoldTrace(Some(hold_trace(vec![
@@ -505,7 +520,9 @@ mod tests {
         rig.take();
         rig.run(|cx| mgr.replay_play(cx, 100.0));
         assert!(mgr.player().is_playing());
-        assert_eq!(rig.take().last(), Some(&UiEvent::ReplayPlaying(true)));
+        let events = rig.take();
+        assert!(events.contains(&UiEvent::Player(PlayerEvent::Index(0))));
+        assert_eq!(events.last(), Some(&UiEvent::ReplayPlaying(true)));
         rig.run(|cx| mgr.replay_pause(cx));
         assert!(!mgr.player().is_playing());
         rig.run(|cx| mgr.replay_seek(cx, 1.0, 100.0));

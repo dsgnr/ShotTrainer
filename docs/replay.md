@@ -11,6 +11,9 @@ zone when those data are available. The subdued target face separates its rings
 and trace from the surrounding controls. Ring labels sit in the centre of each
 scoring band, with the innermost label at the target centre.
 
+Selecting a saved shot displays its full trace before playback starts.
+Playing, resetting or seeking switches to the trace at the playback position.
+
 The controls below the target reset to the beginning, play or pause, and seek
 through the shot window. The time label shows progress within that window.
 Trace lines become thinner as you zoom out, with bounded widths at extreme
