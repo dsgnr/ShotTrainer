@@ -119,6 +119,15 @@ export class MockBridge implements Bridge {
 
   async send(command: WireCommand): Promise<void> {
     switch (command.type) {
+      case "newSession":
+        if (this.#session.kind === "recording") break;
+        this.#session = { kind: "idle" };
+        this.#summary = "Ready to start a new session";
+        this.#shots = [];
+        this.#emit({ type: "replayCleared" });
+        this.#emitSession();
+        this.#emitShots();
+        break;
       case "refresh":
         this.#sendState();
         break;

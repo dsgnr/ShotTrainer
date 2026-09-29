@@ -33,6 +33,7 @@ impl From<WireImageControl> for ImageControl {
     deny_unknown_fields
 )]
 pub enum WireCommand {
+    NewSession,
     StartSession {
         name: String,
         category: String,
@@ -109,6 +110,7 @@ pub enum WireCommand {
 impl From<WireCommand> for Command {
     fn from(command: WireCommand) -> Self {
         match command {
+            WireCommand::NewSession => Command::NewSession,
             WireCommand::StartSession { name, category } => {
                 Command::StartSession { name, category }
             }

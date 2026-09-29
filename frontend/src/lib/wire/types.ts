@@ -198,6 +198,7 @@ export type WireImageControl = "brightness" | "contrast";
  * negative indices and a missing field.
  */
 export type WireCommand =
+  | { type: "newSession" }
   | { type: "startSession"; name: string; category: string }
   | { type: "stopSession" }
   | { type: "clearShots" }

@@ -208,7 +208,9 @@
 </script>
 
 {#snippet sessionsPage()}
-  <SessionBrowser open={page === "sessions"} sessions={app.session.sessions} {send} onopen={() => page = "target"} />
+  <SessionBrowser open={page === "sessions"} sessions={app.session.sessions} {send} onopen={() => page = "target"}
+    recording={app.session.state.kind === "recording"}
+    onnew={() => { void send({ type: "newSession" }); page = "target"; }} />
 {/snippet}
 <AppShell page={page === "sessions" ? sessionsPage : undefined}>
   {#snippet nav()}

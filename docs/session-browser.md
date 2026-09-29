@@ -22,3 +22,6 @@ Exporting again to the same folder replaces files for that session.
 
 The navigation rail highlights the current page. Select the app logo to return
 to the target, or open a saved session to review it there.
+
+Select **New session** to return to an empty target ready to configure and
+start recording. Stop an active recording before creating another session.

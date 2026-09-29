@@ -33,6 +33,7 @@ use crate::watcher::SettingsWatcher;
 /// end has asked the user to confirm.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
+    NewSession,
     StartSession {
         name: String,
         category: String,
@@ -280,6 +281,7 @@ impl Controller {
     fn handle_command(&mut self, command: Command) {
         let now = (self.clock)();
         match command {
+            Command::NewSession => self.with_session(|s, cx| s.prepare(cx)),
             Command::StartSession { name, category } => {
                 let category = if SESSION_CATEGORIES.contains(&category.as_str()) {
                     category

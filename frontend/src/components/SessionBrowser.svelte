@@ -10,9 +10,11 @@
     sessions: WireSessionSummary[];
     send: CommandSender;
     onopen: () => void;
+    onnew: () => void;
+    recording?: boolean;
   }
 
-  let { open, sessions, send, onopen }: Props = $props();
+  let { open, sessions, send, onopen, onnew, recording = false }: Props = $props();
 
   let query = $state("");
   let categoryFilter = $state("");
@@ -78,7 +80,7 @@
 
 {#if open}
   <section class="sessions-page" aria-label="Sessions">
-      <h2>Sessions</h2>
+      <header><h2>Sessions</h2><button type="button" class="primary" disabled={recording} onclick={onnew}>New session</button></header>
 
       <div class="filters">
         <input type="search" placeholder="Search session names..." bind:value={query} />
@@ -133,6 +135,8 @@
   .actions { flex-wrap: wrap; flex: none; }
   .filters { flex-wrap: wrap; flex: none; }
   .list { min-height: 0; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 
   h2 {
     margin: 0;

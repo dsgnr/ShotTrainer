@@ -139,6 +139,7 @@ export const SAMPLE_EVENTS: { [T in WireEventType]: EventOf<T> } = {
 export const SAMPLE_COMMANDS: {
   [T in WireCommand["type"]]: Extract<WireCommand, { type: T }>;
 } = {
+  newSession: { type: "newSession" },
   startSession: { type: "startSession", name: "Morning", category: "match" },
   stopSession: { type: "stopSession" },
   clearShots: { type: "clearShots" },

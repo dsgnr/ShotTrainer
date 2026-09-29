@@ -103,6 +103,25 @@ impl SessionManager {
             .update_settings(coordinator_settings(prefs));
     }
 
+    pub fn prepare(&mut self, cx: &SessionContext) {
+        if self.is_recording() {
+            cx.message(StatusMessage::info(
+                "Stop recording before creating a session",
+                4000,
+            ));
+            return;
+        }
+        self.reviewing = None;
+        self.shots.clear();
+        self.buffer.clear();
+        self.clear_replay(cx);
+        self.render(cx);
+        (cx.emit)(UiEvent::Session {
+            state: SessionState::Idle,
+            summary: "Ready to start a new session".into(),
+        });
+    }
+
     /// Opens a new recording and clears the display. Ignored while recording.
     pub fn start(&mut self, cx: &SessionContext, name: &str, category: &str, app_version: &str) {
         if self.recorder.is_recording() {
@@ -795,5 +814,19 @@ pub(crate) mod tests {
         });
         let sid = rig.repo().list_sessions().unwrap()[0].id;
         assert_eq!(rig.repo().trace_count(sid).unwrap(), 1);
+    }
+    #[test]
+    fn preparing_a_session_leaves_review_and_preserves_saved_sessions() {
+        let rig = Rig::new();
+        let mut mgr = SessionManager::new(&rig.prefs);
+        mgr.reviewing = Some(7);
+        mgr.shots.push(entry(1.0, Some(1.0), Some(2.0)));
+        rig.run(|cx| mgr.prepare(cx));
+        assert_eq!(mgr.reviewing(), None);
+        assert!(mgr.shots().is_empty());
+        assert_eq!(sessions(&rig.take()).last().unwrap().0, SessionState::Idle);
+        rig.run(|cx| mgr.start(cx, "Live", "practice", "test"));
+        rig.run(|cx| mgr.prepare(cx));
+        assert!(mgr.is_recording());
     }
 }
