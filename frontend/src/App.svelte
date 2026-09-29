@@ -141,15 +141,14 @@
   });
 
   let preferencesOpen = $state(false);
-  let sessionsOpen = $state(false);
+  let page = $state<"target" | "sessions">("target");
   let popoutOpen = $state(false);
   let sheetOpen = $state(false);
 
-  const anyModalOpen = $derived(preferencesOpen || sessionsOpen || popoutOpen || sheetOpen);
+  const anyModalOpen = $derived(preferencesOpen || popoutOpen || sheetOpen);
 
   function closeModals(): void {
     preferencesOpen = false;
-    sessionsOpen = false;
     popoutOpen = false;
     sheetOpen = false;
   }
@@ -180,6 +179,7 @@
       case "closeModal":
         closeModals();
         break;
+    if (page !== "target" && !anyModalOpen) return;
       case "replayToggle":
         void send({ type: action.play ? "replayPlay" : "replayPause" });
         break;
@@ -207,10 +207,15 @@
   }
 </script>
 
-<AppShell>
+{#snippet sessionsPage()}
+  <SessionBrowser open={page === "sessions"} sessions={app.session.sessions} {send} onopen={() => page = "target"} />
+{/snippet}
+<AppShell page={page === "sessions" ? sessionsPage : undefined}>
   {#snippet nav()}
     <NavRail
-      onsessions={() => (sessionsOpen = true)}
+      {page}
+      ontarget={() => page = "target"}
+      onsessions={() => (page = "sessions")}
       onpreferences={() => (preferencesOpen = true)}
       onpopout={() => (popoutOpen = true)}
       onsheet={() => (sheetOpen = true)}
@@ -286,12 +291,6 @@
   faces={app.preferences.faces}
   {send}
   onclose={() => (preferencesOpen = false)}
-/>
-<SessionBrowser
-  open={sessionsOpen}
-  sessions={app.session.sessions}
-  {send}
-  onclose={() => (sessionsOpen = false)}
 />
 <CameraPopout
   open={popoutOpen}

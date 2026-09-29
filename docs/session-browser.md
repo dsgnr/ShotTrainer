@@ -4,7 +4,7 @@ description: "Browse saved ShotTrainer sessions, review shots and aim traces, ex
 
 # Session browser
 
-Open **Sessions** from the navigation rail. Search by session name or filter by
+Open the **Sessions** page from the navigation rail. Search by session name or filter by
 category, then select a session.
 
 - **Open** loads the session for review. Double-clicking also opens it.
@@ -19,3 +19,6 @@ folder, creating it if necessary. Shot rows contain index, timestamp,
 coordinates in millimetres, audio level, confidence and score. Trace rows
 contain timestamp, pixel and millimetre coordinates, confidence and frame ID.
 Exporting again to the same folder replaces files for that session.
+
+The navigation rail highlights the current page. Select the app logo to return
+to the target, or open a saved session to review it there.

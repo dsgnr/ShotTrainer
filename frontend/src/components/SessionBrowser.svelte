@@ -1,7 +1,6 @@
 <script lang="ts">
   import Dropdown from "./Dropdown.svelte";
   import type { CommandSender } from "../lib/app/commands";
-  import { focusTrap } from "../lib/app/focus-trap";
   import { filterSessions, scoreBadge, sessionMeta } from "../lib/sessions/rows";
   import { SESSION_CATEGORIES, categoryLabel } from "../lib/wire/categories";
   import type { WireSessionSummary } from "../lib/wire/types";
@@ -10,10 +9,10 @@
     open: boolean;
     sessions: WireSessionSummary[];
     send: CommandSender;
-    onclose: () => void;
+    onopen: () => void;
   }
 
-  let { open, sessions, send, onclose }: Props = $props();
+  let { open, sessions, send, onopen }: Props = $props();
 
   let query = $state("");
   let categoryFilter = $state("");
@@ -32,7 +31,7 @@
   function openSession(): void {
     if (selected !== null) {
       void send({ type: "openSession", id: selected });
-      onclose();
+      onopen();
     }
   }
 
@@ -78,23 +77,7 @@
 </script>
 
 {#if open}
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-  <div
-    class="backdrop"
-    role="presentation"
-    onclick={onclose}
-    onkeydown={(event) => event.key === "Escape" && onclose()}
-  >
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div
-      class="dialog"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Sessions"
-      tabindex="-1"
-      use:focusTrap
-      onclick={(event) => event.stopPropagation()}
-    >
+  <section class="sessions-page" aria-label="Sessions">
       <h2>Sessions</h2>
 
       <div class="filters">
@@ -112,6 +95,7 @@
           {#each matches as session (session.id)}
             <li
               role="option"
+              tabindex="0"
               aria-selected={session.id === selected}
               class:selected={session.id === selected}
               onclick={() => (selected = session.id)}
@@ -136,34 +120,19 @@
         <button type="button" disabled={selected === null} onclick={setCategory}>Category...</button>
         <button type="button" disabled={selected === null} onclick={remove}>Delete</button>
         <button type="button" disabled={selected === null} onclick={exportSession}>Export CSV...</button>
-        <span class="spacer"></span>
-        <button type="button" onclick={onclose}>Close</button>
       </div>
-    </div>
-  </div>
+  </section>
 {/if}
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 10;
+  .sessions-page {
+    width: 100%; min-width: 0; min-height: 0;
+    display: flex; flex-direction: column; gap: 16px;
+    padding: clamp(16px, 4vw, 48px);
   }
-
-  .dialog {
-    width: min(600px, 92vw);
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 20px 24px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
+  .actions { flex-wrap: wrap; flex: none; }
+  .filters { flex-wrap: wrap; flex: none; }
+  .list { min-height: 0; }
 
   h2 {
     margin: 0;
@@ -238,7 +207,4 @@
     gap: 8px;
   }
 
-  .spacer {
-    flex: 1;
-  }
 </style>

@@ -68,11 +68,37 @@ it("shows the app logo in navigation with only pane toggles in the header", asyn
   flushSync();
   const logo = nav.querySelector<HTMLImageElement>('img[alt="ShotTrainer"]')!;
   expect(logo.getAttribute("src")).toBe("/icon.svg");
-  expect(logo.closest('[aria-current="page"]')!.getAttribute("title")).toBe("Target");
+  expect(logo.closest("button, a")).toBeNull();
+  expect(nav.querySelector('button[aria-label="Target"] svg')).not.toBeNull();
   const header = container.querySelector("header")!;
   expect(header.querySelector("img")).toBeNull();
   expect(header.textContent!.trim()).toBe("");
   expect(header.querySelectorAll("button")).toHaveLength(2);
   await unmount(rail);
+  await unmount(component);
+});
+
+it("uses the whole content area for a page without target pane controls", async () => {
+  const content = createRawSnippet(() => ({ render: () => "<h1>Sessions</h1>" }));
+  const container = document.createElement("div");
+  const component = mount(AppShell, { target: container, props: { status: content, page: content } });
+  flushSync();
+  expect(container.querySelector("main h1")?.textContent).toBe("Sessions");
+  expect(container.querySelector("aside")).toBeNull();
+  expect(container.querySelector("header")).toBeNull();
+  await unmount(component);
+});
+
+it("marks only the selected navigation page as current", async () => {
+  const target = document.createElement("div");
+  const ontarget = vi.fn();
+  const component = mount(NavRail, { target, props: {
+    page: "sessions", ontarget, onsessions: vi.fn(), onpreferences: vi.fn(), onpopout: vi.fn(), onsheet: vi.fn(),
+  } });
+  flushSync();
+  expect(target.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+  expect(target.querySelector('[aria-current="page"]')?.getAttribute("aria-label")).toBe("Sessions");
+  target.querySelector<HTMLButtonElement>('[aria-label="Target"]')!.click();
+  expect(ontarget).toHaveBeenCalledOnce();
   await unmount(component);
 });

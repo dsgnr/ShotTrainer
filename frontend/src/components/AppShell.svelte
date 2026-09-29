@@ -2,6 +2,7 @@
   import type { Snippet } from "svelte";
 
   interface Props {
+    page?: Snippet;
     header?: Snippet;
     status: Snippet;
     nav?: Snippet;
@@ -10,17 +11,20 @@
     side?: Snippet;
   }
 
-  let { header, status, nav, shots, target, side }: Props = $props();
+  let { page, header, status, nav, shots, target, side }: Props = $props();
   let shotsCollapsed = $state(false);
   let sessionCollapsed = $state(false);
 </script>
 
-<div class="shell" class:shots-collapsed={shotsCollapsed} class:session-collapsed={sessionCollapsed}
+<div class="shell" class:page-layout={!!page} class:shots-collapsed={shotsCollapsed} class:session-collapsed={sessionCollapsed}
   style:--shots-width={shotsCollapsed ? "0px" : "280px"}
   style:--session-width={sessionCollapsed ? "0px" : "300px"}>
   {#if nav}
     <nav class="nav" aria-label="Primary">{@render nav()}</nav>
   {/if}
+  {#if page}
+    <main class="page">{@render page()}</main>
+  {:else}
   <header class="header">
     {@render header?.()}
     <div class="pane-controls">
@@ -49,6 +53,7 @@
   <aside id="session-shots" class="shots" hidden={shotsCollapsed} aria-label="Session shots">{@render shots?.()}</aside>
   <main class="target">{@render target?.()}</main>
   <aside id="session-controls" class="side" hidden={sessionCollapsed} aria-label="Session">{@render side?.()}</aside>
+  {/if}
   <footer class="status">{@render status()}</footer>
 </div>
 
@@ -207,6 +212,13 @@
     .shots { flex-direction: row; padding: var(--space-2); gap: var(--space-2); }
     .shots :global(.overview) { width: 100px; }
   }
+
+  .shell.page-layout {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas: "nav page" "nav status";
+  }
+  .page { grid-area: page; min-width: 0; min-height: 0; display: flex; }
 
   @media (prefers-reduced-motion: reduce) {
     .shell { transition: none; }

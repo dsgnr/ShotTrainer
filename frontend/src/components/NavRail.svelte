@@ -1,20 +1,25 @@
 <script lang="ts">
   interface Props {
+    page?: "target" | "sessions";
+    ontarget?: () => void;
     onsessions: () => void;
     onpreferences: () => void;
     onpopout: () => void;
     onsheet: () => void;
   }
 
-  let { onsessions, onpreferences, onpopout, onsheet }: Props = $props();
+  let { page = "target", ontarget, onsessions, onpreferences, onpopout, onsheet }: Props = $props();
 </script>
 
 <div class="rail">
-  <span class="item current" aria-current="page" title="Target">
-    <img src="/icon.svg" alt="ShotTrainer" width="32" height="32" />
-  </span>
+  <span class="item"><img src="/icon.svg" alt="ShotTrainer" width="32" height="32" /></span>
+  <button type="button" class="item" class:current={page === "target"} aria-current={page === "target" ? "page" : undefined} title="Target" aria-label="Target" onclick={ontarget}>
+    <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">
+      <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" />
+    </svg>
+  </button>
 
-  <button type="button" class="item" title="Sessions" aria-label="Sessions" onclick={onsessions}>
+  <button type="button" class="item" class:current={page === "sessions"} aria-current={page === "sessions" ? "page" : undefined} title="Sessions" aria-label="Sessions" onclick={onsessions}>
     <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">
       <rect x="4" y="4" width="16" height="4" rx="1" />
       <rect x="4" y="10" width="16" height="4" rx="1" />
@@ -82,6 +87,8 @@
 
   .item.current {
     color: var(--accent-strong);
+    background: var(--panel-raised);
+    box-shadow: inset 3px 0 var(--accent-strong);
   }
 
   svg {
