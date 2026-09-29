@@ -22,12 +22,12 @@ it("preserves a draft across detector updates and saves optimised image controls
   });
   flushSync();
   expect(send).toHaveBeenCalledWith({ type: "beginPreview", cameraId: app.preferences.prefs!.cameraId });
-  const timing = container.querySelector<HTMLInputElement>('input[type="number"]')!;
-  timing.value = "1234";
-  timing.dispatchEvent(new Event("input", { bubbles: true }));
+  const brightness = container.querySelector<HTMLInputElement>('input[type="range"]')!;
+  brightness.value = "23";
+  brightness.dispatchEvent(new Event("input", { bubbles: true }));
   app.dispatch(SAMPLE_EVENTS.detectorStatus);
   flushSync();
-  expect(timing.value).toBe("1234");
+  expect(brightness.value).toBe("23");
   expect(send.mock.calls.filter(([command]) => command.type === "beginPreview")).toHaveLength(1);
   app.dispatch(SAMPLE_EVENTS.imageControls);
   flushSync();
@@ -38,13 +38,13 @@ it("preserves a draft across detector updates and saves optimised image controls
   save.click();
   expect(send).toHaveBeenCalledWith(expect.objectContaining({
     type: "setPreferences",
-    prefs: expect.objectContaining({ cameraBrightness: 12, cameraContrast: 1.5, shotRefractoryMs: 1234 }),
+    prefs: expect.objectContaining({ cameraBrightness: 12, cameraContrast: 1.5 }),
   }));
   await unmount(component);
   container.remove();
 });
 
-it("uses themed device and face choices while preserving preview and saved values", async () => {
+it("uses themed device choices while preserving preview and saved values", async () => {
   const app = new AppState();
   app.dispatch(SAMPLE_EVENTS.preferences);
   const send = vi.fn(async (_command: WireCommand) => undefined);
@@ -72,16 +72,10 @@ it("uses themed device and face choices while preserving preview and saved value
   choose("Rotation", "90°");
   expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: "previewTransform", rotationDegrees: 90 }));
   choose("Microphone", "USB microphone");
-  choose("Target face", "Test target");
-  container.querySelector<HTMLButtonElement>('[aria-label="Target face"][aria-haspopup="menu"]')!.click();
-  flushSync();
-  container.querySelector('[role="menu"]')!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
-  flushSync();
-  expect(onclose).not.toHaveBeenCalled();
-  expect(container.querySelector('[role="menu"]')).toBeNull();
+  expect(container.querySelector('[aria-label="Target face"]')).toBeNull();
   [...container.querySelectorAll("button")].find((button) => button.textContent === "Save")!.click();
   expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: "setPreferences",
-    prefs: expect.objectContaining({ cameraId: null, cameraRotation: 90, audioDevice: "USB microphone", targetFace: "test" }),
+    prefs: expect.objectContaining({ cameraId: null, cameraRotation: 90, audioDevice: "USB microphone" }),
   }));
   await unmount(component);
   container.remove();

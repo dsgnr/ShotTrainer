@@ -215,6 +215,7 @@ export type WireCommand =
   | { type: "replayPause" }
   | { type: "replayReset" }
   | { type: "replaySeek"; fraction: number }
+  | { type: "setSessionSettings"; prefs: WirePreferences }
   | { type: "setPreferences"; prefs: WirePreferences }
   | { type: "setCircleDiameter"; diameterMm: number }
   | { type: "zeroOnAim" }

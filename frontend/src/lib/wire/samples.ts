@@ -156,6 +156,7 @@ export const SAMPLE_COMMANDS: {
   replayPause: { type: "replayPause" },
   replayReset: { type: "replayReset" },
   replaySeek: { type: "replaySeek", fraction: 0.25 },
+  setSessionSettings: { type: "setSessionSettings", prefs: SAMPLE_EVENTS.preferences.prefs },
   setPreferences: { type: "setPreferences", prefs: SAMPLE_PREFERENCES },
   setCircleDiameter: { type: "setCircleDiameter", diameterMm: 42.5 },
   zeroOnAim: { type: "zeroOnAim" },

@@ -137,6 +137,11 @@ impl SessionManager {
             target_profile: &cx.prefs.target_face,
             app_version,
             category,
+            pre_shot_ms: cx.prefs.pre_shot_ms,
+            post_shot_ms: cx.prefs.post_shot_ms,
+            release_window_ms: cx.prefs.release_window_ms,
+            shot_refractory_ms: cx.prefs.shot_refractory_ms,
+            shot_diameter_mm: cx.prefs.shot_diameter_mm,
             ..NewSession::default()
         };
         match self.recorder.start(&cx.repo(), &new) {

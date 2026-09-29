@@ -16,7 +16,7 @@
   let sessionCollapsed = $state(false);
 </script>
 
-<div class="shell" class:page-layout={!!page} class:shots-collapsed={shotsCollapsed} class:session-collapsed={sessionCollapsed}
+<div class="shell" class:page-layout={!!page} class:shots-collapsed={!page && shotsCollapsed} class:session-collapsed={!page && sessionCollapsed}
   style:--shots-width={shotsCollapsed ? "0px" : "280px"}
   style:--session-width={sessionCollapsed ? "0px" : "300px"}>
   {#if nav}

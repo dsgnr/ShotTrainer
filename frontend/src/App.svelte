@@ -9,6 +9,7 @@
   import PreferencesDialog from "./components/PreferencesDialog.svelte";
   import ReplayControls from "./components/ReplayControls.svelte";
   import SessionBrowser from "./components/SessionBrowser.svelte";
+  import SessionSettings from "./components/SessionSettings.svelte";
   import SessionControls from "./components/SessionControls.svelte";
   import ShotList from "./components/ShotList.svelte";
   import StatusLine from "./components/StatusLine.svelte";
@@ -162,6 +163,7 @@
   }
 
   function onKeydown(event: KeyboardEvent): void {
+    if (page !== "target" && !anyModalOpen) return;
     const action = resolveShortcut({
       key: event.key,
       typing: isTyping(event.target),
@@ -179,7 +181,6 @@
       case "closeModal":
         closeModals();
         break;
-    if (page !== "target" && !anyModalOpen) return;
       case "replayToggle":
         void send({ type: action.play ? "replayPlay" : "replayPause" });
         break;
@@ -252,6 +253,8 @@
       {tracePoints}
       {rings}
     />
+    <SessionSettings prefs={app.preferences.prefs} faces={app.preferences.faces}
+      locked={app.session.state.kind !== "idle" || app.shots.shots.length > 0} {send} />
     <div class="session-footer">
       <SessionControls session={app.session.state} summary={app.session.summary} {send} />
     </div>

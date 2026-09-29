@@ -212,78 +212,12 @@
               />
               <span class="field-value num">{draft.shotThreshold.toFixed(2)}</span>
             </label>
-            <label class="field">
-              <span class="field-label">Refractory</span>
-              <span class="input-unit">
-                <input
-                  type="number"
-                  min={NUMBER_RANGES.shotRefractoryMs[0]}
-                  max={NUMBER_RANGES.shotRefractoryMs[1]}
-                  bind:value={draft.shotRefractoryMs}
-                />
-                <span class="unit">ms</span>
-              </span>
-            </label>
-            <label class="field">
-              <span class="field-label">Pre-shot window</span>
-              <span class="input-unit">
-                <input
-                  type="number"
-                  min={NUMBER_RANGES.preShotMs[0]}
-                  max={NUMBER_RANGES.preShotMs[1]}
-                  bind:value={draft.preShotMs}
-                />
-                <span class="unit">ms</span>
-              </span>
-            </label>
-            <label class="field">
-              <span class="field-label">Post-shot window</span>
-              <span class="input-unit">
-                <input
-                  type="number"
-                  min={NUMBER_RANGES.postShotMs[0]}
-                  max={NUMBER_RANGES.postShotMs[1]}
-                  bind:value={draft.postShotMs}
-                />
-                <span class="unit">ms</span>
-              </span>
-            </label>
-            <label class="field">
-              <span class="field-label">Release window</span>
-              <span class="input-unit">
-                <input
-                  type="number"
-                  min={NUMBER_RANGES.releaseWindowMs[0]}
-                  max={NUMBER_RANGES.releaseWindowMs[1]}
-                  bind:value={draft.releaseWindowMs}
-                />
-                <span class="unit">ms</span>
-              </span>
-            </label>
           </div>
         </section>
 
-        <section class="group" aria-label="Target">
-          <h3 class="panel-title">Target</h3>
+        <section class="group" aria-label="Tracking">
+          <h3 class="panel-title">Tracking</h3>
           <div class="fields">
-            <label class="field" for="face-choice">
-              <span class="field-label">Target face</span>
-              <Dropdown id="face-choice" label="Target face" bind:value={draft.targetFace}
-                options={faces.map((face) => ({ value: face.key, label: face.label }))} />
-            </label>
-            <label class="field">
-              <span class="field-label">Shot diameter</span>
-              <span class="input-unit">
-                <input
-                  type="number"
-                  step="0.1"
-                  min={NUMBER_RANGES.shotDiameterMm[0]}
-                  max={NUMBER_RANGES.shotDiameterMm[1]}
-                  bind:value={draft.shotDiameterMm}
-                />
-                <span class="unit">mm</span>
-              </span>
-            </label>
             <label class="field slider">
               <span class="field-label">Tracking region</span>
               <input

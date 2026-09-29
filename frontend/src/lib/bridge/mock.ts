@@ -96,6 +96,7 @@ export class MockBridge implements Bridge {
   #summary = "No active session";
   #nextSessionId = 1;
   #shots: WireShot[] = [];
+  #prefs = { ...MOCK_PREFERENCES };
   #aimMm: [number, number] = [0, 0];
 
   async listen(handler: EventHandler): Promise<Unlisten> {
@@ -119,8 +120,15 @@ export class MockBridge implements Bridge {
 
   async send(command: WireCommand): Promise<void> {
     switch (command.type) {
+      case "setSessionSettings":
+        if (this.#session.kind !== "idle" || this.#shots.length > 0) break;
+        this.#prefs = { ...command.prefs };
+        this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_RINGS });
+        break;
       case "newSession":
         if (this.#session.kind === "recording") break;
+        this.#prefs = { ...MOCK_PREFERENCES };
+        this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_RINGS });
         this.#session = { kind: "idle" };
         this.#summary = "Ready to start a new session";
         this.#shots = [];
@@ -196,7 +204,7 @@ export class MockBridge implements Bridge {
   }
 
   #sendState(): void {
-    this.#emit({ type: "preferences", prefs: MOCK_PREFERENCES, rings: MOCK_RINGS });
+    this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_RINGS });
     this.#emit({ type: "zeroOffset", active: false, offsetMm: [0, 0] });
     this.#emitSession();
     this.#emitShots();

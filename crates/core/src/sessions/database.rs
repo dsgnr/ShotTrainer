@@ -182,6 +182,9 @@ fn apply_migrations(conn: &Connection, from_version: i64) -> Result<(), Database
     if from_version < 3 {
         add_session_category_column(conn)?;
     }
+    if from_version < 4 {
+        add_session_settings_columns(conn)?;
+    }
     Ok(())
 }
 
@@ -224,6 +227,36 @@ fn add_session_category_column(conn: &Connection) -> Result<(), DatabaseError> {
             "ALTER TABLE sessions ADD COLUMN category VARCHAR(16) NOT NULL DEFAULT 'practice'",
         )?;
         log::info!("Added column sessions.category");
+    }
+    Ok(())
+}
+
+fn add_session_settings_columns(conn: &Connection) -> Result<(), DatabaseError> {
+    let names = column_names(conn, "sessions")?;
+    if !names.iter().any(|name| name == "pre_shot_ms") {
+        conn.execute_batch(
+            "ALTER TABLE sessions ADD COLUMN pre_shot_ms INTEGER NOT NULL DEFAULT 1500",
+        )?;
+    }
+    if !names.iter().any(|name| name == "post_shot_ms") {
+        conn.execute_batch(
+            "ALTER TABLE sessions ADD COLUMN post_shot_ms INTEGER NOT NULL DEFAULT 800",
+        )?;
+    }
+    if !names.iter().any(|name| name == "release_window_ms") {
+        conn.execute_batch(
+            "ALTER TABLE sessions ADD COLUMN release_window_ms INTEGER NOT NULL DEFAULT 250",
+        )?;
+    }
+    if !names.iter().any(|name| name == "shot_refractory_ms") {
+        conn.execute_batch(
+            "ALTER TABLE sessions ADD COLUMN shot_refractory_ms INTEGER NOT NULL DEFAULT 400",
+        )?;
+    }
+    if !names.iter().any(|name| name == "shot_diameter_mm") {
+        conn.execute_batch(
+            "ALTER TABLE sessions ADD COLUMN shot_diameter_mm REAL NOT NULL DEFAULT 4.5",
+        )?;
     }
     Ok(())
 }

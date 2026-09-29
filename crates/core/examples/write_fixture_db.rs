@@ -46,6 +46,7 @@ fn run(db_path: &str, csv_dir: Option<&Path>) -> Result<Value, Box<dyn std::erro
         target_profile: "air_rifle_10m",
         app_version: "0.0.0",
         category: "match",
+        ..NewSession::default()
     })?;
     let samples: Vec<TrackingSample> = (0..TRACE_SAMPLES)
         .map(|i| {

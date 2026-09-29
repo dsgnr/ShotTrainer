@@ -135,19 +135,25 @@ fn fresh_file_creates_every_table_at_current_version() {
     for table in ["sessions", "trace_samples", "shots"] {
         assert_eq!(count(&conn, table), 0);
     }
-    assert_eq!(version(&conn), 3);
+    assert_eq!(version(&conn), SCHEMA_VERSION);
     assert_eq!(indexes(&conn, "trace_samples"), ["ix_trace_session_ts"]);
     assert_eq!(indexes(&conn, "shots"), ["ix_shots_session_id"]);
 }
 
 #[test]
-fn fresh_layout_matches_the_legacy_v3_layout() {
+fn fresh_layout_preserves_legacy_columns_and_indexes() {
     let dir = tempfile::tempdir().unwrap();
     let fresh = make_engine(dir.path().join("fresh.db").to_str().unwrap()).unwrap();
     let legacy = Connection::open_in_memory().unwrap();
     legacy.execute_batch(&legacy_sql(3)).unwrap();
     for table in ["schema_meta", "sessions", "trace_samples", "shots"] {
-        assert_eq!(columns(&fresh, table), columns(&legacy, table), "{table}");
+        let fresh_columns = columns(&fresh, table);
+        let legacy_columns = columns(&legacy, table);
+        assert_eq!(
+            &fresh_columns[..legacy_columns.len()],
+            legacy_columns,
+            "{table}"
+        );
         assert_eq!(indexes(&fresh, table), indexes(&legacy, table), "{table}");
     }
 }
@@ -159,7 +165,7 @@ fn memory_database_enables_foreign_keys() {
         .query_row("PRAGMA foreign_keys", [], |r| r.get(0))
         .unwrap();
     assert_eq!(fk, 1);
-    assert_eq!(version(&conn), 3);
+    assert_eq!(version(&conn), SCHEMA_VERSION);
 }
 
 #[test]
@@ -191,7 +197,7 @@ fn empty_schema_meta_on_a_current_layout_only_gains_the_version_row() {
     let dir = tempfile::tempdir().unwrap();
     let path = legacy_db(dir.path(), 3);
     let before = {
-        let conn = Connection::open(&path).unwrap();
+        let conn = make_engine(path.to_str().unwrap()).unwrap();
         conn.execute_batch("DELETE FROM schema_meta").unwrap();
         (
             columns(&conn, "sessions"),
@@ -285,7 +291,7 @@ fn file_prefixed_name_is_a_plain_path() {
     ProbeFiles::clean();
     let _guard = ProbeFiles;
     let conn = make_engine(PROBE_URI).unwrap();
-    assert_eq!(version(&conn), 3);
+    assert_eq!(version(&conn), SCHEMA_VERSION);
     assert!(Path::new(PROBE_URI).exists());
     assert!(!Path::new(PROBE_PLAIN).exists());
 }
@@ -309,8 +315,22 @@ fn missing_tables_are_created_with_their_indexes() {
         )
         .unwrap();
     let conn = make_engine(path.to_str().unwrap()).unwrap();
-    assert_eq!(version(&conn), 3);
+    assert_eq!(version(&conn), SCHEMA_VERSION);
     assert_eq!(indexes(&conn, "trace_samples"), ["ix_trace_session_ts"]);
     assert_eq!(indexes(&conn, "shots"), ["ix_shots_session_id"]);
     assert!(column_names(&conn, "sessions").contains(&"category".to_string()));
+}
+
+#[test]
+fn v3_gains_session_settings_without_losing_rows() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = legacy_db(dir.path(), 3);
+    let db = make_engine(path.to_str().unwrap()).unwrap();
+    check_migrated(&db, &["practice", "match"]);
+    let values: (i32, i32, i32, i32, f64) = db.query_row(
+        "SELECT pre_shot_ms, post_shot_ms, release_window_ms, shot_refractory_ms, shot_diameter_mm FROM sessions LIMIT 1",
+        [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))).unwrap();
+    assert_eq!(values, (1500, 800, 250, 400, 4.5));
+    shottrainer_core::sessions::init_database(&db).unwrap();
+    check_migrated(&db, &["practice", "match"]);
 }

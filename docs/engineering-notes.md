@@ -24,6 +24,13 @@ test inputs. Check existing migrations and fixture tests before changing
 formats. CSV output preserves established column order, formatting and CRLF line
 endings.
 
+Session rows store pre-shot, post-shot, release-window and refractory timings,
+shot diameter and the target profile. Schema version 4 adds the numeric settings
+without replacing existing rows. Older sessions retain their target profile and
+receive standard defaults for settings that were never stored. Global JSON
+preferences retain their legacy keys for compatibility, but session controls do
+not update those values.
+
 ## Devices and preview
 
 System camera capture is feature-gated behind OpenCV. Synthetic backends allow

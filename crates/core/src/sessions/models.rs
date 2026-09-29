@@ -2,7 +2,7 @@
 
 use chrono::{NaiveDateTime, SubsecRound};
 
-pub const SCHEMA_VERSION: i64 = 3;
+pub const SCHEMA_VERSION: i64 = 4;
 
 /// Allowed values for `Session::category`. The strings are stored verbatim
 /// in the database, so they stay stable across versions.
@@ -60,6 +60,11 @@ pub struct Session {
     pub category: String,
     pub app_version: String,
     pub schema_version: i64,
+    pub pre_shot_ms: i32,
+    pub post_shot_ms: i32,
+    pub release_window_ms: i32,
+    pub shot_refractory_ms: i32,
+    pub shot_diameter_mm: f64,
     pub shots: Vec<Shot>,
 }
 

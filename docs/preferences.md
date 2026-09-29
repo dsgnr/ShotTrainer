@@ -14,10 +14,13 @@ Save to apply them or cancel to leave the saved preferences in place.
   Preview commands support camera and image adjustments. **Auto-optimise** requests
   detector tuning and reports its status.
 - **Audio:** microphone and gain.
-- **Detection:** shot threshold, refractory interval, pre-shot, post-shot and
-  release windows, in milliseconds.
-- **Target:** target face, projectile diameter, tracking region, measured circle
-  diameter and display toggles.
+- **Detection:** shot threshold.
+- **Tracking:** tracking region, measured circle diameter and display toggles.
+
+Pre-shot, post-shot, release window, refractory interval, target face and shot
+diameter belong to each session. Configure them under **Session settings** on
+the target page before recording. They are saved with the session and restored
+when it is opened. New sessions start with the standard defaults.
 
 The tracking circle diameter sets the measurement scale. The target face and
 shot diameter set scoring geometry. They serve different purposes.

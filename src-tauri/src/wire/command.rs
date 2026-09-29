@@ -72,6 +72,9 @@ pub enum WireCommand {
     ReplaySeek {
         fraction: f64,
     },
+    SetSessionSettings {
+        prefs: WirePreferences,
+    },
     SetPreferences {
         prefs: WirePreferences,
     },
@@ -131,6 +134,7 @@ impl From<WireCommand> for Command {
             WireCommand::ReplayPause => Command::ReplayPause,
             WireCommand::ReplayReset => Command::ReplayReset,
             WireCommand::ReplaySeek { fraction } => Command::ReplaySeek(fraction),
+            WireCommand::SetSessionSettings { prefs } => Command::SetSessionSettings(prefs.into()),
             WireCommand::SetPreferences { prefs } => Command::SetPreferences(prefs.into()),
             WireCommand::SetCircleDiameter { diameter_mm } => {
                 Command::SetCircleDiameter(diameter_mm)
@@ -177,6 +181,11 @@ mod tests {
     fn every_command_maps_to_its_controller_command() {
         let prefs = distinct_preferences();
         let cases = [
+            (json!({"type": "newSession"}), Command::NewSession),
+            (
+                json!({"type": "setSessionSettings", "prefs": WirePreferences::from(&prefs)}),
+                Command::SetSessionSettings(prefs.clone()),
+            ),
             (
                 json!({"type": "startSession", "name": "Morning", "category": "match"}),
                 Command::StartSession {

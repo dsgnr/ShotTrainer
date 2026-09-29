@@ -44,8 +44,8 @@ describe("samples", () => {
     }
   });
 
-  it("cover the 31 commands the shell accepts", () => {
-    expect(Object.keys(SAMPLE_COMMANDS)).toHaveLength(31);
+  it("cover the 32 commands the shell accepts", () => {
+    expect(Object.keys(SAMPLE_COMMANDS)).toHaveLength(32);
   });
 });
 

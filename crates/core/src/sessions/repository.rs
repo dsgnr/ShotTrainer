@@ -33,6 +33,11 @@ pub struct NewSession<'a> {
     pub target_profile: &'a str,
     pub app_version: &'a str,
     pub category: &'a str,
+    pub pre_shot_ms: i32,
+    pub post_shot_ms: i32,
+    pub release_window_ms: i32,
+    pub shot_refractory_ms: i32,
+    pub shot_diameter_mm: f64,
 }
 
 impl Default for NewSession<'_> {
@@ -43,6 +48,11 @@ impl Default for NewSession<'_> {
             target_profile: "default",
             app_version: "",
             category: DEFAULT_SESSION_CATEGORY,
+            pre_shot_ms: 1500,
+            post_shot_ms: 800,
+            release_window_ms: 250,
+            shot_refractory_ms: 400,
+            shot_diameter_mm: 4.5,
         }
     }
 }
@@ -69,7 +79,9 @@ impl<'a> SessionRepository<'a> {
     pub fn create_session(&self, new: &NewSession) -> Result<i64, DatabaseError> {
         self.db.execute(
             "INSERT INTO sessions (name, started_at, notes, target_profile, category, \
-             app_version, schema_version) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+             app_version, schema_version, pre_shot_ms, post_shot_ms, release_window_ms, \
+             shot_refractory_ms, shot_diameter_mm) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             params![
                 new.name,
                 format_datetime(&utc_now()),
@@ -77,7 +89,12 @@ impl<'a> SessionRepository<'a> {
                 new.target_profile,
                 new.category,
                 new.app_version,
-                SCHEMA_VERSION
+                SCHEMA_VERSION,
+                new.pre_shot_ms,
+                new.post_shot_ms,
+                new.release_window_ms,
+                new.shot_refractory_ms,
+                new.shot_diameter_mm,
             ],
         )?;
         Ok(self.db.last_insert_rowid())
@@ -170,7 +187,8 @@ impl<'a> SessionRepository<'a> {
             .db
             .query_row(
                 "SELECT id, name, started_at, ended_at, notes, target_profile, category, \
-                 app_version, schema_version FROM sessions WHERE id = ?1",
+                 app_version, schema_version, pre_shot_ms, post_shot_ms, release_window_ms, \
+                 shot_refractory_ms, shot_diameter_mm FROM sessions WHERE id = ?1",
                 [session_id],
                 |row| {
                     Ok(Session {
@@ -183,6 +201,11 @@ impl<'a> SessionRepository<'a> {
                         category: read_text(row, 6)?,
                         app_version: read_text(row, 7)?,
                         schema_version: row.get(8)?,
+                        pre_shot_ms: row.get(9)?,
+                        post_shot_ms: row.get(10)?,
+                        release_window_ms: row.get(11)?,
+                        shot_refractory_ms: row.get(12)?,
+                        shot_diameter_mm: row.get(13)?,
                         shots: Vec::new(),
                     })
                 },

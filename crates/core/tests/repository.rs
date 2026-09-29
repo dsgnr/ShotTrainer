@@ -558,6 +558,7 @@ fn created_session_has_started_at_close_to_now_and_stored_fields() {
             target_profile: "air-rifle",
             app_version: "1.2.3",
             category: "sighter",
+            ..NewSession::default()
         })
         .unwrap();
     let session = repo.get_session(sid).unwrap().unwrap();
@@ -567,7 +568,10 @@ fn created_session_has_started_at_close_to_now_and_stored_fields() {
     assert_eq!(session.target_profile, "air-rifle");
     assert_eq!(session.app_version, "1.2.3");
     assert_eq!(session.category, "sighter");
-    assert_eq!(session.schema_version, 3);
+    assert_eq!(
+        session.schema_version,
+        shottrainer_core::sessions::SCHEMA_VERSION
+    );
     assert!(session.shots.is_empty());
     assert!(repo.get_session(sid + 1).unwrap().is_none());
 }
@@ -698,6 +702,7 @@ fn list_sessions_reads_null_text_columns_as_empty() {
 #[test]
 fn get_session_reads_null_text_columns_as_empty() {
     let db = lenient_db();
+    shottrainer_core::sessions::migrate(&db, 3).unwrap();
     let session = SessionRepository::new(&db).get_session(1).unwrap().unwrap();
     assert_eq!(session.name, "");
     assert_eq!(session.notes, "");
@@ -714,4 +719,35 @@ fn list_shots_reads_a_null_score_as_empty() {
     let shots = SessionRepository::new(&db).list_shots(1).unwrap();
     assert_eq!(shots.len(), 2);
     assert_eq!(shots[0].score, "");
+}
+
+#[test]
+fn session_settings_round_trip_independently() {
+    let db = engine();
+    let repo = SessionRepository::new(&db);
+    let a = repo
+        .create_session(&NewSession {
+            target_profile: "air_rifle_10m",
+            pre_shot_ms: 3000,
+            post_shot_ms: 1200,
+            release_window_ms: 500,
+            shot_refractory_ms: 900,
+            shot_diameter_mm: 5.5,
+            ..NewSession::default()
+        })
+        .unwrap();
+    let b = repo.create_session(&NewSession::default()).unwrap();
+    let saved = repo.get_session(a).unwrap().unwrap();
+    assert_eq!(
+        (
+            saved.pre_shot_ms,
+            saved.post_shot_ms,
+            saved.release_window_ms,
+            saved.shot_refractory_ms
+        ),
+        (3000, 1200, 500, 900)
+    );
+    assert_eq!(saved.shot_diameter_mm, 5.5);
+    assert_eq!(saved.target_profile, "air_rifle_10m");
+    assert_eq!(repo.get_session(b).unwrap().unwrap().pre_shot_ms, 1500);
 }

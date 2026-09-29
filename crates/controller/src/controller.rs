@@ -64,6 +64,7 @@ pub enum Command {
     ReplaySeek(f64),
     /// The Preferences dialog was saved.
     SetPreferences(Preferences),
+    SetSessionSettings(Preferences),
     SetCircleDiameter(f64),
     ZeroOnAim,
     ClearZero,
@@ -281,7 +282,12 @@ impl Controller {
     fn handle_command(&mut self, command: Command) {
         let now = (self.clock)();
         match command {
-            Command::NewSession => self.with_session(|s, cx| s.prepare(cx)),
+            Command::NewSession => {
+                if !self.session.is_recording() {
+                    self.with_session(|s, cx| s.prepare(cx));
+                    self.apply_session_settings(&Preferences::default());
+                }
+            }
             Command::StartSession { name, category } => {
                 let category = if SESSION_CATEGORIES.contains(&category.as_str()) {
                     category
@@ -300,6 +306,18 @@ impl Controller {
             Command::ListSessions => self.with_session(|s, cx| s.list_sessions(cx)),
             Command::OpenSession(id) => {
                 let outcome = self.with_session(|s, cx| s.open_session(cx, id));
+                if self.session.reviewing() == Some(id)
+                    && let Ok(Some(saved)) =
+                        shottrainer_core::sessions::SessionRepository::new(&self.db).get_session(id)
+                {
+                    let mut prefs = self.prefs.clone();
+                    prefs.pre_shot_ms = saved.pre_shot_ms;
+                    prefs.post_shot_ms = saved.post_shot_ms;
+                    prefs.release_window_ms = saved.release_window_ms;
+                    prefs.shot_refractory_ms = saved.shot_refractory_ms;
+                    prefs.shot_diameter_mm = saved.shot_diameter_mm;
+                    self.apply_session_settings(&prefs);
+                }
                 if let Some(face) = outcome.switch_face {
                     self.set_target_face(&face);
                 }
@@ -319,6 +337,19 @@ impl Controller {
             Command::ReplayReset => self.with_session(|s, cx| s.replay_reset(cx)),
             Command::ReplaySeek(fraction) => {
                 self.with_session(|s, cx| s.replay_seek(cx, fraction, now));
+            }
+            Command::SetSessionSettings(prefs) => {
+                if self.session.is_recording()
+                    || self.session.reviewing().is_some()
+                    || !self.session.shots().is_empty()
+                {
+                    self.message(StatusMessage::info(
+                        "Create a new session to change its settings",
+                        4000,
+                    ));
+                } else {
+                    self.apply_session_settings(&validate_preferences(&prefs));
+                }
             }
             Command::SetPreferences(prefs) => {
                 self.apply_preferences(validate_preferences(&prefs), true);
@@ -408,7 +439,13 @@ impl Controller {
 
     /// Python `_apply_preferences`, the one place that reacts to changed
     /// preferences, whether from the interface or from the file.
-    pub(crate) fn apply_preferences(&mut self, prefs: Preferences, persist: bool) {
+    pub(crate) fn apply_preferences(&mut self, mut prefs: Preferences, persist: bool) {
+        prefs.pre_shot_ms = self.prefs.pre_shot_ms;
+        prefs.post_shot_ms = self.prefs.post_shot_ms;
+        prefs.release_window_ms = self.prefs.release_window_ms;
+        prefs.shot_refractory_ms = self.prefs.shot_refractory_ms;
+        prefs.shot_diameter_mm = self.prefs.shot_diameter_mm;
+        prefs.target_face = self.prefs.target_face.clone();
         let previous = std::mem::replace(&mut self.prefs, prefs);
         self.push_preferences();
         if previous.camera_id != self.prefs.camera_id {
@@ -422,7 +459,15 @@ impl Controller {
         // saved values are the ones from when it opened.
         let saved = self.preview.as_ref().unwrap_or(&previous);
         if persist && saved != &self.prefs {
-            if let Err(error) = save_preferences(&self.prefs, &self.paths.settings) {
+            let mut global = self.prefs.clone();
+            let legacy = load_preferences(&self.paths.settings);
+            global.pre_shot_ms = legacy.pre_shot_ms;
+            global.post_shot_ms = legacy.post_shot_ms;
+            global.release_window_ms = legacy.release_window_ms;
+            global.shot_refractory_ms = legacy.shot_refractory_ms;
+            global.shot_diameter_mm = legacy.shot_diameter_mm;
+            global.target_face = legacy.target_face;
+            if let Err(error) = save_preferences(&global, &self.paths.settings) {
                 log::warn!("Could not save preferences: {error}");
             }
             self.watcher.mark_seen();
@@ -496,7 +541,20 @@ impl Controller {
             target_face: key.to_owned(),
             ..self.prefs.clone()
         };
-        self.apply_preferences(prefs, true);
+        self.apply_session_settings(&prefs);
+    }
+
+    fn apply_session_settings(&mut self, prefs: &Preferences) {
+        let prefs = validate_preferences(prefs);
+        self.prefs.pre_shot_ms = prefs.pre_shot_ms;
+        self.prefs.post_shot_ms = prefs.post_shot_ms;
+        self.prefs.release_window_ms = prefs.release_window_ms;
+        self.prefs.shot_refractory_ms = prefs.shot_refractory_ms;
+        self.prefs.shot_diameter_mm = prefs.shot_diameter_mm;
+        if face_for_name(&self.faces, &prefs.target_face).is_some() {
+            self.prefs.target_face = prefs.target_face.clone();
+        }
+        self.push_preferences();
     }
 
     fn zero_on_aim(&mut self) {
@@ -919,7 +977,7 @@ mod tests {
         let rig = TestRig::new();
         let mut controller = rig.build();
         let prefs = Preferences {
-            pre_shot_ms: 2000,
+            audio_gain: 2.0,
             ..Preferences::default()
         };
         command(&mut controller, Command::SetPreferences(prefs.clone()));
@@ -961,7 +1019,7 @@ mod tests {
                 applied.circle_diameter_mm,
                 applied.pre_shot_ms
             ),
-            (0, 60.0, 2000)
+            (0, 60.0, 1500)
         );
     }
 
@@ -1102,10 +1160,7 @@ mod tests {
         assert_eq!(controller.preferences().target_face, "default");
         command(&mut controller, Command::OpenSession(known));
         assert_eq!(controller.preferences().target_face, "air_rifle_10m");
-        assert_eq!(
-            load_preferences(&rig.paths.settings).target_face,
-            "air_rifle_10m"
-        );
+        assert_eq!(load_preferences(&rig.paths.settings).target_face, "default");
     }
 
     #[test]
@@ -1386,7 +1441,7 @@ mod tests {
         command(
             &mut controller,
             Command::SetPreferences(Preferences {
-                pre_shot_ms: 2000,
+                audio_gain: 2.0,
                 ..Preferences::default()
             }),
         );
@@ -1406,8 +1461,12 @@ mod tests {
             })
             .unwrap();
         command(&mut controller, Command::OpenSession(sid));
-        assert!(rig.paths.settings.exists());
-        assert_eq!(controller.watcher.poll(), None, "face save");
+        assert!(!rig.paths.settings.exists());
+        assert_eq!(
+            controller.watcher.poll(),
+            None,
+            "opening a session does not save preferences"
+        );
     }
 
     #[test]
@@ -1429,6 +1488,8 @@ mod tests {
             target_face: "air_rifle_10m".into(),
             ..Preferences::default()
         };
+        command(&mut controller, Command::SetSessionSettings(prefs.clone()));
+        rig.take();
         command(&mut controller, Command::SetPreferences(prefs.clone()));
         assert_eq!(
             rig.audio.state().updates.last().unwrap().threshold,
@@ -1505,5 +1566,53 @@ mod tests {
             rig.audio.state().started[1],
             shottrainer_audio::DeviceSelector::Name("USB".into())
         );
+    }
+    #[test]
+    fn session_settings_restore_without_changing_global_preferences() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        let config = Preferences {
+            pre_shot_ms: 3000,
+            post_shot_ms: 1200,
+            release_window_ms: 500,
+            shot_refractory_ms: 900,
+            shot_diameter_mm: 5.5,
+            target_face: "air_rifle_10m".into(),
+            ..Preferences::default()
+        };
+        command(&mut controller, Command::SetSessionSettings(config.clone()));
+        assert_eq!(controller.preferences(), &config);
+        assert!(!rig.paths.settings.exists());
+        command(
+            &mut controller,
+            Command::StartSession {
+                name: "First".into(),
+                category: "practice".into(),
+            },
+        );
+        let id = controller.session.recorder.session_id().unwrap();
+        command(
+            &mut controller,
+            Command::SetSessionSettings(Preferences::default()),
+        );
+        assert_eq!(controller.preferences(), &config);
+        command(&mut controller, Command::StopSession);
+        command(&mut controller, Command::NewSession);
+        assert_eq!(controller.preferences(), &Preferences::default());
+        command(&mut controller, Command::OpenSession(id));
+        assert_eq!(controller.preferences(), &config);
+        command(
+            &mut controller,
+            Command::SetPreferences(Preferences {
+                audio_gain: 2.0,
+                ..Preferences::default()
+            }),
+        );
+        assert_eq!(controller.preferences().pre_shot_ms, 3000);
+        assert_eq!(load_preferences(&rig.paths.settings).pre_shot_ms, 1500);
+        assert_eq!(load_preferences(&rig.paths.settings).target_face, "default");
+        command(&mut controller, Command::NewSession);
+        assert_eq!(controller.preferences().pre_shot_ms, 1500);
+        assert_eq!(controller.preferences().audio_gain, 2.0);
     }
 }
