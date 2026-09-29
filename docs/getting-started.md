@@ -13,7 +13,8 @@ description: "Start using ShotTrainer with a rifle-mounted camera, microphone an
    microphone, then set **Circle diameter** and **Target face**.
 4. Check the live camera view and tracking status. Adjust rotation, flips,
    brightness and contrast as needed. Save your preferences.
-5. Enter a session name and category, then use **Start session** to record.
+5. Open **Sessions**, select **New session** and choose its name, category and
+   settings. Select **Create session**, then **Start session** to record.
 6. Use **Stop session** when finished. Select a shot to review its trace and
    use the replay controls beneath the target.
 7. Open **Sessions** from the rail to reopen or export saved sessions.

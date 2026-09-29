@@ -20,8 +20,11 @@ coordinates in millimetres, audio level, confidence and score. Trace rows
 contain timestamp, pixel and millimetre coordinates, confidence and frame ID.
 Exporting again to the same folder replaces files for that session.
 
-The navigation rail highlights the current page. Select the app logo to return
+The navigation rail highlights the current page. Select the Target icon to return
 to the target, or open a saved session to review it there.
 
-Select **New session** to return to an empty target ready to configure and
-start recording. Stop an active recording before creating another session.
+Select **New session** to choose a name, category, target face, shot diameter
+and timing settings. **Create session** opens an empty target with those
+settings. **Start session** begins recording immediately. Cancel leaves the
+current session unchanged. Stop an active recording before creating another
+session.

@@ -9,6 +9,7 @@
   import PreferencesDialog from "./components/PreferencesDialog.svelte";
   import ReplayControls from "./components/ReplayControls.svelte";
   import SessionBrowser from "./components/SessionBrowser.svelte";
+  import NewSessionDialog from "./components/NewSessionDialog.svelte";
   import SessionSettings from "./components/SessionSettings.svelte";
   import SessionControls from "./components/SessionControls.svelte";
   import ShotList from "./components/ShotList.svelte";
@@ -141,14 +142,18 @@
     announcer.announce(lineText);
   });
 
+  let newSessionOpen = $state(false);
+  let sessionName = $state("");
+  let sessionCategory = $state("practice");
   let preferencesOpen = $state(false);
   let page = $state<"target" | "sessions">("target");
   let popoutOpen = $state(false);
   let sheetOpen = $state(false);
 
-  const anyModalOpen = $derived(preferencesOpen || popoutOpen || sheetOpen);
+  const anyModalOpen = $derived(newSessionOpen || preferencesOpen || popoutOpen || sheetOpen);
 
   function closeModals(): void {
+    newSessionOpen = false;
     preferencesOpen = false;
     popoutOpen = false;
     sheetOpen = false;
@@ -211,7 +216,7 @@
 {#snippet sessionsPage()}
   <SessionBrowser open={page === "sessions"} sessions={app.session.sessions} {send} onopen={() => page = "target"}
     recording={app.session.state.kind === "recording"}
-    onnew={() => { void send({ type: "newSession" }); page = "target"; }} />
+    onnew={() => newSessionOpen = true} />
 {/snippet}
 <AppShell page={page === "sessions" ? sessionsPage : undefined}>
   {#snippet nav()}
@@ -256,7 +261,8 @@
     <SessionSettings prefs={app.preferences.prefs} faces={app.preferences.faces}
       locked={app.session.state.kind !== "idle" || app.shots.shots.length > 0} {send} />
     <div class="session-footer">
-      <SessionControls session={app.session.state} summary={app.session.summary} {send} />
+      <SessionControls session={app.session.state} summary={app.session.summary} {send}
+        name={sessionName} category={sessionCategory} onnew={() => newSessionOpen = true} />
     </div>
   {/snippet}
   {#snippet status()}
@@ -313,3 +319,15 @@
   onclose={() => (sheetOpen = false)}
 />
 <LiveRegion {announcer} />
+
+{#if newSessionOpen && app.preferences.prefs}
+  <NewSessionDialog prefs={app.preferences.prefs} faces={app.preferences.faces} onclose={() => newSessionOpen = false}
+    oncreate={async (name, category, prefs) => {
+      await send({ type: "newSession" });
+      await send({ type: "setSessionSettings", prefs });
+      sessionName = name;
+      sessionCategory = category;
+      newSessionOpen = false;
+      page = "target";
+    }} />
+{/if}
