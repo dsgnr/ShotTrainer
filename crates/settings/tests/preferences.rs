@@ -153,6 +153,7 @@ fn prefs_from_golden(v: &Value) -> Preferences {
         invert_trace_horizontal: b("invert_trace_horizontal"),
         invert_trace_vertical: b("invert_trace_vertical"),
         show_hold_zone: b("show_hold_zone"),
+        ..Preferences::default()
     }
 }
 

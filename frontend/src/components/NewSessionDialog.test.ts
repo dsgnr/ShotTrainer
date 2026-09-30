@@ -11,6 +11,7 @@ it("collects metadata and session settings before creating", async () => {
   const component = mount(NewSessionDialog, { target, props: {
     prefs: MOCK_PREFERENCES, faces: [], oncreate, onclose,
   } }); flushSync();
+  target.querySelector<HTMLInputElement>('input[value="prone"]')!.click(); flushSync();
   const name = target.querySelector<HTMLInputElement>('input[type="text"]')!;
   name.value = "  Morning  "; name.dispatchEvent(new Event("input", { bubbles: true }));
   const pre = target.querySelector<HTMLInputElement>('input[type="number"]')!;
@@ -18,7 +19,7 @@ it("collects metadata and session settings before creating", async () => {
   target.querySelector<HTMLButtonElement>('[aria-label="Session category"]')!.click(); flushSync();
   [...target.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]')].find(b => b.textContent === "Match")!.click(); flushSync();
   target.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-  expect(oncreate).toHaveBeenCalledWith("Morning", "match", expect.objectContaining({ preShotMs: 2500 }));
+  expect(oncreate).toHaveBeenCalledWith("Morning", "match", expect.objectContaining({ preShotMs: 2500, sessionPosition: "prone" }));
   expect(onclose).not.toHaveBeenCalled();
   await unmount(component); target.remove();
 });

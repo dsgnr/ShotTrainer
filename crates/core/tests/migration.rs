@@ -334,3 +334,22 @@ fn v3_gains_session_settings_without_losing_rows() {
     shottrainer_core::sessions::init_database(&db).unwrap();
     check_migrated(&db, &["practice", "match"]);
 }
+
+#[test]
+fn v4_position_migration_keeps_existing_sessions_and_is_repeatable() {
+    let db = make_engine(":memory:").unwrap();
+    db.execute_batch("ALTER TABLE sessions DROP COLUMN position;
+        UPDATE schema_meta SET version = 4;
+        INSERT INTO sessions (name, started_at, notes, target_profile, category, app_version, schema_version, pre_shot_ms) VALUES ('Existing', '2026-01-01 00:00:00', '', 'default', 'practice', '', 4, 2400);").unwrap();
+    shottrainer_core::sessions::init_database(&db).unwrap();
+    let saved: (String, i32, String) = db
+        .query_row(
+            "SELECT name, pre_shot_ms, position FROM sessions",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!(saved, ("Existing".into(), 2400, "standing".into()));
+    shottrainer_core::sessions::migrate(&db, 4).unwrap();
+    assert_eq!(version(&db), SCHEMA_VERSION);
+}

@@ -38,6 +38,7 @@ export const MOCK_PREFERENCES: WirePreferences = {
   releaseWindowMs: 250,
   targetFace: "default",
   shotDiameterMm: 4.5,
+  sessionPosition: "standing",
   trackingRegionFraction: 0.7,
   circleDiameterMm: CIRCLE_DIAMETER_MM,
   invertTraceHorizontal: false,

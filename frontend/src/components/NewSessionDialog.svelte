@@ -12,8 +12,8 @@
   } = $props();
   let name = $state("");
   let category = $state<string>(DEFAULT_SESSION_CATEGORY);
-  let draft = $state(untrack(() => ({ ...prefs, targetFace: "default", preShotMs: 1500, postShotMs: 800,
-    releaseWindowMs: 250, shotRefractoryMs: 400, shotDiameterMm: 4.5 })));
+  let draft = $state<WirePreferences>(untrack(() => ({ ...prefs, targetFace: "default", preShotMs: 1500, postShotMs: 800,
+    releaseWindowMs: 250, shotRefractoryMs: 400, shotDiameterMm: 4.5, sessionPosition: "standing" })));
   let saving = $state(false);
   async function create(event: SubmitEvent): Promise<void> {
     event.preventDefault();

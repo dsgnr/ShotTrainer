@@ -733,6 +733,7 @@ fn session_settings_round_trip_independently() {
             release_window_ms: 500,
             shot_refractory_ms: 900,
             shot_diameter_mm: 5.5,
+            position: "prone",
             ..NewSession::default()
         })
         .unwrap();
@@ -748,6 +749,8 @@ fn session_settings_round_trip_independently() {
         (3000, 1200, 500, 900)
     );
     assert_eq!(saved.shot_diameter_mm, 5.5);
+    assert_eq!(saved.position, "prone");
+    assert_eq!(repo.get_session(b).unwrap().unwrap().position, "standing");
     assert_eq!(saved.target_profile, "air_rifle_10m");
     assert_eq!(repo.get_session(b).unwrap().unwrap().pre_shot_ms, 1500);
 }

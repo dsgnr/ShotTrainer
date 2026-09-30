@@ -24,7 +24,8 @@ The navigation rail highlights the current page. Select the Target icon to retur
 to the target, or open a saved session to review it there.
 
 Select **New session** to choose a name, category, target face, shot diameter
-and timing settings. **Create session** opens an empty target with those
+and timing settings. Choose **Prone**, **Standing** or **Kneeling** using the
+illustrated shooting position controls. The position is saved with the session. **Create session** opens an empty target with those
 settings. **Start session** begins recording immediately. Cancel leaves the
 current session unchanged. Stop an active recording before creating another
 session.

@@ -15,7 +15,7 @@ it("applies timing and target settings to the session without saving global pref
     prefs: MOCK_PREFERENCES, faces: [], locked: false, send,
   } });
   flushSync();
-  const inputs = target.querySelectorAll<HTMLInputElement>("input");
+  const inputs = target.querySelectorAll<HTMLInputElement>('input[type="number"]');
   for (const [i, value] of [3000, 1200, 500, 900, 5.5].entries()) {
     inputs[i]!.value = String(value);
     inputs[i]!.dispatchEvent(new Event("input", { bubbles: true }));

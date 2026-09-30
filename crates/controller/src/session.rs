@@ -142,6 +142,7 @@ impl SessionManager {
             release_window_ms: cx.prefs.release_window_ms,
             shot_refractory_ms: cx.prefs.shot_refractory_ms,
             shot_diameter_mm: cx.prefs.shot_diameter_mm,
+            position: &cx.prefs.session_position,
             ..NewSession::default()
         };
         match self.recorder.start(&cx.repo(), &new) {

@@ -141,6 +141,7 @@ export interface WirePreferences {
   releaseWindowMs: number;
   targetFace: string;
   shotDiameterMm: number;
+  sessionPosition: "prone" | "standing" | "kneeling";
   trackingRegionFraction: number;
   circleDiameterMm: number;
   invertTraceHorizontal: boolean;

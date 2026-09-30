@@ -27,7 +27,10 @@ endings.
 Session rows store pre-shot, post-shot, release-window and refractory timings,
 shot diameter and the target profile. Schema version 4 adds the numeric settings
 without replacing existing rows. Older sessions retain their target profile and
-receive standard defaults for settings that were never stored. Global JSON
+receive standard defaults for settings that were never stored.
+
+Shooting position is stored with each session and defaults to standing for
+older records. It is excluded from the global settings file. Global JSON
 preferences retain their legacy keys for compatibility, but session controls do
 not update those values.
 

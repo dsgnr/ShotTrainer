@@ -31,6 +31,8 @@ pub struct Preferences {
     pub release_window_ms: i32,
     pub target_face: String,
     pub shot_diameter_mm: f64,
+    #[serde(skip)]
+    pub session_position: String,
     pub tracking_region_fraction: f64,
     pub circle_diameter_mm: f64,
     pub invert_trace_horizontal: bool,
@@ -56,6 +58,7 @@ impl Default for Preferences {
             release_window_ms: 250,
             target_face: "default".into(),
             shot_diameter_mm: 4.5,
+            session_position: "standing".into(),
             tracking_region_fraction: 0.7,
             circle_diameter_mm: 60.0,
             invert_trace_horizontal: false,
@@ -80,7 +83,13 @@ pub fn load_preferences(path: &Path) -> Preferences {
 /// value is replaced by its default with a warning.
 pub fn validate_preferences(prefs: &Preferences) -> Preferences {
     match serde_json::to_value(prefs) {
-        Ok(Value::Object(raw)) => preferences_from_object(&raw),
+        Ok(Value::Object(raw)) => {
+            let mut validated = preferences_from_object(&raw);
+            if ["prone", "standing", "kneeling"].contains(&prefs.session_position.as_str()) {
+                validated.session_position = prefs.session_position.clone();
+            }
+            validated
+        }
         _ => Preferences::default(),
     }
 }

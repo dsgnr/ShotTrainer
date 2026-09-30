@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PositionSelector from "./PositionSelector.svelte";
   import Dropdown from "./Dropdown.svelte";
   import { NUMBER_RANGES } from "../lib/preferences/form";
   import type { WireFace, WirePreferences } from "../lib/wire/types";
@@ -9,6 +10,7 @@
     ["shotDiameterMm", "Shot diameter", "mm"],
   ] as const;
 </script>
+<PositionSelector bind:value={draft.sessionPosition} />
         <label for="session-target">Target face</label>
         <Dropdown id="session-target" label="Session target face" bind:value={draft.targetFace}
           options={faces.map(face => ({ value: face.key, label: face.label }))} />

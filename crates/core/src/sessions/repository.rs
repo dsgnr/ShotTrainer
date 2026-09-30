@@ -38,6 +38,7 @@ pub struct NewSession<'a> {
     pub release_window_ms: i32,
     pub shot_refractory_ms: i32,
     pub shot_diameter_mm: f64,
+    pub position: &'a str,
 }
 
 impl Default for NewSession<'_> {
@@ -53,6 +54,7 @@ impl Default for NewSession<'_> {
             release_window_ms: 250,
             shot_refractory_ms: 400,
             shot_diameter_mm: 4.5,
+            position: "standing",
         }
     }
 }
@@ -80,8 +82,8 @@ impl<'a> SessionRepository<'a> {
         self.db.execute(
             "INSERT INTO sessions (name, started_at, notes, target_profile, category, \
              app_version, schema_version, pre_shot_ms, post_shot_ms, release_window_ms, \
-             shot_refractory_ms, shot_diameter_mm) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+             shot_refractory_ms, shot_diameter_mm, position) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             params![
                 new.name,
                 format_datetime(&utc_now()),
@@ -95,6 +97,7 @@ impl<'a> SessionRepository<'a> {
                 new.release_window_ms,
                 new.shot_refractory_ms,
                 new.shot_diameter_mm,
+                new.position,
             ],
         )?;
         Ok(self.db.last_insert_rowid())
@@ -188,7 +191,7 @@ impl<'a> SessionRepository<'a> {
             .query_row(
                 "SELECT id, name, started_at, ended_at, notes, target_profile, category, \
                  app_version, schema_version, pre_shot_ms, post_shot_ms, release_window_ms, \
-                 shot_refractory_ms, shot_diameter_mm FROM sessions WHERE id = ?1",
+                 shot_refractory_ms, shot_diameter_mm, position FROM sessions WHERE id = ?1",
                 [session_id],
                 |row| {
                     Ok(Session {
@@ -206,6 +209,7 @@ impl<'a> SessionRepository<'a> {
                         release_window_ms: row.get(11)?,
                         shot_refractory_ms: row.get(12)?,
                         shot_diameter_mm: row.get(13)?,
+                        position: read_text(row, 14)?,
                         shots: Vec::new(),
                     })
                 },

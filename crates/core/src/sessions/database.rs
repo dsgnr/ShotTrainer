@@ -185,6 +185,15 @@ fn apply_migrations(conn: &Connection, from_version: i64) -> Result<(), Database
     if from_version < 4 {
         add_session_settings_columns(conn)?;
     }
+    if from_version < 5
+        && !column_names(conn, "sessions")?
+            .iter()
+            .any(|name| name == "position")
+    {
+        conn.execute_batch(
+            "ALTER TABLE sessions ADD COLUMN position TEXT NOT NULL DEFAULT 'standing'",
+        )?;
+    }
     Ok(())
 }
 
