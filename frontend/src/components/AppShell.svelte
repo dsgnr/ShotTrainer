@@ -140,6 +140,15 @@
     width: 32px;
     height: 32px;
     padding: 0;
+    color: var(--text-muted);
+    background: transparent;
+    border-color: transparent;
+  }
+
+  .pane-controls button:hover {
+    color: var(--text);
+    background: var(--surface-hover);
+    border-color: transparent;
   }
 
   .pane-controls svg {
