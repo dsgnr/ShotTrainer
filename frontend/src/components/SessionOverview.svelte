@@ -59,20 +59,23 @@
 <style>
   .overview {
     flex: none;
-    padding: var(--space-3);
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
     background: var(--panel);
     border: 1px solid var(--divider);
     border-radius: var(--radius);
   }
-  h3 { margin: 0 0 var(--space-3); }
+  h3 { position: absolute; top: var(--space-3); left: var(--space-3); z-index: 2; margin: 0; pointer-events: none; }
+  .overview:has(.empty) { aspect-ratio: auto; min-height: 110px; }
   .mini-target {
     --target-bg: var(--panel);
     --target-face: var(--panel);
     --target-ring: var(--text-muted);
     --target-label: var(--text-dim);
-    position: relative;
+    position: absolute;
+    inset: 0;
     display: flex;
-    aspect-ratio: 1;
   }
   .marker {
     position: absolute;
@@ -99,13 +102,13 @@
     z-index: 1;
   }
   .empty {
-    color: var(--text-muted);
+    margin: 0;
+    padding: 40px var(--space-3) var(--space-3);    color: var(--text-muted);
     text-align: center;
     font-size: var(--text-sm);
   }
   @media (max-width: 1050px) {
-    .overview { padding: var(--space-2); }
-    .mini-target { height: 100px; aspect-ratio: auto; }
-    h3 { margin-bottom: var(--space-2); }
+    .overview { height: 100px; aspect-ratio: auto; }
+    h3 { top: var(--space-2); left: var(--space-2); }
   }
 </style>
