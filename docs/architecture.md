@@ -35,4 +35,7 @@ Without the `opencv` feature the desktop shell selects synthetic backends. With
 it, system devices are available, while `--fake-devices` or
 `SHOTTRAINER_FAKE_DEVICES=1` selects synthetic mode explicitly. Synthetic data
 uses a separate temporary directory. The browser mock is independent of this
-Rust device mode and does not use the desktop database.
+Rust device mode and does not use the desktop database. Both modes generate
+automatic shots only while a session is recording, with the first shot five
+seconds after starting. Camera previews and quiet audio levels continue while
+idle or reviewing a session.

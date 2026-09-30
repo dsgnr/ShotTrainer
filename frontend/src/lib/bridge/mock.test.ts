@@ -88,3 +88,24 @@ it("retains global decimal scoring when preparing a new session", async () => {
   await bridge.send({ type: "newSession" });
   expect(ofType("preferences").at(-1)?.prefs.decimalScoring).toBe(true);
 });
+
+
+it("generates automatic shots only after a full recording interval", async () => {
+  vi.advanceTimersByTime(MOCK_FRAME_MS * (MOCK_SHOT_EVERY_FRAMES * 2 + 17));
+  expect(ofType("audioLevel").every(event => event.level === 0.02)).toBe(true);
+  expect(ofType("shots")).toHaveLength(0);
+  for (let session = 0; session < 2; session++) {
+    await bridge.send({ type: "startSession", name: "", category: "practice" });
+    vi.advanceTimersByTime(MOCK_FRAME_MS * (MOCK_SHOT_EVERY_FRAMES - 1));
+    expect(ofType("shots").at(-1)?.shots).toHaveLength(0);
+    vi.advanceTimersByTime(MOCK_FRAME_MS);
+    expect(ofType("shots").at(-1)?.shots).toHaveLength(1);
+    expect(ofType("audioLevel").at(-1)?.level).toBe(0.9);
+    await bridge.send({ type: "stopSession" });
+    const count = ofType("shots").length;
+    const audioCount = ofType("audioLevel").length;
+    vi.advanceTimersByTime(MOCK_FRAME_MS * MOCK_SHOT_EVERY_FRAMES * 2);
+    expect(ofType("shots")).toHaveLength(count);
+    expect(ofType("audioLevel").slice(audioCount).every(event => event.level === 0.02)).toBe(true);
+  }
+});

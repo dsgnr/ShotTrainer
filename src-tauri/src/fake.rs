@@ -1,10 +1,10 @@
 //! Synthetic devices for running the interface without a camera, a
 //! microphone or OpenCV. The camera draws a dark circle that wanders around
 //! the frame centre, the detector finds it by its dark pixels, and the
-//! microphone reports a quiet level with a shot at a fixed interval.
+//! microphone reports a quiet level with periodic shots while recording.
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -182,7 +182,7 @@ impl HoughScorer for NoHoughScorer {
 }
 
 /// A microphone called `default` that reports [`QUIET_LEVEL`] and, when
-/// `shot_every` is set, a shot at that interval.
+/// `shot_every` is set, a shot at that interval while recording.
 pub struct FakeMicrophone {
     shot_every: Option<Duration>,
 }
@@ -208,18 +208,22 @@ impl AudioBackend for FakeMicrophone {
         let running = Arc::new(AtomicBool::new(true));
         let on_event: Arc<AudioSink> = Arc::new(on_event);
         let shot_every = self.shot_every;
+        let schedule = Arc::new(Mutex::new((false, Duration::ZERO)));
         let thread = thread::Builder::new()
             .name("fake-microphone".to_owned())
             .spawn({
                 let (running, on_event) = (running.clone(), on_event.clone());
+                let schedule = schedule.clone();
                 move || {
                     on_event(AudioEvent::Started);
-                    let mut since_shot = Duration::ZERO;
                     while running.load(Ordering::SeqCst) {
                         thread::sleep(LEVEL_EVERY);
-                        since_shot += LEVEL_EVERY;
-                        if shot_every.is_some_and(|every| since_shot >= every) {
-                            since_shot = Duration::ZERO;
+                        let mut schedule = schedule.lock().unwrap();
+                        if schedule.0 {
+                            schedule.1 += LEVEL_EVERY;
+                        }
+                        if schedule.0 && shot_every.is_some_and(|every| schedule.1 >= every) {
+                            schedule.1 = Duration::ZERO;
                             on_event(AudioEvent::Level(SHOT_LEVEL));
                             on_event(AudioEvent::Shot(ShotEvent {
                                 timestamp: clock(),
@@ -242,6 +246,7 @@ impl AudioBackend for FakeMicrophone {
             }
         };
         Box::new(FakeMicrophoneHandle {
+            schedule,
             running,
             thread,
             on_event,
@@ -250,6 +255,7 @@ impl AudioBackend for FakeMicrophone {
 }
 
 struct FakeMicrophoneHandle {
+    schedule: Arc<Mutex<(bool, Duration)>>,
     running: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
     on_event: Arc<AudioSink>,
@@ -257,6 +263,13 @@ struct FakeMicrophoneHandle {
 
 impl AudioHandle for FakeMicrophoneHandle {
     fn update_settings(&self, _settings: ShotDetectorSettings) {}
+
+    fn set_recording(&self, recording: bool) {
+        let mut schedule = self.schedule.lock().unwrap();
+        if schedule.0 != recording {
+            *schedule = (recording, Duration::ZERO);
+        }
+    }
 
     fn stop(&mut self) {
         self.running.store(false, Ordering::SeqCst);
@@ -365,6 +378,7 @@ mod tests {
                 let _ = sender.lock().unwrap().send(event);
             }),
         );
+        handle.set_recording(true);
         let deadline = Instant::now() + Duration::from_secs(5);
         let mut events = Vec::new();
         while !until(&events) {
@@ -406,5 +420,52 @@ mod tests {
                 sample_rate: SAMPLE_RATE,
             })
         );
+    }
+    #[test]
+    fn automatic_microphone_shots_wait_for_recording_and_reset_after_stop() {
+        let (sender, receiver) = mpsc::channel();
+        let mut handle = FakeMicrophone::new(Some(Duration::from_millis(200))).start(
+            ShotDetectorSettings::default(),
+            DeviceSelector::Default,
+            Arc::new(|| 42.0),
+            Box::new(move |event| {
+                sender.send(event).unwrap();
+            }),
+        );
+        assert_eq!(
+            receiver.recv_timeout(Duration::from_secs(2)).unwrap(),
+            AudioEvent::Started
+        );
+        for _ in 0..6 {
+            assert_eq!(
+                receiver.recv_timeout(Duration::from_secs(2)).unwrap(),
+                AudioEvent::Level(QUIET_LEVEL)
+            );
+        }
+        for _ in 0..2 {
+            handle.set_recording(true);
+            for _ in 0..3 {
+                assert_eq!(
+                    receiver.recv_timeout(Duration::from_secs(2)).unwrap(),
+                    AudioEvent::Level(QUIET_LEVEL)
+                );
+            }
+            assert_eq!(
+                receiver.recv_timeout(Duration::from_secs(2)).unwrap(),
+                AudioEvent::Level(SHOT_LEVEL)
+            );
+            assert!(matches!(
+                receiver.recv_timeout(Duration::from_secs(2)).unwrap(),
+                AudioEvent::Shot(_)
+            ));
+            handle.set_recording(false);
+            for _ in 0..6 {
+                assert_eq!(
+                    receiver.recv_timeout(Duration::from_secs(2)).unwrap(),
+                    AudioEvent::Level(QUIET_LEVEL)
+                );
+            }
+        }
+        handle.stop();
     }
 }

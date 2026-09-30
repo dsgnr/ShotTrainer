@@ -197,6 +197,7 @@ pub struct AudioManager {
     clock: ClockFn,
     settings: ShotDetectorSettings,
     device: String,
+    recording: bool,
     running: Option<Box<dyn AudioHandle>>,
     /// Set when the current stream reported an error. `AudioInput` ends its
     /// stream thread after a failed open or play, so the handle is dead.
@@ -212,6 +213,7 @@ impl AudioManager {
             clock,
             settings: ShotDetectorSettings::default(),
             device: "default".to_owned(),
+            recording: false,
             running: None,
             failed: Arc::new(AtomicBool::new(false)),
             generation: 0,
@@ -224,6 +226,13 @@ impl AudioManager {
             handle.update_settings(settings.clone());
         }
         self.settings = settings;
+    }
+
+    pub fn set_recording(&mut self, recording: bool) {
+        self.recording = recording;
+        if let Some(handle) = &self.running {
+            handle.set_recording(recording);
+        }
     }
 
     /// Takes effect at the next start, as in Python. A running stream stays
@@ -258,6 +267,7 @@ impl AudioManager {
             self.clock.clone(),
             sink,
         ));
+        self.set_recording(self.recording);
     }
 
     pub fn stop(&mut self) {

@@ -629,7 +629,9 @@ impl Controller {
             faces: &self.faces,
             emit: &emit,
         };
-        f(&mut self.session, &cx)
+        let result = f(&mut self.session, &cx);
+        self.audio.set_recording(self.session.is_recording());
+        result
     }
 }
 
@@ -1641,5 +1643,36 @@ mod tests {
         drop(controller);
         let controller = rig.build();
         assert!(controller.preferences().decimal_scoring);
+    }
+    #[test]
+    fn automatic_shots_follow_session_recording_and_audio_restart() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        controller.start();
+        assert!(!rig.audio.state().recording);
+        command(
+            &mut controller,
+            Command::StartSession {
+                name: "S".into(),
+                category: "practice".into(),
+            },
+        );
+        assert!(rig.audio.state().recording);
+        rig.audio.emit(0, AudioEvent::Error("disconnected".into()));
+        rig.pump(&mut controller);
+        controller.audio.start();
+        assert!(rig.audio.state().recording);
+        command(&mut controller, Command::StopSession);
+        assert!(!rig.audio.state().recording);
+        command(
+            &mut controller,
+            Command::StartSession {
+                name: "S".into(),
+                category: "practice".into(),
+            },
+        );
+        assert!(rig.audio.state().recording);
+        controller.shutdown();
+        assert!(!rig.audio.state().recording);
     }
 }

@@ -140,6 +140,7 @@ pub struct AudioState {
     pub started: Vec<DeviceSelector>,
     pub start_settings: Vec<ShotDetectorSettings>,
     pub updates: Vec<ShotDetectorSettings>,
+    pub recording: bool,
     pub stopped: usize,
     pub sinks: Vec<Arc<AudioSink>>,
 }
@@ -161,6 +162,10 @@ impl FakeAudio {
 struct FakeAudioHandle(Arc<Mutex<AudioState>>);
 
 impl AudioHandle for FakeAudioHandle {
+    fn set_recording(&self, recording: bool) {
+        self.0.lock().unwrap().recording = recording;
+    }
+
     fn update_settings(&self, settings: ShotDetectorSettings) {
         self.0.lock().unwrap().updates.push(settings);
     }

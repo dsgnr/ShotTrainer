@@ -100,6 +100,7 @@ export class MockBridge implements Bridge {
   #nextSessionId = 1;
   #shots: WireShot[] = [];
   #shotNumber = 0;
+  #recordingFrames = 0;
   #prefs = { ...MOCK_PREFERENCES };
   #aimMm: [number, number] = [0, 0];
 
@@ -161,6 +162,8 @@ export class MockBridge implements Bridge {
         this.#sendState();
         break;
       case "startSession":
+        if (this.#session.kind === "recording") break;
+        this.#recordingFrames = 0;
         this.#session = { kind: "recording", sessionId: this.#nextSessionId };
         this.#summary = `Recording session ${this.#nextSessionId}`;
         this.#nextSessionId += 1;
@@ -262,7 +265,8 @@ export class MockBridge implements Bridge {
       zeroPx: null,
       tracePointMm: this.#aimMm,
     });
-    const shot = this.#frameId % MOCK_SHOT_EVERY_FRAMES === 0;
+    const shot = this.#session.kind === "recording"
+      && ++this.#recordingFrames % MOCK_SHOT_EVERY_FRAMES === 0;
     this.#emit({ type: "audioLevel", level: shot ? 0.9 : 0.02 });
     if (shot && this.#session.kind === "recording") {
       this.#shots = [

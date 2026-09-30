@@ -38,6 +38,8 @@ pub type AudioSink = Box<dyn Fn(AudioEvent) + Send + Sync + 'static>;
 /// A running microphone stream. Dropping it stops the stream.
 pub trait AudioHandle: Send {
     fn update_settings(&self, settings: ShotDetectorSettings);
+    /// Enables automatic shots in synthetic streams. Hardware streams ignore it.
+    fn set_recording(&self, _recording: bool) {}
     fn stop(&mut self);
 }
 
