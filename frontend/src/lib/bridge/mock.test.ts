@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { decodePacket } from "../frames/packet";
 import type { EventOf, WireEvent, WireEventType } from "../wire/types";
-import { MOCK_FRAME_MS, MOCK_HEIGHT, MOCK_SHOT_EVERY_FRAMES, MOCK_WIDTH, MockBridge } from "./mock";
+import { MOCK_PREFERENCES, MOCK_FRAME_MS, MOCK_HEIGHT, MOCK_SHOT_EVERY_FRAMES, MOCK_WIDTH, MockBridge } from "./mock";
 
 let bridge: MockBridge;
 let events: WireEvent[];
@@ -80,4 +80,11 @@ describe("MockBridge", () => {
       awaitingAccess: false,
     });
   });
+});
+
+it("retains global decimal scoring when preparing a new session", async () => {
+  await bridge.send({ type: "setPreferences", prefs: { ...MOCK_PREFERENCES, decimalScoring: true } });
+  expect(ofType("preferences").at(-1)?.prefs.decimalScoring).toBe(true);
+  await bridge.send({ type: "newSession" });
+  expect(ofType("preferences").at(-1)?.prefs.decimalScoring).toBe(true);
 });

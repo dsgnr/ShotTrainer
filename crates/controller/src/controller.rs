@@ -1624,4 +1624,22 @@ mod tests {
         assert_eq!(controller.preferences().pre_shot_ms, 1500);
         assert_eq!(controller.preferences().audio_gain, 2.0);
     }
+    #[test]
+    fn decimal_scoring_is_global_and_survives_new_sessions_and_restart() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        command(
+            &mut controller,
+            Command::SetPreferences(Preferences {
+                decimal_scoring: true,
+                ..Preferences::default()
+            }),
+        );
+        assert!(load_preferences(&rig.paths.settings).decimal_scoring);
+        command(&mut controller, Command::NewSession);
+        assert!(controller.preferences().decimal_scoring);
+        drop(controller);
+        let controller = rig.build();
+        assert!(controller.preferences().decimal_scoring);
+    }
 }

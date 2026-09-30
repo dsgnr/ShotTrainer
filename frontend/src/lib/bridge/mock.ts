@@ -45,6 +45,7 @@ export const MOCK_PREFERENCES: WirePreferences = {
   invertTraceHorizontal: false,
   invertTraceVertical: false,
   showHoldZone: true,
+  decimalScoring: false,
 };
 
 /** The bundled `default.json` face. */
@@ -123,6 +124,17 @@ export class MockBridge implements Bridge {
 
   async send(command: WireCommand): Promise<void> {
     switch (command.type) {
+      case "setPreferences": {
+        const current = this.#prefs;
+        this.#prefs = { ...command.prefs,
+          targetFace: current.targetFace, preShotMs: current.preShotMs, postShotMs: current.postShotMs,
+          releaseWindowMs: current.releaseWindowMs, shotRefractoryMs: current.shotRefractoryMs,
+          shotDiameterMm: current.shotDiameterMm, sessionPosition: current.sessionPosition,
+          shotsPerSeries: current.shotsPerSeries,
+        };
+        this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_RINGS });
+        break;
+      }
       case "setSessionSettings":
         if (this.#session.kind !== "idle" || this.#shots.length > 0) break;
         this.#prefs = { ...command.prefs };
@@ -130,7 +142,12 @@ export class MockBridge implements Bridge {
         break;
       case "newSession":
         if (this.#session.kind === "recording") break;
-        this.#prefs = { ...MOCK_PREFERENCES };
+        this.#prefs = { ...this.#prefs,
+          targetFace: MOCK_PREFERENCES.targetFace, preShotMs: MOCK_PREFERENCES.preShotMs,
+          postShotMs: MOCK_PREFERENCES.postShotMs, releaseWindowMs: MOCK_PREFERENCES.releaseWindowMs,
+          shotRefractoryMs: MOCK_PREFERENCES.shotRefractoryMs, shotDiameterMm: MOCK_PREFERENCES.shotDiameterMm,
+          sessionPosition: MOCK_PREFERENCES.sessionPosition, shotsPerSeries: MOCK_PREFERENCES.shotsPerSeries,
+        };
         this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_RINGS });
         this.#session = { kind: "idle" };
         this.#summary = "Ready to start a new session";

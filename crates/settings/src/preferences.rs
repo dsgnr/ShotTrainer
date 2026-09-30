@@ -40,6 +40,8 @@ pub struct Preferences {
     pub invert_trace_horizontal: bool,
     pub invert_trace_vertical: bool,
     pub show_hold_zone: bool,
+    #[serde(skip_serializing_if = "is_false")]
+    pub decimal_scoring: bool,
 }
 
 impl Default for Preferences {
@@ -67,6 +69,7 @@ impl Default for Preferences {
             invert_trace_horizontal: false,
             invert_trace_vertical: false,
             show_hold_zone: true,
+            decimal_scoring: false,
         }
     }
 }
@@ -175,6 +178,7 @@ fn preferences_from_object(raw: &Map<String, Value>) -> Preferences {
         read_bool
     );
     field!("show_hold_zone", prefs.show_hold_zone, read_bool);
+    field!("decimal_scoring", prefs.decimal_scoring, read_bool);
     prefs
 }
 
@@ -182,4 +186,8 @@ fn preferences_from_object(raw: &Map<String, Value>) -> Preferences {
 /// temporary file in the same directory so a reader never sees a partial file.
 pub fn save_preferences(prefs: &Preferences, path: &Path) -> Result<(), SettingsError> {
     write_json_atomic(prefs, path)
+}
+
+fn is_false(value: &bool) -> bool {
+    !value
 }

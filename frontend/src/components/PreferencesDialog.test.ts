@@ -80,3 +80,36 @@ it("uses themed device choices while preserving preview and saved values", async
   await unmount(component);
   container.remove();
 });
+
+it("saves decimal scoring globally while keeping edits in the draft until Save", async () => {
+  const app = new AppState();
+  app.dispatch({ ...SAMPLE_EVENTS.preferences, prefs: { ...SAMPLE_EVENTS.preferences.prefs, decimalScoring: false } });
+  const send = vi.fn(async (_command: WireCommand) => undefined);
+  const target = document.createElement("div"); document.body.append(target);
+  const component = mount(PreferencesDialog, { target, props: {
+    open: true, preferences: app.preferences, cameras: [], microphones: [], faces: [], send, onclose: () => undefined,
+  } }); flushSync();
+  const checkbox = target.querySelector<HTMLInputElement>('section[aria-label="Scoring"] input')!;
+  expect(checkbox.checked).toBe(false);
+  checkbox.checked = true; checkbox.dispatchEvent(new Event("change", { bubbles: true })); flushSync();
+  expect(app.preferences.prefs!.decimalScoring).toBe(false);
+  [...target.querySelectorAll<HTMLButtonElement>("button")].find(b => b.textContent === "Save")!.click();
+  expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: "setPreferences", prefs: expect.objectContaining({ decimalScoring: true }) }));
+  await unmount(component); target.remove();
+});
+
+it("discards decimal scoring edits on Cancel", async () => {
+  const app = new AppState(); app.dispatch(SAMPLE_EVENTS.preferences);
+  const send = vi.fn(async (_command: WireCommand) => undefined); const onclose = vi.fn();
+  const target = document.createElement("div"); document.body.append(target);
+  const component = mount(PreferencesDialog, { target, props: {
+    open: true, preferences: app.preferences, cameras: [], microphones: [], faces: [], send, onclose,
+  } }); flushSync();
+  const checkbox = target.querySelector<HTMLInputElement>('section[aria-label="Scoring"] input')!;
+  checkbox.checked = false; checkbox.dispatchEvent(new Event("change", { bubbles: true })); flushSync();
+  [...target.querySelectorAll<HTMLButtonElement>("button")].find(b => b.textContent === "Cancel")!.click();
+  expect(onclose).toHaveBeenCalledOnce();
+  expect(send.mock.calls.some(([command]) => command.type === "setPreferences")).toBe(false);
+  expect(app.preferences.prefs!.decimalScoring).toBe(true);
+  await unmount(component); target.remove();
+});

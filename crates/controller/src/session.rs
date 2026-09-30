@@ -563,6 +563,41 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn decimal_scores_are_recorded_and_reviewed_without_implicit_rescoring() {
+        let mut rig = Rig::new();
+        rig.prefs.decimal_scoring = true;
+        rig.prefs.target_face = "air_rifle_10m".into();
+        let mut mgr = SessionManager::new(&rig.prefs);
+        rig.run(|cx| {
+            mgr.start(cx, "Decimal", "practice", "1");
+            mgr.on_sample(cx, mapped(1.0, 0.0, 0.0));
+            mgr.on_shot(cx, shot_at(1.0));
+            mgr.on_sample(cx, mapped(2.0, 3.0, 0.0));
+            mgr.on_shot(cx, shot_at(2.0));
+            mgr.stop(cx);
+        });
+        let id = rig.repo().list_sessions().unwrap()[0].id;
+        let scores = |rig: &Rig| {
+            rig.repo()
+                .list_shots(id)
+                .unwrap()
+                .into_iter()
+                .map(|s| s.score)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(scores(&rig), ["10.9", "9.8"]);
+        assert!((rig.repo().list_sessions().unwrap()[0].total_score - 20.7).abs() < 1e-9);
+        rig.prefs.decimal_scoring = false;
+        rig.run(|cx| {
+            mgr.open_session(cx, id);
+        });
+        assert_eq!(scores(&rig), ["10.9", "9.8"]);
+        assert_eq!(mgr.shots[0].score.as_deref(), Some("10.9"));
+        rig.run(|cx| mgr.rescore(cx));
+        assert_eq!(scores(&rig), ["10", "9"]);
+    }
+
+    #[test]
     fn start_is_ignored_while_recording() {
         let rig = Rig::new();
         let mut mgr = SessionManager::new(&rig.prefs);

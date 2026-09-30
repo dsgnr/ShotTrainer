@@ -262,3 +262,35 @@ fn validate_replaces_each_invalid_value_with_its_default() {
     };
     assert_eq!(validate_preferences(&prefs), expected);
 }
+
+#[test]
+fn decimal_scoring_roundtrips_and_invalid_types_keep_other_preferences() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("settings.json");
+    assert!(!load_preferences(&path).decimal_scoring);
+    let prefs = Preferences {
+        decimal_scoring: true,
+        ..Preferences::default()
+    };
+    save_preferences(&prefs, &path).unwrap();
+    assert!(load_preferences(&path).decimal_scoring);
+    assert!(validate_preferences(&prefs).decimal_scoring);
+    save_preferences(&Preferences::default(), &path).unwrap();
+    assert!(!load_preferences(&path).decimal_scoring);
+    for value in [
+        serde_json::json!(null),
+        serde_json::json!("true"),
+        serde_json::json!(1),
+        serde_json::json!([]),
+        serde_json::json!({}),
+    ] {
+        std::fs::write(
+            &path,
+            serde_json::json!({ "decimal_scoring": value, "audio_gain": 2.0 }).to_string(),
+        )
+        .unwrap();
+        let loaded = load_preferences(&path);
+        assert!(!loaded.decimal_scoring);
+        assert_eq!(loaded.audio_gain, 2.0);
+    }
+}

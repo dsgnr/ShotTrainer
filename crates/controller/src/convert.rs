@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 
 use shottrainer_audio::models::ShotDetectorSettings;
 use shottrainer_core::services::scoring::{
-    ScoreOptions, ScoringDirection, ScoringRing, score_shot,
+    ScoreOptions, ScoringDirection, ScoringRing, score_shot, score_shot_decimal,
 };
 use shottrainer_core::services::shot_coordinator::ShotCoordinatorSettings;
 use shottrainer_settings::Preferences;
@@ -124,7 +124,12 @@ pub fn score_for(
             .partial_cmp(&b.radius_mm)
             .unwrap_or(Ordering::Equal)
     });
-    score_shot(
+    let score = if prefs.decimal_scoring {
+        score_shot_decimal
+    } else {
+        score_shot
+    };
+    score(
         x,
         y,
         &rings,
@@ -269,6 +274,20 @@ mod tests {
                 post_shot_ms: 100,
             }
         );
+    }
+
+    #[test]
+    fn global_decimal_scoring_selects_the_position_based_score() {
+        let faces = built_in_faces();
+        let mut prefs = Preferences {
+            target_face: "air_rifle_10m".into(),
+            ..Preferences::default()
+        };
+        assert_eq!(score_for(&faces, &prefs, Some(0.0), Some(0.0)), "10");
+        prefs.decimal_scoring = true;
+        assert_eq!(score_for(&faces, &prefs, Some(0.0), Some(0.0)), "10.9");
+        assert_eq!(score_for(&faces, &prefs, Some(3.0), Some(0.0)), "9.8");
+        assert_eq!(score_for(&faces, &prefs, None, Some(0.0)), "");
     }
 
     #[test]

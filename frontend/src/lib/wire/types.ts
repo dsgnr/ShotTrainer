@@ -149,6 +149,7 @@ export interface WirePreferences {
   invertTraceHorizontal: boolean;
   invertTraceVertical: boolean;
   showHoldZone: boolean;
+  decimalScoring: boolean;
 }
 
 /** Every controller event, emitted as the Tauri event `ui-event`. */

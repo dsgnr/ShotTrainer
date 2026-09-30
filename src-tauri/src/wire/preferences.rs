@@ -30,6 +30,8 @@ pub struct WirePreferences {
     pub invert_trace_horizontal: bool,
     pub invert_trace_vertical: bool,
     pub show_hold_zone: bool,
+    #[serde(default)]
+    pub decimal_scoring: bool,
 }
 
 impl From<&Preferences> for WirePreferences {
@@ -57,6 +59,7 @@ impl From<&Preferences> for WirePreferences {
             invert_trace_horizontal: p.invert_trace_horizontal,
             invert_trace_vertical: p.invert_trace_vertical,
             show_hold_zone: p.show_hold_zone,
+            decimal_scoring: p.decimal_scoring,
         }
     }
 }
@@ -86,6 +89,7 @@ impl From<WirePreferences> for Preferences {
             invert_trace_horizontal: w.invert_trace_horizontal,
             invert_trace_vertical: w.invert_trace_vertical,
             show_hold_zone: w.show_hold_zone,
+            decimal_scoring: w.decimal_scoring,
         }
     }
 }
@@ -122,6 +126,7 @@ pub(crate) mod tests {
             invert_trace_horizontal: false,
             invert_trace_vertical: true,
             show_hold_zone: false,
+            decimal_scoring: true,
         }
     }
 
@@ -137,7 +142,7 @@ pub(crate) mod tests {
     fn preferences_use_camel_case_keys() {
         let value = serde_json::to_value(WirePreferences::from(&distinct_preferences())).unwrap();
         let object = value.as_object().unwrap();
-        assert_eq!(object.len(), 22);
+        assert_eq!(object.len(), 23);
         assert_eq!(object["cameraId"], json!(3));
         assert_eq!(object["shotRefractoryMs"], json!(450));
         assert_eq!(object["releaseWindowMs"], json!(350));

@@ -215,6 +215,15 @@
           </div>
         </section>
 
+        <section class="group" aria-label="Scoring">
+          <h3 class="panel-title">Scoring</h3>
+          <label class="toggle">
+            <input type="checkbox" bind:checked={draft.decimalScoring} />
+            Decimal scoring
+          </label>
+          <p class="hint">Score new shots in tenths instead of whole rings.</p>
+        </section>
+
         <section class="group" aria-label="Tracking">
           <h3 class="panel-title">Tracking</h3>
           <div class="fields">
@@ -276,6 +285,8 @@
     background: rgba(0, 0, 0, 0.55);
     z-index: 10;
   }
+
+  .hint { color: var(--text-muted); font-size: var(--text-sm); margin: 8px 0 0; }
 
   .dialog {
     display: flex;

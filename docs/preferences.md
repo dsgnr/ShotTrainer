@@ -15,6 +15,7 @@ Save to apply them or cancel to leave the saved preferences in place.
   detector tuning and reports its status.
 - **Audio:** microphone and gain.
 - **Detection:** shot threshold.
+- **Scoring:** optional decimal scoring for new shots.
 - **Tracking:** tracking region, measured circle diameter and display toggles.
 
 Pre-shot, post-shot, release window, refractory interval, target face and shot
@@ -33,3 +34,18 @@ on macOS, and `$XDG_DATA_HOME/shottrainer` on Linux (default
 `custom_target_faces.json`, alongside `sessions.db`. Back up this directory
 before editing files manually. Synthetic mode uses a separate temporary
 directory.
+
+## Decimal scoring
+
+Enable **Decimal scoring** under **Scoring** to score new shots in tenths
+rather than whole rings. It is off by default and saved globally in
+`settings.json` as `decimal_scoring`. Creating a session keeps this preference.
+
+A standard ten-ring target scores up to 10.9. Each ring is divided into ten
+radial zones using the target geometry and shot diameter. Custom faces with
+numeric labels use the same interpolation. An X ring supplies the ten only
+when the face has no numeric ten. Faces with non-numeric labels retain those
+labels.
+
+Changing this preference does not rewrite saved scores. Reopened sessions
+show the scores recorded with their shots.
