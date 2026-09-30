@@ -26,6 +26,7 @@ pub const TRACE_BUFFER_CAPACITY: usize = 12_000;
 /// shot is saved, so re-scoring can write back to it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShotEntry {
+    pub series_index: i32,
     pub timestamp: f64,
     pub x_mm: Option<f64>,
     pub y_mm: Option<f64>,
@@ -67,6 +68,7 @@ pub struct SessionManager {
     /// The saved session on display, if any. Live input is ignored while set.
     pub(crate) reviewing: Option<i64>,
     sample_warnings: RepeatLimiter,
+    next_shot_number: usize,
 }
 
 impl SessionManager {
@@ -79,6 +81,7 @@ impl SessionManager {
             shots: Vec::new(),
             reviewing: None,
             sample_warnings: RepeatLimiter::default(),
+            next_shot_number: 0,
         }
     }
 
@@ -112,6 +115,7 @@ impl SessionManager {
             return;
         }
         self.reviewing = None;
+        self.next_shot_number = 0;
         self.shots.clear();
         self.buffer.clear();
         self.clear_replay(cx);
@@ -128,6 +132,7 @@ impl SessionManager {
             return;
         }
         self.buffer.clear();
+        self.next_shot_number = 0;
         self.shots.clear();
         self.reviewing = None;
         self.clear_replay(cx);
@@ -143,6 +148,7 @@ impl SessionManager {
             shot_refractory_ms: cx.prefs.shot_refractory_ms,
             shot_diameter_mm: cx.prefs.shot_diameter_mm,
             position: &cx.prefs.session_position,
+            shots_per_series: cx.prefs.shots_per_series,
             ..NewSession::default()
         };
         match self.recorder.start(&cx.repo(), &new) {
@@ -239,6 +245,9 @@ impl SessionManager {
         if self.reviewing.is_some() {
             return;
         }
+        let series_index =
+            (self.next_shot_number / cx.prefs.shots_per_series.max(1) as usize) as i32;
+        self.next_shot_number += 1;
         let result = self.coordinator.handle_shot(&self.buffer, event);
         let sample = result.sample.as_ref();
         let (x_mm, y_mm) = (sample.and_then(|s| s.x_mm), sample.and_then(|s| s.y_mm));
@@ -246,6 +255,7 @@ impl SessionManager {
         let mut shot_id = None;
         if self.recorder.is_recording() {
             let shot = NewShot {
+                series_index,
                 ts: event.timestamp,
                 x_mm,
                 y_mm,
@@ -262,6 +272,7 @@ impl SessionManager {
             }
         }
         self.shots.push(ShotEntry {
+            series_index,
             timestamp: event.timestamp,
             x_mm,
             y_mm,
@@ -439,6 +450,7 @@ pub(crate) mod tests {
 
     pub(crate) fn entry(timestamp: f64, x: Option<f64>, y: Option<f64>) -> ShotEntry {
         ShotEntry {
+            series_index: 0,
             timestamp,
             x_mm: x,
             y_mm: y,
@@ -511,6 +523,46 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn series_advance_without_reassigning_shots_after_deletion_or_review() {
+        let mut rig = Rig::new();
+        rig.prefs.shots_per_series = 2;
+        let mut mgr = SessionManager::new(&rig.prefs);
+        rig.run(|cx| mgr.start(cx, "Series", "practice", "1"));
+        let id = mgr.recorder.session_id().unwrap();
+        rig.run(|cx| {
+            mgr.on_shot(cx, shot_at(1.0));
+            mgr.on_shot(cx, shot_at(2.0));
+            mgr.delete_shot(cx, 0);
+            mgr.on_shot(cx, shot_at(3.0));
+            mgr.on_shot(cx, shot_at(4.0));
+            mgr.on_shot(cx, shot_at(5.0));
+            mgr.stop(cx);
+        });
+        let expected = vec![0, 1, 1, 2];
+        assert_eq!(
+            mgr.shots.iter().map(|s| s.series_index).collect::<Vec<_>>(),
+            expected
+        );
+        assert_eq!(
+            rig.repo()
+                .list_shots(id)
+                .unwrap()
+                .iter()
+                .map(|s| s.series_index)
+                .collect::<Vec<_>>(),
+            expected
+        );
+        rig.run(|cx| {
+            mgr.prepare(cx);
+            mgr.open_session(cx, id);
+        });
+        assert_eq!(
+            mgr.shots.iter().map(|s| s.series_index).collect::<Vec<_>>(),
+            expected
+        );
+    }
+
+    #[test]
     fn start_is_ignored_while_recording() {
         let rig = Rig::new();
         let mut mgr = SessionManager::new(&rig.prefs);
@@ -568,6 +620,7 @@ pub(crate) mod tests {
         assert_eq!(
             mgr.shots,
             [ShotEntry {
+                series_index: 0,
                 timestamp: 1.0,
                 x_mm: Some(0.0),
                 y_mm: Some(0.0),
@@ -679,6 +732,7 @@ pub(crate) mod tests {
                 .add_shot(
                     sid,
                     &NewShot {
+                        series_index: 0,
                         ts: 0.0,
                         x_mm: Some(x),
                         y_mm: Some(y),
@@ -693,11 +747,13 @@ pub(crate) mod tests {
         let mut mgr = SessionManager::new(&rig.prefs);
         mgr.shots = vec![
             ShotEntry {
+                series_index: 0,
                 shot_id: Some(a),
                 score: Some("5".into()),
                 ..entry(0.0, Some(0.0), Some(0.0))
             },
             ShotEntry {
+                series_index: 0,
                 shot_id: Some(b),
                 score: Some("9".into()),
                 ..entry(1.0, Some(100.0), Some(100.0))

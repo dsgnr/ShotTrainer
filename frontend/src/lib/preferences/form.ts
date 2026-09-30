@@ -12,6 +12,7 @@ type NumberField =
   | "audioGain"
   | "shotThreshold"
   | "shotRefractoryMs"
+  | "shotsPerSeries"
   | "preShotMs"
   | "postShotMs"
   | "releaseWindowMs"
@@ -27,6 +28,7 @@ export const NUMBER_RANGES: Record<NumberField, [number, number]> = {
   shotThreshold: [0.01, 1],
   shotRefractoryMs: [50, 5000],
   preShotMs: [0, 10000],
+  shotsPerSeries: [1, 100],
   postShotMs: [0, 10000],
   releaseWindowMs: [50, 2000],
   shotDiameterMm: [0.5, 25],
@@ -44,7 +46,7 @@ export function clampPreferences(prefs: WirePreferences): WirePreferences {
   for (const field of Object.keys(NUMBER_RANGES) as NumberField[]) {
     const value = prefs[field];
     const bounded = clamp(Number.isFinite(value) ? value : NUMBER_RANGES[field][0], NUMBER_RANGES[field]);
-    next[field] = field.endsWith("Ms") ? Math.round(bounded) : bounded;
+    next[field] = (field.endsWith("Ms") || field === "shotsPerSeries") ? Math.round(bounded) : bounded;
   }
   next.cameraId = prefs.cameraId === null ? null : Math.min(2147483647, Math.max(0, Math.round(Number.isFinite(prefs.cameraId) ? prefs.cameraId : 0)));
   next.cameraRotation = (ROTATIONS as readonly number[]).includes(prefs.cameraRotation)

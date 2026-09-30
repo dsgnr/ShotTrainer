@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { seriesIndex } from "../lib/shots/series";
   import type { CommandSender } from "../lib/app/commands";
   import { shotRows, stepSelection } from "../lib/shots/rows";
   import type { WireShot } from "../lib/wire/types";
@@ -7,9 +8,10 @@
     shots: WireShot[];
     selected: number | null;
     send: CommandSender;
+    shotsPerSeries?: number;
   }
 
-  let { shots, selected, send }: Props = $props();
+  let { shots, selected, send, shotsPerSeries = 10 }: Props = $props();
 
   let list = $state<HTMLUListElement>();
   let keyboardNavigation = $state(false);
@@ -18,7 +20,7 @@
 
   $effect(() => {
     if (selected !== null && list) {
-      const row = list.children[selected] as HTMLElement | undefined;
+      const row = list.querySelector<HTMLElement>(`[data-index="${selected}"]`);
       row?.scrollIntoView?.({ block: "nearest" });
       if (row && list.contains(document.activeElement)) {
         row.focus({ preventScroll: true });
@@ -74,7 +76,12 @@
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <ul bind:this={list} class="shots" class:keyboard-navigation={keyboardNavigation} role="listbox" aria-label="Shots" tabindex="-1" onkeydown={onKeydown} onpointermove={() => keyboardNavigation = false}>
       {#each rows as row, i (i)}
+        {@const series = seriesIndex(shots[i]!, i, shotsPerSeries)}
+        {#if i === 0 || series !== seriesIndex(shots[i - 1]!, i - 1, shotsPerSeries)}
+          <li class="series" role="presentation">Series {series + 1}</li>
+        {/if}
         <li
+          data-index={i}
           role="option"
           tabindex={i === (selected ?? 0) ? 0 : -1}
           aria-selected={i === selected}
@@ -157,6 +164,9 @@
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
   }
+
+  .series { display: block; padding: 8px var(--space-4) 4px; border-top: 1px solid var(--divider); color: var(--text-muted); font-size: var(--text-xs); cursor: default; }
+  .series:first-child { border-top: 0; }
 
   .shots:focus-visible {
     outline: none;

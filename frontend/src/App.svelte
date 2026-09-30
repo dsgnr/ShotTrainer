@@ -9,6 +9,7 @@
   import PreferencesDialog from "./components/PreferencesDialog.svelte";
   import ReplayControls from "./components/ReplayControls.svelte";
   import SessionBrowser from "./components/SessionBrowser.svelte";
+  import { currentSeries } from "./lib/shots/series";
   import NewSessionDialog from "./components/NewSessionDialog.svelte";
   import SessionSettings from "./components/SessionSettings.svelte";
   import SessionControls from "./components/SessionControls.svelte";
@@ -60,16 +61,20 @@
     }
   });
 
+  const series = $derived(currentSeries(app.shots.shots, app.shots.selected, app.preferences.prefs?.shotsPerSeries ?? 10));
+  const seriesShots = $derived(series.entries.map(entry => entry.shot));
+
   // Keep the shot markers and selection in step with the shots store.
   $effect(() => {
     targetModel.setShots(
-      app.shots.shots.map((shot, i) => ({
+      series.entries.map(({ shot, index }) => ({
         xMm: shot.xMm,
         yMm: shot.yMm,
-        label: String(i + 1),
+        label: String(index + 1),
       })),
     );
-    targetModel.setSelectedShot(app.shots.selected);
+    const local = series.entries.findIndex(entry => entry.index === app.shots.selected);
+    targetModel.setSelectedShot(local < 0 ? null : local);
   });
 
   // Reflect a loaded replay in the target: the saved trace, its phase
@@ -108,7 +113,7 @@
     extentMm = clampExtent(extentForRings(rings));
   });
   const automaticViewport = $derived(sessionViewport(
-    rings, app.shots.shots, app.preferences.prefs?.shotDiameterMm ?? 4.5,
+    rings, seriesShots, app.preferences.prefs?.shotDiameterMm ?? 4.5,
   ));
   const visibleExtent = $derived(autoZoom ? automaticViewport.extentMm : extentMm);
   const targetCentre = $derived<readonly [number, number]>(autoZoom ? automaticViewport.centre : [0, 0]);
@@ -231,13 +236,14 @@
   {/snippet}
   {#snippet shots()}
     <SessionOverview
+      shotsPerSeries={app.preferences.prefs?.shotsPerSeries ?? 10}
       shots={app.shots.shots}
       selected={app.shots.selected}
       {rings}
       shotDiameterMm={app.preferences.prefs?.shotDiameterMm ?? 4.5}
       {send}
     />
-    <ShotList shots={app.shots.shots} selected={app.shots.selected} {send} />
+    <ShotList shotsPerSeries={app.preferences.prefs?.shotsPerSeries ?? 10} shots={app.shots.shots} selected={app.shots.selected} {send} />
   {/snippet}
   {#snippet target()}
     <div class="target-column">

@@ -64,6 +64,7 @@ export type WireSessionState =
   | { kind: "reviewing"; sessionId: number };
 
 export interface WireShot {
+  seriesIndex?: number;
   timestamp: F64;
   xMm: F64;
   yMm: F64;
@@ -142,6 +143,7 @@ export interface WirePreferences {
   targetFace: string;
   shotDiameterMm: number;
   sessionPosition: "prone" | "standing" | "kneeling";
+  shotsPerSeries: number;
   trackingRegionFraction: number;
   circleDiameterMm: number;
   invertTraceHorizontal: boolean;

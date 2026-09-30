@@ -115,6 +115,7 @@ impl SessionManager {
         self.shots = shots
             .into_iter()
             .map(|s| ShotEntry {
+                series_index: s.series_index,
                 timestamp: s.ts,
                 x_mm: s.x_mm,
                 y_mm: s.y_mm,
@@ -254,6 +255,7 @@ mod tests {
         repo.add_shot(
             sid,
             &NewShot {
+                series_index: 0,
                 ts,
                 x_mm: xy.0,
                 y_mm: xy.1,

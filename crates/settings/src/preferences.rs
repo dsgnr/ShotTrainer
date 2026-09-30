@@ -33,6 +33,8 @@ pub struct Preferences {
     pub shot_diameter_mm: f64,
     #[serde(skip)]
     pub session_position: String,
+    #[serde(skip)]
+    pub shots_per_series: i32,
     pub tracking_region_fraction: f64,
     pub circle_diameter_mm: f64,
     pub invert_trace_horizontal: bool,
@@ -59,6 +61,7 @@ impl Default for Preferences {
             target_face: "default".into(),
             shot_diameter_mm: 4.5,
             session_position: "standing".into(),
+            shots_per_series: 10,
             tracking_region_fraction: 0.7,
             circle_diameter_mm: 60.0,
             invert_trace_horizontal: false,
@@ -88,6 +91,11 @@ pub fn validate_preferences(prefs: &Preferences) -> Preferences {
             if ["prone", "standing", "kneeling"].contains(&prefs.session_position.as_str()) {
                 validated.session_position = prefs.session_position.clone();
             }
+            validated.shots_per_series = if (1..=100).contains(&prefs.shots_per_series) {
+                prefs.shots_per_series
+            } else {
+                10
+            };
             validated
         }
         _ => Preferences::default(),

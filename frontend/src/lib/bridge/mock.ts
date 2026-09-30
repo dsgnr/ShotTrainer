@@ -39,6 +39,7 @@ export const MOCK_PREFERENCES: WirePreferences = {
   targetFace: "default",
   shotDiameterMm: 4.5,
   sessionPosition: "standing",
+  shotsPerSeries: 10,
   trackingRegionFraction: 0.7,
   circleDiameterMm: CIRCLE_DIAMETER_MM,
   invertTraceHorizontal: false,
@@ -97,6 +98,7 @@ export class MockBridge implements Bridge {
   #summary = "No active session";
   #nextSessionId = 1;
   #shots: WireShot[] = [];
+  #shotNumber = 0;
   #prefs = { ...MOCK_PREFERENCES };
   #aimMm: [number, number] = [0, 0];
 
@@ -133,6 +135,7 @@ export class MockBridge implements Bridge {
         this.#session = { kind: "idle" };
         this.#summary = "Ready to start a new session";
         this.#shots = [];
+        this.#shotNumber = 0;
         this.#emit({ type: "replayCleared" });
         this.#emitSession();
         this.#emitShots();
@@ -144,6 +147,7 @@ export class MockBridge implements Bridge {
         this.#session = { kind: "recording", sessionId: this.#nextSessionId };
         this.#summary = `Recording session ${this.#nextSessionId}`;
         this.#nextSessionId += 1;
+        this.#shotNumber = 0;
         this.#shots = [];
         this.#emitSession();
         this.#emitShots();
@@ -246,7 +250,8 @@ export class MockBridge implements Bridge {
     if (shot && this.#session.kind === "recording") {
       this.#shots = [
         ...this.#shots,
-        { timestamp: t, xMm: this.#aimMm[0], yMm: this.#aimMm[1], score: null, shotId: null },
+        { timestamp: t, xMm: this.#aimMm[0], yMm: this.#aimMm[1], score: null, shotId: null,
+          seriesIndex: Math.floor(this.#shotNumber++ / this.#prefs.shotsPerSeries) },
       ];
       this.#emitShots();
     }

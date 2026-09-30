@@ -31,6 +31,7 @@ fn samples(n: usize, dt: f64) -> Vec<TrackingSample> {
 
 fn shot_at(ts: f64) -> NewShot {
     NewShot {
+        series_index: 0,
         ts,
         x_mm: Some(0.0),
         y_mm: Some(0.0),
@@ -238,6 +239,7 @@ fn test_add_shot_returns_id_and_persists() {
     let sid = recorder.start(&repo, &NewSession::default()).unwrap();
     recorder.add_sample(&repo, rec_sample(0.0)).unwrap();
     let shot = NewShot {
+        series_index: 0,
         ts: 0.5,
         x_mm: Some(1.0),
         y_mm: Some(-1.0),
@@ -376,6 +378,7 @@ fn test_exports_two_csv_files() {
     repo.add_shot(
         sid,
         &NewShot {
+            series_index: 0,
             ts: 0.05,
             x_mm: Some(0.5),
             y_mm: Some(-0.5),
@@ -461,6 +464,7 @@ fn test_export_matches_python_bytes() {
         repo.add_shot(
             sid,
             &NewShot {
+                series_index: 0,
                 ts: shot["ts"].as_f64().unwrap(),
                 x_mm: opt(&shot["x_mm"]),
                 y_mm: opt(&shot["y_mm"]),
@@ -514,6 +518,7 @@ fn test_export_quotes_fields_like_python() {
         repo.add_shot(
             sid,
             &NewShot {
+                series_index: 0,
                 score: score.to_string(),
                 ..shot_at(ts)
             },

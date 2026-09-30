@@ -168,6 +168,7 @@ impl From<SessionState> for WireSessionState {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WireShot {
+    pub series_index: i32,
     pub timestamp: f64,
     pub x_mm: Option<f64>,
     pub y_mm: Option<f64>,
@@ -178,6 +179,7 @@ pub struct WireShot {
 impl From<&ShotEntry> for WireShot {
     fn from(s: &ShotEntry) -> Self {
         WireShot {
+            series_index: s.series_index,
             timestamp: s.timestamp,
             x_mm: s.x_mm,
             y_mm: s.y_mm,
@@ -681,6 +683,7 @@ mod tests {
     fn shots_carry_the_list_and_the_group() {
         let view = ShotsView {
             shots: vec![ShotEntry {
+                series_index: 0,
                 timestamp: 3.5,
                 x_mm: Some(1.0),
                 y_mm: None,
@@ -700,7 +703,7 @@ mod tests {
             wire(&UiEvent::Shots(view)),
             json!({
                 "type": "shots",
-                "shots": [{"timestamp": 3.5, "xMm": 1.0, "yMm": null, "score": "10", "shotId": 6}],
+                "shots": [{"timestamp": 3.5, "xMm": 1.0, "yMm": null, "score": "10", "shotId": 6, "seriesIndex": 0}],
                 "group": {"count": 1, "meanXMm": 1.0, "meanYMm": 2.0, "extremeSpreadMm": 3.0, "meanRadiusMm": 4.0},
                 "totalScore": 10.0
             })

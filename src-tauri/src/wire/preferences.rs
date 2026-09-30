@@ -24,6 +24,7 @@ pub struct WirePreferences {
     pub target_face: String,
     pub shot_diameter_mm: f64,
     pub session_position: String,
+    pub shots_per_series: i32,
     pub tracking_region_fraction: f64,
     pub circle_diameter_mm: f64,
     pub invert_trace_horizontal: bool,
@@ -50,6 +51,7 @@ impl From<&Preferences> for WirePreferences {
             target_face: p.target_face.clone(),
             shot_diameter_mm: p.shot_diameter_mm,
             session_position: p.session_position.clone(),
+            shots_per_series: p.shots_per_series,
             tracking_region_fraction: p.tracking_region_fraction,
             circle_diameter_mm: p.circle_diameter_mm,
             invert_trace_horizontal: p.invert_trace_horizontal,
@@ -78,6 +80,7 @@ impl From<WirePreferences> for Preferences {
             target_face: w.target_face,
             shot_diameter_mm: w.shot_diameter_mm,
             session_position: w.session_position,
+            shots_per_series: w.shots_per_series,
             tracking_region_fraction: w.tracking_region_fraction,
             circle_diameter_mm: w.circle_diameter_mm,
             invert_trace_horizontal: w.invert_trace_horizontal,
@@ -113,6 +116,7 @@ pub(crate) mod tests {
             target_face: "air_rifle_10m".into(),
             shot_diameter_mm: 4.5,
             session_position: "kneeling".into(),
+            shots_per_series: 5,
             tracking_region_fraction: 0.6,
             circle_diameter_mm: 42.0,
             invert_trace_horizontal: false,
@@ -133,7 +137,7 @@ pub(crate) mod tests {
     fn preferences_use_camel_case_keys() {
         let value = serde_json::to_value(WirePreferences::from(&distinct_preferences())).unwrap();
         let object = value.as_object().unwrap();
-        assert_eq!(object.len(), 21);
+        assert_eq!(object.len(), 22);
         assert_eq!(object["cameraId"], json!(3));
         assert_eq!(object["shotRefractoryMs"], json!(450));
         assert_eq!(object["releaseWindowMs"], json!(350));

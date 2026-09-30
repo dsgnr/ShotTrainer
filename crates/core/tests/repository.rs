@@ -29,6 +29,7 @@ fn sample(ts: f64, x: f64, y: f64) -> TrackingSample {
 
 fn shot(ts: f64, x: f64, y: f64, audio: f64, conf: f64, score: &str) -> NewShot {
     NewShot {
+        series_index: 0,
         ts,
         x_mm: Some(x),
         y_mm: Some(y),
@@ -410,6 +411,7 @@ fn null_millimetre_coordinates_round_trip_as_none() {
     repo.add_shot(
         sid,
         &NewShot {
+            series_index: 0,
             ts: 1.0,
             x_mm: None,
             y_mm: None,
@@ -716,6 +718,7 @@ fn get_session_reads_null_text_columns_as_empty() {
 #[test]
 fn list_shots_reads_a_null_score_as_empty() {
     let db = lenient_db();
+    shottrainer_core::sessions::migrate(&db, 3).unwrap();
     let shots = SessionRepository::new(&db).list_shots(1).unwrap();
     assert_eq!(shots.len(), 2);
     assert_eq!(shots[0].score, "");
@@ -734,6 +737,7 @@ fn session_settings_round_trip_independently() {
             shot_refractory_ms: 900,
             shot_diameter_mm: 5.5,
             position: "prone",
+            shots_per_series: 5,
             ..NewSession::default()
         })
         .unwrap();
@@ -750,6 +754,7 @@ fn session_settings_round_trip_independently() {
     );
     assert_eq!(saved.shot_diameter_mm, 5.5);
     assert_eq!(saved.position, "prone");
+    assert_eq!(saved.shots_per_series, 5);
     assert_eq!(repo.get_session(b).unwrap().unwrap().position, "standing");
     assert_eq!(saved.target_profile, "air_rifle_10m");
     assert_eq!(repo.get_session(b).unwrap().unwrap().pre_shot_ms, 1500);

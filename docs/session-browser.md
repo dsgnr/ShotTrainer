@@ -29,3 +29,10 @@ illustrated shooting position controls. The position is saved with the session. 
 settings. **Start session** begins recording immediately. Cancel leaves the
 current session unchanged. Stop an active recording before creating another
 session.
+
+Set **Shots per series** when creating a session or in its settings before
+recording. The default is 10. Recording starts a new series automatically when
+the current series fills. The shot list separates each series. Both targets
+show the latest series, or the selected shot's series when reviewing earlier
+shots. A new shot returns the targets to the latest series. Deleting a shot
+keeps the remaining shots in their original series.

@@ -353,3 +353,34 @@ fn v4_position_migration_keeps_existing_sessions_and_is_repeatable() {
     shottrainer_core::sessions::migrate(&db, 4).unwrap();
     assert_eq!(version(&db), SCHEMA_VERSION);
 }
+
+#[test]
+fn v5_series_migration_preserves_shots_and_stable_membership() {
+    let db = make_engine(":memory:").unwrap();
+    let repo = shottrainer_core::sessions::SessionRepository::new(&db);
+    let id = repo
+        .create_session(&shottrainer_core::sessions::NewSession::default())
+        .unwrap();
+    db.execute_batch(
+        "ALTER TABLE sessions DROP COLUMN shots_per_series;
+        ALTER TABLE shots DROP COLUMN series_index;
+        UPDATE schema_meta SET version = 5;",
+    )
+    .unwrap();
+    for index in 0..23 {
+        db.execute("INSERT INTO shots (session_id, ts, audio_level, confidence, score) VALUES (?1, ?2, 0.5, 1.0, '9')", (id, index)).unwrap();
+    }
+    shottrainer_core::sessions::init_database(&db).unwrap();
+    let shots = repo.list_shots(id).unwrap();
+    assert_eq!(shots.len(), 23);
+    for (index, shot) in shots.iter().enumerate() {
+        assert_eq!(shot.series_index, (index / 10) as i32);
+        assert_eq!(shot.score, "9");
+        assert_eq!(shot.ts, index as f64);
+    }
+    repo.delete_shot(shots[0].id).unwrap();
+    shottrainer_core::sessions::migrate(&db, 5).unwrap();
+    assert_eq!(repo.list_shots(id).unwrap()[9].series_index, 1);
+    assert_eq!(repo.get_session(id).unwrap().unwrap().shots_per_series, 10);
+    assert_eq!(version(&db), SCHEMA_VERSION);
+}

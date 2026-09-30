@@ -19,9 +19,10 @@ it("moves focus with arrow selection without bubbling to global shortcuts", asyn
   window.addEventListener("keydown", globalKey);
   const component = mount(ShotList, { target, props: {
     get selected() { return state.shots.selected; }, send,
-    shots: Array.from({ length: 3 }, (_, i) => ({ timestamp: i, xMm: 0, yMm: 0, score: "5", shotId: i })),
+    shots: Array.from({ length: 3 }, (_, i) => ({ timestamp: i, xMm: 0, yMm: 0, score: "5", shotId: i, seriesIndex: i === 0 ? 0 : 1 })),
   } });
   flushSync();
+  expect([...target.querySelectorAll(".series")].map(row => row.textContent)).toEqual(["Series 1", "Series 2"]);
   const rows = target.querySelectorAll<HTMLElement>('[role="option"]');
   rows[0]!.focus();
   rows[0]!.click();

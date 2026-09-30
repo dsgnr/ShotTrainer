@@ -21,6 +21,7 @@ export const SAMPLE_PREFERENCES: WirePreferences = {
   targetFace: "air_rifle_10m",
   shotDiameterMm: 4.5,
   sessionPosition: "standing",
+  shotsPerSeries: 10,
   trackingRegionFraction: 0.6,
   circleDiameterMm: 42.0,
   invertTraceHorizontal: false,

@@ -39,6 +39,7 @@ pub struct NewSession<'a> {
     pub shot_refractory_ms: i32,
     pub shot_diameter_mm: f64,
     pub position: &'a str,
+    pub shots_per_series: i32,
 }
 
 impl Default for NewSession<'_> {
@@ -55,12 +56,14 @@ impl Default for NewSession<'_> {
             shot_refractory_ms: 400,
             shot_diameter_mm: 4.5,
             position: "standing",
+            shots_per_series: 10,
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct NewShot {
+    pub series_index: i32,
     pub ts: f64,
     pub x_mm: Option<f64>,
     pub y_mm: Option<f64>,
@@ -82,8 +85,8 @@ impl<'a> SessionRepository<'a> {
         self.db.execute(
             "INSERT INTO sessions (name, started_at, notes, target_profile, category, \
              app_version, schema_version, pre_shot_ms, post_shot_ms, release_window_ms, \
-             shot_refractory_ms, shot_diameter_mm, position) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+             shot_refractory_ms, shot_diameter_mm, position, shots_per_series) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
             params![
                 new.name,
                 format_datetime(&utc_now()),
@@ -98,6 +101,7 @@ impl<'a> SessionRepository<'a> {
                 new.shot_refractory_ms,
                 new.shot_diameter_mm,
                 new.position,
+                new.shots_per_series,
             ],
         )?;
         Ok(self.db.last_insert_rowid())
@@ -191,7 +195,7 @@ impl<'a> SessionRepository<'a> {
             .query_row(
                 "SELECT id, name, started_at, ended_at, notes, target_profile, category, \
                  app_version, schema_version, pre_shot_ms, post_shot_ms, release_window_ms, \
-                 shot_refractory_ms, shot_diameter_mm, position FROM sessions WHERE id = ?1",
+                 shot_refractory_ms, shot_diameter_mm, position, shots_per_series FROM sessions WHERE id = ?1",
                 [session_id],
                 |row| {
                     Ok(Session {
@@ -210,6 +214,7 @@ impl<'a> SessionRepository<'a> {
                         shot_refractory_ms: row.get(12)?,
                         shot_diameter_mm: row.get(13)?,
                         position: read_text(row, 14)?,
+                        shots_per_series: row.get(15)?,
                         shots: Vec::new(),
                     })
                 },
@@ -323,8 +328,8 @@ impl<'a> SessionRepository<'a> {
 
     pub fn add_shot(&self, session_id: i64, shot: &NewShot) -> Result<i64, DatabaseError> {
         self.db.execute(
-            "INSERT INTO shots (session_id, ts, x_mm, y_mm, audio_level, confidence, score) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO shots (session_id, ts, x_mm, y_mm, audio_level, confidence, score, series_index) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
                 session_id,
                 shot.ts,
@@ -332,7 +337,8 @@ impl<'a> SessionRepository<'a> {
                 shot.y_mm,
                 shot.audio_level,
                 shot.confidence,
-                shot.score
+                shot.score,
+                shot.series_index,
             ],
         )?;
         Ok(self.db.last_insert_rowid())
@@ -367,7 +373,7 @@ impl<'a> SessionRepository<'a> {
 
     fn shots_ordered(&self, order: &str, session_id: i64) -> Result<Vec<Shot>, DatabaseError> {
         let mut stmt = self.db.prepare(&format!(
-            "SELECT id, session_id, ts, x_mm, y_mm, audio_level, confidence, score \
+            "SELECT id, session_id, ts, x_mm, y_mm, audio_level, confidence, score, series_index \
              FROM shots WHERE session_id = ?1 ORDER BY {order}"
         ))?;
         let shots = stmt
@@ -381,6 +387,7 @@ impl<'a> SessionRepository<'a> {
                     audio_level: row.get(5)?,
                     confidence: row.get(6)?,
                     score: read_text(row, 7)?,
+                    series_index: row.get(8)?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;

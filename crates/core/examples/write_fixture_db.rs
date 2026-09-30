@@ -74,6 +74,7 @@ fn run(db_path: &str, csv_dir: Option<&Path>) -> Result<Value, Box<dyn std::erro
         shot_ids.push(repo.add_shot(
             match_id,
             &NewShot {
+                series_index: 0,
                 ts,
                 x_mm,
                 y_mm,

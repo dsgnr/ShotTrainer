@@ -194,6 +194,27 @@ fn apply_migrations(conn: &Connection, from_version: i64) -> Result<(), Database
             "ALTER TABLE sessions ADD COLUMN position TEXT NOT NULL DEFAULT 'standing'",
         )?;
     }
+    if from_version < 6 {
+        if !column_names(conn, "sessions")?
+            .iter()
+            .any(|name| name == "shots_per_series")
+        {
+            conn.execute_batch(
+                "ALTER TABLE sessions ADD COLUMN shots_per_series INTEGER NOT NULL DEFAULT 10",
+            )?;
+        }
+        if !column_names(conn, "shots")?
+            .iter()
+            .any(|name| name == "series_index")
+        {
+            conn.execute_batch("ALTER TABLE shots ADD COLUMN series_index INTEGER NOT NULL DEFAULT 0;
+                WITH numbered AS (
+                    SELECT id, (ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY ts, id) - 1) / 10 AS series
+                    FROM shots
+                ) UPDATE shots SET series_index = (SELECT series FROM numbered WHERE numbered.id = shots.id)")?;
+        }
+    }
+
     Ok(())
 }
 

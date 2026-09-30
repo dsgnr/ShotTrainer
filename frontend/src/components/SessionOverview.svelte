@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { currentSeries } from "../lib/shots/series";
   import TargetView from "./TargetView.svelte";
   import type { CommandSender } from "../lib/app/commands";
   import { targetScale } from "../lib/target/geometry";
@@ -12,32 +13,35 @@
     rings: WireRing[];
     shotDiameterMm: number;
     send: CommandSender;
+    shotsPerSeries?: number;
   }
 
-  let { shots, selected, rings, shotDiameterMm, send }: Props = $props();
+  let { shots, selected, rings, shotDiameterMm, send, shotsPerSeries = 10 }: Props = $props();
   const model = new TargetModel();
   let width = $state(0);
   let height = $state(0);
-  const viewport = $derived(sessionViewport(rings, shots, shotDiameterMm));
+  const series = $derived(currentSeries(shots, selected, shotsPerSeries));
+  const viewport = $derived(sessionViewport(rings, series.entries.map(entry => entry.shot), shotDiameterMm));
   const extent = $derived(viewport.extentMm);
   const scale = $derived(targetScale(Math.min(width, height), extent));
 
   $effect(() => {
-    model.setShots(shots.map((shot, i) => ({ xMm: shot.xMm, yMm: shot.yMm, label: String(i + 1) })));
-    model.setSelectedShot(selected);
+    model.setShots(series.entries.map(({ shot, index }) => ({ xMm: shot.xMm, yMm: shot.yMm, label: String(index + 1) })));
+    const local = series.entries.findIndex(entry => entry.index === selected);
+    model.setSelectedShot(local < 0 ? null : local);
     model.setShotDiameter(shotDiameterMm);
     model.setExtent(extent);
   });
 </script>
 
 <section class="overview" aria-label="Session target">
-  <h3 class="panel-title">Session target</h3>
+  <h3 class="panel-title">Series {series.active + 1} target</h3>
   {#if shots.length === 0}
     <p class="empty">No shots yet. Recorded positions will appear here.</p>
   {:else}
     <div class="mini-target" bind:clientWidth={width} bind:clientHeight={height}>
       <TargetView {model} {rings} centre={viewport.centre} animateZoom={false} onextent={() => model.setExtent(extent)} />
-      {#each shots as shot, index}
+      {#each series.entries as { shot, index }}
         {#if shot.xMm !== null && shot.yMm !== null}
           <button class="marker" class:selected={index === selected}
             style:left={`${width / 2 + (shot.xMm - viewport.centre[0]) * scale}px`}

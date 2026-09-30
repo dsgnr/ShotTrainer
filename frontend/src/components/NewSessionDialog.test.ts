@@ -18,8 +18,11 @@ it("collects metadata and session settings before creating", async () => {
   pre.value = "2500"; pre.dispatchEvent(new Event("input", { bubbles: true }));
   target.querySelector<HTMLButtonElement>('[aria-label="Session category"]')!.click(); flushSync();
   [...target.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]')].find(b => b.textContent === "Match")!.click(); flushSync();
+  const seriesSize = [...target.querySelectorAll<HTMLInputElement>('input[type="number"]')].at(-1)!;
+  expect(seriesSize.value).toBe("10");
+  seriesSize.value = "5"; seriesSize.dispatchEvent(new Event("input", { bubbles: true }));
   target.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-  expect(oncreate).toHaveBeenCalledWith("Morning", "match", expect.objectContaining({ preShotMs: 2500, sessionPosition: "prone" }));
+  expect(oncreate).toHaveBeenCalledWith("Morning", "match", expect.objectContaining({ preShotMs: 2500, sessionPosition: "prone", shotsPerSeries: 5 }));
   expect(onclose).not.toHaveBeenCalled();
   await unmount(component); target.remove();
 });

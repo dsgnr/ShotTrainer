@@ -22,7 +22,8 @@ export const initialShots: ShotsState = {
 export function reduceShots(state: ShotsState, event: WireEvent): ShotsState {
   switch (event.type) {
     case "shots":
-      return { ...state, shots: event.shots, group: event.group, totalScore: event.totalScore };
+      return { ...state, shots: event.shots, group: event.group, totalScore: event.totalScore,
+        selected: event.shots.length > state.shots.length ? null : state.selected };
     case "selectedShot":
       return { ...state, selected: event.index };
     case "holdTrace":

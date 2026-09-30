@@ -410,6 +410,7 @@ mod tests {
                 repo.add_shot(
                     session,
                     &NewShot {
+                        series_index: 0,
                         ts: 1.0,
                         x_mm: Some(0.0),
                         y_mm: Some(0.0),

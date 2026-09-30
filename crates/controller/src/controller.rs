@@ -317,6 +317,7 @@ impl Controller {
                     prefs.shot_refractory_ms = saved.shot_refractory_ms;
                     prefs.shot_diameter_mm = saved.shot_diameter_mm;
                     prefs.session_position = saved.position;
+                    prefs.shots_per_series = saved.shots_per_series;
                     self.apply_session_settings(&prefs);
                 }
                 if let Some(face) = outcome.switch_face {
@@ -447,6 +448,7 @@ impl Controller {
         prefs.shot_refractory_ms = self.prefs.shot_refractory_ms;
         prefs.shot_diameter_mm = self.prefs.shot_diameter_mm;
         prefs.session_position = self.prefs.session_position.clone();
+        prefs.shots_per_series = self.prefs.shots_per_series;
         prefs.target_face = self.prefs.target_face.clone();
         let previous = std::mem::replace(&mut self.prefs, prefs);
         self.push_preferences();
@@ -554,6 +556,7 @@ impl Controller {
         self.prefs.shot_refractory_ms = prefs.shot_refractory_ms;
         self.prefs.shot_diameter_mm = prefs.shot_diameter_mm;
         self.prefs.session_position = prefs.session_position.clone();
+        self.prefs.shots_per_series = prefs.shots_per_series;
         if face_for_name(&self.faces, &prefs.target_face).is_some() {
             self.prefs.target_face = prefs.target_face.clone();
         }
@@ -1205,6 +1208,7 @@ mod tests {
         repo.add_shot(
             sid,
             &shottrainer_core::sessions::NewShot {
+                series_index: 0,
                 ts: 1.0,
                 x_mm: Some(0.0),
                 y_mm: Some(0.0),
@@ -1581,6 +1585,7 @@ mod tests {
             shot_refractory_ms: 900,
             shot_diameter_mm: 5.5,
             session_position: "kneeling".into(),
+            shots_per_series: 5,
             target_face: "air_rifle_10m".into(),
             ..Preferences::default()
         };

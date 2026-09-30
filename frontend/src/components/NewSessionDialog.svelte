@@ -13,7 +13,7 @@
   let name = $state("");
   let category = $state<string>(DEFAULT_SESSION_CATEGORY);
   let draft = $state<WirePreferences>(untrack(() => ({ ...prefs, targetFace: "default", preShotMs: 1500, postShotMs: 800,
-    releaseWindowMs: 250, shotRefractoryMs: 400, shotDiameterMm: 4.5, sessionPosition: "standing" })));
+    releaseWindowMs: 250, shotRefractoryMs: 400, shotDiameterMm: 4.5, sessionPosition: "standing", shotsPerSeries: 10 })));
   let saving = $state(false);
   async function create(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -33,13 +33,15 @@
     tabindex="-1" use:focusTrap onclick={(event) => event.stopPropagation()}>
     <h2 id="new-session-title">New session</h2>
     <form onsubmit={create}>
+      <div class="body">
       <fieldset disabled={saving}>
         <label class="name">Session name <input type="text" bind:value={name} /></label>
         <label for="new-session-category">Session category</label>
         <Dropdown id="new-session-category" label="Session category" bind:value={category}
           options={SESSION_CATEGORIES.map(value => ({ value, label: categoryLabel(value) }))} />
-        <SessionOptions bind:draft {faces} />
+        <SessionOptions bind:draft {faces} targetId="new-session-target" />
       </fieldset>
+      </div>
       <footer><button type="button" disabled={saving} onclick={onclose}>Cancel</button>
         <button type="submit" class="primary" disabled={saving}>Create session</button></footer>
     </form>
@@ -51,8 +53,9 @@
   .dialog { width: min(440px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
   h2 { margin: 0; padding: 20px 24px 12px; color: var(--text-heading); }
   form { display: flex; flex-direction: column; min-height: 0; }
-  fieldset { margin: 0; border: 0; padding: 8px 24px 20px; display: grid; gap: 12px; overflow: auto; min-height: 0; }
+  .body { overflow: auto; min-height: 0; }
+  fieldset { margin: 0; border: 0; padding: 8px 24px 20px; display: grid; gap: 12px; min-width: 0; }
   .name { display: grid; gap: 8px; }
   input { padding: 6px 8px; color: var(--text); background: var(--panel-raised); border: 1px solid var(--border); border-radius: var(--radius-control); font: inherit; }
-  footer { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--divider); }
+  footer { flex: none; display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--divider); }
 </style>

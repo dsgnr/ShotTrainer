@@ -38,9 +38,21 @@ it("shows numbered selection controls only for mapped shots", async () => {
     selected: 99, rings: [], shotDiameterMm: 4.5, send,
   } });
   flushSync();
-  expect(container.querySelectorAll("button")).toHaveLength(100);
+  expect(container.querySelectorAll("button")).toHaveLength(10);
   expect(container.querySelector('[aria-label="Select shot 100"]')?.getAttribute("aria-pressed")).toBe("true");
+  expect(container.querySelector('[aria-label="Select shot 90"]')).toBeNull();
   await unmount(many);
+  const previous = mount(SessionOverview, { target: container, props: {
+    shots: Array.from({ length: 24 }, (_, i) => ({ timestamp: i, xMm: i, yMm: -i, score: "9", shotId: i, seriesIndex: Math.floor(i / 10) })),
+    selected: 12, rings: [], shotDiameterMm: 4.5, send,
+  } });
+  flushSync();
+  expect(container.querySelectorAll("button")).toHaveLength(10);
+  expect(container.querySelector('[aria-label="Select shot 13"]')?.getAttribute("aria-pressed")).toBe("true");
+  expect(container.querySelector('[aria-label="Select shot 21"]')).toBeNull();
+  container.querySelector<HTMLButtonElement>('[aria-label="Select shot 17"]')!.click();
+  expect(send).toHaveBeenLastCalledWith({ type: "selectShot", index: 16 });
+  await unmount(previous);
   const empty = mount(SessionOverview, { target: container, props: {
     shots: [], selected: null, rings: [], shotDiameterMm: 4.5, send,
   } });

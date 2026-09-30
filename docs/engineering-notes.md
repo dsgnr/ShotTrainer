@@ -34,6 +34,11 @@ older records. It is excluded from the global settings file. Global JSON
 preferences retain their legacy keys for compatibility, but session controls do
 not update those values.
 
+Schema version 6 stores the session series size and each shot's series index.
+Older shots are grouped chronologically into series of 10. Membership is
+stored independently of list position so deletion cannot move shots between
+series. The recording counter advances even when a shot cannot be saved.
+
 ## Devices and preview
 
 System camera capture is feature-gated behind OpenCV. Synthetic backends allow

@@ -3,7 +3,7 @@
   import Dropdown from "./Dropdown.svelte";
   import { NUMBER_RANGES } from "../lib/preferences/form";
   import type { WireFace, WirePreferences } from "../lib/wire/types";
-  let { draft = $bindable(), faces }: { draft: WirePreferences; faces: WireFace[] } = $props();
+  let { draft = $bindable(), faces, targetId = "session-target" }: { draft: WirePreferences; faces: WireFace[]; targetId?: string } = $props();
   const fields = [
     ["preShotMs", "Pre-shot", "ms"], ["postShotMs", "Post-shot", "ms"],
     ["releaseWindowMs", "Release window", "ms"], ["shotRefractoryMs", "Refractory", "ms"],
@@ -11,8 +11,8 @@
   ] as const;
 </script>
 <PositionSelector bind:value={draft.sessionPosition} />
-        <label for="session-target">Target face</label>
-        <Dropdown id="session-target" label="Session target face" bind:value={draft.targetFace}
+        <label for={targetId}>Target face</label>
+        <Dropdown id={targetId} label="Session target face" bind:value={draft.targetFace}
           options={faces.map(face => ({ value: face.key, label: face.label }))} />
         {#each fields as [key, label, unit]}
           <label class="field">
@@ -21,7 +21,12 @@
               step={key === "shotDiameterMm" ? 0.1 : 1} bind:value={draft[key]} />
           </label>
         {/each}
+        <label class="field"><span>Shots per series</span>
+          <input type="number" min="1" max="100" step="1" bind:value={draft.shotsPerSeries} />
+        </label>
+        <small>A new series begins automatically when this many shots are recorded.</small>
 <style>
   .field { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  small { color: var(--text-muted); }
   input { width: 90px; min-width: 0; padding: 6px; color: var(--text); background: var(--panel-raised); border: 1px solid var(--border); border-radius: var(--radius-control); }
 </style>

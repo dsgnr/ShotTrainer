@@ -24,7 +24,7 @@ Use **Space** to play or pause an enabled replay and **Up** or **Down** to
 select adjacent shots when focus is outside an input or dialog. See
 [shortcuts](shortcuts.md).
 
-The left pane shows all session shot positions on a compact target that blends
+The left pane shows the current series shot positions on a compact target that blends
 into the pane background, above a scrollable shot list with scores and offsets. Select a numbered marker or list
 row to highlight the shot and load its replay. Arrow keys move focus and the
 selection together. Shots without positions remain
