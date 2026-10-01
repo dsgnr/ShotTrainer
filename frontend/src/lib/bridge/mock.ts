@@ -46,6 +46,7 @@ export const MOCK_PREFERENCES: WirePreferences = {
   invertTraceVertical: false,
   showHoldZone: true,
   decimalScoring: false,
+  showShotOffsets: true,
 };
 
 /** The bundled `default.json` face. */

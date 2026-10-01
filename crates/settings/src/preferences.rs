@@ -42,6 +42,8 @@ pub struct Preferences {
     pub show_hold_zone: bool,
     #[serde(skip_serializing_if = "is_false")]
     pub decimal_scoring: bool,
+    #[serde(skip_serializing_if = "is_true")]
+    pub show_shot_offsets: bool,
 }
 
 impl Default for Preferences {
@@ -70,6 +72,7 @@ impl Default for Preferences {
             invert_trace_vertical: false,
             show_hold_zone: true,
             decimal_scoring: false,
+            show_shot_offsets: true,
         }
     }
 }
@@ -179,6 +182,7 @@ fn preferences_from_object(raw: &Map<String, Value>) -> Preferences {
     );
     field!("show_hold_zone", prefs.show_hold_zone, read_bool);
     field!("decimal_scoring", prefs.decimal_scoring, read_bool);
+    field!("show_shot_offsets", prefs.show_shot_offsets, read_bool);
     prefs
 }
 
@@ -190,4 +194,8 @@ pub fn save_preferences(prefs: &Preferences, path: &Path) -> Result<(), Settings
 
 fn is_false(value: &bool) -> bool {
     !value
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
 }

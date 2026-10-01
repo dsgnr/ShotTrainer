@@ -28,6 +28,7 @@ export const SAMPLE_PREFERENCES: WirePreferences = {
   invertTraceVertical: true,
   showHoldZone: false,
   decimalScoring: true,
+  showShotOffsets: false,
 };
 
 export const SAMPLE_EVENTS: { [T in WireEventType]: EventOf<T> } = {

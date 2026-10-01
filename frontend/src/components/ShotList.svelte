@@ -9,9 +9,10 @@
     selected: number | null;
     send: CommandSender;
     shotsPerSeries?: number;
+    showOffsets?: boolean;
   }
 
-  let { shots, selected, send, shotsPerSeries = 10 }: Props = $props();
+  let { shots, selected, send, shotsPerSeries = 10, showOffsets = true }: Props = $props();
 
   let list = $state<HTMLUListElement>();
   let keyboardNavigation = $state(false);
@@ -57,7 +58,7 @@
   }
 </script>
 
-<section class="shot-list" aria-label="Shots">
+<section class="shot-list" class:hide-offsets={!showOffsets} aria-label="Shots">
   <header class="head">
     <h3 class="panel-title">Shot list</h3>
     {#if rows.length > 0}
@@ -71,7 +72,7 @@
     <div class="columns" aria-hidden="true">
       <span>No</span>
       <span class="right">Score</span>
-      <span class="right">Offset</span>
+      {#if showOffsets}<span class="right">Offset</span>{/if}
     </div>
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <ul bind:this={list} class="shots" class:keyboard-navigation={keyboardNavigation} role="listbox" aria-label="Shots" tabindex="-1" onkeydown={onKeydown} onpointermove={() => keyboardNavigation = false}>
@@ -91,7 +92,17 @@
         >
           <span class="number num">{row.number}</span>
           <span class="score num" class:scored={row.score !== "-"}>{row.score}</span>
-          <span class="offset num">{row.offset}</span>
+          {#if showOffsets}
+            <span class="offset num">
+              <span>{row.offset}</span>
+              {#if row.centreDirection !== null}
+                <svg viewBox="0 0 20 20" width="14" height="14" role="img" aria-label="Towards target centre"
+                  style:transform={`rotate(${row.centreDirection}deg)`}>
+                  <path d="M10 16V4M5 9l5-5 5 5" />
+                </svg>
+              {/if}
+            </span>
+          {/if}
         </li>
       {/each}
     </ul>
@@ -141,6 +152,8 @@
     gap: var(--space-2);
     align-items: center;
   }
+
+  .hide-offsets .columns, .hide-offsets li { grid-template-columns: 1.8rem minmax(0, 1fr); }
 
   .columns {
     padding: var(--space-2) var(--space-4);
@@ -209,8 +222,13 @@
   }
 
   .offset {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
     text-align: right;
     color: var(--text-dim);
     font-size: var(--text-sm);
   }
+  .offset svg { flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 </style>

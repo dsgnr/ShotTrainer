@@ -48,3 +48,8 @@ describe("stepSelection", () => {
     expect(stepSelection(2, -1, 0)).toBeNull();
   });
 });
+
+it("points arrows towards the centre in every direction", () => {
+  const rows = shotRows([shot(1, 0), shot(-1, 0), shot(0, 1), shot(0, -1), shot(1, 1), shot(0, 0), shot(null, 1), shot(NaN, 0)]);
+  expect(rows.map(row => row.centreDirection)).toEqual([-90, 90, -0, -180, -45, null, null, null]);
+});

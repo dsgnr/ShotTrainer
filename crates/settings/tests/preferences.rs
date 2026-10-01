@@ -294,3 +294,34 @@ fn decimal_scoring_roundtrips_and_invalid_types_keep_other_preferences() {
         assert_eq!(loaded.audio_gain, 2.0);
     }
 }
+
+#[test]
+fn shot_offset_visibility_defaults_and_roundtrips_tolerantly() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("settings.json");
+    assert!(load_preferences(&path).show_shot_offsets);
+    let prefs = Preferences {
+        show_shot_offsets: false,
+        ..Preferences::default()
+    };
+    save_preferences(&prefs, &path).unwrap();
+    assert!(!load_preferences(&path).show_shot_offsets);
+    assert!(!validate_preferences(&prefs).show_shot_offsets);
+    save_preferences(&Preferences::default(), &path).unwrap();
+    assert!(load_preferences(&path).show_shot_offsets);
+    for value in [
+        serde_json::json!(null),
+        serde_json::json!("false"),
+        serde_json::json!(0),
+        serde_json::json!([]),
+    ] {
+        std::fs::write(
+            &path,
+            serde_json::json!({"show_shot_offsets": value, "audio_gain": 2.0}).to_string(),
+        )
+        .unwrap();
+        let loaded = load_preferences(&path);
+        assert!(loaded.show_shot_offsets);
+        assert_eq!(loaded.audio_gain, 2.0);
+    }
+}

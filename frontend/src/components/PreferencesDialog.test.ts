@@ -113,3 +113,17 @@ it("discards decimal scoring edits on Cancel", async () => {
   expect(app.preferences.prefs!.decimalScoring).toBe(true);
   await unmount(component); target.remove();
 });
+
+it("saves the global shot-offset visibility preference", async () => {
+  const app = new AppState(); app.dispatch(SAMPLE_EVENTS.preferences);
+  const send = vi.fn(async (_command: WireCommand) => undefined);
+  const target = document.createElement("div"); document.body.append(target);
+  const component = mount(PreferencesDialog, {target, props: {open: true, preferences: app.preferences, cameras: [], microphones: [], faces: [], send, onclose: () => undefined}});
+  flushSync();
+  const checkbox = target.querySelector<HTMLInputElement>('section[aria-label="Display"] input')!;
+  expect(checkbox.checked).toBe(false);
+  checkbox.checked = true; checkbox.dispatchEvent(new Event("change", {bubbles: true})); flushSync();
+  [...target.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Save")!.click();
+  expect(send).toHaveBeenCalledWith(expect.objectContaining({type: "setPreferences", prefs: expect.objectContaining({showShotOffsets: true})}));
+  await unmount(component); target.remove();
+});

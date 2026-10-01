@@ -77,3 +77,17 @@ it("lets Space toggle replay after a row click while Enter still selects", async
   window.removeEventListener("keydown", shortcut);
   await unmount(component); target.remove();
 });
+
+it("can hide offsets and their direction arrows without hiding shots", async () => {
+  for (const showOffsets of [true, false]) {
+    const target = document.createElement("div"); document.body.append(target);
+    const component = mount(ShotList, {target, props: {selected: null, showOffsets, send: async () => {},
+      shots: [{timestamp: 1, xMm: 4, yMm: 3, score: "9", shotId: 1}, {timestamp: 2, xMm: 0, yMm: 0, score: "10", shotId: 2}]}});
+    flushSync();
+    expect(target.querySelectorAll('[role="option"]')).toHaveLength(2);
+    expect(target.querySelectorAll('.offset')).toHaveLength(showOffsets ? 2 : 0);
+    expect(target.querySelectorAll('[aria-label="Towards target centre"]')).toHaveLength(showOffsets ? 1 : 0);
+    expect(target.querySelector('.columns')!.textContent!.includes("Offset")).toBe(showOffsets);
+    await unmount(component); target.remove();
+  }
+});

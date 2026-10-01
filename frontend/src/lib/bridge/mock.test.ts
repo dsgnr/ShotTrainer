@@ -127,3 +127,9 @@ it("keeps the idle camera stationary and generates varied settled shots", async 
   vi.advanceTimersByTime(MOCK_FRAME_MS * 50);
   expect(ofType("frame").slice(count).every(frame => frame.tracePointMm === null)).toBe(true);
 });
+
+it("keeps hidden shot offsets across new sessions", async () => {
+  await bridge.send({type: "setPreferences", prefs: {...MOCK_PREFERENCES, showShotOffsets: false}});
+  await bridge.send({type: "newSession"});
+  expect(ofType("preferences").at(-1)?.prefs.showShotOffsets).toBe(false);
+});

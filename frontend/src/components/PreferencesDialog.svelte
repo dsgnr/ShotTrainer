@@ -224,6 +224,14 @@
           <p class="hint">Score new shots in tenths instead of whole rings.</p>
         </section>
 
+        <section class="group" aria-label="Display">
+          <h3 class="panel-title">Display</h3>
+          <label class="toggle">
+            <input type="checkbox" bind:checked={draft.showShotOffsets} />
+            Show shot offsets
+          </label>
+        </section>
+
         <section class="group" aria-label="Tracking">
           <h3 class="panel-title">Tracking</h3>
           <div class="fields">

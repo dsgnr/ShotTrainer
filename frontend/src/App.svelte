@@ -252,7 +252,7 @@
       shotDiameterMm={app.preferences.prefs?.shotDiameterMm ?? 4.5}
       {send}
     />
-    <ShotList shotsPerSeries={app.preferences.prefs?.shotsPerSeries ?? 10} shots={app.shots.shots} selected={app.shots.selected} {send} />
+    <ShotList showOffsets={app.preferences.prefs?.showShotOffsets ?? true} shotsPerSeries={app.preferences.prefs?.shotsPerSeries ?? 10} shots={app.shots.shots} selected={app.shots.selected} {send} />
   {/snippet}
   {#snippet target()}
     <div class="target-column">

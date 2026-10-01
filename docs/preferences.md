@@ -16,6 +16,7 @@ Save to apply them or cancel to leave the saved preferences in place.
 - **Audio:** microphone and gain.
 - **Detection:** shot threshold.
 - **Scoring:** optional decimal scoring for new shots.
+- **Display:** show or hide shot offsets in the shot list.
 - **Tracking:** tracking region, measured circle diameter and display toggles.
 
 Pre-shot, post-shot, release window, refractory interval, target face and shot
@@ -49,3 +50,11 @@ labels.
 
 Changing this preference does not rewrite saved scores. Reopened sessions
 show the scores recorded with their shots.
+
+## Shot offsets
+
+**Show shot offsets** under **Display** controls the offset column in the shot
+list. It is on by default and saved globally as `show_shot_offsets`. Each
+positioned shot has an arrow pointing towards the target centre. Centred shots
+and unavailable positions have no arrow. Hiding offsets also hides these
+arrows. The printed shot sheet keeps its offsets.
