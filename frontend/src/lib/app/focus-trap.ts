@@ -28,11 +28,12 @@ function focusable(container: HTMLElement): HTMLElement[] {
  * container on mount and returns to the previously focused element on destroy,
  * so a modal does not leak focus to the view behind it.
  */
-export function focusTrap(container: HTMLElement): { destroy: () => void } {
+export function focusTrap(container: HTMLElement, initialFocus?: string): { destroy: () => void } {
   const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
   const items = focusable(container);
-  (items[0] ?? container).focus();
+  const initial = initialFocus === undefined ? items[0] : items.find(element => element.matches(initialFocus));
+  (initial ?? items[0] ?? container).focus();
 
   function onKeydown(event: KeyboardEvent): void {
     if (event.key !== "Tab") {

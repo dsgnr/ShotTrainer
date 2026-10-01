@@ -4,7 +4,8 @@ description: "Print a ShotTrainer results sheet and prepare a correctly measured
 
 # Printing and target preparation
 
-The current interface provides **Shot sheet** in the navigation rail. It shows
+The current interface provides **Shot sheet** in the navigation rail. Opening
+it focuses **Close** while leaving the results unhighlighted. The sheet shows
 the current shots, scores and offsets. **Print** invokes the webview's print
 facility. Available print destinations depend on the host platform.
 

@@ -40,7 +40,7 @@
       aria-modal="true"
       aria-label="Marker sheet"
       tabindex="-1"
-      use:focusTrap
+      use:focusTrap={".actions button"}
       onclick={(event) => event.stopPropagation()}
     >
       <header>
@@ -119,6 +119,8 @@
     margin: 0 0 12px;
     color: var(--text-heading);
   }
+
+  .sheet-body:focus-visible { outline: none; }
 
   .total {
     color: var(--text-heading);

@@ -28,3 +28,21 @@ it("keeps all results in the scroll region and actions outside it", async () => 
   target.remove();
   print.mockRestore();
 });
+
+it("opens with Close focused and restores focus without highlighting the results", async () => {
+  const visibility = vi.spyOn(HTMLElement.prototype, "offsetParent", "get").mockReturnValue(document.body);
+  const trigger = document.createElement("button"); trigger.textContent = "Shot sheet"; document.body.append(trigger); trigger.focus();
+  const target = document.createElement("div"); document.body.append(target);
+  const component = mount(MarkerSheet, {target, props: {open: true, session: {kind: "idle"}, totalScore: null, onclose: () => {}, shots: []}});
+  flushSync();
+  const close = target.querySelector<HTMLButtonElement>(".actions button")!;
+  expect(document.activeElement).toBe(close);
+  expect(document.activeElement).not.toBe(target.querySelector('[aria-label="Shot results"]'));
+  const print = target.querySelectorAll<HTMLButtonElement>(".actions button")[1]!;
+  print.focus();
+  print.dispatchEvent(new KeyboardEvent("keydown", {key: "Tab", bubbles: true, cancelable: true}));
+  expect(document.activeElement).toBe(target.querySelector('[aria-label="Shot results"]'));
+  await unmount(component);
+  expect(document.activeElement).toBe(trigger);
+  target.remove(); trigger.remove(); visibility.mockRestore();
+});
