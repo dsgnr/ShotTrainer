@@ -133,3 +133,29 @@ it("keeps hidden shot offsets across new sessions", async () => {
   await bridge.send({type: "newSession"});
   expect(ofType("preferences").at(-1)?.prefs.showShotOffsets).toBe(false);
 });
+
+it("previews the full shot window before replay and preserves it after stopping", async () => {
+  await bridge.send({type: "startSession", name: "", category: "practice"});
+  vi.advanceTimersByTime(MOCK_FRAME_MS * (MOCK_SHOT_EVERY_FRAMES + 30));
+  for (const stopped of [false, true]) {
+    if (stopped) await bridge.send({type: "stopSession"});
+    const before = ofType("playerIndex").length;
+    await bridge.send({type: "selectShot", index: 0});
+    const replay = ofType("replayLoaded").at(-1)!;
+    expect(replay.enabled).toBe(true);
+    expect(replay.points.length).toBeGreaterThan(50);
+    expect(replay.splitIndex).toBeLessThan(replay.points.length - 1);
+    expect(ofType("playerIndex")).toHaveLength(before);
+    await bridge.send({type: "replayPlay"});
+    expect(ofType("playerIndex").at(-1)?.index).toBe(0);
+    vi.advanceTimersByTime(MOCK_FRAME_MS * 5);
+    expect(ofType("playerIndex").at(-1)?.index).toBe(5);
+    await bridge.send({type: "replayPause"});
+    vi.advanceTimersByTime(MOCK_FRAME_MS * 5);
+    expect(ofType("playerIndex").at(-1)?.index).toBe(5);
+    await bridge.send({type: "replayReset"});
+    expect(ofType("playerIndex").at(-1)?.index).toBe(0);
+    await bridge.send({type: "replaySeek", fraction: 1});
+    expect(ofType("playerIndex").at(-1)?.index).toBe(replay.points.length - 1);
+  }
+});

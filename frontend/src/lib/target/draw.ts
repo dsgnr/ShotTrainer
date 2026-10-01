@@ -235,16 +235,14 @@ function drawLiveAim(
   model: TargetModel,
   colours: TargetColours,
 ): void {
-  // The replay's progressive trace already shows the aim at the playhead, so
-  // a stale dot from the end of the recorded trace is hidden there.
-  if (model.liveAim === null || model.playhead !== null || model.isolate) {
-    return;
-  }
-  const x = cx + model.liveAim[0] * scale;
-  const y = cy + model.liveAim[1] * scale;
+  const aim = model.aimMark;
+  if (aim === null) return;
+  const x = cx + aim[0] * scale;
+  const y = cy + aim[1] * scale;
+  const traceWidth = Math.max(0.5, Math.min(3, scale * 0.4));
   ctx.strokeStyle = colours.liveAim;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = Math.max(1, traceWidth * 0.75);
   ctx.beginPath();
-  ctx.arc(x, y, 5, 0, Math.PI * 2);
+  ctx.arc(x, y, Math.max(2, traceWidth * 1.5), 0, Math.PI * 2);
   ctx.stroke();
 }

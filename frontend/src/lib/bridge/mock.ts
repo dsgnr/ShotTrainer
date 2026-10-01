@@ -5,6 +5,7 @@ import type {
   WireEvent,
   WirePreferences,
   WireRing,
+  WireReplay,
   WireSessionState,
   WireShot,
   WireShotStats,
@@ -106,6 +107,10 @@ export class MockBridge implements Bridge {
   #recordingFrames = 0;
   #prefs = { ...MOCK_PREFERENCES };
   #aimMm: [number, number] = [0, 0];
+  #trace: {timestamp: number; point: [number, number]}[] = [];
+  #replay: WireReplay | null = null;
+  #playerIndex = 0;
+  #playing = false;
 
   async listen(handler: EventHandler): Promise<Unlisten> {
     this.#handler = handler;
@@ -146,6 +151,8 @@ export class MockBridge implements Bridge {
         break;
       case "newSession":
         if (this.#session.kind === "recording") break;
+        this.#trace = [];
+        this.#clearReplay();
         this.#prefs = { ...this.#prefs,
           targetFace: MOCK_PREFERENCES.targetFace, preShotMs: MOCK_PREFERENCES.preShotMs,
           postShotMs: MOCK_PREFERENCES.postShotMs, releaseWindowMs: MOCK_PREFERENCES.releaseWindowMs,
@@ -167,6 +174,8 @@ export class MockBridge implements Bridge {
       case "startSession":
         if (this.#session.kind === "recording") break;
         this.#recordingFrames = 0;
+        this.#trace = [];
+        this.#clearReplay();
         this.#session = { kind: "recording", sessionId: this.#nextSessionId };
         this.#summary = `Recording session ${this.#nextSessionId}`;
         this.#nextSessionId += 1;
@@ -189,6 +198,31 @@ export class MockBridge implements Bridge {
       case "selectShot":
         if (command.index < this.#shots.length) {
           this.#emit({ type: "selectedShot", index: command.index });
+          this.#loadReplay(command.index);
+        }
+        break;
+      case "replayPlay":
+        if (this.#replay?.enabled) {
+          if (this.#playerIndex >= this.#replay.points.length - 1) this.#playerIndex = 0;
+          this.#playing = true;
+          this.#emitPlayhead();
+          this.#emit({type: "replayPlaying", playing: true});
+        }
+        break;
+      case "replayPause":
+        this.#playing = false;
+        this.#emit({type: "replayPlaying", playing: false});
+        break;
+      case "replayReset":
+        this.#playing = false;
+        this.#playerIndex = 0;
+        this.#emitPlayhead();
+        this.#emit({type: "replayPlaying", playing: false});
+        break;
+      case "replaySeek":
+        if (this.#replay?.enabled) {
+          this.#playerIndex = Math.round(Math.max(0, Math.min(1, command.fraction)) * (this.#replay.points.length - 1));
+          this.#emitPlayhead();
         }
         break;
       default:
@@ -253,6 +287,7 @@ export class MockBridge implements Bridge {
     const t = (this.#frameId * MOCK_FRAME_MS) / 1000;
     const recording = this.#session.kind === "recording";
     this.#aimMm = recording ? simulatedAim(this.#recordingFrames / MOCK_SHOT_EVERY_FRAMES * 5) : [0, 0];
+    if (recording) this.#trace.push({timestamp: t, point: [...this.#aimMm]});
     const x = MOCK_WIDTH / 2 + this.#aimMm[0] / MM_PER_PX;
     const y = MOCK_HEIGHT / 2 + this.#aimMm[1] / MM_PER_PX;
     this.#emit({
@@ -278,10 +313,51 @@ export class MockBridge implements Bridge {
       ];
       this.#emitShots();
     }
+    if (this.#playing && this.#replay !== null) {
+      this.#playerIndex = Math.min(this.#replay.points.length - 1, this.#playerIndex + 1);
+      this.#emitPlayhead();
+      if (this.#playerIndex === this.#replay.points.length - 1) {
+        this.#playing = false;
+        this.#emit({type: "playerFinished"});
+        this.#emit({type: "replayPlaying", playing: false});
+      }
+    }
     if (this.#onPacket !== null && this.#inFlight < MAX_IN_FLIGHT) {
       this.#inFlight += 1;
       this.#onPacket(this.#pixels(x, y, t));
     }
+  }
+
+  #clearReplay(): void {
+    this.#replay = null;
+    this.#playing = false;
+    this.#playerIndex = 0;
+    this.#emit({type: "replayCleared"});
+  }
+
+  #loadReplay(index: number): void {
+    const timestamp = this.#shots[index]!.timestamp;
+    if (timestamp === null) { this.#clearReplay(); return; }
+    const samples = this.#trace.filter(sample => sample.timestamp >= timestamp - this.#prefs.preShotMs / 1000
+      && sample.timestamp <= timestamp + this.#prefs.postShotMs / 1000);
+    const split = samples.reduce((best, sample, i) => Math.abs(sample.timestamp - timestamp) < Math.abs(samples[best]!.timestamp - timestamp) ? i : best, 0);
+    const release = samples.findIndex(sample => sample.timestamp >= timestamp - this.#prefs.releaseWindowMs / 1000 && sample.timestamp <= timestamp);
+    this.#replay = {index, points: samples.map(sample => sample.point), splitIndex: samples.length ? split : null,
+      releaseIndex: release < 0 ? null : release, enabled: samples.length > 0,
+      durationMs: samples.length ? Math.round((samples.at(-1)!.timestamp - samples[0]!.timestamp) * 1000) : null,
+      holdZone: null};
+    this.#playing = false;
+    this.#playerIndex = 0;
+    this.#emit({type: "replayPlaying", playing: false});
+    this.#emit({type: "replayLoaded", ...this.#replay});
+    this.#emit({type: "playerProgress", fraction: 0});
+  }
+
+  #emitPlayhead(): void {
+    const replay = this.#replay;
+    if (replay === null || !replay.enabled) return;
+    this.#emit({type: "playerIndex", index: this.#playerIndex});
+    this.#emit({type: "playerProgress", fraction: this.#playerIndex / Math.max(1, replay.points.length - 1)});
   }
 
   #score(): string {

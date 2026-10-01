@@ -109,7 +109,7 @@ describe("drawTarget", () => {
     expect(releaseStroke?.path[0]).toEqual(approachStroke?.path.at(-1));
   });
 
-  it("hides the live aim dot during replay", () => {
+  it("draws the aim circle at the replay cursor instead of the last sample", () => {
     const model = new TargetModel();
     model.setTrace([
       [0, 0],
@@ -118,7 +118,9 @@ describe("drawTarget", () => {
     model.setPlayhead(0);
     const { ctx, calls } = fakeContext();
     drawTarget(ctx, 300, 300, model, RINGS, COLOURS);
-    expect(strokes(calls).some((call) => call.strokeStyle === COLOURS.liveAim)).toBe(false);
+    const aim = calls.find(call => call.method === "arc" && call.strokeStyle === COLOURS.liveAim);
+    expect(aim?.args.slice(0, 2)).toEqual([150, 150]);
+    expect(strokes(calls).some((call) => call.strokeStyle === COLOURS.liveAim)).toBe(true);
   });
 
   it("shows the live aim dot in live view", () => {
@@ -253,6 +255,25 @@ it.each([50, 100])("centres readable labels within scoring bands at extent %d", 
     return phases[0]!.lineWidth;
   });
   expect(widths).toEqual([0.5, 0.8, 1.6, 3]);
+});
+
+it("keeps the full selected trace visible until playback reaches the shot", () => {
+  const model = new TargetModel();
+  model.setTrace([[0, 0], [1, 2], [3, 4], [5, 6]]);
+  model.setTraceSegments(1, 2);
+  model.setShots([{xMm: 3, yMm: 4, label: "1"}]);
+  model.setSelectedShot(0);
+  model.setIsolateSelectedShot(true);
+  const preview = fakeContext(); drawTarget(preview.ctx, 300, 300, model, RINGS, COLOURS);
+  expect(preview.calls.some(call => call.method === "fill" && call.fillStyle === COLOURS.shot)).toBe(true);
+  expect(strokes(preview.calls).filter(call => [COLOURS.approach, COLOURS.release, COLOURS.follow].includes(call.strokeStyle as string))).toHaveLength(3);
+  expect(model.aimMark).toEqual([3, 4]);
+  model.setPlayhead(0);
+  const start = fakeContext(); drawTarget(start.ctx, 300, 300, model, RINGS, COLOURS);
+  expect(start.calls.some(call => call.method === "fill" && call.fillStyle === COLOURS.shot)).toBe(false);
+  expect(model.aimMark).toEqual([0, 0]);
+  model.setPlayhead(3);
+  expect(model.aimMark).toEqual([5, 6]);
 });
 
 

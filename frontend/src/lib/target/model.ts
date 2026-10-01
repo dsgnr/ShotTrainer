@@ -142,6 +142,12 @@ export class TargetModel {
     return this.#isolate;
   }
 
+  get aimMark(): TracePoint | null {
+    if (this.#playhead !== null) return this.#trace[this.#playhead] ?? null;
+    if (this.#isolate) return this.#trace[this.#shotIndex ?? this.#trace.length - 1] ?? null;
+    return this.liveAim;
+  }
+
   get playhead(): number | null {
     return this.#playhead;
   }

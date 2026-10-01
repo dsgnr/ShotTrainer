@@ -131,12 +131,15 @@ impl SessionManager {
     /// the player with the release window and the hold zone.
     pub fn select_shot(&mut self, cx: &SessionContext, index: usize) {
         (cx.emit)(UiEvent::SelectedShot(index));
-        let Some(session_id) = self.reviewing else {
+        let Some(session_id) = self.reviewing.or(self.trace_session_id) else {
             return;
         };
         let Some(shot_ts) = self.shots.get(index).map(|s| s.timestamp) else {
             return;
         };
+        if let Err(error) = self.recorder.flush_pending(&cx.repo()) {
+            return db_warning(cx, "Could not save the shot trace", &error);
+        }
         let prefs = cx.prefs;
         let window = match shot_window(
             &cx.repo(),
@@ -639,5 +642,39 @@ mod tests {
             _ => None,
         });
         assert_eq!(texts, [format!("Wrote 2 files to {}", target.display())]);
+    }
+    #[test]
+    fn selecting_recent_shots_previews_pending_trace_during_and_after_recording() {
+        let rig = Rig::new();
+        let mut mgr = SessionManager::new(&rig.prefs);
+        rig.run(|cx| {
+            mgr.start(cx, "Live", "practice", "1");
+            mgr.on_sample(cx, mapped(1.0, 1.0, 2.0));
+            mgr.on_sample(cx, mapped(1.5, 3.0, 4.0));
+            mgr.on_shot(cx, shot_at(1.5));
+            mgr.on_sample(cx, mapped(1.6, 5.0, 6.0));
+        });
+        for stopped in [false, true] {
+            if stopped {
+                rig.run(|cx| mgr.stop(cx));
+            }
+            rig.take();
+            rig.run(|cx| mgr.select_shot(cx, 0));
+            let events = rig.take();
+            let loaded = find(&events, |event| match event {
+                UiEvent::ReplayLoaded(view) => Some(view.clone()),
+                _ => None,
+            });
+            assert_eq!(loaded.len(), 1);
+            assert_eq!(loaded[0].points, [(1.0, 2.0), (3.0, 4.0), (5.0, 6.0)]);
+            assert!(loaded[0].enabled);
+            assert!(
+                !events
+                    .iter()
+                    .any(|event| matches!(event, UiEvent::Player(PlayerEvent::Index(_))))
+            );
+            rig.run(|cx| mgr.replay_play(cx, 2.0));
+            assert!(rig.take().contains(&UiEvent::Player(PlayerEvent::Index(0))));
+        }
     }
 }

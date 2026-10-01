@@ -67,6 +67,7 @@ pub struct SessionManager {
     pub(crate) shots: Vec<ShotEntry>,
     /// The saved session on display, if any. Live input is ignored while set.
     pub(crate) reviewing: Option<i64>,
+    pub(crate) trace_session_id: Option<i64>,
     sample_warnings: RepeatLimiter,
     next_shot_number: usize,
 }
@@ -80,6 +81,7 @@ impl SessionManager {
             player: TracePlayer::new(),
             shots: Vec::new(),
             reviewing: None,
+            trace_session_id: None,
             sample_warnings: RepeatLimiter::default(),
             next_shot_number: 0,
         }
@@ -115,6 +117,7 @@ impl SessionManager {
             return;
         }
         self.reviewing = None;
+        self.trace_session_id = None;
         self.next_shot_number = 0;
         self.shots.clear();
         self.buffer.clear();
@@ -152,10 +155,13 @@ impl SessionManager {
             ..NewSession::default()
         };
         match self.recorder.start(&cx.repo(), &new) {
-            Ok(id) => (cx.emit)(UiEvent::Session {
-                state: SessionState::Recording(id),
-                summary: format!("Recording session {id}"),
-            }),
+            Ok(id) => {
+                self.trace_session_id = Some(id);
+                (cx.emit)(UiEvent::Session {
+                    state: SessionState::Recording(id),
+                    summary: format!("Recording session {id}"),
+                });
+            }
             Err(error) => {
                 log::warn!("Could not start a session: {error}");
                 cx.message(StatusMessage::warning(

@@ -108,6 +108,15 @@ impl SessionRecorder {
         repo.add_shot(session_id, shot).map(Some)
     }
 
+    /// Saves pending trace samples for review without ending the recording.
+    pub fn flush_pending(&mut self, repo: &SessionRepository) -> Result<(), DatabaseError> {
+        let timestamp = self
+            .pending
+            .last()
+            .map_or(self.last_flush_ts, |sample| sample.timestamp);
+        self.flush(repo, timestamp)
+    }
+
     /// Flushes, stamps `ended_at` and returns the session id, or `None` when
     /// no session is running.
     pub fn stop(&mut self, repo: &SessionRepository) -> Result<Option<i64>, DatabaseError> {

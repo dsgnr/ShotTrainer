@@ -11,8 +11,11 @@ zone when those data are available. The subdued target face separates its rings
 and trace from the surrounding controls. Ring labels sit in the centre of each
 scoring band, with the innermost label at the target centre.
 
-Selecting a saved shot displays its full trace before playback starts.
-Playing, resetting or seeking switches to the trace at the playback position.
+Selecting a shot during recording, after stopping or in a saved session
+displays its full available trace and shot position before playback starts.
+Playing clears the preview and draws the trace progressively. Resetting or
+seeking switches to the trace at the playback position. A small aim circle
+follows the trace throughout playback.
 
 The controls below the target reset to the beginning, play or pause, and seek
 through the shot window. The time label shows progress within that window.
