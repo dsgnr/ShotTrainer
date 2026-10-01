@@ -21,7 +21,8 @@ scales. Replay controls are disabled when no usable replay is loaded. The mouse 
 and zoom controls adjust the target view.
 
 Use **Space** to play or pause an enabled replay and **Up** or **Down** to
-select adjacent shots when focus is outside an input or dialog. See
+select adjacent shots when focus is outside an input or dialog. Space also
+plays or pauses when a shot row has focus. Enter selects the focused row. See
 [shortcuts](shortcuts.md).
 
 The left pane shows the current series shot positions on a compact target that blends

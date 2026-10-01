@@ -33,7 +33,7 @@
   }
 
   function onRowKeydown(event: KeyboardEvent, index: number): void {
-    if (event.key === "Enter" || event.key === " ") {
+    if (event.key === "Enter") {
       event.preventDefault();
       event.stopPropagation();
       select(index);
