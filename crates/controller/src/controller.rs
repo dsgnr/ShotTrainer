@@ -295,8 +295,16 @@ impl Controller {
                     log::warn!("Unknown session category {category:?}, using the default");
                     DEFAULT_SESSION_CATEGORY.to_owned()
                 };
+                let was_recording = self.session.is_recording();
                 let version = self.app_version.clone();
                 self.with_session(|s, cx| s.start(cx, &name, &category, &version));
+                if !was_recording && self.session.is_recording() {
+                    let tracker = self.frames.tracker_mut();
+                    let diameter = tracker.circle_diameter_mm();
+                    tracker
+                        .set_circle_diameter_mm(diameter)
+                        .expect("valid current circle diameter");
+                }
             }
             Command::StopSession => self.with_session(|s, cx| s.stop(cx)),
             Command::ClearShots => self.with_session(|s, cx| s.clear_shots(cx)),
@@ -663,6 +671,34 @@ mod tests {
 
     fn save_prefs(rig: &TestRig, prefs: &Preferences) {
         save_preferences(prefs, &rig.paths.settings).unwrap();
+    }
+
+    #[test]
+    fn recording_starts_with_a_fresh_centroid() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        let frame = Frame::filled(640, 480, PixelFormat::Grey, 0).unwrap();
+        rig.detector.push(circle_at(320.0, 240.0));
+        controller
+            .frames
+            .tracker_mut()
+            .process(&frame, 0.0, None)
+            .unwrap();
+        command(
+            &mut controller,
+            Command::StartSession {
+                name: "S".into(),
+                category: "practice".into(),
+            },
+        );
+        rig.detector.push(circle_at(320.0, 80.0));
+        let sample = controller
+            .frames
+            .tracker_mut()
+            .process(&frame, 0.1, None)
+            .unwrap();
+        assert_eq!(sample.y_px, 80.0);
+        assert!(sample.y_mm.unwrap() > 100.0);
     }
 
     #[test]

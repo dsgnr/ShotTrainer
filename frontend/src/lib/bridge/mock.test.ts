@@ -42,7 +42,7 @@ describe("MockBridge", () => {
     const frame = ofType("frame")[0];
     expect(packet?.frameId).toBe(frame?.frameId);
     expect([packet?.width, packet?.height]).toEqual([MOCK_WIDTH, MOCK_HEIGHT]);
-    expect(frame?.tracePointMm).not.toBeNull();
+    expect(frame?.tracePointMm).toBeNull();
   });
 
   it("sends the state a page needs when it is ready", async () => {
@@ -108,4 +108,22 @@ it("generates automatic shots only after a full recording interval", async () =>
     expect(ofType("shots")).toHaveLength(count);
     expect(ofType("audioLevel").slice(audioCount).every(event => event.level === 0.02)).toBe(true);
   }
+});
+
+
+it("keeps the idle camera stationary and generates varied settled shots", async () => {
+  vi.advanceTimersByTime(MOCK_FRAME_MS * 200);
+  const idle = ofType("frame");
+  expect(idle.every(frame => frame.tracePointMm === null)).toBe(true);
+  expect(new Set(idle.map(frame => JSON.stringify(frame.aim))).size).toBe(1);
+  await bridge.send({ type: "startSession", name: "", category: "practice" });
+  vi.advanceTimersByTime(MOCK_FRAME_MS * MOCK_SHOT_EVERY_FRAMES * 4);
+  const shots = ofType("shots").at(-1)!.shots;
+  expect(shots).toHaveLength(4);
+  expect(new Set(shots.map(shot => JSON.stringify([shot.xMm, shot.yMm]))).size).toBe(4);
+  expect(shots.every(shot => Math.hypot(shot.xMm!, shot.yMm!) < 15 && shot.score !== null)).toBe(true);
+  await bridge.send({ type: "stopSession" });
+  const count = ofType("frame").length;
+  vi.advanceTimersByTime(MOCK_FRAME_MS * 50);
+  expect(ofType("frame").slice(count).every(frame => frame.tracePointMm === null)).toBe(true);
 });

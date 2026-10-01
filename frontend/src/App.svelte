@@ -57,7 +57,7 @@
   $effect(() => {
     const point = app.camera.frame?.tracePointMm ?? null;
     if (point !== null && point[0] !== null && point[1] !== null) {
-      targetModel.appendTracePoint(point[0], point[1]);
+      targetModel.appendTracePoint(point[0], point[1], app.camera.frame?.timestamp ?? null);
     }
   });
 
@@ -75,6 +75,15 @@
     );
     const local = series.entries.findIndex(entry => entry.index === app.shots.selected);
     targetModel.setSelectedShot(local < 0 ? null : local);
+  });
+
+  $effect(() => {
+    const prefs = app.preferences.prefs;
+    targetModel.setLiveShotWindows(
+      app.shots.shots.flatMap(shot => shot.timestamp === null ? [] : [shot.timestamp]),
+      prefs?.releaseWindowMs ?? 250,
+      prefs?.postShotMs ?? 800,
+    );
   });
 
   // Reflect a loaded replay in the target: the saved trace, its phase

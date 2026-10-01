@@ -32,6 +32,8 @@ export class TargetModel {
   }
 
   #trace: TracePoint[] = [];
+  #timestamps: (number | null)[] = [];
+  #liveWindows: { shot: number; release: number; end: number }[] = [];
   #releaseIndex: number | null = null;
   #shotIndex: number | null = null;
   #playhead: number | null = null;
@@ -61,7 +63,7 @@ export class TargetModel {
     return this.#phase((i) => this.#phaseAt(i) === 2);
   }
 
-  appendTracePoint(xMm: number, yMm: number): void {
+  appendTracePoint(xMm: number, yMm: number, timestamp: number | null = null): void {
     // A saved shot is on display, so live frames must not corrupt its trace.
     if (this.#isolate) {
       return;
@@ -72,16 +74,24 @@ export class TargetModel {
     }
     if (this.#trace.length >= TRACE_CAPACITY) {
       this.#trace.shift();
+      this.#timestamps.shift();
     }
     this.#trace.push([xMm, yMm]);
+    this.#timestamps.push(timestamp);
     this.liveAim = [xMm, yMm];
     this.#bump();
   }
 
   setTrace(points: TracePoint[]): void {
     this.#trace = points.map(([x, y]) => [x, y]);
+    this.#timestamps = [];
     this.liveAim = this.#trace.at(-1) ?? null;
     this.#playhead = null;
+    this.#bump();
+  }
+
+  setLiveShotWindows(timestamps: number[], releaseMs: number, postShotMs: number): void {
+    this.#liveWindows = timestamps.map(shot => ({ shot, release: shot - releaseMs / 1000, end: shot + postShotMs / 1000 }));
     this.#bump();
   }
 
@@ -103,6 +113,8 @@ export class TargetModel {
 
   clearTrace(): void {
     this.#trace = [];
+    this.#timestamps = [];
+    this.#liveWindows = [];
     this.#releaseIndex = null;
     this.#shotIndex = null;
     this.holdZone = null;
@@ -175,7 +187,31 @@ export class TargetModel {
     return { approach, release, follow: follow.slice(0, p - aLen - rLen + 1) };
   }
 
+  visibleTraceRuns(): { phase: 0 | 1 | 2; points: TracePoint[] }[] {
+    const runs: { phase: 0 | 1 | 2; points: TracePoint[] }[] = [];
+    const end = this.#playhead === null ? this.#trace.length : Math.min(this.#trace.length, Math.max(0, this.#playhead) + 1);
+    for (let i = 0; i < end; i++) {
+      const point = this.#trace[i]!;
+      const phase = this.#phaseAt(i);
+      let run = runs.at(-1);
+      if (run === undefined || run.phase !== phase) {
+        run = { phase, points: i > 0 ? [this.#trace[i - 1]!] : [] };
+        runs.push(run);
+      }
+      run.points.push(point);
+    }
+    return runs;
+  }
+
   #phaseAt(i: number): 0 | 1 | 2 {
+    const timestamp = this.#timestamps[i];
+    if (!this.#isolate && timestamp !== null && timestamp !== undefined) {
+      for (const window of this.#liveWindows) {
+        if (timestamp > window.shot && timestamp <= window.end) return 2;
+        if (timestamp >= window.release && timestamp <= window.shot) return 1;
+      }
+      return 0;
+    }
     if (this.#shotIndex !== null && i > this.#shotIndex) {
       return 2;
     }

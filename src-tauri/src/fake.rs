@@ -6,7 +6,10 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+#[path = "fake/aim.rs"]
+mod aim;
 
 use shottrainer_audio::models::{ShotDetectorSettings, ShotEvent};
 use shottrainer_audio::{AudioEvent, DeviceSelector};
@@ -24,8 +27,8 @@ use shottrainer_tracking::tuning::HoughScorer;
 
 pub const WIDTH: u32 = 640;
 pub const HEIGHT: u32 = 480;
-pub const FPS: f64 = 30.0;
-pub const CIRCLE_RADIUS_PX: f64 = 60.0;
+pub const FPS: f64 = 60.0;
+pub const CIRCLE_RADIUS_PX: f64 = 15.0;
 const BACKGROUND: u8 = 225;
 const INK: u8 = 20;
 /// Pixels darker than this count as the circle.
@@ -40,21 +43,33 @@ const SAMPLE_RATE: u32 = 48_000;
 
 /// The synthetic devices together.
 pub fn backends() -> Backends {
+    let simulation = Arc::new(Mutex::new(Simulation::default()));
     Backends {
-        camera: Box::new(SyntheticCamera),
-        audio: Box::new(FakeMicrophone::new(Some(SHOT_EVERY))),
+        camera: Box::new(SyntheticCamera {
+            simulation: simulation.clone(),
+        }),
+        audio: Box::new(FakeMicrophone {
+            shot_every: Some(SHOT_EVERY),
+            simulation,
+        }),
         detector: Box::new(DarkSpotDetector::default()),
         scorer: Box::new(NoHoughScorer),
     }
 }
 
-/// Where the circle is drawn in frame `n`, a slow figure of eight around the
-/// centre.
+#[derive(Default)]
+struct Simulation {
+    recording: bool,
+    started: Option<Instant>,
+}
+
+/// The synthetic aim in frame `n`, in camera coordinates.
 pub fn circle_centre(n: u64) -> (f64, f64) {
-    let t = n as f64 / FPS;
+    let (x, y) = aim::position(n as f64 / FPS);
+    let mm_per_px = 60.0 / (CIRCLE_RADIUS_PX * 2.0);
     (
-        f64::from(WIDTH) / 2.0 + 25.0 * (t * 0.9).sin(),
-        f64::from(HEIGHT) / 2.0 + 15.0 * (t * 1.8).sin(),
+        f64::from(WIDTH) / 2.0 - x / mm_per_px,
+        f64::from(HEIGHT) / 2.0 - y / mm_per_px,
     )
 }
 
@@ -78,20 +93,32 @@ pub fn draw_circle(width: u32, height: u32, centre: (f64, f64), radius: f64) -> 
 }
 
 struct SyntheticSource {
-    next: u64,
+    simulation: Arc<Mutex<Simulation>>,
 }
 
 impl FrameSource for SyntheticSource {
     fn read(&mut self) -> Option<Frame> {
         thread::sleep(Duration::from_secs_f64(1.0 / FPS));
-        let frame = draw_circle(WIDTH, HEIGHT, circle_centre(self.next), CIRCLE_RADIUS_PX);
-        self.next += 1;
-        frame
+        let mut simulation = self.simulation.lock().unwrap();
+        let centre = if simulation.recording {
+            let seconds = simulation
+                .started
+                .get_or_insert_with(Instant::now)
+                .elapsed()
+                .as_secs_f64();
+            circle_centre((seconds * FPS).floor() as u64)
+        } else {
+            (f64::from(WIDTH) / 2.0, f64::from(HEIGHT) / 2.0)
+        };
+        draw_circle(WIDTH, HEIGHT, centre, CIRCLE_RADIUS_PX)
     }
 }
 
 /// One camera, `Synthetic camera` at index 0. Any index opens it.
-pub struct SyntheticCamera;
+#[derive(Default)]
+pub struct SyntheticCamera {
+    simulation: Arc<Mutex<Simulation>>,
+}
 
 impl CameraBackend for SyntheticCamera {
     fn list_cameras(&mut self, _running: Option<i32>) -> Vec<(i64, String)> {
@@ -104,9 +131,10 @@ impl CameraBackend for SyntheticCamera {
         clock: ClockFn,
         on_event: EventSink,
     ) -> Box<dyn CameraHandle> {
-        let opener = Box::new(|| {
+        let simulation = self.simulation.clone();
+        let opener = Box::new(move || {
             Ok(OpenedSource {
-                source: Box::new(SyntheticSource { next: 0 }) as Box<dyn FrameSource>,
+                source: Box::new(SyntheticSource { simulation }) as Box<dyn FrameSource>,
                 width: WIDTH,
                 height: HEIGHT,
                 fps: FPS,
@@ -185,11 +213,15 @@ impl HoughScorer for NoHoughScorer {
 /// `shot_every` is set, a shot at that interval while recording.
 pub struct FakeMicrophone {
     shot_every: Option<Duration>,
+    simulation: Arc<Mutex<Simulation>>,
 }
 
 impl FakeMicrophone {
     pub fn new(shot_every: Option<Duration>) -> Self {
-        FakeMicrophone { shot_every }
+        FakeMicrophone {
+            shot_every,
+            simulation: Arc::default(),
+        }
     }
 }
 
@@ -214,19 +246,25 @@ impl AudioBackend for FakeMicrophone {
             .spawn({
                 let (running, on_event) = (running.clone(), on_event.clone());
                 let schedule = schedule.clone();
+                let simulation = self.simulation.clone();
                 move || {
                     on_event(AudioEvent::Started);
                     while running.load(Ordering::SeqCst) {
                         thread::sleep(LEVEL_EVERY);
                         let mut schedule = schedule.lock().unwrap();
-                        if schedule.0 {
-                            schedule.1 += LEVEL_EVERY;
-                        }
-                        if schedule.0 && shot_every.is_some_and(|every| schedule.1 >= every) {
-                            schedule.1 = Duration::ZERO;
+                        let elapsed = simulation
+                            .lock()
+                            .unwrap()
+                            .started
+                            .map(|start| start.elapsed())
+                            .unwrap_or_default();
+                        if schedule.0
+                            && shot_every.is_some_and(|every| elapsed >= schedule.1 + every)
+                        {
+                            schedule.1 += shot_every.unwrap();
                             on_event(AudioEvent::Level(SHOT_LEVEL));
                             on_event(AudioEvent::Shot(ShotEvent {
-                                timestamp: clock(),
+                                timestamp: clock() - (elapsed - schedule.1).as_secs_f64(),
                                 audio_level: SHOT_LEVEL,
                                 sample_rate: SAMPLE_RATE,
                             }));
@@ -246,6 +284,7 @@ impl AudioBackend for FakeMicrophone {
             }
         };
         Box::new(FakeMicrophoneHandle {
+            simulation: self.simulation.clone(),
             schedule,
             running,
             thread,
@@ -255,6 +294,7 @@ impl AudioBackend for FakeMicrophone {
 }
 
 struct FakeMicrophoneHandle {
+    simulation: Arc<Mutex<Simulation>>,
     schedule: Arc<Mutex<(bool, Duration)>>,
     running: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
@@ -268,6 +308,9 @@ impl AudioHandle for FakeMicrophoneHandle {
         let mut schedule = self.schedule.lock().unwrap();
         if schedule.0 != recording {
             *schedule = (recording, Duration::ZERO);
+            let mut simulation = self.simulation.lock().unwrap();
+            simulation.recording = recording;
+            simulation.started = recording.then(Instant::now);
         }
     }
 
@@ -330,7 +373,8 @@ mod tests {
         let centres: Vec<_> = (0..300).map(circle_centre).collect();
         assert_ne!(centres[0], centres[10]);
         for (x, y) in centres {
-            assert!((x - 320.0).abs() <= 25.0 && (y - 240.0).abs() <= 15.0);
+            assert!(x > CIRCLE_RADIUS_PX && x < f64::from(WIDTH) - CIRCLE_RADIUS_PX);
+            assert!(y > CIRCLE_RADIUS_PX && y < f64::from(HEIGHT) - CIRCLE_RADIUS_PX);
         }
     }
 
@@ -339,7 +383,7 @@ mod tests {
         let (sender, receiver) = mpsc::channel();
         let sender = Mutex::new(sender);
         let clock: ClockFn = Arc::new(|| 0.0);
-        let mut handle = SyntheticCamera.start(
+        let mut handle = SyntheticCamera::default().start(
             0,
             clock,
             Box::new(move |event| {
@@ -358,7 +402,7 @@ mod tests {
         }
         handle.stop();
         let found = DarkSpotDetector::default().detect(&frame.unwrap());
-        let (x, y) = circle_centre(0);
+        let (x, y) = (f64::from(WIDTH) / 2.0, f64::from(HEIGHT) / 2.0);
         assert!((found.x_px - x).abs() < 0.5 && (found.y_px - y).abs() < 0.5);
         assert!((found.radius_px - CIRCLE_RADIUS_PX).abs() < 0.5);
     }
@@ -412,14 +456,12 @@ mod tests {
             .position(|e| matches!(e, AudioEvent::Shot(_)))
             .unwrap();
         assert_eq!(events[shot - 1], AudioEvent::Level(SHOT_LEVEL));
-        assert_eq!(
-            events[shot],
-            AudioEvent::Shot(ShotEvent {
-                timestamp: 42.0,
-                audio_level: SHOT_LEVEL,
-                sample_rate: SAMPLE_RATE,
-            })
-        );
+        let AudioEvent::Shot(event) = &events[shot] else {
+            unreachable!()
+        };
+        assert!((41.0..=42.0).contains(&event.timestamp));
+        assert_eq!(event.audio_level, SHOT_LEVEL);
+        assert_eq!(event.sample_rate, SAMPLE_RATE);
     }
     #[test]
     fn automatic_microphone_shots_wait_for_recording_and_reset_after_stop() {
@@ -467,5 +509,48 @@ mod tests {
             }
         }
         handle.stop();
+    }
+    #[test]
+    fn tracked_dev_approaches_rise_from_below_into_the_centre() {
+        let mut tracker =
+            shottrainer_tracking::tracker::Tracker::new(60.0, DarkSpotDetector::default()).unwrap();
+        let mut samples = Vec::new();
+        for n in 0..=299 {
+            let frame = draw_circle(WIDTH, HEIGHT, circle_centre(n), CIRCLE_RADIUS_PX).unwrap();
+            samples.push(tracker.process(&frame, n as f64 / FPS, None).unwrap());
+        }
+        assert!(samples[0].y_mm.unwrap() > 100.0);
+        assert!(samples[0].x_mm.unwrap().abs() < 28.0);
+        let last = samples.last().unwrap();
+        assert!(last.x_mm.unwrap().hypot(last.y_mm.unwrap()) < 10.0);
+    }
+
+    #[test]
+    fn slow_camera_updates_follow_elapsed_recording_time() {
+        let simulation = Arc::new(Mutex::new(Simulation {
+            recording: true,
+            started: Some(Instant::now() - Duration::from_millis(4900)),
+        }));
+        let mut source = SyntheticSource { simulation };
+        let detection = DarkSpotDetector::default().detect(&source.read().unwrap());
+        assert!((detection.x_px - 320.0).hypot(detection.y_px - 240.0) < 16.0);
+    }
+
+    #[test]
+    fn the_synthetic_camera_moves_only_during_recording() {
+        let simulation = Arc::new(Mutex::new(Simulation::default()));
+        let mut source = SyntheticSource {
+            simulation: simulation.clone(),
+        };
+        let mut detector = DarkSpotDetector::default();
+        let idle = detector.detect(&source.read().unwrap());
+        let still = detector.detect(&source.read().unwrap());
+        assert_eq!((idle.x_px, idle.y_px), (still.x_px, still.y_px));
+        simulation.lock().unwrap().recording = true;
+        let moving = detector.detect(&source.read().unwrap());
+        assert!((moving.x_px - idle.x_px).hypot(moving.y_px - idle.y_px) > 20.0);
+        simulation.lock().unwrap().recording = false;
+        let stopped = detector.detect(&source.read().unwrap());
+        assert_eq!((idle.x_px, idle.y_px), (stopped.x_px, stopped.y_px));
     }
 }

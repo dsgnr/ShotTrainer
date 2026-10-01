@@ -13,11 +13,11 @@ import type { Bridge, EventHandler, PacketHandler, Unlisten } from "./bridge";
 
 export const MOCK_WIDTH = 320;
 export const MOCK_HEIGHT = 240;
-export const MOCK_FRAME_MS = 33;
+export const MOCK_FRAME_MS = 16;
 /** The fake microphone in `src-tauri/src/fake.rs` also hears a shot every 5 seconds. */
-export const MOCK_SHOT_EVERY_FRAMES = 150;
+export const MOCK_SHOT_EVERY_FRAMES = Math.round(5000 / MOCK_FRAME_MS);
 const MAX_IN_FLIGHT = 2;
-const CIRCLE_RADIUS_PX = 24;
+const CIRCLE_RADIUS_PX = 8;
 const CIRCLE_DIAMETER_MM = 60;
 const MM_PER_PX = CIRCLE_DIAMETER_MM / (CIRCLE_RADIUS_PX * 2);
 
@@ -57,6 +57,8 @@ export const MOCK_RINGS: WireRing[] = [
   { diameterMm: 30, label: "9" },
   { diameterMm: 10, label: "X" },
 ];
+
+import { simulatedAim } from "./simulated-aim";
 
 const UNAVAILABLE = "Not available in the browser preview";
 
@@ -248,11 +250,10 @@ export class MockBridge implements Bridge {
   #tick(): void {
     this.#frameId += 1;
     const t = (this.#frameId * MOCK_FRAME_MS) / 1000;
-    const dx = 18 * Math.sin(t * 0.9) + 4 * Math.sin(t * 3.1);
-    const dy = 12 * Math.cos(t * 0.7) + 3 * Math.sin(t * 2.3);
-    const x = MOCK_WIDTH / 2 + dx;
-    const y = MOCK_HEIGHT / 2 + dy;
-    this.#aimMm = [dx * MM_PER_PX, dy * MM_PER_PX];
+    const recording = this.#session.kind === "recording";
+    this.#aimMm = recording ? simulatedAim(this.#recordingFrames / MOCK_SHOT_EVERY_FRAMES * 5) : [0, 0];
+    const x = MOCK_WIDTH / 2 + this.#aimMm[0] / MM_PER_PX;
+    const y = MOCK_HEIGHT / 2 + this.#aimMm[1] / MM_PER_PX;
     this.#emit({
       type: "frame",
       frameId: this.#frameId,
@@ -263,7 +264,7 @@ export class MockBridge implements Bridge {
       aim: { xPx: x, yPx: y, radiusPx: CIRCLE_RADIUS_PX },
       rejected: null,
       zeroPx: null,
-      tracePointMm: this.#aimMm,
+      tracePointMm: recording ? this.#aimMm : null,
     });
     const shot = this.#session.kind === "recording"
       && ++this.#recordingFrames % MOCK_SHOT_EVERY_FRAMES === 0;
@@ -271,7 +272,7 @@ export class MockBridge implements Bridge {
     if (shot && this.#session.kind === "recording") {
       this.#shots = [
         ...this.#shots,
-        { timestamp: t, xMm: this.#aimMm[0], yMm: this.#aimMm[1], score: null, shotId: null,
+        { timestamp: t, xMm: this.#aimMm[0], yMm: this.#aimMm[1], score: this.#score(), shotId: null,
           seriesIndex: Math.floor(this.#shotNumber++ / this.#prefs.shotsPerSeries) },
       ];
       this.#emitShots();
@@ -280,6 +281,28 @@ export class MockBridge implements Bridge {
       this.#inFlight += 1;
       this.#onPacket(this.#pixels(x, y, t));
     }
+  }
+
+  #score(): string {
+    const distance = Math.hypot(...this.#aimMm);
+    const rings = MOCK_RINGS.filter((ring): ring is WireRing & { diameterMm: number } => ring.diameterMm !== null).sort((a, b) => a.diameterMm - b.diameterMm);
+    if (!this.#prefs.decimalScoring) {
+      return rings.find(r => distance <= r.diameterMm / 2 + this.#prefs.shotDiameterMm / 2)?.label ?? "";
+    }
+    const hasTen = rings.some(r => r.label === "10");
+    const numeric = rings.map(r => ({radius: r.diameterMm / 2 + this.#prefs.shotDiameterMm / 2,
+      value: r.label === "X" && !hasTen ? 10 : Number(r.label)})).filter(r => Number.isFinite(r.value) && r.value > 0);
+    let innerRadius = 0;
+    let innerValue = (numeric[0]?.value ?? 0) + 1;
+    for (const ring of numeric) {
+      if (distance <= ring.radius) {
+        const value = ring.value + (ring.radius - distance) / (ring.radius - innerRadius) * (innerValue - ring.value);
+        return Math.min((numeric[0]?.value ?? 0) + 0.9, Math.floor(value * 10) / 10).toFixed(1);
+      }
+      innerRadius = ring.radius;
+      innerValue = ring.value;
+    }
+    return "";
   }
 
   #pixels(x: number, y: number, t: number): ArrayBuffer {

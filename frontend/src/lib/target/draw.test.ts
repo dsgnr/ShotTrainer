@@ -43,6 +43,7 @@ function fakeContext(): { ctx: CanvasRenderingContext2D; calls: Call[] } {
       } else if (method === "moveTo" || method === "lineTo") {
         path.push([args[0] as number, args[1] as number]);
       }
+      if (method === "bezierCurveTo") path.push([args[4] as number, args[5] as number]);
       calls.push({
         method,
         args,
@@ -252,4 +253,28 @@ it.each([50, 100])("centres readable labels within scoring bands at extent %d", 
     return phases[0]!.lineWidth;
   });
   expect(widths).toEqual([0.5, 0.8, 1.6, 3]);
+});
+
+
+it("draws live shot colours in chronological runs without joining separate approaches", () => {
+  const model = new TargetModel();
+  for (const [i, timestamp] of [1, 1.8, 2, 2.1, 3, 3.8, 4, 4.1].entries()) model.appendTracePoint(i, 0, timestamp);
+  model.setLiveShotWindows([2, 4], 250, 800);
+  const {ctx, calls} = fakeContext();
+  drawTarget(ctx, 300, 300, model, RINGS, COLOURS);
+  const paths = strokes(calls).filter(call => [COLOURS.approach, COLOURS.release, COLOURS.follow].includes(call.strokeStyle as string));
+  expect(paths.map(call => call.strokeStyle)).toEqual([COLOURS.approach, COLOURS.release, COLOURS.follow, COLOURS.approach, COLOURS.release, COLOURS.follow]);
+  for (let i = 1; i < paths.length; i++) expect(paths[i]!.path[0]).toEqual(paths[i - 1]!.path.at(-1));
+});
+
+
+it("smooths trace segments through their sampled positions", () => {
+  const model = new TargetModel();
+  model.setExtent(50);
+  model.setTrace([[0, 0], [10, 10], [20, 0], [30, -10]]);
+  const {ctx, calls} = fakeContext();
+  drawTarget(ctx, 116, 116, model, RINGS, COLOURS);
+  const curves = calls.filter(call => call.method === "bezierCurveTo" && call.strokeStyle === COLOURS.approach);
+  expect(curves.map(call => call.args.slice(4))).toEqual([[68, 68], [78, 58], [88, 48]]);
+  expect(curves[0]!.args.slice(2, 4)).toEqual(curves[1]!.args.slice(0, 2).map((value, i) => 2 * [68, 68][i]! - Number(value)));
 });

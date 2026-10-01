@@ -334,7 +334,7 @@ mod tests {
 
     impl CameraBackend for CountingCamera {
         fn list_cameras(&mut self, running: Option<i32>) -> Vec<(i64, String)> {
-            SyntheticCamera.list_cameras(running)
+            SyntheticCamera::default().list_cameras(running)
         }
 
         fn start(
@@ -344,7 +344,7 @@ mod tests {
             on_event: EventSink,
         ) -> Box<dyn CameraHandle> {
             self.0.fetch_add(1, Ordering::SeqCst);
-            SyntheticCamera.start(index, clock, on_event)
+            SyntheticCamera::default().start(index, clock, on_event)
         }
     }
 

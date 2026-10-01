@@ -194,13 +194,20 @@ function strokePolyline(ctx: CanvasRenderingContext2D, points: TracePoint[], col
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.beginPath();
-  points.forEach(([x, y], i) => {
-    if (i === 0) {
-      ctx.moveTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
-    }
-  });
+  ctx.moveTo(points[0]![0], points[0]![1]);
+  for (let i = 1; i < points.length; i++) {
+    const before = points[Math.max(0, i - 2)]!;
+    const start = points[i - 1]!;
+    const end = points[i]!;
+    const after = points[Math.min(points.length - 1, i + 1)]!;
+    ctx.bezierCurveTo(
+      start[0] + (end[0] - before[0]) / 6,
+      start[1] + (end[1] - before[1]) / 6,
+      end[0] - (after[0] - start[0]) / 6,
+      end[1] - (after[1] - start[1]) / 6,
+      end[0], end[1],
+    );
+  }
   ctx.stroke();
 }
 
@@ -212,23 +219,12 @@ function drawTrace(
   model: TargetModel,
   colours: TargetColours,
 ): void {
-  const visible = model.visibleTrace();
-  // The three phases join at their boundary sample, so a release point is
-  // repeated at the end of the approach path and the start of the release
-  // path. Drawing them as separate polylines would leave a gap.
-  const toView = (points: TracePoint[]): TracePoint[] =>
-    points.map(([x, y]) => [cx + x * scale, cy + y * scale]);
-  const approach = toView(visible.approach);
-  const release = toView(visible.release);
-  const follow = toView(visible.follow);
-  const bridge = (a: TracePoint[], b: TracePoint[]): TracePoint[] => {
-    const last = a.at(-1);
-    return last !== undefined && b.length > 0 ? [last, ...b] : b;
-  };
+  const palette = [colours.approach, colours.release, colours.follow];
   const width = Math.max(0.5, Math.min(3, scale * 0.4));
-  strokePolyline(ctx, approach, colours.approach, width);
-  strokePolyline(ctx, bridge(approach, release), colours.release, width);
-  strokePolyline(ctx, bridge(release.length > 0 ? release : approach, follow), colours.follow, width);
+  for (const run of model.visibleTraceRuns()) {
+    const points: TracePoint[] = run.points.map(([x, y]) => [cx + x * scale, cy + y * scale]);
+    strokePolyline(ctx, points, palette[run.phase]!, width);
+  }
 }
 
 function drawLiveAim(
