@@ -2,6 +2,7 @@ import { encodePacket } from "../frames/packet";
 import type {
   ShellStatus,
   WireCommand,
+  WireFace,
   WireEvent,
   WirePreferences,
   WireRing,
@@ -59,6 +60,21 @@ export const MOCK_RINGS: WireRing[] = [
   { diameterMm: 30, label: "9" },
   { diameterMm: 10, label: "X" },
 ];
+
+interface FaceSource {
+  label: string;
+  rings: { diameter_mm: number; label: string }[];
+  shot_diameter_mm?: number;
+  face_diameter_mm?: number;
+  scoring_direction?: string;
+}
+const sources = import.meta.glob<FaceSource>("../../../../crates/settings/assets/target_faces/*.json", { eager: true, import: "default" });
+export const MOCK_FACES: WireFace[] = Object.entries(sources).sort(([a], [b]) => a.localeCompare(b)).map(([path, face]) => ({
+  key: path.split("/").pop()!.replace(/\.json$/, ""), label: face.label,
+  rings: face.rings.map(ring => ({ diameterMm: ring.diameter_mm, label: ring.label })),
+  shotDiameterMm: face.shot_diameter_mm ?? null, faceDiameterMm: face.face_diameter_mm ?? null,
+  scoringDirection: face.scoring_direction ?? "inward",
+}));
 
 import { simulatedAim } from "./simulated-aim";
 
@@ -133,6 +149,9 @@ export class MockBridge implements Bridge {
 
   async send(command: WireCommand): Promise<void> {
     switch (command.type) {
+      case "listTargetFaces":
+        this.#emit({ type: "targetFaces", faces: MOCK_FACES });
+        break;
       case "setPreferences": {
         const current = this.#prefs;
         this.#prefs = { ...command.prefs,
@@ -141,13 +160,13 @@ export class MockBridge implements Bridge {
           shotDiameterMm: current.shotDiameterMm, sessionPosition: current.sessionPosition,
           shotsPerSeries: current.shotsPerSeries,
         };
-        this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_RINGS });
+        this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_FACES.find(face => face.key === this.#prefs.targetFace)?.rings ?? MOCK_RINGS });
         break;
       }
       case "setSessionSettings":
         if (this.#session.kind !== "idle" || this.#shots.length > 0) break;
         this.#prefs = { ...command.prefs };
-        this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_RINGS });
+        this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_FACES.find(face => face.key === this.#prefs.targetFace)?.rings ?? MOCK_RINGS });
         break;
       case "newSession":
         if (this.#session.kind === "recording") break;
@@ -159,7 +178,7 @@ export class MockBridge implements Bridge {
           shotRefractoryMs: MOCK_PREFERENCES.shotRefractoryMs, shotDiameterMm: MOCK_PREFERENCES.shotDiameterMm,
           sessionPosition: MOCK_PREFERENCES.sessionPosition, shotsPerSeries: MOCK_PREFERENCES.shotsPerSeries,
         };
-        this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_RINGS });
+        this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_FACES.find(face => face.key === this.#prefs.targetFace)?.rings ?? MOCK_RINGS });
         this.#session = { kind: "idle" };
         this.#summary = "Ready to start a new session";
         this.#shots = [];
@@ -266,7 +285,8 @@ export class MockBridge implements Bridge {
   }
 
   #sendState(): void {
-    this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_RINGS });
+    this.#emit({ type: "targetFaces", faces: MOCK_FACES });
+    this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_FACES.find(face => face.key === this.#prefs.targetFace)?.rings ?? MOCK_RINGS });
     this.#emit({ type: "zeroOffset", active: false, offsetMm: [0, 0] });
     this.#emitSession();
     this.#emitShots();

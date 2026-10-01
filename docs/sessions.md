@@ -9,7 +9,8 @@ sidebar. Press **Start session** to open the dialog. Enter a name and select a
 category, then press **Start session** to begin recording or
 **Cancel** to return without recording. Press **Stop session** to finish.
 Before starting, open **Session settings** on the target page, choose the target
-and shot diameter, set the timing windows and refractory interval, then press
+face from the built-in or custom catalogue and shot diameter, set the timing
+windows and refractory interval, then press
 **Apply session settings**. These values are fixed once recording starts.
 The summary shows the current recording state.
 

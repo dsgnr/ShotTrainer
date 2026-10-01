@@ -490,6 +490,7 @@ impl Controller {
         self.emit_preferences();
         self.emit_zero_offset();
         self.with_session(|s, cx| s.refresh(cx));
+        self.emit(UiEvent::TargetFaces(self.faces.clone()));
     }
 
     fn emit_zero_offset(&self) {
@@ -841,7 +842,8 @@ mod tests {
             panic!("expected the shot list, got {events:?}");
         };
         assert_eq!(view.shots.len(), 1);
-        assert_eq!(events.len(), 4);
+        assert!(matches!(&events[4], UiEvent::TargetFaces(faces) if faces.len() >= 6));
+        assert_eq!(events.len(), 5);
     }
 
     #[test]

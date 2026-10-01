@@ -27,6 +27,15 @@ afterEach(() => {
 });
 
 describe("MockBridge", () => {
+  it("delivers all target faces on startup and restart", async () => {
+    await bridge.frontendReady();
+    expect(ofType("targetFaces")[0]?.faces).toHaveLength(6);
+    await bridge.restart();
+    await bridge.frontendReady();
+    expect(ofType("targetFaces").at(-1)?.faces.map(face => face.key)).toContain("air_rifle_10m");
+    await bridge.send({ type: "setSessionSettings", prefs: { ...MOCK_PREFERENCES, targetFace: "air_rifle_10m" } });
+    expect(ofType("preferences").at(-1)?.rings[0]?.diameterMm).toBe(45.5);
+  });
   it("sends pixels for at most two frames until one is drawn", () => {
     vi.advanceTimersByTime(MOCK_FRAME_MS * 10);
     expect(ofType("frame")).toHaveLength(10);
@@ -48,6 +57,7 @@ describe("MockBridge", () => {
   it("sends the state a page needs when it is ready", async () => {
     await bridge.frontendReady();
     expect(events.map((event) => event.type)).toEqual([
+      "targetFaces",
       "preferences",
       "zeroOffset",
       "session",
