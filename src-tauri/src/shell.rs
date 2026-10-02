@@ -81,6 +81,24 @@ fn restart_controller(shell: State<'_, Shell>) -> Result<(), String> {
     shell.restart()
 }
 
+#[tauri::command]
+async fn prepare_update(shell: State<'_, Shell>) -> Result<(), String> {
+    shell.shutdown();
+    Ok(())
+}
+
+#[tauri::command]
+fn can_self_update() -> bool {
+    self_updatable(
+        cfg!(target_os = "linux"),
+        std::env::var_os("APPIMAGE").is_some(),
+    )
+}
+
+fn self_updatable(linux: bool, appimage: bool) -> bool {
+    !linux || appimage
+}
+
 /// Starts the controller once device access is settled. On macOS the
 /// system prompts for the camera and the microphone are requested here, on
 /// the main thread, and the devices open after both are answered.
@@ -120,6 +138,9 @@ pub fn run() {
         log::info!("Using fake devices");
     }
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(move |app| {
             let config = ShellConfig {
                 controller: ControllerConfig {
@@ -143,6 +164,8 @@ pub fn run() {
             frame_drawn,
             controller_status,
             restart_controller,
+            prepare_update,
+            can_self_update,
         ])
         .build(tauri::generate_context!());
     match app {
@@ -160,6 +183,13 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn package_installs_on_linux_use_manual_downloads() {
+        assert!(super::self_updatable(false, false));
+        assert!(super::self_updatable(true, true));
+        assert!(!super::self_updatable(true, false));
+    }
+
     use std::sync::mpsc;
     use std::time::Duration;
 

@@ -9,7 +9,7 @@ interface. It has no Python runtime dependency.
 
 ## Run from source
 
-Use Rust 1.88 or newer, Node.js 26 and npm 11, plus the native Tauri desktop
+Use Rust 1.90 or newer, Node.js 26 and npm 11, plus the native Tauri desktop
 prerequisites for your platform. Run all commands from the repository root:
 
 ```bash

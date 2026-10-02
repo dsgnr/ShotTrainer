@@ -6,7 +6,7 @@ description: "Build and run ShotTrainer from source with Rust, Tauri and Svelte,
 # Installation
 
 The current application runs from the Rust workspace. It does not require a
-Python runtime. Install Rust with Cargo (Rust 1.88 or newer), Node.js 26 and npm
+Python runtime. Install Rust with Cargo (Rust 1.90 or newer), Node.js 26 and npm
 11. Install the native desktop prerequisites for Tauri 2 on your platform: a
 C/C++ toolchain and platform webview libraries. Linux also needs the ALSA
 development libraries for audio.

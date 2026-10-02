@@ -39,7 +39,11 @@ shottrainer-settings = { path = "../crates/settings" }
 shottrainer-tracking = { path = "../crates/tracking" }
 log.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 tauri = { version = "2.12", features = [] }
+tauri-plugin-updater = "2.13.1"
+tauri-plugin-process = "2.4.0"
+tauri-plugin-opener = "2.7.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"
@@ -47,6 +51,5 @@ objc2 = "0.6"
 objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "block2", "AVCaptureDevice", "AVMediaFormat"] }
 
 [dev-dependencies]
-serde_json.workspace = true
 tauri = { version = "2.12", features = ["test"] }
 tempfile.workspace = true

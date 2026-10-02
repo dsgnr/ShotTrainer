@@ -7,12 +7,26 @@ description: "Find ShotTrainer releases and learn how upgrades, version numbers 
 ShotTrainer is transitioning to a Rust, Tauri and Svelte desktop application.
 The source build instructions are in [installation](installation.md).
 
-Releases currently require manual preparation. This repository has no active
-automated publication pipeline. Release bundles are built through Tauri with the
-OpenCV feature for real camera input. Bundle availability, installation
-requirements, signing and platform support must be established for each
-published release. A source build or synthetic-device test is not a platform
-certification.
+The desktop app checks for updates at startup. A new stable release appears in
+an update banner. Select **Install and restart** to download a signed update,
+stop the controller and install it. Installation is unavailable while recording.
+If recording starts during the download, stop recording and select the button
+again to install the downloaded update. **Later** hides the banner until the
+next launch or a manual check from **About**.
+
+**About** also offers **Check for updates**. Automatic checks stay quiet when
+offline or when no public release exists. Manual checks display failures.
+Linux AppImages can update in place. Other Linux packages offer **Download**,
+which opens the releases page for manual installation.
+
+The release workflow builds real-device bundles with OpenCV, signatures and
+`latest.json` for macOS, Windows and Linux. A `v*` tag or manual dispatch builds
+a draft release. The tag must match the Cargo workspace version. Publish the
+draft only after verifying its bundles on each target platform. Drafts and
+prereleases are excluded from the automatic stable update endpoint.
+
+Updater signing is separate from operating-system code signing and macOS
+notarisation. Signing setup is documented in the repository’s `packaging/README.md`.
 
 Check the [GitHub releases page](https://github.com/dsgnr/ShotTrainer/releases)
 for published downloads and their release notes. Back up the application data

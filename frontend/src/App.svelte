@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { onMount } from "svelte";
+  import UpdateBanner from "./components/UpdateBanner.svelte";
+  import { UpdateManager } from "./lib/app/updates.svelte";
+  import { updateBackend } from "./lib/app/updates";
   import About from "./components/About.svelte";
   import AppShell from "./components/AppShell.svelte";
   import CameraPopout from "./components/CameraPopout.svelte";
@@ -39,6 +43,9 @@
   }
 
   let { app, connection, announcer, frames, targetModel, send }: Props = $props();
+
+  const updates = new UpdateManager(updateBackend, () => app.session.state.kind === "recording", () => connection.restart());
+  onMount(() => { void updates.check(true); });
 
   // The target extent follows the rings until the user zooms. A separate
   // reactive value lets the zoom controls and the wheel drive it afterwards.
@@ -183,6 +190,7 @@
   }
 
   function onKeydown(event: KeyboardEvent): void {
+    if (updates.stage === "installing") return;
     if (page !== "target" && !anyModalOpen) return;
     const action = resolveShortcut({
       key: event.key,
@@ -234,8 +242,9 @@
     onnew={() => newSessionOpen = true} />
 {/snippet}
 {#snippet aboutPage()}
-  <About />
+  <About {updates} />
 {/snippet}
+<div style="height: 100%" inert={updates.stage === "installing"}>
 <AppShell page={page === "sessions" ? sessionsPage : page === "about" ? aboutPage : undefined}>
   {#snippet nav()}
     <NavRail
@@ -290,6 +299,7 @@
       session={app.session.state} trackingText={app.status.trackingText} />
   {/snippet}
 </AppShell>
+</div>
 
 <style>
   .session-footer {
@@ -339,6 +349,7 @@
   onclose={() => (sheetOpen = false)}
 />
 <LiveRegion {announcer} />
+<UpdateBanner {updates} recording={app.session.state.kind === "recording"} />
 
 {#if newSessionOpen && app.preferences.prefs}
   <NewSessionDialog prefs={app.preferences.prefs} faces={app.preferences.faces} onclose={() => newSessionOpen = false}

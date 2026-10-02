@@ -2,6 +2,8 @@
   import { onMount } from "svelte";
   import { getVersion } from "@tauri-apps/api/app";
   import { isTauri } from "@tauri-apps/api/core";
+  import type { UpdateManager } from "../lib/app/updates.svelte";
+  let { updates }: { updates?: UpdateManager } = $props();
   const repository = "https://github.com/dsgnr/ShotTrainer";
   let version = $state(isTauri() ? "Loading..." : "Browser preview");
   onMount(() => {
@@ -14,6 +16,13 @@
   <p>Version {version}</p>
   <p><a href={repository} target="_blank" rel="noopener noreferrer">GitHub repository</a></p>
   <p class="repository">{repository}</p>
+  {#if updates}
+    <button disabled={updates.busy || updates.available !== null} onclick={() => void updates.check()}>Check for updates</button>
+    {#if updates.stage === "checking"}<p>Checking for updates...</p>
+    {:else if updates.error}<p role="alert">{updates.error}</p>
+    {:else if updates.available}<p>Version {updates.available.version} is available.</p>
+    {:else if updates.checked}<p>No update is available.</p>{/if}
+  {/if}
 </section>
 
 <style>

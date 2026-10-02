@@ -30,7 +30,16 @@ mod tests {
             serde_json::json!([
                 "core:event:allow-listen",
                 "core:event:allow-unlisten",
-                "core:app:allow-version"
+                "core:app:allow-version",
+                "core:resources:allow-close",
+                "updater:allow-check",
+                "updater:allow-download",
+                "updater:allow-install",
+                "process:allow-restart",
+                {"identifier": "opener:allow-open-url", "allow": [
+                    {"url": "https://github.com/dsgnr/ShotTrainer"},
+                    {"url": "https://github.com/dsgnr/ShotTrainer/releases"}
+                ]}
             ])
         );
     }

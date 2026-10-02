@@ -7,7 +7,7 @@ before changing processing, timing or persistence.
 
 ## Set up
 
-Install Rust 1.88 or newer, Node.js 26 and npm 11, and the native Tauri 2
+Install Rust 1.90 or newer, Node.js 26 and npm 11, and the native Tauri 2
 prerequisites for your operating system. Real camera builds additionally need
 OpenCV and its compiler/libclang dependencies. Linux audio needs ALSA
 development libraries. Run commands from the repository root:
