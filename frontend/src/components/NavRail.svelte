@@ -1,6 +1,7 @@
 <script lang="ts">
   interface Props {
-    page?: "target" | "sessions";
+    page?: "target" | "sessions" | "about";
+    onabout?: () => void;
     ontarget?: () => void;
     onsessions: () => void;
     onpreferences: () => void;
@@ -8,7 +9,7 @@
     onsheet: () => void;
   }
 
-  let { page = "target", ontarget, onsessions, onpreferences, onpopout, onsheet }: Props = $props();
+  let { page = "target", ontarget, onabout, onsessions, onpreferences, onpopout, onsheet }: Props = $props();
 </script>
 
 <div class="rail">
@@ -42,6 +43,12 @@
   </button>
 
   <span class="spacer"></span>
+
+  <button type="button" class="item" class:current={page === "about"} aria-current={page === "about" ? "page" : undefined} title="About" aria-label="About" onclick={onabout}>
+    <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">
+      <circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7v1" />
+    </svg>
+  </button>
 
   <button type="button" class="item" title="Preferences" aria-label="Preferences" onclick={onpreferences}>
     <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">

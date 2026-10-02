@@ -30,7 +30,8 @@ use defaults and shots are grouped into series of 10. Invalid files leave the
 database unchanged.
 
 The navigation rail highlights the current page. Select the Target icon to return
-to the target, or open a saved session to review it there.
+to the target, or open a saved session to review it there. Select **About** for
+the installed version number and a link to the GitHub repository.
 
 Select **New session** to choose a name, category, target face, shot diameter
 and timing settings. Choose **Prone**, **Standing** or **Kneeling** using the

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import About from "./components/About.svelte";
   import AppShell from "./components/AppShell.svelte";
   import CameraPopout from "./components/CameraPopout.svelte";
   import SessionOverview from "./components/SessionOverview.svelte";
@@ -160,7 +161,7 @@
   let sessionName = $state("");
   let sessionCategory = $state("practice");
   let preferencesOpen = $state(false);
-  let page = $state<"target" | "sessions">("target");
+  let page = $state<"target" | "sessions" | "about">("target");
   let popoutOpen = $state(false);
   let sheetOpen = $state(false);
 
@@ -232,10 +233,14 @@
     recording={app.session.state.kind === "recording"}
     onnew={() => newSessionOpen = true} />
 {/snippet}
-<AppShell page={page === "sessions" ? sessionsPage : undefined}>
+{#snippet aboutPage()}
+  <About />
+{/snippet}
+<AppShell page={page === "sessions" ? sessionsPage : page === "about" ? aboutPage : undefined}>
   {#snippet nav()}
     <NavRail
       {page}
+      onabout={() => page = "about"}
       ontarget={() => page = "target"}
       onsessions={() => (page = "sessions")}
       onpreferences={() => (preferencesOpen = true)}

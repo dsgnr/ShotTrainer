@@ -27,7 +27,11 @@ mod tests {
         assert_eq!(capability["windows"], serde_json::json!(["main"]));
         assert_eq!(
             capability["permissions"],
-            serde_json::json!(["core:event:allow-listen", "core:event:allow-unlisten"])
+            serde_json::json!([
+                "core:event:allow-listen",
+                "core:event:allow-unlisten",
+                "core:app:allow-version"
+            ])
         );
     }
 
