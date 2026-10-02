@@ -20,8 +20,15 @@
     return state.kind === "idle" ? "" : state.sessionId;
   }
 
-  function print(): void {
-    window.print();
+  let printError = $state<string | null>(null);
+
+  async function print(): Promise<void> {
+    printError = null;
+    try {
+      await window.print();
+    } catch (error) {
+      printError = `Could not print the shot sheet: ${String(error)}`;
+    }
   }
 </script>
 
@@ -72,6 +79,7 @@
       </table>
       </div>
 
+      {#if printError}<p role="alert">{printError}</p>{/if}
       <div class="actions">
         <button type="button" onclick={onclose}>Close</button>
         <button type="button" class="primary" onclick={print}>Print</button>

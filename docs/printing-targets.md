@@ -7,7 +7,9 @@ description: "Print a ShotTrainer results sheet and prepare a correctly measured
 The current interface provides **Shot sheet** in the navigation rail. Opening
 it focuses **Close** while leaving the results unhighlighted. The sheet shows
 the current shots, scores and offsets. **Print** invokes the webview's print
-facility. Available print destinations depend on the host platform.
+facility, including the native print dialogue on macOS. Available print
+destinations depend on the host platform. If printing fails, the sheet displays
+the error and you can select **Print** again to retry.
 
 This sheet is a results table. The current interface does not generate a
 printable circular tracking marker. Prepare a high-contrast dark circle on light

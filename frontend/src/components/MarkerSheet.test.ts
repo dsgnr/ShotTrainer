@@ -46,3 +46,27 @@ it("opens with Close focused and restores focus without highlighting the results
   expect(document.activeElement).toBe(trigger);
   target.remove(); trigger.remove(); visibility.mockRestore();
 });
+
+it("reports native print failures and clears the error when retrying", async () => {
+  const print = vi.spyOn(window, "print")
+    .mockImplementationOnce(() => Promise.reject(new Error("print denied")))
+    .mockImplementation(() => undefined);
+  const target = document.createElement("div");
+  const component = mount(MarkerSheet, { target, props: {
+    open: true, session: { kind: "idle" }, totalScore: null, shots: [], onclose: () => {},
+  } });
+  flushSync();
+  const button = target.querySelector<HTMLButtonElement>(".actions .primary")!;
+  button.click();
+  await vi.waitFor(() => {
+    flushSync();
+    expect(target.querySelector('[role="alert"]')?.textContent).toContain("print denied");
+  });
+  button.click();
+  await Promise.resolve();
+  flushSync();
+  expect(target.querySelector('[role="alert"]')).toBeNull();
+  expect(print).toHaveBeenCalledTimes(2);
+  await unmount(component);
+  print.mockRestore();
+});

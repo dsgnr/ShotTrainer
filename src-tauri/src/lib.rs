@@ -31,6 +31,7 @@ mod tests {
                 "core:event:allow-listen",
                 "core:event:allow-unlisten",
                 "core:app:allow-version",
+                "core:webview:allow-print",
                 "core:resources:allow-close",
                 "updater:allow-check",
                 "updater:allow-download",
