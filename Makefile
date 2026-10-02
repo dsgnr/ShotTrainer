@@ -35,6 +35,10 @@ package-demo:
 
 icons:
 	cargo tauri icon frontend/public/icon.svg --output src-tauri/icons
+	@task_icon_dir=$$(mktemp -d); \
+	trap 'rm -rf "$$task_icon_dir"' EXIT; \
+	cargo tauri icon packaging/macos/icon.svg --output "$$task_icon_dir" && \
+	cp "$$task_icon_dir/icon.icns" src-tauri/icons/icon.icns
 
 docs: docs-serve
 docs-serve:

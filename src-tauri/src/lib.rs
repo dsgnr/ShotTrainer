@@ -54,6 +54,18 @@ mod tests {
     }
 
     #[test]
+    fn macos_uses_the_product_name_in_system_ui() {
+        let config: Value = serde_json::from_str(CONFIG).unwrap();
+        let name = config["productName"].as_str().unwrap();
+        let manifest = include_str!("../Cargo.toml");
+        assert!(manifest.contains(&format!("default-run = \"{name}\"")));
+        assert!(manifest.contains(&format!("[[bin]]\nname = \"{name}\"")));
+        for key in ["CFBundleName", "CFBundleDisplayName"] {
+            assert!(INFO_PLIST.contains(&format!("<key>{key}</key>\n  <string>{name}</string>")));
+        }
+    }
+
+    #[test]
     fn the_window_loads_the_vite_front_end() {
         let config: Value = serde_json::from_str(CONFIG).unwrap();
         let build = &config["build"];

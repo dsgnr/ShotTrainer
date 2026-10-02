@@ -19,8 +19,11 @@ cargo tauri build --features opencv
 The CLI install is only needed if the required version is absent. Tauri runs the
 frontend production build through its configured before-build command.
 `src-tauri/tauri.conf.json` owns bundle configuration, icons and platform
-settings. Cargo owns the application version. Build output is under Cargo's
-`target/release` tree, with bundles produced by Tauri for the host platform.
+settings. The macOS bundle and process use `ShotTrainer` as their display name.
+`make icons` regenerates the desktop icons and uses `packaging/macos/icon.svg`
+for the padded macOS Dock artwork. Cargo owns the application version. Build
+output is under Cargo's `target/release` tree, with bundles produced by Tauri
+for the host platform.
 
 The OpenCV feature enables real camera and microphone backends. Omitting it
 produces a synthetic-device application and is intended for development, not a
