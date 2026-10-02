@@ -66,6 +66,9 @@ pub enum WireCommand {
         id: i64,
         dir: PathBuf,
     },
+    ImportSession {
+        path: PathBuf,
+    },
     ReplayPlay,
     ReplayPause,
     ReplayReset,
@@ -130,6 +133,7 @@ impl From<WireCommand> for Command {
             }
             WireCommand::DeleteSession { id } => Command::DeleteSession(id),
             WireCommand::ExportSession { id, dir } => Command::ExportSession { id, dir },
+            WireCommand::ImportSession { path } => Command::ImportSession { path },
             WireCommand::ReplayPlay => Command::ReplayPlay,
             WireCommand::ReplayPause => Command::ReplayPause,
             WireCommand::ReplayReset => Command::ReplayReset,
@@ -232,6 +236,12 @@ mod tests {
                 Command::ExportSession {
                     id: 10,
                     dir: PathBuf::from("exports"),
+                },
+            ),
+            (
+                json!({"type": "importSession", "path": "session_1_shots.csv"}),
+                Command::ImportSession {
+                    path: PathBuf::from("session_1_shots.csv"),
                 },
             ),
             (json!({"type": "replayPlay"}), Command::ReplayPlay),

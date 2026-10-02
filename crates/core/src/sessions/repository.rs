@@ -81,6 +81,29 @@ impl<'a> SessionRepository<'a> {
         SessionRepository { db }
     }
 
+    pub fn import_session(
+        &self,
+        new: &NewSession,
+        shots: &[NewShot],
+        trace: &[TrackingSample],
+    ) -> Result<i64, DatabaseError> {
+        let tx = self.db.unchecked_transaction()?;
+        let repo = SessionRepository::new(&tx);
+        let id = repo.create_session(new)?;
+        for shot in shots {
+            repo.add_shot(id, shot)?;
+        }
+        for sample in trace {
+            tx.execute(
+                "INSERT INTO trace_samples (session_id, ts, x_px, y_px, x_mm, y_mm, confidence, frame_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![id, sample.timestamp, sample.x_px, sample.y_px, sample.x_mm, sample.y_mm, sample.confidence, sample.frame_id],
+            )?;
+        }
+        repo.end_session(id, None)?;
+        tx.commit()?;
+        Ok(id)
+    }
+
     pub fn create_session(&self, new: &NewSession) -> Result<i64, DatabaseError> {
         self.db.execute(
             "INSERT INTO sessions (name, started_at, notes, target_profile, category, \

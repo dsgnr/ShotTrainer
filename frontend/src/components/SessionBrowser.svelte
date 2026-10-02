@@ -68,6 +68,14 @@
     }
   }
 
+  function importSession(): void {
+    if (recording) return;
+    const path = window.prompt("Path to the exported *_shots.csv file (matching trace file is loaded if present)");
+    if (path !== null && path.trim() !== "") {
+      void send({ type: "importSession", path: path.trim() });
+    }
+  }
+
   function exportSession(): void {
     if (selectedSession === null) {
       return;
@@ -81,7 +89,7 @@
 
 {#if open}
   <section class="sessions-page" aria-label="Sessions">
-      <header><h2>Sessions</h2><button type="button" class="primary" disabled={recording} onclick={onnew}>New session</button></header>
+      <header><h2>Sessions</h2><button type="button" class="primary" disabled={recording} onclick={onnew}>New session</button><button type="button" disabled={recording} onclick={importSession}>Import CSV...</button></header>
 
       <div class="filters">
         <input type="search" placeholder="Search session names..." bind:value={query} />

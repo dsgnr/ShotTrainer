@@ -64,6 +64,26 @@ impl SessionManager {
         self.list_sessions(cx);
     }
 
+    pub fn import_session(&self, cx: &SessionContext, path: &Path) {
+        if self.recorder.is_recording() {
+            cx.message(StatusMessage::info(
+                "Stop recording before importing a session",
+                4000,
+            ));
+            return;
+        }
+        match shottrainer_core::services::importer::import_session_csv(cx.db, path) {
+            Ok(_) => {
+                self.list_sessions(cx);
+                cx.message(StatusMessage::info("Imported session", 4000));
+            }
+            Err(error) => cx.message(StatusMessage::warning(
+                format!("Could not import the session: {error}"),
+                5000,
+            )),
+        }
+    }
+
     pub fn export_session(&self, cx: &SessionContext, id: i64, dir: &Path) {
         match export_session_csv(&cx.repo(), id, dir) {
             Ok(files) => cx.message(StatusMessage::info(
@@ -625,6 +645,31 @@ mod tests {
         rig.run(|cx| mgr.delete_session(cx, sid));
         assert!(rig.repo().get_session(sid).unwrap().is_none());
         assert_eq!(rig.take(), [UiEvent::Sessions(vec![])]);
+    }
+
+    #[test]
+    fn import_relists_saved_sessions_and_refuses_recording() {
+        let rig = Rig::new();
+        let sid = saved_session(&rig, "default");
+        let mut mgr = SessionManager::new(&rig.prefs);
+        let dir = tempfile::tempdir().unwrap();
+        rig.run(|cx| mgr.export_session(cx, sid, dir.path()));
+        rig.take();
+        let path = dir.path().join(format!("session_{sid}_shots.csv"));
+        rig.run(|cx| mgr.import_session(cx, &path));
+        assert_eq!(rig.repo().list_sessions().unwrap().len(), 2);
+        assert!(
+            rig.take()
+                .iter()
+                .any(|event| matches!(event, UiEvent::Sessions(list) if list.len() == 2))
+        );
+        rig.run(|cx| mgr.start(cx, "Live", "practice", "1"));
+        rig.take();
+        rig.run(|cx| mgr.import_session(cx, &path));
+        assert_eq!(rig.repo().list_sessions().unwrap().len(), 3);
+        assert!(rig.take().iter().any(
+            |event| matches!(event, UiEvent::Message(m) if m.text.contains("Stop recording"))
+        ));
     }
 
     #[test]

@@ -42,3 +42,20 @@ it("requests sessions once when the response updates reactive state", async () =
   expect(send).toHaveBeenCalledOnce();
   await unmount(component);
 });
+
+it("imports an exported shots file and prevents import while recording", async () => {
+  const prompt = vi.spyOn(window, "prompt").mockReturnValue(" /tmp/session_1_shots.csv ");
+  for (const recording of [false, true]) {
+    const target = document.createElement("div");
+    const send = vi.fn(async () => undefined);
+    const component = mount(SessionBrowser, { target, props: { open: true, sessions: [], recording, send, onnew: vi.fn(), onopen: vi.fn() } });
+    flushSync();
+    const button = [...target.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Import CSV...")!;
+    expect(button.disabled).toBe(recording);
+    button.click();
+    if (!recording) expect(send).toHaveBeenCalledWith({ type: "importSession", path: "/tmp/session_1_shots.csv" });
+    else expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ type: "importSession" }));
+    await unmount(component);
+  }
+  prompt.mockRestore();
+});

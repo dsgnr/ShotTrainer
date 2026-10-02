@@ -13,12 +13,21 @@ category, then select a session.
 - **Delete** asks for confirmation before removing the session and its trace.
   Stop an active recording before deleting its session.
 - **Export CSV...** asks for an export folder path.
+- **Import CSV...** asks for the path to an exported `*_shots.csv` file.
+  Stop recording before importing.
 
 Export writes `session_<id>_shots.csv` and `session_<id>_trace.csv` into that
 folder, creating it if necessary. Shot rows contain index, timestamp,
 coordinates in millimetres, audio level, confidence and score. Trace rows
 contain timestamp, pixel and millimetre coordinates, confidence and frame ID.
 Exporting again to the same folder replaces files for that session.
+
+Import creates a saved session and loads the matching `*_trace.csv` file from
+the same folder when present. Without it, shots can be reviewed without replay.
+Scores and timestamps are preserved. CSV files do not contain the original
+name, category, target face, position or timing settings, so imported sessions
+use defaults and shots are grouped into series of 10. Invalid files leave the
+database unchanged.
 
 The navigation rail highlights the current page. Select the Target icon to return
 to the target, or open a saved session to review it there.

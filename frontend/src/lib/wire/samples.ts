@@ -155,6 +155,7 @@ export const SAMPLE_COMMANDS: {
   renameSession: { type: "renameSession", id: 7, name: "Evening" },
   setSessionCategory: { type: "setSessionCategory", id: 8, category: "sighter" },
   deleteSession: { type: "deleteSession", id: 9 },
+  importSession: { type: "importSession", path: "session_1_shots.csv" },
   exportSession: { type: "exportSession", id: 10, dir: "exports" },
   replayPlay: { type: "replayPlay" },
   replayPause: { type: "replayPause" },

@@ -58,6 +58,9 @@ pub enum Command {
         id: i64,
         dir: PathBuf,
     },
+    ImportSession {
+        path: PathBuf,
+    },
     ReplayPlay,
     ReplayPause,
     ReplayReset,
@@ -341,6 +344,9 @@ impl Controller {
             Command::DeleteSession(id) => self.with_session(|s, cx| s.delete_session(cx, id)),
             Command::ExportSession { id, dir } => {
                 self.with_session(|s, cx| s.export_session(cx, id, &dir));
+            }
+            Command::ImportSession { path } => {
+                self.with_session(|s, cx| s.import_session(cx, &path));
             }
             Command::ReplayPlay => self.with_session(|s, cx| s.replay_play(cx, now)),
             Command::ReplayPause => self.with_session(|s, cx| s.replay_pause(cx)),

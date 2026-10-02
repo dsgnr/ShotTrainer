@@ -1,4 +1,5 @@
 pub mod exporter;
+pub mod importer;
 pub mod replay_coordinator;
 pub mod scoring;
 pub mod session_recorder;
