@@ -16,8 +16,8 @@ import type { Bridge, EventHandler, PacketHandler, Unlisten } from "./bridge";
 export const MOCK_WIDTH = 320;
 export const MOCK_HEIGHT = 240;
 export const MOCK_FRAME_MS = 16;
-/** The fake microphone in `src-tauri/src/fake.rs` also hears a shot every 5 seconds. */
-export const MOCK_SHOT_EVERY_FRAMES = Math.round(5000 / MOCK_FRAME_MS);
+/** The fake microphone in `src-tauri/src/fake.rs` also hears a shot every 10 seconds. */
+export const MOCK_SHOT_EVERY_FRAMES = Math.round(10000 / MOCK_FRAME_MS);
 const MAX_IN_FLIGHT = 2;
 const CIRCLE_RADIUS_PX = 8;
 const CIRCLE_DIAMETER_MM = 60;
@@ -107,7 +107,7 @@ function groupStats(shots: WireShot[]): WireShotStats {
 /**
  * Imitates the shell with fake devices, so `npm run dev` works in a plain
  * browser. A dark circle drifts around the frame centre, its offset becomes
- * the live trace, and a shot lands every 5 seconds while recording.
+ * the live trace, and a shot lands every 10 seconds while recording.
  */
 export class MockBridge implements Bridge {
   #handler: EventHandler | null = null;
@@ -306,7 +306,7 @@ export class MockBridge implements Bridge {
     this.#frameId += 1;
     const t = (this.#frameId * MOCK_FRAME_MS) / 1000;
     const recording = this.#session.kind === "recording";
-    this.#aimMm = recording ? simulatedAim(this.#recordingFrames / MOCK_SHOT_EVERY_FRAMES * 5) : [0, 0];
+    this.#aimMm = recording ? simulatedAim(this.#recordingFrames / MOCK_SHOT_EVERY_FRAMES * 10) : [0, 0];
     if (recording) this.#trace.push({timestamp: t, point: [...this.#aimMm]});
     const x = MOCK_WIDTH / 2 + this.#aimMm[0] / MM_PER_PX;
     const y = MOCK_HEIGHT / 2 + this.#aimMm[1] / MM_PER_PX;

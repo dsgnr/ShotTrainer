@@ -1,46 +1,44 @@
 import { expect, it } from "vitest";
 import { simulatedAim } from "./simulated-aim";
-it("approaches mostly straight with varied speed and rapid recoil", () => {
-  const shots = Array.from({length: 10}, (_, i) => {
-    const t = i * 5;
-    const approach = simulatedAim(t + 1.51);
-    const shot = simulatedAim(t + 5);
-    const entryPhase = i === 0 ? 0 : 1.5;
-    const entry = simulatedAim(t + entryPhase);
-    expect(Math.abs(entry[0])).toBeLessThan(28);
-    expect(entry[1]).toBeGreaterThan(100);
-    expect(Math.hypot(...shot)).toBeLessThan(8);
-    expect(simulatedAim(t + entryPhase + 0.2)[1]).toBeLessThan(entry[1] - 0.5);
-    const axis: [number, number] = [entry[0] - shot[0], entry[1] - shot[1]];
-    for (let frame = 0; frame < 101; frame++) {
-      const point = simulatedAim(t + entryPhase + (4.85 - entryPhase) * frame / 100);
-      const lateral = Math.abs((point[0] - shot[0]) * axis[1] - (point[1] - shot[1]) * axis[0]) / Math.hypot(...axis);
-      expect(lateral).toBeLessThan(40);
+
+it("settles into a compact hold after an off-target approach and recoils rapidly", () => {
+  const shots = Array.from({length: 10}, (_, shot) => {
+    const t = shot * 10;
+    const trigger = simulatedAim(t + 10);
+    const distance = (point: [number, number]) => Math.hypot(point[0] - trigger[0], point[1] - trigger[1]);
+    const entry = simulatedAim(t + (shot === 0 ? 0 : 1.5));
+    expect(Math.hypot(...entry)).toBeGreaterThan(85);
+    expect(entry[0]).toBeLessThan(-60);
+    expect(entry[1]).toBeGreaterThan(60);
+    expect(distance(entry)).toBeLessThan(110);
+    expect(entry[1]).toBeGreaterThan(trigger[1] + 25);
+    for (let frame = 0; frame <= 30; frame++) {
+      expect(distance(simulatedAim(t + 9.5 + frame / 60))).toBeLessThan(10);
     }
-    const fastStart = simulatedAim(t + 3.9);
-    const early = simulatedAim(t + 4.1);
-    const lateStart = simulatedAim(t + 4.6);
-    const lateEnd = simulatedAim(t + 4.8);
-    expect(Math.abs(fastStart[1] - early[1])).toBeGreaterThan(2 * Math.abs(lateStart[1] - lateEnd[1]));
-    expect(Math.hypot(approach[0] - shot[0], approach[1] - shot[1])).toBeGreaterThan(20);
-    for (let n = 0; n < 8; n++) {
-      const hold = simulatedAim(t + 4.75 + n / 32);
-      expect(Math.hypot(hold[0] - shot[0], hold[1] - shot[1])).toBeLessThan(7);
-    }
-    const kick = simulatedAim(t + 5.02);
-    expect(Math.hypot(kick[0] - shot[0], kick[1] - shot[1])).toBeGreaterThan(70);
-    const loop = Array.from({length: 13}, (_, n) => simulatedAim(t + 5.015 + n * 0.03));
-    expect(loop.some(point => Math.hypot(point[0] - shot[0], point[1] - shot[1]) > 200)).toBe(true);
-    expect(loop.some(point => Math.abs(point[0] - shot[0]) > 35)).toBe(true);
-    expect(loop.some(point => point[1] > shot[1] + 50)).toBe(true);
-    const settled = simulatedAim(t + 5.8);
-    expect(Math.hypot(settled[0] - shot[0], settled[1] - shot[1])).toBeLessThan(8);
-    for (const boundary of [5, 6, 6.5]) {
+    const holdX = Array.from({length: 121}, (_, frame) => simulatedAim(t + 7 + frame / 60)[0]);
+    expect(Math.max(...holdX) - Math.min(...holdX)).toBeGreaterThan(4);
+    const release = Array.from({length: 16}, (_, frame) => distance(simulatedAim(t + 9.75 + frame / 60)));
+    expect(Math.max(...release)).toBeGreaterThan(3);
+    expect(distance(simulatedAim(t + 10.025))).toBeGreaterThan(10);
+    expect(Math.hypot(...simulatedAim(t + 2.5))).toBeGreaterThan(38);
+    expect(distance(simulatedAim(t + 3))).toBeGreaterThan(40);
+    expect(distance(simulatedAim(t + 5))).toBeGreaterThan(8);
+    const entryX = Array.from({length: 61}, (_, frame) => simulatedAim(t + 2 + frame / 20)[0]);
+    expect(Math.max(...entryX) - Math.min(...entryX)).toBeGreaterThan(5);
+    const follow = Array.from({length: 61}, (_, frame) => distance(simulatedAim(t + 10 + frame / 60)));
+    expect(Math.max(...follow)).toBeGreaterThan(100);
+    expect(Math.max(...follow)).toBeLessThan(220);
+    for (const boundary of [10, 11, 11.5]) {
       const before = simulatedAim(t + boundary - 0.00001);
       const after = simulatedAim(t + boundary + 0.00001);
-      expect(Math.hypot(after[0] - before[0], after[1] - before[1])).toBeLessThan(0.02);
+      expect(Math.hypot(after[0] - before[0], after[1] - before[1])).toBeLessThan(0.05);
     }
-    return shot;
+    for (let frame = 151; frame < 600; frame++) {
+      const before = simulatedAim(t + (frame - 1) / 60);
+      const after = simulatedAim(t + frame / 60);
+      expect(Math.hypot(after[0] - before[0], after[1] - before[1])).toBeLessThan(12);
+    }
+    return trigger;
   });
   expect(new Set(shots.map(shot => JSON.stringify(shot))).size).toBe(10);
 });

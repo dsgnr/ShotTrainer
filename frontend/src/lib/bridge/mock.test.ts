@@ -67,7 +67,7 @@ describe("MockBridge", () => {
     ]);
   });
 
-  it("records a shot every 5 seconds while a session runs", async () => {
+  it("records a shot every 10 seconds while a session runs", async () => {
     await bridge.send({ type: "startSession", name: "", category: "practice" });
     expect(ofType("session").at(-1)?.state).toEqual({ kind: "recording", sessionId: 1 });
     vi.advanceTimersByTime(MOCK_FRAME_MS * MOCK_SHOT_EVERY_FRAMES);

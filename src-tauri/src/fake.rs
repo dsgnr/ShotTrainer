@@ -35,7 +35,7 @@ const INK: u8 = 20;
 const DARK: u8 = 128;
 /// Fewer dark pixels than this is no circle.
 const MIN_DARK_PIXELS: usize = 50;
-const SHOT_EVERY: Duration = Duration::from_secs(5);
+const SHOT_EVERY: Duration = Duration::from_secs(10);
 const LEVEL_EVERY: Duration = Duration::from_millis(50);
 const QUIET_LEVEL: f64 = 0.02;
 const SHOT_LEVEL: f64 = 0.8;
@@ -511,25 +511,26 @@ mod tests {
         handle.stop();
     }
     #[test]
-    fn tracked_dev_approaches_rise_from_below_into_the_centre() {
+    fn tracked_dev_approaches_settle_within_a_compact_area() {
         let mut tracker =
             shottrainer_tracking::tracker::Tracker::new(60.0, DarkSpotDetector::default()).unwrap();
         let mut samples = Vec::new();
-        for n in 0..=299 {
+        for n in 0..=599 {
             let frame = draw_circle(WIDTH, HEIGHT, circle_centre(n), CIRCLE_RADIUS_PX).unwrap();
             samples.push(tracker.process(&frame, n as f64 / FPS, None).unwrap());
         }
-        assert!(samples[0].y_mm.unwrap() > 100.0);
-        assert!(samples[0].x_mm.unwrap().abs() < 28.0);
+        assert!((25.0..80.0).contains(&samples[0].y_mm.unwrap()));
+        assert!((-85.0..-60.0).contains(&samples[0].x_mm.unwrap()));
         let last = samples.last().unwrap();
-        assert!(last.x_mm.unwrap().hypot(last.y_mm.unwrap()) < 10.0);
+        assert!(last.x_mm.unwrap().hypot(last.y_mm.unwrap()) < 6.0);
+        assert!(samples[0].y_mm.unwrap() > last.y_mm.unwrap() + 20.0);
     }
 
     #[test]
     fn slow_camera_updates_follow_elapsed_recording_time() {
         let simulation = Arc::new(Mutex::new(Simulation {
             recording: true,
-            started: Some(Instant::now() - Duration::from_millis(4900)),
+            started: Some(Instant::now() - Duration::from_millis(9900)),
         }));
         let mut source = SyntheticSource { simulation };
         let detection = DarkSpotDetector::default().detect(&source.read().unwrap());
@@ -548,7 +549,7 @@ mod tests {
         assert_eq!((idle.x_px, idle.y_px), (still.x_px, still.y_px));
         simulation.lock().unwrap().recording = true;
         let moving = detector.detect(&source.read().unwrap());
-        assert!((moving.x_px - idle.x_px).hypot(moving.y_px - idle.y_px) > 20.0);
+        assert!((moving.x_px - idle.x_px).hypot(moving.y_px - idle.y_px) > 2.0);
         simulation.lock().unwrap().recording = false;
         let stopped = detector.detect(&source.read().unwrap());
         assert_eq!((idle.x_px, idle.y_px), (stopped.x_px, stopped.y_px));
