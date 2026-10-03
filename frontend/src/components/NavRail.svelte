@@ -6,10 +6,9 @@
     onsessions: () => void;
     onpreferences: () => void;
     onpopout: () => void;
-    onsheet: () => void;
   }
 
-  let { page = "target", ontarget, onabout, onsessions, onpreferences, onpopout, onsheet }: Props = $props();
+  let { page = "target", ontarget, onabout, onsessions, onpreferences, onpopout }: Props = $props();
 </script>
 
 <div class="rail">
@@ -32,13 +31,6 @@
     <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">
       <rect x="3" y="6" width="13" height="12" rx="2" />
       <path d="M16 10l5-3v10l-5-3z" />
-    </svg>
-  </button>
-
-  <button type="button" class="item" title="Shot sheet" aria-label="Shot sheet" onclick={onsheet}>
-    <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">
-      <rect x="5" y="3" width="14" height="18" rx="2" />
-      <path d="M8 8h8M8 12h8M8 16h5" />
     </svg>
   </button>
 

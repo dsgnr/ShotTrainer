@@ -1,30 +1,22 @@
 <script lang="ts">
-  import { focusTrap } from "../lib/app/focus-trap";
+  import { tick } from "svelte";
   import { shotRows } from "../lib/shots/rows";
   import type { WireSessionState, WireShot } from "../lib/wire/types";
 
   interface Props {
-    open: boolean;
     shots: WireShot[];
     session: WireSessionState;
     totalScore: number | null;
-    onclose: () => void;
   }
-
-  let { open, shots, session, totalScore, onclose }: Props = $props();
-
+  let { shots, session, totalScore }: Props = $props();
   const rows = $derived(shotRows(shots));
-  const title = $derived(session.kind === "idle" ? "Shot sheet" : `Session ${sessionId(session)}`);
-
-  function sessionId(state: WireSessionState): number | string {
-    return state.kind === "idle" ? "" : state.sessionId;
-  }
-
+  const title = $derived(session.kind === "idle" ? "Shot sheet" : `Session ${session.sessionId}`);
   let printError = $state<string | null>(null);
 
-  async function print(): Promise<void> {
+  export async function print(): Promise<void> {
     printError = null;
     try {
+      await tick();
       await window.print();
     } catch (error) {
       printError = `Could not print the shot sheet: ${String(error)}`;
@@ -32,165 +24,34 @@
   }
 </script>
 
-{#if open}
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-  <div
-    class="backdrop"
-    role="presentation"
-    onclick={onclose}
-    onkeydown={(event) => event.key === "Escape" && onclose()}
-  >
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div
-      class="sheet"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Marker sheet"
-      tabindex="-1"
-      use:focusTrap={".actions button"}
-      onclick={(event) => event.stopPropagation()}
-    >
-      <header>
-        <h2>{title}</h2>
-        {#if totalScore !== null && totalScore > 0}
-          <span class="total">{totalScore} pts</span>
-        {/if}
-      </header>
-
-      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-      <div class="sheet-body" role="region" aria-label="Shot results" tabindex="0">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Shot</th>
-            <th scope="col">Score</th>
-            <th scope="col">Offset</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each rows as row (row.number)}
-            <tr>
-              <td>#{row.number}</td>
-              <td>{row.score}</td>
-              <td>{row.offset}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-      </div>
-
-      {#if printError}<p role="alert">{printError}</p>{/if}
-      <div class="actions">
-        <button type="button" onclick={onclose}>Close</button>
-        <button type="button" class="primary" onclick={print}>Print</button>
-      </div>
-    </div>
-  </div>
-{/if}
+{#if printError}<p class="print-error" role="alert">{printError}</p>{/if}
+<section id="print-sheet" aria-label="Shot sheet">
+  <header>
+    <h1>{title}</h1>
+    {#if totalScore !== null && totalScore > 0}<span>{totalScore} pts</span>{/if}
+  </header>
+  <table>
+    <thead><tr><th scope="col">Shot</th><th scope="col">Score</th><th scope="col">Offset</th></tr></thead>
+    <tbody>
+      {#each rows as row (row.number)}
+        <tr><td>#{row.number}</td><td>{row.score}</td><td>{row.offset}</td></tr>
+      {/each}
+    </tbody>
+  </table>
+</section>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 10;
-  }
-
-  .sheet {
-    width: min(520px, 92vw);
-    max-height: calc(100dvh - 32px);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    padding: 20px 24px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
-
-  .sheet-body {
-    min-height: 0;
-    max-height: 352px;
-    overflow: auto;
-  }
-
-  header {
-    flex: none;
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-  }
-
-  h2 {
-    margin: 0 0 12px;
-    color: var(--text-heading);
-  }
-
-  .sheet-body:focus-visible { outline: none; }
-
-  .total {
-    color: var(--text-heading);
-    font-variant-numeric: tabular-nums;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  th,
-  th {
-    position: sticky;
-    top: 0;
-    background: var(--panel);
-  }
-
-  tbody tr {
-    height: 32px;
-  }
-
-  td {
-    padding: 6px 8px;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-  }
-
-  th {
-    position: sticky;
-    top: 0;
-    background: var(--panel);
-  }
-
-  tbody tr {
-    height: 32px;
-  }
-
-  td {
-    font-variant-numeric: tabular-nums;
-  }
-
-  .actions {
-    flex: none;
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 16px;
-  }
+  #print-sheet { display: none; }
+  .print-error { position: fixed; bottom: 40px; right: 16px; z-index: 20; padding: 12px; background: var(--panel-raised); border: 1px solid var(--border); border-radius: var(--radius); }
   @media print {
-    .sheet,
-    .sheet-body {
-      max-height: none;
-      overflow: visible;
-    }
-
-    th {
-      position: static;
-    }
-
-    .actions {
-      display: none;
-    }
+    :global(#app > :not(#print-sheet)) { display: none !important; }
+    :global(html), :global(body), :global(#app) { height: auto; overflow: visible; background: white; }
+    #print-sheet { display: block; color: black; background: white; padding: 16px; }
+    header { display: flex; align-items: baseline; justify-content: space-between; }
+    h1 { font-size: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #ccc; }
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; }
   }
 </style>

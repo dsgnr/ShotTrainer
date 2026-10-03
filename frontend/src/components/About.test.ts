@@ -27,7 +27,7 @@ it("shows the installed version and GitHub repository", async () => {
 it("opens About from navigation and marks it as current", async () => {
   const target = document.createElement("div");
   const onabout = vi.fn();
-  const component = mount(NavRail, { target, props: { page: "about", onabout, onsessions: vi.fn(), onpreferences: vi.fn(), onpopout: vi.fn(), onsheet: vi.fn() } });
+  const component = mount(NavRail, { target, props: { page: "about", onabout, onsessions: vi.fn(), onpreferences: vi.fn(), onpopout: vi.fn() } });
   flushSync();
   const button = target.querySelector<HTMLButtonElement>('[aria-label="About"]')!;
   expect(target.querySelectorAll('[aria-current="page"]')).toHaveLength(1);

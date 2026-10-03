@@ -24,6 +24,5 @@ delete them or export their data. See [session browser](session-browser.md).
 Stop recording before deleting the active session. Synthetic desktop sessions
 use a separate temporary data directory.
 
-Open **Shot sheet** from the navigation rail to view or print the results.
-The table scrolls after ten rows, or sooner in a small window. Close and Print
-remain visible below the table. Printing includes all rows.
+Select the muted **Print shot sheet** icon beside the target controls on the
+main page to print the results. Printing includes all shots, scores and offsets.

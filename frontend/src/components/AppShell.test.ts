@@ -63,13 +63,14 @@ it("shows the app logo in navigation with only pane toggles in the header", asyn
   } });
   const nav = container.querySelector("nav")!;
   const rail = mount(NavRail, { target: nav, props: {
-    onsessions: vi.fn(), onpreferences: vi.fn(), onpopout: vi.fn(), onsheet: vi.fn(),
+    onsessions: vi.fn(), onpreferences: vi.fn(), onpopout: vi.fn(),
   } });
   flushSync();
   const logo = nav.querySelector<HTMLImageElement>('img[alt="ShotTrainer"]')!;
   expect(logo.getAttribute("src")).toBe("/icon.svg");
   expect(logo.closest("button, a")).toBeNull();
   expect(nav.querySelector('button[aria-label="Target"] svg')).not.toBeNull();
+  expect(nav.querySelector('button[aria-label="Shot sheet"]')).toBeNull();
   const header = container.querySelector("header")!;
   expect(header.querySelector("img")).toBeNull();
   expect(header.textContent!.trim()).toBe("");
@@ -93,7 +94,7 @@ it("marks only the selected navigation page as current", async () => {
   const target = document.createElement("div");
   const ontarget = vi.fn();
   const component = mount(NavRail, { target, props: {
-    page: "sessions", ontarget, onsessions: vi.fn(), onpreferences: vi.fn(), onpopout: vi.fn(), onsheet: vi.fn(),
+    page: "sessions", ontarget, onsessions: vi.fn(), onpreferences: vi.fn(), onpopout: vi.fn(),
   } });
   flushSync();
   expect(target.querySelectorAll('[aria-current="page"]')).toHaveLength(1);

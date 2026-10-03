@@ -9,6 +9,7 @@
   import SessionOverview from "./components/SessionOverview.svelte";
   import LiveRegion from "./components/LiveRegion.svelte";
   import HeroStats from "./components/HeroStats.svelte";
+  import PrintButton from "./components/PrintButton.svelte";
   import MarkerSheet from "./components/MarkerSheet.svelte";
   import NavRail from "./components/NavRail.svelte";
   import PreferencesDialog from "./components/PreferencesDialog.svelte";
@@ -170,15 +171,14 @@
   let preferencesOpen = $state(false);
   let page = $state<"target" | "sessions" | "about">("target");
   let popoutOpen = $state(false);
-  let sheetOpen = $state(false);
+  let sheet = $state<{ print: () => Promise<void> }>();
 
-  const anyModalOpen = $derived(newSessionOpen || preferencesOpen || popoutOpen || sheetOpen);
+  const anyModalOpen = $derived(newSessionOpen || preferencesOpen || popoutOpen);
 
   function closeModals(): void {
     newSessionOpen = false;
     preferencesOpen = false;
     popoutOpen = false;
-    sheetOpen = false;
   }
 
   function isTyping(target: EventTarget | null): boolean {
@@ -254,7 +254,6 @@
       onsessions={() => (page = "sessions")}
       onpreferences={() => (preferencesOpen = true)}
       onpopout={() => (popoutOpen = true)}
-      onsheet={() => (sheetOpen = true)}
     />
   {/snippet}
   {#snippet shots()}
@@ -275,6 +274,7 @@
         <ReplayControls replay={app.replay} {send} />
         <ZoomControls extentMm={visibleExtent} auto={autoZoom} onauto={() => autoZoom = true}
           referenceExtentMm={extentForRings(rings)} onextent={setExtent} />
+        <PrintButton onprint={() => void sheet?.print()} />
       </div>
     </div>
   {/snippet}
@@ -342,11 +342,10 @@
   onclose={() => (popoutOpen = false)}
 />
 <MarkerSheet
-  open={sheetOpen}
+  bind:this={sheet}
   shots={app.shots.shots}
   session={app.session.state}
   totalScore={app.shots.totalScore}
-  onclose={() => (sheetOpen = false)}
 />
 <LiveRegion {announcer} />
 <UpdateBanner {updates} recording={app.session.state.kind === "recording"} />
