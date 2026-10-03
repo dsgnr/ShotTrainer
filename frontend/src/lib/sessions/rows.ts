@@ -82,7 +82,7 @@ function pad(value: number): string {
 /** The score badge, `N pts` when the session scored, otherwise empty. */
 export function scoreBadge(summary: WireSessionSummary): string {
   if (summary.shotCount > 0 && isFiniteNumber(summary.totalScore) && summary.totalScore > 0) {
-    return `${summary.totalScore} pts`;
+    return `${summary.totalScore.toFixed(1)} pts`;
   }
   return "";
 }

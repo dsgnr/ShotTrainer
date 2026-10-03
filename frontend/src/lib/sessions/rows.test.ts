@@ -37,6 +37,8 @@ describe("sessionMeta", () => {
 describe("scoreBadge", () => {
   it("shows the points when the session scored", () => {
     expect(scoreBadge(summary())).toBe("98.5 pts");
+    expect(scoreBadge(summary({ totalScore: 10.9555555599 }))).toBe("11.0 pts");
+    expect(scoreBadge(summary({ totalScore: 100 }))).toBe("100.0 pts");
   });
 
   it("is empty with no shots or no score", () => {

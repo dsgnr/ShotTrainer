@@ -5,7 +5,7 @@ description: "Browse saved ShotTrainer sessions, review shots and aim traces, ex
 # Session browser
 
 Open the **Sessions** page from the navigation rail. Search by session name or filter by
-category, then select a session.
+category, then select a session. Points are displayed to one decimal place.
 
 - **Open** loads the session for review. Double-clicking also opens it.
 - **Rename...** asks for a new name.
