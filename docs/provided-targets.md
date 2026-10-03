@@ -28,10 +28,11 @@ For reliable tracking:
 See [Accuracy and target sizing](accuracy.md) for guidance on selecting an
 appropriate camera position and target size.
 
-1. Open **Preferences > Target**.
+1. Open **Preferences > Tracking**.
 2. Enter the diameter of the target's black aiming centre in **Circle
    diameter**.
-3. Select the target face that matches the target you are shooting.
+3. Select the target face under **Session settings** on the target page or in
+   the **New session** dialogue. Set **Shot diameter** for the projectile.
 
 ShotTrainer uses the tracking circle diameter to calculate the live
 millimetres-per-pixel scale. No separate calibration step is required.
@@ -58,11 +59,11 @@ NSRA 1001C 1996-18.
 
 Seven scoring rings ranging from a 205 mm outer ring to an 11.5 mm X-ring.
 
-### ISSF 10 m Air Rifle
+### 10 m air rifle
 
-Ten scoring rings with a 0.5 mm X-ring and a 10-ring diameter of 1.0 mm.
+Ten scoring rings from 45.5 mm to a 0.5 mm 10-ring. There is no separate X-ring.
 
-### ISSF 50 m Rifle
+### 50 m smallbore
 
 Ten scoring rings with a 10-ring diameter of 10.4 mm.
 
@@ -109,8 +110,9 @@ takes precedence.
 The selected target face only affects scoring and the rings drawn on the target
 view.
 
-The detector tracks the largest circular dark object visible in the image. On
-most federation targets this will be the black aiming mark.
+The detector searches for a dark circular mark within the tracking region and
+uses detection confidence and its existing lock when choosing a candidate. On
+most federation targets the intended mark is the black aiming centre.
 
 Changing target faces does not change how tracking works.
 
@@ -121,7 +123,7 @@ centre of the target and evaluates it against the active target face.
 
 Scoring is based on the configured shot diameter:
 
-**Preferences > Target > Shot diameter**
+**Session settings > Shot diameter**
 
 A shot that touches a higher-value ring receives the higher score, matching
 standard paper-target scoring rules.
@@ -139,9 +141,8 @@ tie-break value rather than additional score.
 
 ## Saved scores
 
-Existing session scores remain stored with the session. The current frontend
-does not expose the backend re-scoring command. Choose the appropriate target
-face before recording.
+Saved scores remain unchanged when settings change. Choose the appropriate
+target face before recording. The interface has no re-scoring action.
 
 ## When a target face cannot be loaded
 

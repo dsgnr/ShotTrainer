@@ -20,10 +20,11 @@ Save to apply them or cancel to leave the saved preferences in place.
 - **Display:** show or hide shot offsets in the shot list.
 - **Tracking:** tracking region, measured circle diameter and display toggles.
 
-Pre-shot, post-shot, release window, refractory interval, target face and shot
-diameter belong to each session. Configure them under **Session settings** on
-the target page before recording. They are saved with the session and restored
-when it is opened. New sessions start with the standard defaults.
+Pre-shot, post-shot, release window, refractory interval, target face, shot
+diameter, shooting position and shots per series belong to each session.
+Configure them in **New session** or under **Session settings** on an idle
+target page with no shots. They are saved with the session and restored when it
+is opened. New sessions start with the standard defaults.
 
 The tracking circle diameter sets the measurement scale. The target face and
 shot diameter set scoring geometry. They serve different purposes.

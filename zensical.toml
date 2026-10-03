@@ -1,7 +1,4 @@
 # Zensical configuration for the ShotTrainer documentation site.
-#
-# Migrated from mkdocs.yml. The `classic` theme variant preserves the look
-# and feel of Material for MkDocs, which the previous build used.
 
 [project]
 site_name = "ShotTrainer"
@@ -68,8 +65,7 @@ features = [
     "content.code.copy",
 ]
 
-# Match prefers-color-scheme so the site picks up the user's system theme,
-# the same behaviour the previous Material for MkDocs config provided.
+# Match the user's system colour scheme.
 [[project.theme.palette]]
 media = "(prefers-color-scheme: dark)"
 scheme = "slate"

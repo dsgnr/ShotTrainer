@@ -14,7 +14,7 @@ face and supports both inward and outward scoring systems.
 
 ## How scores are calculated
 
-Each target face defines a set of scoring rings and a shot diameter.
+Each target face defines scoring rings. The session supplies the shot diameter.
 
 To score a shot, ShotTrainer measures the distance from the centre of the target
 to the centre of the shot, then determines which scoring ring the shot reaches.
@@ -37,7 +37,7 @@ purposes.
 
 You can configure this in:
 
-**Preferences > Target > Shot diameter**
+**Session settings > Shot diameter**
 
 A larger diameter means the shot can reach a scoring line from slightly further
 away, which can affect close scoring decisions.
@@ -73,9 +73,8 @@ For details of the built-in faces and custom face format, see
 
 ## Saved scores
 
-Existing session scores remain stored with the session. The current frontend
-does not expose the backend re-scoring command. Choose the appropriate target
-face before recording.
+Saved scores remain unchanged when settings change. Choose the appropriate
+target face before recording. The interface has no re-scoring action.
 
 ## When no target face is available
 

@@ -5,7 +5,7 @@ ShotTrainer tracks a dark circular aiming mark, records hold traces, scores
 shots, and saves local sessions for replay and CSV export.
 
 The application is written in Rust with a Tauri 2 desktop shell and a Svelte 5
-interface. It has no Python runtime dependency.
+interface.
 
 ## Run from source
 
@@ -38,11 +38,15 @@ Hardware and platform packaging require validation on the intended machine.
 
 ## Using the application
 
-Open Preferences from the navigation rail to select devices, set the measured
-circle diameter and choose a scoring face. Enter a session name and category,
-start recording, then stop and select a shot to inspect its trace. Open Sessions
-from the rail to review, rename, delete or export saved sessions. Space toggles
-an enabled replay. Up and Down select adjacent shots outside inputs and dialogs.
+Open Preferences using the cog at the bottom of the navigation rail to select
+devices and set the measured tracking circle diameter. On Sessions, choose New
+session, enter a name and category, and configure the target face, shooting
+position, timing windows, shot diameter and series size. Create the session, then
+start recording from the target page. Stop recording and select a shot to
+inspect its trace. Sessions also offers review, rename, category, delete and CSV
+import/export actions. The muted print icon beside the target controls prints
+the results. About shows the version, repository and update check. Space toggles
+an enabled replay. Up and Down select adjacent shots outside inputs and dialogues.
 
 ## Repository layout
 

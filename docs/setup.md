@@ -16,10 +16,11 @@ Open **Preferences** from the navigation rail. Select **Camera**, adjust
 control tunes circle detection from the available image. Check the tracking
 status afterwards rather than assuming a successful result.
 
-In the **Target** section, set **Circle diameter** to the measured diameter of
-the dark aiming mark. **Tracking region** limits where detection looks. Select
-the scoring face and projectile diameter independently of the tracking mark.
+In **Preferences > Tracking**, set **Circle diameter** to the measured diameter
+of the dark aiming mark. **Tracking region** limits where detection looks.
+Select the scoring face and projectile diameter under **Session settings** on
+the target page, or when creating a new session.
 
 See [audio setup](audio-setup.md), [calibration](calibration.md), and
 [accuracy](accuracy.md). Camera reports describe hardware information, not a
-validation of the current Rust build.
+validation of hardware support on your machine.

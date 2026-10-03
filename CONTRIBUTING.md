@@ -39,21 +39,20 @@ For camera/backend changes, also compile and test the relevant targets with
 `--features opencv` where native dependencies are available. Report hardware,
 platform and packaging checks separately. Do not infer them from unit tests. Use
 temporary directories for tests, never the real application data directory.
-Preserve golden fixtures and legacy schemas when removing obsolete runtime code.
+Preserve golden fixtures and versioned schema tests when changing data formats.
 
 ## Documentation
 
 Each documentation page needs a unique description in YAML front matter. Keep
 user instructions aligned with the actual interface and add navigation entries
-in `zensical.toml` for new pages. Python is only needed for docs tooling:
+in `zensical.toml` for new pages. Run the documentation tools with:
 
 ```bash
 uv tool run --from zensical zensical build --strict
 uv run --no-project python scripts/check_docs_seo.py
 ```
 
-Remove generated `site/` output after validation. The application itself needs
-neither Python nor a virtual environment.
+Remove generated `site/` output after validation.
 
 ## Changes and pull requests
 

@@ -106,7 +106,8 @@ Each position measurement becomes a tracking sample.
 Samples are added to a rolling buffer that represents the rifle's movement over
 time.
 
-This buffer is continuously updated while recording.
+The buffer updates whenever valid live tracking samples arrive. Samples are
+also written to the database while recording.
 
 ## Step 6: Detect shots
 
@@ -119,7 +120,8 @@ When the audio level exceeds the configured threshold:
 3. A short lockout period prevents echoes from being counted as additional
    shots.
 
-The threshold and lockout period can be adjusted in **Preferences > Audio**.
+Set the threshold in **Preferences > Detection** and the lockout period in
+**Session settings > Refractory** before recording.
 
 ## Step 7: Match shots to trace data
 
@@ -159,8 +161,9 @@ responsive controls during recording.
 
 ### Lens distortion and perspective
 
-ShotTrainer does not currently compensate for camera lens distortion or
-perspective effects.
+ShotTrainer has no lens-distortion calibration or full perspective correction.
+The tracker does use the fitted ellipse axes and orientation for directional
+scaling when an elliptical mark is detected.
 
 For best results, the camera should be mounted approximately square to the
 target.
@@ -174,10 +177,10 @@ latency depends on the devices and requires measurement on the target setup.
 
 ### Trace smoothing
 
-Tracking samples are stored exactly as they are produced by the detector.
-
-No smoothing or filtering is applied to the recorded trace, allowing replay and
-analysis tools to work from the original signal.
+The tracker applies exponential smoothing to the detected centre and axes
+before producing pixel and millimetre samples. Recorded traces therefore
+contain smoothed tracking measurements rather than raw detector output.
+Replay rendering also draws curves through the saved samples.
 
 ### Camera-to-bore offset
 

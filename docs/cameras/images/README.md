@@ -12,8 +12,8 @@ Use the same slug as the page that references the image:
 
 ```
 docs/cameras/logitech-c920.md
-docs/cameras/images/logitech-c920-mount.jpg
-docs/cameras/images/logitech-c920-preview.jpg
+docs/cameras/images/logitech-c920/logitech-c920-mount.jpg
+docs/cameras/images/logitech-c920/logitech-c920-preview.jpg
 ```
 
 Lowercase, hyphenated, no spaces.

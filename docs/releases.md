@@ -4,8 +4,9 @@ description: "Find ShotTrainer releases and learn how upgrades, version numbers 
 
 # Releases
 
-ShotTrainer is transitioning to a Rust, Tauri and Svelte desktop application.
-The source build instructions are in [installation](installation.md).
+Build ShotTrainer from source using the [installation](installation.md)
+instructions. Published downloads and release notes are listed on the
+[GitHub releases page](https://github.com/dsgnr/ShotTrainer/releases).
 
 The desktop app checks for updates at startup. A new stable release appears in
 an update banner. Select **Install and restart** to download a signed update,
@@ -28,7 +29,6 @@ prereleases are excluded from the automatic stable update endpoint.
 Updater signing is separate from operating-system code signing and macOS
 notarisation. Signing setup is documented in the repository’s `packaging/README.md`.
 
-Check the [GitHub releases page](https://github.com/dsgnr/ShotTrainer/releases)
-for published downloads and their release notes. Back up the application data
-directory before upgrading. Any intentional changes to persisted data or
+Back up the [application data directory](preferences.md) before upgrading. Any
+intentional changes to persisted data or
 configuration formats should be documented in release notes.

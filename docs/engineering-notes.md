@@ -19,8 +19,8 @@ coordinates. The frontend filters unavailable points when drawing traces.
 ## Compatibility
 
 SQLite migrations, JSON preferences, target-face definitions and CSV exports are
-compatibility surfaces. Golden fixtures and legacy database schemas remain as
-test inputs. Check existing migrations and fixture tests before changing
+data formats. Golden fixtures and versioned database schemas are test inputs.
+Check existing migrations and fixture tests before changing
 formats. CSV output preserves established column order, formatting and CRLF line
 endings.
 
@@ -31,7 +31,7 @@ receive standard defaults for settings that were never stored.
 
 Shooting position is stored with each session and defaults to standing for
 older records. It is excluded from the global settings file. Global JSON
-preferences retain their legacy keys for compatibility, but session controls do
+preferences retain their persisted keys, but session controls do
 not update those values.
 
 Schema version 6 stores the session series size and each shot's series index.
@@ -60,10 +60,8 @@ for commands, and [architecture](architecture.md) for crate ownership.
 
 ## Shot registration after tracking loss
 
-The controller can map and score a shot using an earlier valid tracking sample
-when the target is subsequently lost. It does not currently enforce a maximum
-sample age for that mapping. A displayed score therefore does not prove that the
-target was being tracked at the instant of the shot. Check the camera and
-tracking status, restore a clear target view, and treat shots recorded during
-tracking loss as unreliable. This inherited behaviour needs a separate timing
-policy and regression tests before it is changed.
+The nearest trace sample is selected without a maximum age limit. A shot after
+tracking loss can therefore receive a position and score from an earlier
+sample. A timing policy must preserve timestamp alignment and cover stale,
+missing and newly reacquired samples. See [troubleshooting](troubleshooting.md)
+for the user-facing limitation.

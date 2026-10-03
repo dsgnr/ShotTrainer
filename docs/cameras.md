@@ -5,8 +5,8 @@ description: "Compare cameras tested with ShotTrainer, including OV9281 global s
 
 # Cameras overview
 
-This page collects historical community camera reports. They do not establish
-hardware compatibility or measurement accuracy for the current Rust build.
+This page collects camera specifications, lens tests and mounting notes.
+End-to-end tracking tests are marked TBC where they have not been performed.
 
 The aim is to help shooters understand what works in practice, how different
 cameras perform at various distances, and what setup considerations may be
@@ -119,8 +119,11 @@ Common solutions include:
 - Board cameras fitted with telephoto C-mount or CS-mount lenses
 - USB cameras designed for inspection or surveillance use
 - Cameras with optical zoom capability
-- Smartphones with telephoto lenses used through Continuity Camera, NDI, or
-  similar video-sharing solutions
+- Smartphones with telephoto lenses exposed as operating-system camera devices
+  through a video-sharing solution
+
+A shared camera must appear in the app’s camera dropdown. The interface has no
+direct network-stream URL field.
 
 There is no single recommended camera for all shooting disciplines. The best
 choice depends on the target size, shooting distance, mounting method, and

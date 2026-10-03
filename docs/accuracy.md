@@ -180,8 +180,8 @@ Both use the same monotonic clock source, but camera and audio devices do not
 share a common hardware clock.
 
 Actual timing accuracy depends on device latency and buffering. It has not been
-established for the current Rust build on real hardware. Measure it on the
-intended setup before relying on precise release timing.
+established on real hardware. Measure it on the intended setup before relying
+on precise release timing.
 
 ## What ShotTrainer does well
 
@@ -197,8 +197,8 @@ Specifically:
 - Configurable pre-shot and post-shot windows preserve the full context around
   each shot.
 - Detection confidence is recorded for each tracking sample.
-- Raw tracking data is retained for later replay and analysis.
+- Recorded tracking samples are retained for replay and analysis.
 
-As a result, the quality of the measurements you see is primarily determined by
-the quality of the image and the stability of the setup rather than by hidden
-processing or smoothing.
+The tracker smooths the detected centre and axes before storing samples. This
+reduces jitter but adds a response delay. Image quality, mount stability,
+smoothing and device latency all affect the trace and recorded shot position.

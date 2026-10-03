@@ -13,7 +13,7 @@ circle, so every frame effectively calibrates itself.
 
 The tracking circle diameter is configured in:
 
-**Preferences > Target > Circle diameter**
+**Preferences > Tracking > Circle diameter**
 
 Measure the finished printed mark and enter its diameter. The current interface
 prints shot results but does not generate a tracking marker.
@@ -43,8 +43,10 @@ tracking circle diameter (mm)
 detected circle diameter (pixels)
 ```
 
-Because the detector measures the circle size continuously, the scale updates
-automatically if the apparent size of the circle changes.
+The tracker smooths the measured centre and circle axes before converting
+positions. For a circular detection the formula above applies to its radius.
+For an elliptical detection, scaling follows its major and minor axes and
+orientation. The scale updates as the apparent size changes.
 
 For example:
 
@@ -59,16 +61,15 @@ compensate.
 Prepare a dark circular mark on a light background, or use the aiming mark on a
 competition target. Print at actual size and measure the finished diameter.
 Mount it flat at the target location, then enter its measured diameter in
-**Preferences > Target > Circle diameter**.
+**Preferences > Tracking > Circle diameter**.
 
 Check that the complete mark remains visible within the tracking region during
 normal aiming movement. Tracking updates the scale as the detected apparent size
 changes. An incorrect configured diameter scales all millimetre offsets
 incorrectly.
 
-The current interface has no tracking-marker generator or zero-setting controls.
-Existing stored zero offsets can be reflected in the camera overlay. Do not
-assume that an old instruction for a menu action applies to this UI.
+The interface has no tracking-marker generator or zero-setting controls.
+Stored zero offsets can be reflected in the camera overlay.
 
 See [printing and target preparation](printing-targets.md) and
 [accuracy](accuracy.md) for practical limitations.

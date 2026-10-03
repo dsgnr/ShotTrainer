@@ -23,14 +23,15 @@ description: "Share a camera test report with the ShotTrainer community using th
 How was the camera mounted? Which rifle? Any adapters or rails? A photo or two
 helps a lot here.
 
-> Add a mount photo at `docs/cameras/images/<slug>-mount.jpg` and embed it here:
-> `![Mount on the rifle](images/<slug>-mount.jpg)`
+> Add a mount photo at `docs/cameras/images/<slug>/<slug>-mount.jpg` and embed it here:
+> `![Mount on the rifle](images/<slug>/<slug>-mount.jpg)`
 
 ## Range and conditions
 
 What distance did testing happen at, indoors or outdoors, what lighting was
-available, what target was used? Note the ShotTrainer "Tracking circle" diameter
-you set in Preferences.
+available, what target was used? Include the ShotTrainer version, operating
+system and launch mode. Note the **Preferences > Tracking > Circle diameter**
+you used.
 
 ## Result
 
@@ -47,8 +48,8 @@ A still from the live preview is useful so other readers can judge how much of
 their frame the printed circle should fill. Keep the file under 500 KB. Resize
 before committing if necessary.
 
-> Add a preview frame at `docs/cameras/images/<slug>-preview.jpg` and embed it
-> here: `![Live preview frame](images/<slug>-preview.jpg)`
+> Add a preview frame at `docs/cameras/images/<slug>/<slug>-preview.jpg` and embed it
+> here: `![Live preview frame](images/<slug>/<slug>-preview.jpg)`
 
 ## Notes
 

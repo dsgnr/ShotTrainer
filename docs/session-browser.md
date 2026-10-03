@@ -4,8 +4,15 @@ description: "Browse saved ShotTrainer sessions, review shots and aim traces, ex
 
 # Session browser
 
-Open the **Sessions** page from the navigation rail. Search by session name or filter by
-category, then select a session. Points are displayed to one decimal place.
+Open the **Sessions** page from the navigation rail. Search by session name or
+filter by category, then select a session. Points are displayed to one decimal
+place.
+
+**New session** opens the name, category and session settings dialogue.
+Creating or importing a session is unavailable while recording. Select a saved
+session before using Rename, Category, Delete or Export. These actions use
+in-app dialogues. **Cancel** or Escape dismisses a dialogue without sending its
+action.
 
 - **Open** loads the session for review. Double-clicking also opens it.
 - **Rename...** opens a dialogue for a new name.

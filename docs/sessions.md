@@ -4,15 +4,27 @@ description: "Record a shooting practice session in ShotTrainer. Name and catego
 
 # Recording sessions
 
+Open **Sessions** from the navigation rail and select **New session**. Enter a
+name and select Practice, Sighter or Match. Choose the target face, shooting
+position, shot diameter, pre-shot and post-shot windows, release window,
+refractory interval and shots per series. **Create session** prepares these
+settings and returns to the target page. **Cancel** leaves the current session
+unchanged.
+
 The session controls and current session status sit at the bottom of the right
-sidebar. Press **Start session** to open the dialog. Enter a name and select a
-category, then press **Start session** to begin recording or
-**Cancel** to return without recording. Press **Stop session** to finish.
-Before starting, open **Session settings** on the target page, choose the target
-face from the built-in or custom catalogue and shot diameter, set the timing
-windows and refractory interval, then press
-**Apply session settings**. These values are fixed once recording starts.
-The summary shows the current recording state.
+sidebar. Select **Start session** to begin recording and **Stop session** to
+finish. From an idle target page, Start session uses the prepared settings and
+name, or the defaults if no session has been prepared. When reviewing a saved
+session, this control shows **New session** and opens the creation dialogue.
+
+**Session settings** on the target page can be changed only while idle with no
+shots. Select **Apply session settings** to use the edited values. Create a new
+session to change settings after recording or while reviewing. The settings are
+stored with the session and restored when it is opened.
+
+Shots are grouped into series of the configured size. New sessions default to
+10 shots per series. The next series starts automatically as shots are recorded.
+Selecting a shot also selects its series in the compact overview.
 
 Shots appear in the shot list with their score and offset. Selecting a shot
 loads its saved trace window for review. Use [replay](replay.md) to inspect

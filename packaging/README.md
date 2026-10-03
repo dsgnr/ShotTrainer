@@ -1,7 +1,7 @@
 # Desktop packaging
 
 ShotTrainer is packaged by Tauri 2. The application contains a Rust backend and
-the compiled Svelte frontend. It does not bundle a Python interpreter.
+the compiled Svelte frontend.
 
 Install Rust 1.90 or newer, Node.js 26, npm 11, the platform's Tauri desktop
 build prerequisites, and OpenCV with its compiler/libclang requirements. System

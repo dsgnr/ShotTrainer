@@ -54,5 +54,4 @@ when the target is subsequently lost. It does not currently enforce a maximum
 sample age for that mapping. A displayed score therefore does not prove that the
 target was being tracked at the instant of the shot. Check the camera and
 tracking status, restore a clear target view, and treat shots recorded during
-tracking loss as unreliable. This inherited behaviour needs a separate timing
-policy and regression tests before it is changed.
+tracking loss as unreliable.
