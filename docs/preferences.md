@@ -7,7 +7,8 @@ description: "Configure ShotTrainer’s camera, target, microphone and recording
 Dropdowns use the app theme. Use the arrow keys to move through options,
 Enter to select and Escape to close the menu.
 
-Open **Preferences** from the navigation rail. Changes are edited in a draft.
+Open **Preferences** using the cog at the bottom of the navigation rail, below
+**About**. Changes are edited in a draft.
 Save to apply them or cancel to leave the saved preferences in place.
 
 - **Camera:** camera selection, rotation, brightness, contrast and flips.

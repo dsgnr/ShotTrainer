@@ -45,7 +45,7 @@
   <button type="button" class="item" title="Preferences" aria-label="Preferences" onclick={onpreferences}>
     <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">
       <circle cx="12" cy="12" r="3" />
-      <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+      <path d="M19.73 9.93 L21.85 10.26 L21.85 13.74 L19.73 14.07 L18.93 16.00 L20.19 17.74 L17.74 20.19 L16.00 18.93 L14.07 19.73 L13.74 21.85 L10.26 21.85 L9.93 19.73 L8.00 18.93 L6.26 20.19 L3.81 17.74 L5.07 16.00 L4.27 14.07 L2.15 13.74 L2.15 10.26 L4.27 9.93 L5.07 8.00 L3.81 6.26 L6.26 3.81 L8.00 5.07 L9.93 4.27 L10.26 2.15 L13.74 2.15 L14.07 4.27 L16.00 5.07 L17.74 3.81 L20.19 6.26 L18.93 8.00 Z" />
     </svg>
   </button>
 </div>
@@ -54,6 +54,8 @@
   .rail {
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-height: 0;
     align-items: center;
     gap: var(--space-1);
     width: 32px;
@@ -61,6 +63,7 @@
 
   .item {
     display: inline-flex;
+    flex-shrink: 0;
     align-items: center;
     justify-content: center;
     width: 36px;
