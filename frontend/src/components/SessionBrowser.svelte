@@ -1,10 +1,11 @@
 <script lang="ts">
   import { untrack } from "svelte";
+  import SessionActionDialog, { type SessionAction } from "./SessionActionDialog.svelte";
   import Dropdown from "./Dropdown.svelte";
   import type { CommandSender } from "../lib/app/commands";
   import { filterSessions, scoreBadge, sessionMeta } from "../lib/sessions/rows";
   import { SESSION_CATEGORIES, categoryLabel } from "../lib/wire/categories";
-  import type { WireSessionSummary } from "../lib/wire/types";
+  import type { WireCommand, WireSessionSummary } from "../lib/wire/types";
 
   interface Props {
     open: boolean;
@@ -20,6 +21,7 @@
   let query = $state("");
   let categoryFilter = $state("");
   let selected = $state<number | null>(null);
+  let action = $state<SessionAction | null>(null);
 
   // Ask the controller to refresh the list each time the browser opens.
   $effect(() => {
@@ -38,58 +40,25 @@
     }
   }
 
-  function rename(): void {
-    if (selectedSession === null) {
-      return;
-    }
-    const name = window.prompt("Session name", selectedSession.name);
-    if (name !== null) {
-      void send({ type: "renameSession", id: selectedSession.id, name });
+  function beginAction(kind: SessionAction["kind"]): void {
+    if (kind === "import") {
+      if (!recording) action = { kind };
+    } else if (selectedSession) {
+      action = { kind, session: { ...selectedSession } };
     }
   }
 
-  function setCategory(): void {
-    if (selectedSession === null) {
-      return;
-    }
-    const next = window.prompt(
-      `Category (${SESSION_CATEGORIES.join(", ")})`,
-      selectedSession.category,
-    );
-    if (next !== null && (SESSION_CATEGORIES as readonly string[]).includes(next)) {
-      void send({ type: "setSessionCategory", id: selectedSession.id, category: next });
-    }
+  async function confirmAction(command: WireCommand): Promise<void> {
+    await send(command);
+    if (command.type === "deleteSession") selected = null;
+    action = null;
   }
 
-  function remove(): void {
-    if (selected !== null && window.confirm("Delete this session and all its trace data?")) {
-      void send({ type: "deleteSession", id: selected });
-      selected = null;
-    }
-  }
-
-  function importSession(): void {
-    if (recording) return;
-    const path = window.prompt("Path to the exported *_shots.csv file (matching trace file is loaded if present)");
-    if (path !== null && path.trim() !== "") {
-      void send({ type: "importSession", path: path.trim() });
-    }
-  }
-
-  function exportSession(): void {
-    if (selectedSession === null) {
-      return;
-    }
-    const dir = window.prompt("Export folder");
-    if (dir !== null && dir !== "") {
-      void send({ type: "exportSession", id: selectedSession.id, dir });
-    }
-  }
 </script>
 
 {#if open}
   <section class="sessions-page" aria-label="Sessions">
-      <header><h2>Sessions</h2><button type="button" class="primary" disabled={recording} onclick={onnew}>New session</button><button type="button" disabled={recording} onclick={importSession}>Import CSV...</button></header>
+      <header><h2>Sessions</h2><button type="button" class="primary" disabled={recording} onclick={onnew}>New session</button><button type="button" disabled={recording} onclick={() => beginAction("import")}>Import CSV...</button></header>
 
       <div class="filters">
         <input type="search" placeholder="Search session names..." bind:value={query} />
@@ -127,11 +96,14 @@
 
       <div class="actions">
         <button type="button" disabled={selected === null} onclick={openSession}>Open</button>
-        <button type="button" disabled={selected === null} onclick={rename}>Rename...</button>
-        <button type="button" disabled={selected === null} onclick={setCategory}>Category...</button>
-        <button type="button" disabled={selected === null} onclick={remove}>Delete</button>
-        <button type="button" disabled={selected === null} onclick={exportSession}>Export CSV...</button>
+        <button type="button" disabled={selected === null} onclick={() => beginAction("rename")}>Rename...</button>
+        <button type="button" disabled={selected === null} onclick={() => beginAction("category")}>Category...</button>
+        <button type="button" disabled={selected === null} onclick={() => beginAction("delete")}>Delete</button>
+        <button type="button" disabled={selected === null} onclick={() => beginAction("export")}>Export CSV...</button>
       </div>
+      {#if action}
+        {#key action}<SessionActionDialog {action} {recording} onconfirm={confirmAction} onclose={() => action = null} />{/key}
+      {/if}
   </section>
 {/if}
 

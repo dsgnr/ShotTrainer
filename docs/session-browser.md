@@ -8,12 +8,12 @@ Open the **Sessions** page from the navigation rail. Search by session name or f
 category, then select a session. Points are displayed to one decimal place.
 
 - **Open** loads the session for review. Double-clicking also opens it.
-- **Rename...** asks for a new name.
-- **Category...** accepts one of the categories shown in the prompt.
+- **Rename...** opens a dialogue for a new name.
+- **Category...** opens a dropdown of session categories.
 - **Delete** asks for confirmation before removing the session and its trace.
   Stop an active recording before deleting its session.
-- **Export CSV...** asks for an export folder path.
-- **Import CSV...** asks for the path to an exported `*_shots.csv` file.
+- **Export CSV...** opens a dialogue for an export folder path.
+- **Import CSV...** opens a dialogue for the path to an exported `*_shots.csv` file.
   Stop recording before importing.
 
 Export writes `session_<id>_shots.csv` and `session_<id>_trace.csv` into that
