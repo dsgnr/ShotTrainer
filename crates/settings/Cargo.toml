@@ -14,7 +14,7 @@ name = "shottrainer_settings"
 
 [dependencies]
 serde.workspace = true
-serde_json = { workspace = true, features = ["preserve_order"] }
+serde_json = { workspace = true, features = ["preserve_order"] } # target face loading depends on file order, and on last wins at the first position
 thiserror.workspace = true
 log.workspace = true
 tempfile.workspace = true
