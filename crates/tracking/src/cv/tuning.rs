@@ -57,7 +57,9 @@ mod tests {
     #[test]
     fn optimiser_matches_python() {
         let golden = load_golden("detector");
-        for case in golden["tuning"].as_array().unwrap() {
+        let cases = golden["tuning"].as_array().unwrap();
+        assert!(!cases.is_empty());
+        for case in cases {
             let name = case["frame"].as_str().unwrap();
             let result = optimise_detector_settings(
                 &load_png_frame(name),
