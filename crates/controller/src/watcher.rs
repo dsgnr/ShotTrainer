@@ -34,7 +34,9 @@ impl SettingsWatcher {
 
     /// Returns the preferences when the modification time differs from the
     /// baseline. A file that has gone gives the defaults, so stale values are
-    /// not kept.
+    /// not kept. An outside edit that lands in the same modification time
+    /// tick as the controller's own save is missed, because the baseline
+    /// already equals it.
     pub fn poll(&mut self) -> Option<Preferences> {
         let current = self.current_mtime();
         if current == self.mtime {
