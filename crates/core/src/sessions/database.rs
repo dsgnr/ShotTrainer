@@ -98,9 +98,18 @@ pub fn make_engine(db_path: &str) -> Result<Db, DatabaseError> {
                 ))
             })?;
         }
-        // No URI flag, so a name starting with `file:` is a plain path.
+        // The bundled SQLite is built with SQLITE_USE_URI, which the open flags
+        // cannot turn off. Only names starting with `file:` are parsed as
+        // URIs, so a leading `./` keeps such a name a plain relative path.
+        let plain;
+        let open_path = if db_path.starts_with("file:") {
+            plain = format!("./{db_path}");
+            plain.as_str()
+        } else {
+            db_path
+        };
         Connection::open_with_flags(
-            db_path,
+            open_path,
             OpenFlags::SQLITE_OPEN_READ_WRITE
                 | OpenFlags::SQLITE_OPEN_CREATE
                 | OpenFlags::SQLITE_OPEN_NO_MUTEX,

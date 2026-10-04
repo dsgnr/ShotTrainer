@@ -225,13 +225,35 @@ fn unusable_paths_return_errors() {
     assert!(make_engine(file.join("child.db").to_str().unwrap()).is_err());
 }
 
+/// Removes the probe files even when an assertion fails.
+struct ProbeFiles;
+
+const PROBE_URI: &str = "file:uri_flag_probe.db";
+const PROBE_PLAIN: &str = "uri_flag_probe.db";
+
+impl ProbeFiles {
+    fn clean() {
+        let _ = std::fs::remove_file(PROBE_URI);
+        let _ = std::fs::remove_file(PROBE_PLAIN);
+    }
+}
+
+impl Drop for ProbeFiles {
+    fn drop(&mut self) {
+        Self::clean();
+    }
+}
+
 #[test]
 fn file_prefixed_name_is_a_plain_path() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("file:plain.db");
-    let conn = make_engine(path.to_str().unwrap()).unwrap();
+    // The path itself must start with `file:` for SQLite to URI-parse it, so
+    // it is relative to the test process's current directory.
+    ProbeFiles::clean();
+    let _guard = ProbeFiles;
+    let conn = make_engine(PROBE_URI).unwrap();
     assert_eq!(version(&conn), 3);
-    assert!(path.is_file());
+    assert!(Path::new(PROBE_URI).exists());
+    assert!(!Path::new(PROBE_PLAIN).exists());
 }
 
 #[test]

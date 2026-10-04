@@ -114,6 +114,7 @@ mod tests {
         assert_eq!(parse_datetime(""), None);
         assert_eq!(parse_datetime("yesterday"), None);
         assert_eq!(parse_datetime("2026-13-02 03:04:05"), None);
+        assert_eq!(parse_datetime("2026-13-45"), None);
     }
 
     #[test]
