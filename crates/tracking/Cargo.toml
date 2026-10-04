@@ -12,3 +12,10 @@ workspace = true
 [lib]
 name = "shottrainer_tracking"
 
+
+[dependencies]
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+testkit = { path = "../testkit" }

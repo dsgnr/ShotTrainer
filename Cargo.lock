@@ -921,6 +921,11 @@ dependencies = [
 [[package]]
 name = "shottrainer-tracking"
 version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "testkit",
+ "thiserror 2.0.21",
+]
 
 [[package]]
 name = "simd_cesu8"

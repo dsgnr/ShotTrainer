@@ -1475,7 +1475,127 @@ def audio_pipeline() -> dict:
     return {"cases": cases}
 
 
+def frame_ops() -> dict:
+    import cv2
+    import numpy as np
+
+    from shottrainer.tracking.frame_ops import (
+        adjust_image,
+        flip_frame,
+        rotate_frame,
+        transform_frame,
+    )
+
+    rng = np.random.default_rng(3)
+    images = {
+        "grey_5x7": (np.arange(35, dtype=np.uint16).reshape(5, 7) * 7 % 256).astype(np.uint8),
+        "bgr_4x6": rng.integers(0, 256, (4, 6, 3), dtype=np.uint8),
+        "ramp_16x16": np.arange(256, dtype=np.uint8).reshape(16, 16),
+        "odd_7x37": rng.integers(0, 256, (7, 37), dtype=np.uint8),
+        "bgr_13x29": rng.integers(0, 256, (13, 29, 3), dtype=np.uint8),
+        "empty_0x0": np.zeros((0, 0), dtype=np.uint8),
+    }
+
+    def enc(img: np.ndarray) -> dict:
+        channels = 1 if img.ndim == 2 else img.shape[2]
+        return {
+            "width": int(img.shape[1]),
+            "height": int(img.shape[0]),
+            "channels": channels,
+            "data": img.reshape(-1).tolist(),
+        }
+
+    rotations, flips = [], []
+    for name in ("grey_5x7", "bgr_4x6"):
+        img = images[name]
+        for degrees in (0, 90, 180, 270, 360, -90, 450, 45, -45):
+            try:
+                out = enc(rotate_frame(img, degrees))
+            except ValueError:
+                out = "error"
+            rotations.append({"image": name, "degrees": degrees, "out": out})
+        for horizontal in (False, True):
+            for vertical in (False, True):
+                out = flip_frame(img, horizontal=horizontal, vertical=vertical)
+                flips.append({"image": name, "h": horizontal, "v": vertical, "out": enc(out)})
+
+    pairs = [
+        (0.0, 1.0),
+        (20.0, 1.0),
+        (-50.0, 1.0),
+        (0.0, 1.5),
+        (0.0, 0.5),
+        (100.0, 2.0),
+        (-100.0, 0.5),
+        (10.0, 1.2),
+        (0.0, 1.3),
+        (3.7, 0.77),
+        (0.0, -1.0),
+        (50.0, -1.0),
+        (0.5, 1.0),
+        (1.5, 1.0),
+        (-300.0, 1.0),
+        (300.0, 1.0),
+    ]
+    adjusts = []
+    for name in ("ramp_16x16", "odd_7x37", "bgr_13x29"):
+        for brightness, contrast in pairs:
+            out = adjust_image(images[name], brightness=brightness, contrast=contrast)
+            adjusts.append(
+                {"image": name, "brightness": brightness, "contrast": contrast, "out": enc(out)}
+            )
+
+    transforms = []
+    for rotation, fh, fv, brightness, contrast in [
+        (0, False, False, 0.0, 1.0),
+        (180, True, False, 0.0, 1.0),
+        (90, False, True, 0.0, 1.0),
+        (270, True, True, 10.0, 1.2),
+        (90, True, False, -20.0, 1.5),
+        (45, False, False, 0.0, 1.0),
+    ]:
+        for name in ("grey_5x7", "bgr_4x6"):
+            try:
+                out = enc(
+                    transform_frame(
+                        images[name],
+                        rotation_degrees=rotation,
+                        flip_horizontal=fh,
+                        flip_vertical=fv,
+                        brightness=brightness,
+                        contrast=contrast,
+                    )
+                )
+            except ValueError:
+                out = "error"
+            transforms.append(
+                {
+                    "image": name,
+                    "rotation": rotation,
+                    "h": fh,
+                    "v": fv,
+                    "brightness": brightness,
+                    "contrast": contrast,
+                    "out": out,
+                }
+            )
+
+    grey = [
+        {"image": name, "out": enc(cv2.cvtColor(images[name], cv2.COLOR_BGR2GRAY))}
+        for name in ("bgr_4x6", "bgr_13x29")
+    ]
+    return {
+        "images": [dict(name=name, **enc(img)) for name, img in images.items()],
+        "rotate": rotations,
+        "flip": flips,
+        "adjust": adjusts,
+        "transform": transforms,
+        "bgr_to_grey": grey,
+    }
+
+
 AREAS = {
+    "frame_ops": frame_ops,
     "preferences": preferences,
     "scoring": scoring,
     "shot_stats": shot_stats,
@@ -1514,6 +1634,7 @@ if __name__ == "__main__":
         "trace",
         "shot_detector",
         "audio_pipeline",
+        "frame_ops",
     ):
 
         def compact(v: object) -> str:
