@@ -4,5 +4,6 @@
 pub mod convert;
 pub mod paths;
 pub mod player;
+pub mod watcher;
 
 pub use paths::DataPaths;
