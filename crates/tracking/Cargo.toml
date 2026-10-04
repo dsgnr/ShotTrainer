@@ -12,7 +12,6 @@ workspace = true
 [lib]
 name = "shottrainer_tracking"
 
-
 [dependencies]
 thiserror.workspace = true
 
