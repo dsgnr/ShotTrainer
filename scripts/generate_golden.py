@@ -10,6 +10,7 @@ import tempfile
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parent.parent / "testdata" / "golden"
+FRAMES = OUT.parent / "frames" / "detector"
 
 
 def encode_number(value: float | None) -> float | str | None:
@@ -2001,6 +2002,154 @@ def detector_tuning() -> dict:
     return {"cases": cases}
 
 
+def detector() -> dict:
+    """PNG frames plus the Python detector's output for each, in sequence."""
+    from dataclasses import asdict
+
+    import cv2
+    import numpy as np
+
+    from shottrainer.tracking.detector import CircleTargetDetector, DetectorSettings
+    from shottrainer.tracking.detector_tuning import optimise_detector_settings
+
+    def canvas(w=640, h=480, value=255):
+        return np.full((h, w), value, dtype=np.uint8)
+
+    def disc(img, x, y, r, value=0):
+        cv2.circle(img, (x, y), r, value, -1)
+        return img
+
+    frames: dict[str, np.ndarray] = {}
+    frames["centred"] = disc(canvas(), 320, 240, 30)
+    frames["blank"] = canvas()
+    frames["off_centre"] = disc(canvas(), 100, 80, 20)
+    f = canvas()
+    cv2.rectangle(f, (200, 100), (300, 400), 0, -1)
+    frames["rectangle"] = f
+    f = cv2.GaussianBlur(disc(canvas(), 320, 240, 25), (7, 7), 0)
+    patch = f[140:340, 220:420].astype(np.int16)
+    noise = np.random.default_rng(0).normal(0, 5, patch.shape).astype(np.int16)
+    f[140:340, 220:420] = np.clip(patch + noise, 0, 255).astype(np.uint8)
+    frames["noise_patch"] = f
+    frames["two_circles"] = disc(disc(canvas(), 200, 240, 20), 420, 240, 35)
+    frames["small_circle"] = disc(canvas(), 320, 240, 6)
+    f = canvas()
+    cv2.circle(f, (1281, 963), 100, 0, -1, cv2.LINE_AA, 2)
+    frames["subpixel"] = f
+    frames["corner_blob"] = disc(canvas(), 50, 50, 20)
+    f = canvas()
+    cv2.ellipse(f, (220, 240), (30, 18), 0, 0, 360, 0, -1)
+    frames["ellipse_flat"] = f
+    f = canvas()
+    cv2.ellipse(f, (300, 260), (40, 22), 30, 0, 360, 0, -1)
+    frames["ellipse_tilted"] = f
+    f = canvas()
+    for r, v in [(60, 0), (50, 255), (45, 0), (35, 255), (30, 0)]:
+        disc(f, 320, 240, r, v)
+    frames["rings"] = f
+    f = canvas()
+    cv2.circle(f, (320, 240), 20, 40, -1)
+    cv2.circle(f, (348, 240), 6, 40, -1)
+    cv2.line(f, (340, 240), (342, 240), 180, 2)
+    frames["bridge"] = f
+    f = canvas(value=240)
+    rng = np.random.default_rng(42)
+    for _ in range(400):
+        x, y = int(rng.integers(0, 636)), int(rng.integers(0, 476))
+        side = int(rng.integers(2, 5))
+        cv2.rectangle(f, (x, y), (x + side, y + side), 10, -1)
+    frames["busy"] = disc(f, 320, 240, 25)
+    frames["lock_a"] = disc(canvas(), 320, 240, 25)
+    frames["lock_b"] = disc(disc(canvas(), 320, 240, 25), 100, 240, 27)
+    frames["lock_c"] = disc(disc(canvas(), 320, 240, 25), 60, 60, 35)
+    for i in range(10):
+        frames[f"move_{i:02}"] = disc(disc(canvas(), 300 + 8 * i, 240 + i, 28), 480, 240, 25)
+    bgr = np.full((480, 640, 3), (230, 240, 250), dtype=np.uint8)
+    cv2.circle(bgr, (330, 230), 28, (20, 10, 0), -1)
+    frames["bgr_target"] = bgr
+    frames["edge_target"] = disc(canvas(), 20, 240, 15)
+    frames["tiny"] = disc(canvas(64, 48), 32, 24, 10)
+    f = canvas()
+    for gx in range(20):
+        for gy in range(15):
+            disc(f, 16 + gx * 32, 16 + gy * 32, 3 + (gx + gy) % 3)
+    frames["many_blobs"] = disc(f, 320, 240, 30)
+    frames["dim_target"] = (frames["centred"].astype(np.float32) * 0.4).astype(np.uint8)
+
+    FRAMES.mkdir(parents=True, exist_ok=True)
+    for old in FRAMES.glob("*.png"):
+        old.unlink()
+    for name, img in frames.items():
+        path = FRAMES / f"{name}.png"
+        cv2.imwrite(str(path), img)
+        assert path.stat().st_size <= 64 * 1024, f"{name}.png is too large"
+
+    sequences = [(f"single_{n}", {}, [n]) for n in frames]
+    sequences += [
+        ("region_half", {"region_fraction": 0.5}, ["corner_blob", "centred", "corner_blob"]),
+        ("full_region", {"region_fraction": 1.0}, ["corner_blob"]),
+        ("min_radius", {"min_radius_px": 10}, ["small_circle", "centred"]),
+        (
+            "lock_window",
+            {"region_fraction": 1.0, "lock_radius_px": 80.0},
+            ["lock_a", "lock_b", "lock_c"],
+        ),
+        (
+            "lock_window_small",
+            {"region_fraction": 1.0, "lock_radius_px": 50.0},
+            ["lock_a", "lock_c"],
+        ),
+        (
+            "lock_release",
+            {"region_fraction": 1.0, "lock_release_after_misses": 3},
+            ["lock_a", "blank", "blank", "blank", "blank", "corner_blob"],
+        ),
+        ("moving", {"region_fraction": 1.0}, [f"move_{i:02}" for i in range(10)]),
+        ("opening", {"opening_kernel_px": 3, "closing_kernel_px": 0}, ["bridge"]),
+        ("no_opening", {"opening_kernel_px": 0, "closing_kernel_px": 0}, ["bridge"]),
+        ("busy_no_closing", {"closing_kernel_px": 0}, ["busy"]),
+        ("many_blobs_cap5", {"max_candidates": 5}, ["many_blobs"]),
+        ("many_blobs_cap0", {"max_candidates": 0}, ["many_blobs"]),
+        ("edge_lock", {"region_fraction": 1.0}, ["edge_target", "edge_target", "edge_target"]),
+        (
+            "even_kernels",
+            {"opening_kernel_px": 4, "closing_kernel_px": 6, "adaptive_block_size": 30},
+            ["rings", "bridge", "ellipse_tilted"],
+        ),
+        ("no_blur", {"blur_kernel": 0}, ["noise_patch", "centred", "ellipse_flat"]),
+        ("contour_only_ellipses", {}, ["ellipse_flat", "ellipse_tilted", "ellipse_flat"]),
+        ("resolution_change", {"region_fraction": 1.0}, ["centred", "tiny", "centred"]),
+    ]
+    cases = []
+    for name, overrides, names in sequences:
+        d = CircleTargetDetector(DetectorSettings(**overrides))
+        steps = []
+        for frame_name in names:
+            det = d.detect(frames[frame_name])
+            steps.append(
+                {
+                    "frame": frame_name,
+                    "detection": asdict(det),
+                    "lock": None if d._lock_px is None else list(d._lock_px),
+                    "misses": d._consecutive_misses,
+                }
+            )
+        cases.append({"name": name, "settings": overrides, "steps": steps})
+
+    tuning_cases = []
+    for name in ("centred", "dim_target", "blank", "bgr_target", "rings"):
+        settings, adjustment, score = optimise_detector_settings(frames[name], DetectorSettings())
+        tuning_cases.append(
+            {
+                "frame": name,
+                "settings": None if settings is None else asdict(settings),
+                "adjustment": [adjustment.brightness, adjustment.contrast],
+                "score": score,
+            }
+        )
+    return {"opencv": cv2.__version__, "cases": cases, "tuning": tuning_cases}
+
+
 AREAS = {
     "frame_ops": frame_ops,
     "preferences": preferences,
@@ -2014,6 +2163,7 @@ AREAS = {
     "audio_pipeline": audio_pipeline,
     "tracker": tracker,
     "detector_tuning": detector_tuning,
+    "detector": detector,
 }
 
 if __name__ == "__main__":
@@ -2046,6 +2196,7 @@ if __name__ == "__main__":
         "frame_ops",
         "tracker",
         "detector_tuning",
+        "detector",
     ):
 
         def compact(v: object) -> str:
