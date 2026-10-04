@@ -37,6 +37,14 @@ impl StatusMessage {
         }
     }
 
+    pub fn success(text: impl Into<String>, duration_ms: u32) -> Self {
+        StatusMessage {
+            text: text.into(),
+            severity: Severity::Success,
+            duration_ms,
+        }
+    }
+
     pub fn warning(text: impl Into<String>, duration_ms: u32) -> Self {
         StatusMessage {
             text: text.into(),
@@ -114,6 +122,15 @@ pub enum UiEvent {
         saved_camera: String,
     },
     TargetFaces(Vec<TargetFace>),
+    /// The detector line of the open Preferences dialog.
+    DetectorStatus(StatusMessage),
+    /// The dialog's brightness and contrast sliders, after auto-optimise.
+    ImageControls {
+        brightness: f64,
+        contrast: f64,
+    },
+    /// Whether the dialog's Auto-optimise button can be pressed.
+    OptimiseEnabled(bool),
     Message(StatusMessage),
     /// The header state and the summary line under the session controls.
     Session {
