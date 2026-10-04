@@ -3,6 +3,9 @@
 
 pub mod convert;
 pub mod events;
+#[cfg(test)]
+pub(crate) mod fakes;
+pub mod frames;
 pub mod paths;
 pub mod player;
 pub mod review;
