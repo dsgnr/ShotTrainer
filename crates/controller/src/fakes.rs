@@ -76,6 +76,8 @@ pub fn circle_at(x: f64, y: f64) -> Detection {
 pub struct CameraState {
     pub cameras: Vec<(i64, String)>,
     pub lists: usize,
+    /// The running index passed to each enumeration.
+    pub listed_while_running: Vec<Option<i32>>,
     pub started: Vec<i32>,
     pub stopped: usize,
     pub sinks: Vec<Arc<EventSink>>,
@@ -112,9 +114,10 @@ impl CameraHandle for FakeCameraHandle {
 }
 
 impl CameraBackend for FakeCamera {
-    fn list_cameras(&mut self) -> Vec<(i64, String)> {
+    fn list_cameras(&mut self, running: Option<i32>) -> Vec<(i64, String)> {
         let mut state = self.state();
         state.lists += 1;
+        state.listed_while_running.push(running);
         state.cameras.clone()
     }
 
