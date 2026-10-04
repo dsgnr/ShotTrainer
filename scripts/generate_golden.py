@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import math
 import sys
+import tempfile
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parent.parent / "testdata" / "golden"
@@ -294,10 +296,120 @@ def trace() -> dict:
     return {"cases": cases}
 
 
-AREAS = {"scoring": scoring, "shot_stats": shot_stats, "trace": trace}
+def export_csv() -> dict:
+    from shottrainer.services.exporter import export_session_csv
+    from shottrainer.sessions.database import init_database, make_engine
+    from shottrainer.sessions.repository import SessionRepository
+    from shottrainer.tracking.models import TrackingSample
+
+    engine = make_engine(":memory:")
+    init_database(engine)
+    repo = SessionRepository(engine)
+    sid = repo.create_session(name="export")
+    # Halfway, tiny, negative-rounding-to-zero and large values exercise the
+    # fixed-decimal formatting.
+    shots = [
+        {
+            "ts": 0.0005,
+            "x_mm": None,
+            "y_mm": None,
+            "audio_level": 0.00005,
+            "confidence": 0.5,
+            "score": "",
+        },
+        {
+            "ts": 1.0000005,
+            "x_mm": 0.0005,
+            "y_mm": -0.0004,
+            "audio_level": 0.12345,
+            "confidence": 0.99995,
+            "score": "10,5",
+        },
+        {
+            "ts": 2.5,
+            "x_mm": 2.5e-4,
+            "y_mm": -1e-7,
+            "audio_level": 1.0,
+            "confidence": 0.0,
+            "score": 'say "9"',
+        },
+        {
+            "ts": 1234567.8915,
+            "x_mm": 1234567.8915,
+            "y_mm": -0.0015,
+            "audio_level": 2.5,
+            "confidence": 1.0,
+            "score": "9",
+        },
+    ]
+    for shot in shots:
+        repo.add_shot(sid, **shot)
+    samples = [
+        {
+            "timestamp": 0.0,
+            "x_px": 0.0005,
+            "y_px": -0.0004,
+            "x_mm": 1.0,
+            "y_mm": -1.0,
+            "confidence": 1.0,
+            "frame_id": 0,
+        },
+        {
+            "timestamp": 0.1234565,
+            "x_px": 12.3455,
+            "y_px": -1e-7,
+            "x_mm": None,
+            "y_mm": None,
+            "confidence": 0.00005,
+            "frame_id": 7,
+        },
+        {
+            "timestamp": 0.2,
+            "x_px": 1e7,
+            "y_px": 2.5e-4,
+            "x_mm": -1e-7,
+            "y_mm": 1e6,
+            "confidence": 0.5,
+            "frame_id": 1234567,
+        },
+        {
+            "timestamp": 0.3,
+            "x_px": 3.0,
+            "y_px": 4.0,
+            "x_mm": 0.0015,
+            "y_mm": 2.0005,
+            "confidence": 0.25,
+            "frame_id": 1001,
+        },
+    ]
+    repo.append_trace(sid, [TrackingSample(**s) for s in samples])
+    with tempfile.TemporaryDirectory() as tmp:
+        paths = export_session_csv(repo, sid, Path(tmp))
+        files = {p.name: base64.b64encode(p.read_bytes()).decode() for p in paths}
+    return {"shots": shots, "samples": samples, "files": files}
+
+
+AREAS = {"scoring": scoring, "shot_stats": shot_stats, "trace": trace, "export_csv": export_csv}
 
 if __name__ == "__main__":
     name = sys.argv[1]
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / f"{name}.json").write_text(json.dumps(AREAS[name](), indent=1) + "\n")
+    data = AREAS[name]()
+    if name == "export_csv":
+        # One entry per line keeps the fixture compact.
+        text = (
+            "{\n"
+            + ",\n".join(
+                f"{json.dumps(k)}:{json.dumps(v, separators=(',', ':'))}"
+                if k == "files"
+                else f"{json.dumps(k)}:[\n"
+                + ",\n".join(json.dumps(i, separators=(",", ":")) for i in v)
+                + "\n]"
+                for k, v in data.items()
+            )
+            + "\n}\n"
+        )
+    else:
+        text = json.dumps(data, indent=1) + "\n"
+    (OUT / f"{name}.json").write_text(text)
     print(f"wrote {name}")
