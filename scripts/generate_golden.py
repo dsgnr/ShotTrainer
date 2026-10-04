@@ -1092,6 +1092,299 @@ def target_faces() -> dict:
     return {"built_in": built_in, "cases": cases}
 
 
+def _render_recipe(recipe: dict):
+    """Expand an integer signal recipe into float32 samples.
+
+    The generator state and every scale factor are integers or dyadic
+    fractions, so the Rust expander produces bit identical samples.
+    """
+    import numpy as np
+
+    f32 = np.float32
+    state = recipe["seed"] & 0xFFFFFFFF
+    parts = []
+    for seg in recipe["segments"]:
+        n = seg["n"]
+        kind = seg["kind"]
+        if kind == "noise":
+            amp = f32(seg["amp"])
+            values = []
+            for _ in range(n):
+                state = (state * 1664525 + 1013904223) & 0xFFFFFFFF
+                values.append(f32((state >> 8) & 0xFFFF) / f32(32768.0) - f32(1.0))
+            parts.append(np.array(values, dtype=np.float32) * amp)
+        elif kind == "dc":
+            parts.append(np.full(n, seg["level"], dtype=np.float32))
+        elif kind == "impulse":
+            value = f32(seg["amp"])
+            decay = f32(seg["decay"])
+            values = []
+            for _ in range(n):
+                values.append(value)
+                value = f32(value * decay)
+            parts.append(np.array(values, dtype=np.float32))
+        elif kind == "silence":
+            parts.append(np.zeros(n, dtype=np.float32))
+        else:
+            raise ValueError(kind)
+    if not parts:
+        return np.zeros(0, dtype=np.float32)
+    return np.concatenate(parts)
+
+
+def shot_detector() -> dict:
+    import numpy as np
+    from scipy.signal import lfilter
+
+    from shottrainer.audio.models import ShotDetectorSettings
+    from shottrainer.audio.shot_detector import ShotDetector
+
+    def noise(n, amp):
+        return {"kind": "noise", "n": n, "amp": amp}
+
+    def dc(n, level):
+        return {"kind": "dc", "n": n, "level": level}
+
+    def impulse(n, amp, decay=1.0):
+        return {"kind": "impulse", "n": n, "amp": amp, "decay": decay}
+
+    def silence(n):
+        return {"kind": "silence", "n": n}
+
+    def recipe(seed, *segments):
+        return {"seed": seed, "segments": list(segments)}
+
+    def spike(n, position, amp=0.875):
+        """One sample at ``position`` inside ``n`` samples of silence."""
+        tail = [silence(n - position - 1)] if n - position - 1 else []
+        head = [silence(position)] if position else []
+        return recipe(1, *head, impulse(1, amp), *tail)
+
+    def settings(**kw):
+        base = {
+            "threshold": 0.02,
+            "refractory_ms": 200,
+            "block_size": 512,
+            "sample_rate": 8192,
+            "high_pass_alpha": 0.97,
+        }
+        base.update(kw)
+        return base
+
+    def block(ts, rec, pre=None):
+        return {"ts": ts, "recipe": rec, "pre": pre}
+
+    quiet = recipe(5, silence(512))
+    step = recipe(1, silence(256), dc(256, 0.5))
+    cases_in = [
+        ("silence", settings(), [block(0.0, quiet)]),
+        (
+            "impulse_above_threshold",
+            settings(threshold=0.02),
+            [block(10.0, spike(512, 128))],
+        ),
+        (
+            "impulse_below_threshold",
+            settings(threshold=0.08),
+            [block(10.0, spike(512, 128))],
+        ),
+        (
+            "dc_only_is_removed",
+            settings(threshold=0.2, refractory_ms=0),
+            [block(i * 0.0625, recipe(1, dc(512, 0.5))) for i in range(4)],
+        ),
+        (
+            "noise_below_threshold",
+            settings(threshold=0.5),
+            [block(0.0, recipe(11, noise(512, 0.125)))],
+        ),
+        (
+            "noise_above_threshold",
+            settings(threshold=0.1),
+            [block(2.0, recipe(11, noise(512, 0.5)))],
+        ),
+        (
+            "noise_sequence_with_refractory",
+            settings(threshold=0.2, refractory_ms=150),
+            [
+                block(0.0, recipe(21, noise(512, 0.5))),
+                block(0.0625, recipe(22, noise(512, 0.5))),
+                block(0.125, recipe(23, noise(512, 0.125))),
+                block(0.25, recipe(24, noise(512, 0.5))),
+                block(0.5, recipe(25, noise(512, 0.625))),
+            ],
+        ),
+        (
+            "decaying_impulse",
+            settings(threshold=0.03),
+            [block(1.0, recipe(1, silence(40), impulse(15, 0.75, 0.75), silence(457)))],
+        ),
+        (
+            "refractory_blocks_second_impulse",
+            settings(refractory_ms=300),
+            [block(0.0, spike(512, 100)), block(0.0625, spike(512, 100))],
+        ),
+        (
+            "refractory_releases_after_window",
+            settings(refractory_ms=200),
+            [block(0.0, spike(512, 100)), block(0.5, spike(512, 100))],
+        ),
+        (
+            "refractory_boundary_is_inclusive",
+            settings(refractory_ms=250),
+            [
+                block(0.0, spike(512, 256)),
+                block(0.28125 - 1 / 1024, spike(512, 256)),
+                block(0.28125, spike(512, 256)),
+            ],
+        ),
+        (
+            "refractory_measured_from_event_timestamp",
+            settings(refractory_ms=250),
+            [block(0.0, spike(512, 256)), block(0.28125 - 1 / 8192, spike(512, 256))],
+        ),
+        ("loudest_at_first_index", settings(), [block(3.0, spike(512, 0))]),
+        ("loudest_at_last_index", settings(), [block(3.0, spike(512, 511))]),
+        ("loudest_in_the_middle", settings(), [block(3.0, spike(512, 200))]),
+        (
+            "tie_first_index_wins",
+            settings(high_pass_alpha=0.0),
+            [block(1.0, spike(512, 40, 0.5)), block(2.0, spike(512, 300, -0.5))],
+        ),
+        (
+            "impulse_at_block_end_leaks_into_next_block",
+            settings(high_pass_alpha=0.0),
+            [block(1.0, spike(512, 511, 0.5)), block(2.0, quiet)],
+        ),
+        (
+            "filter_state_carries_across_blocks",
+            settings(threshold=0.05, refractory_ms=50),
+            [
+                block(1.0, recipe(1, silence(256), dc(256, 0.5))),
+                block(2.0, recipe(1, dc(512, 0.5))),
+            ],
+        ),
+        (
+            "update_settings_raises_threshold",
+            settings(threshold=0.02, refractory_ms=50),
+            [
+                block(1.0, spike(512, 100)),
+                block(2.0, spike(512, 100), {"update": settings(threshold=0.08)}),
+                block(3.0, spike(512, 100), {"update": settings(threshold=0.02)}),
+            ],
+        ),
+        (
+            "update_settings_changes_alpha",
+            settings(threshold=0.01, refractory_ms=50),
+            [
+                block(1.0, step),
+                block(2.0, step, {"update": settings(threshold=0.01, high_pass_alpha=0.5)}),
+                block(
+                    3.0,
+                    step,
+                    {"update": settings(threshold=0.01, high_pass_alpha=0.9921875)},
+                ),
+            ],
+        ),
+        (
+            "update_settings_changes_sample_rate",
+            settings(),
+            [
+                block(1.0, spike(512, 256)),
+                block(2.0, spike(512, 256), {"update": settings(sample_rate=48000)}),
+            ],
+        ),
+        (
+            "update_settings_shortens_refractory",
+            settings(refractory_ms=1000),
+            [
+                block(1.0, spike(512, 100)),
+                block(1.25, spike(512, 100)),
+                block(1.5, spike(512, 100), {"update": settings(refractory_ms=100)}),
+            ],
+        ),
+        (
+            "reset_clears_refractory_and_filter",
+            settings(threshold=0.05, refractory_ms=500),
+            [
+                block(0.0, recipe(1, silence(256), dc(256, 0.5))),
+                block(0.0625, recipe(1, dc(512, 0.5)), {"reset": True}),
+                block(0.125, recipe(1, dc(512, 0.5))),
+            ],
+        ),
+        (
+            "sample_rate_48000",
+            settings(sample_rate=48000, high_pass_alpha=0.97),
+            [block(100.0, spike(512, 300))],
+        ),
+        (
+            "empty_block",
+            settings(),
+            [block(0.0, recipe(1)), block(1.0, spike(512, 100)), block(1.0625, recipe(1))],
+        ),
+        (
+            "empty_block_keeps_filter_state",
+            settings(threshold=0.05, refractory_ms=50),
+            [
+                block(1.0, recipe(1, silence(256), dc(256, 0.5))),
+                block(2.0, recipe(1)),
+                block(3.0, recipe(1, dc(512, 0.5))),
+            ],
+        ),
+        (
+            "short_block",
+            settings(threshold=0.02),
+            [block(1.0, recipe(1, impulse(1, 0.875)))],
+        ),
+        (
+            "large_start_timestamp",
+            settings(),
+            [block(1048576.5, spike(512, 64))],
+        ),
+        (
+            "huge_finite_amplitude",
+            settings(),
+            [block(1.0, spike(512, 7, 2.0**60))],
+        ),
+        (
+            "squares_overflow_to_infinity",
+            settings(),
+            [block(1.0, spike(512, 7, 2.0**70)), block(2.0, quiet), block(3.0, spike(512, 9))],
+        ),
+    ]
+
+    cases = []
+    for name, cfg, blocks in cases_in:
+        det = ShotDetector(ShotDetectorSettings(**cfg))
+        shadow_z = np.zeros(1, dtype=np.float32)
+        current = dict(cfg)
+        for blk in blocks:
+            pre = blk["pre"]
+            if pre and pre.get("reset"):
+                det.reset()
+                shadow_z = np.zeros(1, dtype=np.float32)
+            if pre and "update" in pre:
+                current = dict(pre["update"])
+                det.update_settings(ShotDetectorSettings(**current))
+            samples = _render_recipe(blk["recipe"])
+            event = det.process_block(samples, blk["ts"])
+            blk["expect"] = (
+                None if event is None else [event.timestamp, event.audio_level, event.sample_rate]
+            )
+            # Keep every threshold at least 1e-4 relative away from the block's
+            # RMS so the f32 summation order of the dot product cannot flip a
+            # decision between implementations.
+            if samples.size:
+                b = np.array([1.0, -1.0], dtype=np.float32)
+                a = np.array([1.0, -current["high_pass_alpha"]], dtype=np.float32)
+                out, shadow_z = lfilter(b, a, samples, zi=shadow_z)
+                rms = float(np.sqrt(np.dot(out, out) / out.size))
+                if math.isfinite(rms):
+                    assert abs(rms - current["threshold"]) > 1e-4 * max(rms, 1e-9), (name, rms)
+        cases.append({"name": name, "settings": cfg, "blocks": blocks})
+    return {"cases": cases}
+
+
 AREAS = {
     "preferences": preferences,
     "scoring": scoring,
@@ -1100,6 +1393,7 @@ AREAS = {
     "export_csv": export_csv,
     "stores": stores,
     "target_faces": target_faces,
+    "shot_detector": shot_detector,
 }
 
 if __name__ == "__main__":
@@ -1120,7 +1414,15 @@ if __name__ == "__main__":
             )
             + "\n}\n"
         )
-    elif name in ("preferences", "stores", "target_faces", "scoring", "shot_stats", "trace"):
+    elif name in (
+        "preferences",
+        "stores",
+        "target_faces",
+        "scoring",
+        "shot_stats",
+        "trace",
+        "shot_detector",
+    ):
 
         def compact(v: object) -> str:
             return json.dumps(v, separators=(",", ":"))
