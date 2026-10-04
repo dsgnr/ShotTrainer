@@ -17,7 +17,8 @@ finish. From an idle target page, Start session uses the prepared settings and
 name, or the defaults if no session has been prepared. When reviewing a saved
 session, this control shows **New session** and opens the creation dialogue.
 
-**Session settings** on the target page can be changed only while idle with no
+**Session settings** opens from the button at the top left of the target page,
+next to the shots pane toggle. The settings can be changed only while idle with no
 shots. Select **Apply session settings** to use the edited values. Create a new
 session to change settings after recording or while reviewing. The settings are
 stored with the session and restored when it is opened.
