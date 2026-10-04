@@ -180,6 +180,10 @@ make lint       # ruff check
 make run        # launch the app from source
 ```
 
+The Rust workspace is checked with `cargo fmt --all --check`,
+`cargo clippy --workspace --all-targets -- -D warnings` and
+`cargo test --workspace`.
+
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full contributor workflow, the
 conventional commit rules, the pre-commit hook setup and the documentation
 build.
@@ -195,10 +199,22 @@ src/shottrainer/
     sessions/    database, models, repository
     replay/      trace replay logic
     services/    coordination between subsystems
+crates/
+    tracking/    shared tracking types
+    audio/       shared audio types
+    core/        sessions database, scoring, statistics, services, export
+    settings/    data paths, preferences, stores, target face catalogue
+    testkit/     helpers for tests that use the golden fixtures
+testdata/        golden fixtures and legacy database dumps for the Rust tests
+scripts/         fixture generators and compatibility checks
 docs/            engineering notes, accuracy notes, troubleshooting
 packaging/       Nuitka build script and platform notes
 tests/           pytest suite
 ```
+
+The Rust crates cover storage, scoring, statistics, services and settings.
+Capture, detection, the controller and the interface are not part of the
+workspace yet.
 
 See [`docs/architecture.md`](docs/architecture.md) for a longer description.
 
