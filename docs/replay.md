@@ -5,6 +5,10 @@ description: "Replay your aim trace before, during and after each shot in ShotTr
 
 # Reviewing a shot
 
+<video src="./assets/img/replay_shot.mp4" poster="../assets/img/app.jpg" controls muted playsinline preload="metadata" aria-label="Shot replay using demonstration data in the current interface"></video>
+
+The video uses demonstration data.
+
 Select a shot in the shot list, or open a saved session and select one of its
 shots. The target displays the saved trace window, its phase boundaries and hold
 zone when those data are available. The subdued target face separates its rings
@@ -62,3 +66,16 @@ unchanged.
 
 The **Replay** toolbar shows labelled play/pause and reset controls beside the
 shot timeline. Select a shot with a saved trace to enable playback.
+
+## Trace phases
+
+The replay trace is drawn in three colours.
+
+- **Green** is the approach, from the start of the pre-shot window until the aim
+  settles onto the target.
+- **Yellow** is the release window, the final moments before the shot breaks.
+  Its length is set by the **Release window** option. The default of 250 ms
+  suits precision rifle. Pistol or other slower-settle disciplines may want a
+  longer window.
+- **Red** is the follow-through, from the shot until the end of the post-shot
+  window.
