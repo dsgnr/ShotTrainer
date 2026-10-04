@@ -55,7 +55,10 @@ pub struct ControllerHandle {
 impl ControllerHandle {
     /// Loads everything on the caller's thread, so a database that cannot
     /// be opened is reported here, then moves the controller to its own
-    /// thread. `sink` is called on that thread.
+    /// thread. `sink` is called on that thread, apart from the preferences and
+    /// zero offset events of start-up, which it receives here before this
+    /// returns. A front end that was not listening yet sends
+    /// [`Command::Refresh`].
     pub fn spawn(
         config: ControllerConfig,
         backends: Backends,
@@ -502,6 +505,18 @@ mod tests {
             assert!(Instant::now() < deadline, "timed out waiting for {what}");
             std::thread::sleep(Duration::from_millis(2));
         }
+    }
+
+    #[test]
+    fn refresh_answers_on_the_controller_thread() {
+        let (handle, events, _dir) =
+            spawn_with(Box::new(FakeCamera::default()), FakeAudio::default());
+        // The start-up events were queued on this thread before the front end
+        // took the receiver, so drain them and ask again.
+        while events.try_recv().is_ok() {}
+        handle.send(Command::Refresh);
+        wait_for(&events, |e| matches!(e, UiEvent::Preferences { .. }));
+        wait_for(&events, |e| matches!(e, UiEvent::Shots(_)));
     }
 
     #[test]

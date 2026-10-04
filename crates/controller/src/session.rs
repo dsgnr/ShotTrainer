@@ -295,18 +295,41 @@ impl SessionManager {
         (cx.emit)(UiEvent::ReplayCleared);
     }
 
-    /// Python `_render_shots` followed by `_refresh_stats`.
-    pub(crate) fn render(&self, cx: &SessionContext) {
+    /// Re-sends the header state and the shot list, for a front end that
+    /// was not listening when they were first emitted. The hold figures and
+    /// the replay view are not repeated.
+    pub fn refresh(&self, cx: &SessionContext) {
+        let (state, summary) = match (self.reviewing, self.recorder.session_id()) {
+            (Some(id), _) => (
+                SessionState::Reviewing(id),
+                format!("Reviewing session {id}"),
+            ),
+            (None, Some(id)) => (
+                SessionState::Recording(id),
+                format!("Recording session {id}"),
+            ),
+            (None, None) => (SessionState::Idle, "No active session".to_owned()),
+        };
+        (cx.emit)(UiEvent::Session { state, summary });
+        (cx.emit)(UiEvent::Shots(self.shots_view()));
+    }
+
+    fn shots_view(&self) -> ShotsView {
         let positions: Vec<(f64, f64)> = self
             .shots
             .iter()
             .filter_map(|s| Some((s.x_mm?, s.y_mm?)))
             .collect();
-        (cx.emit)(UiEvent::Shots(ShotsView {
+        ShotsView {
             shots: self.shots.clone(),
             group: compute_stats(&positions),
             total_score: total_score(self.shots.iter().map(|s| s.score.as_deref().unwrap_or(""))),
-        }));
+        }
+    }
+
+    /// Python `_render_shots` followed by `_refresh_stats`.
+    pub(crate) fn render(&self, cx: &SessionContext) {
+        (cx.emit)(UiEvent::Shots(self.shots_view()));
         (cx.emit)(UiEvent::HoldTrace(None));
     }
 }
