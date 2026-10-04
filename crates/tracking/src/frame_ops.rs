@@ -257,13 +257,13 @@ mod tests {
 
     #[test]
     fn identities_return_the_same_buffer() {
-        let frame = Frame::filled(3, 2, PixelFormat::Bgr, 9);
+        let frame = Frame::filled(3, 2, PixelFormat::Bgr, 9).unwrap();
         let ptr = frame.data().as_ptr();
         let frame = rotate_frame(frame, 360).unwrap();
         let frame = flip_frame(frame, false, false);
         let frame = adjust_image(frame, 0.0, 1.0);
         let frame = transform_frame(frame, &FrameTransform::default()).unwrap();
-        let grey = Frame::filled(3, 2, PixelFormat::Grey, 9);
+        let grey = Frame::filled(3, 2, PixelFormat::Grey, 9).unwrap();
         let grey_ptr = grey.data().as_ptr();
         assert_eq!(frame.data().as_ptr(), ptr);
         assert_eq!(bgr_to_grey(grey).data().as_ptr(), grey_ptr);
@@ -273,7 +273,7 @@ mod tests {
     fn empty_and_single_row_frames_do_not_panic() {
         for (w, h) in [(0, 0), (0, 5), (5, 0), (1, 1), (7, 1), (1, 7)] {
             for format in [PixelFormat::Grey, PixelFormat::Bgr] {
-                let frame = Frame::filled(w, h, format, 3);
+                let frame = Frame::filled(w, h, format, 3).unwrap();
                 for degrees in [90, 180, 270] {
                     let out = rotate_frame(frame.clone(), degrees).unwrap();
                     assert_eq!(out.data().len(), frame.data().len());
@@ -283,7 +283,7 @@ mod tests {
                 let _ = bgr_to_grey(frame);
             }
         }
-        let square = Frame::filled(2, 2, PixelFormat::Grey, 0);
+        let square = Frame::filled(2, 2, PixelFormat::Grey, 0).unwrap();
         assert!(rotate_frame(square.clone(), -270).is_ok());
         assert_eq!(
             rotate_frame(square, i32::MIN),

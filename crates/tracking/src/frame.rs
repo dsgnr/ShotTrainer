@@ -21,6 +21,8 @@ impl PixelFormat {
 pub enum FrameError {
     #[error("frame data has {actual} bytes, expected {expected}")]
     WrongLength { expected: usize, actual: usize },
+    #[error("frame dimensions {width}x{height} overflow the addressable size")]
+    TooLarge { width: u32, height: u32 },
     #[error("Unsupported rotation: {0}")]
     UnsupportedRotation(i32),
 }
@@ -35,6 +37,13 @@ pub struct Frame {
     data: Vec<u8>,
 }
 
+fn byte_len(width: u32, height: u32, format: PixelFormat) -> Result<usize, FrameError> {
+    (width as usize)
+        .checked_mul(height as usize)
+        .and_then(|pixels| pixels.checked_mul(format.channels()))
+        .ok_or(FrameError::TooLarge { width, height })
+}
+
 impl Frame {
     pub fn new(
         width: u32,
@@ -42,7 +51,7 @@ impl Frame {
         format: PixelFormat,
         data: Vec<u8>,
     ) -> Result<Self, FrameError> {
-        let expected = width as usize * height as usize * format.channels();
+        let expected = byte_len(width, height, format)?;
         if data.len() != expected {
             return Err(FrameError::WrongLength {
                 expected,
@@ -71,14 +80,19 @@ impl Frame {
         }
     }
 
-    pub fn filled(width: u32, height: u32, format: PixelFormat, value: u8) -> Self {
-        let len = width as usize * height as usize * format.channels();
-        Frame {
+    pub fn filled(
+        width: u32,
+        height: u32,
+        format: PixelFormat,
+        value: u8,
+    ) -> Result<Self, FrameError> {
+        let len = byte_len(width, height, format)?;
+        Ok(Frame {
             width,
             height,
             format,
             data: vec![value; len],
-        }
+        })
     }
 
     pub fn width(&self) -> u32 {
@@ -103,5 +117,35 @@ impl Frame {
 
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dimensions_that_overflow_the_size_are_rejected() {
+        let err = Frame::new(u32::MAX, u32::MAX, PixelFormat::Bgr, Vec::new()).unwrap_err();
+        assert_eq!(
+            err,
+            FrameError::TooLarge {
+                width: u32::MAX,
+                height: u32::MAX
+            }
+        );
+        assert!(Frame::filled(u32::MAX, u32::MAX, PixelFormat::Bgr, 0).is_err());
+    }
+
+    #[test]
+    fn a_wrong_length_is_still_reported() {
+        let err = Frame::new(2, 2, PixelFormat::Grey, vec![0; 3]).unwrap_err();
+        assert_eq!(
+            err,
+            FrameError::WrongLength {
+                expected: 4,
+                actual: 3
+            }
+        );
     }
 }
