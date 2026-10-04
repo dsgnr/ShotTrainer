@@ -44,11 +44,13 @@ fn main() {
 
     let mut detector = CircleTargetDetector::new(DetectorSettings::default());
     let deadline = Instant::now() + Duration::from_secs(seconds);
+    let mut opened = false;
     let (mut frames, mut found) = (0_u64, 0_u64);
     let (mut first_ts, mut last_ts, mut max_gap) = (None, None, 0.0_f64);
     while let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
         match rx.recv_timeout(remaining) {
             Ok(CameraEvent::Opened { width, height, fps }) => {
+                opened = true;
                 println!("opened {width}x{height}, driver reports {fps} fps");
             }
             Ok(CameraEvent::Frame {
@@ -71,7 +73,12 @@ fn main() {
                     );
                 }
             }
-            Ok(CameraEvent::Error(message)) => println!("error: {message}"),
+            Ok(CameraEvent::Error(message)) => {
+                println!("error: {message}");
+                if !opened {
+                    break;
+                }
+            }
             Ok(CameraEvent::Closed) | Err(_) => break,
         }
     }

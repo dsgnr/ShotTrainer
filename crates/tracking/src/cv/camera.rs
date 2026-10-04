@@ -93,7 +93,7 @@ pub fn probe_cameras(max_index: i32) -> Vec<(i32, String)> {
             VideoCapture::new(index, videoio::CAP_ANY)
                 .and_then(|mut capture| {
                     let opened = capture.is_opened()?;
-                    capture.release()?;
+                    let _ = capture.release();
                     Ok(opened)
                 })
                 .unwrap_or(false)
@@ -101,6 +101,7 @@ pub fn probe_cameras(max_index: i32) -> Vec<(i32, String)> {
         .map(|index| (index, format!("Camera {index}")))
         .collect()
 }
+
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, mpsc};
