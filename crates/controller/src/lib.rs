@@ -5,6 +5,7 @@ pub mod convert;
 pub mod events;
 pub mod paths;
 pub mod player;
+pub mod review;
 pub mod session;
 pub mod watcher;
 
