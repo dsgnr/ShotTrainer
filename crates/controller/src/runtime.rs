@@ -3,16 +3,18 @@
 //! thread also wakes for the replay player's deadline and to poll
 //! `settings.json`.
 
-use std::sync::Arc;
+use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
-use std::thread::JoinHandle;
+use std::sync::{Arc, Mutex};
+use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use shottrainer_tracking::capture::ClockFn;
 
 use crate::backends::Backends;
 use crate::controller::{Command, Controller, ControllerConfig, ControllerError, Input};
-use crate::events::UiSink;
+use crate::events::{UiEvent, UiSink};
 use crate::watcher::POLL_INTERVAL;
 
 /// Seconds since this clock was created. Frame and shot timestamps share it.
@@ -47,6 +49,7 @@ enum Message {
 pub struct ControllerHandle {
     sender: Sender<Message>,
     thread: Option<JoinHandle<()>>,
+    running: Arc<AtomicBool>,
 }
 
 impl ControllerHandle {
@@ -66,14 +69,40 @@ impl ControllerHandle {
                 let _ = sender.send(Message::Input(Input::Device(event)));
             })
         };
-        let controller = Controller::new(config, backends, options.clock.clone(), forward, sink)?;
-        let thread = std::thread::Builder::new()
+        // The controller owns the sink, so a copy is kept to report a panic.
+        let sink = Arc::new(Mutex::new(sink));
+        let controller_sink: UiSink = {
+            let sink = sink.clone();
+            Box::new(move |event| call_sink(&sink, event))
+        };
+        let controller = Controller::new(
+            config,
+            backends,
+            options.clock.clone(),
+            forward,
+            controller_sink,
+        )?;
+        let running = Arc::new(AtomicBool::new(true));
+        let thread = thread::Builder::new()
             .name("controller".to_owned())
-            .spawn(move || run(controller, &receiver, &options))
+            .spawn({
+                let running = running.clone();
+                move || {
+                    let outcome =
+                        catch_unwind(AssertUnwindSafe(|| run(controller, &receiver, &options)));
+                    running.store(false, Ordering::SeqCst);
+                    if let Err(payload) = outcome {
+                        let reason = panic_text(payload.as_ref());
+                        log::error!("controller thread panicked: {reason}");
+                        call_sink(&sink, UiEvent::ControllerFailed(reason));
+                    }
+                }
+            })
             .map_err(ControllerError::Thread)?;
         Ok(ControllerHandle {
             sender,
             thread: Some(thread),
+            running,
         })
     }
 
@@ -84,11 +113,19 @@ impl ControllerHandle {
         let _ = self.sender.send(Message::Start);
     }
 
+    /// False once the controller thread has ended, after a shutdown or a
+    /// panic. A panic is also reported as [`UiEvent::ControllerFailed`].
+    pub fn is_running(&self) -> bool {
+        self.running.load(Ordering::SeqCst)
+    }
+
     pub fn send(&self, command: Command) {
         let _ = self.sender.send(Message::Input(Input::Command(command)));
     }
 
     /// Saves a running recording, stops the devices and joins the thread.
+    /// Must not be called from the sink, which runs on that thread. The
+    /// join is skipped there.
     pub fn shutdown(mut self) {
         self.stop();
     }
@@ -96,9 +133,9 @@ impl ControllerHandle {
     fn stop(&mut self) {
         let _ = self.sender.send(Message::Shutdown);
         if let Some(thread) = self.thread.take()
-            && thread.join().is_err()
+            && thread.thread().id() != thread::current().id()
         {
-            log::error!("controller thread panicked");
+            let _ = thread.join();
         }
     }
 }
@@ -109,23 +146,72 @@ impl Drop for ControllerHandle {
     }
 }
 
-fn run(mut controller: Controller, receiver: &mpsc::Receiver<Message>, options: &RuntimeOptions) {
-    let mut next_poll = Instant::now() + options.poll_interval;
-    loop {
-        let until_poll = next_poll.saturating_duration_since(Instant::now());
-        let timeout = match controller.next_deadline() {
-            Some(due) => until(due - (options.clock)()).min(until_poll),
+/// A panic in the sink itself is swallowed, because this also runs while
+/// reporting a panic.
+fn call_sink(sink: &Mutex<UiSink>, event: UiEvent) {
+    let sink = sink
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _ = catch_unwind(AssertUnwindSafe(|| sink(event)));
+}
+
+fn panic_text(payload: &(dyn std::any::Any + Send)) -> String {
+    payload
+        .downcast_ref::<&str>()
+        .map(|text| (*text).to_owned())
+        .or_else(|| payload.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "unknown panic".to_owned())
+}
+
+/// When `settings.json` is next checked.
+struct PollSchedule {
+    next: Instant,
+    interval: Duration,
+}
+
+impl PollSchedule {
+    fn new(now: Instant, interval: Duration) -> Self {
+        PollSchedule {
+            next: now + interval,
+            interval,
+        }
+    }
+
+    /// How long to block for a message. `deadline_in` is the seconds until
+    /// the replay deadline, if there is one.
+    fn wait(&self, now: Instant, deadline_in: Option<f64>) -> Duration {
+        let until_poll = self.next.saturating_duration_since(now);
+        match deadline_in {
+            Some(seconds) => until(seconds).min(until_poll),
             None => until_poll,
-        };
-        match receiver.recv_timeout(timeout) {
+        }
+    }
+
+    /// True when a check is due, and schedules the next one a full
+    /// interval after `now`.
+    fn due(&mut self, now: Instant) -> bool {
+        if now < self.next {
+            return false;
+        }
+        self.next = now + self.interval;
+        true
+    }
+}
+
+fn run(mut controller: Controller, receiver: &mpsc::Receiver<Message>, options: &RuntimeOptions) {
+    let mut schedule = PollSchedule::new(Instant::now(), options.poll_interval);
+    loop {
+        let deadline_in = controller
+            .next_deadline()
+            .map(|due| due - (options.clock)());
+        match receiver.recv_timeout(schedule.wait(Instant::now(), deadline_in)) {
             Ok(Message::Input(input)) => controller.handle(input),
             Ok(Message::Start) => controller.start(),
             Ok(Message::Shutdown) | Err(RecvTimeoutError::Disconnected) => break,
             Err(RecvTimeoutError::Timeout) => {}
         }
-        if Instant::now() >= next_poll {
+        if schedule.due(Instant::now()) {
             controller.poll_settings();
-            next_poll = Instant::now() + options.poll_interval;
         }
         if controller
             .next_deadline()
@@ -148,6 +234,7 @@ fn until(seconds: f64) -> Duration {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
     use std::sync::Mutex;
     use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -162,6 +249,7 @@ mod tests {
     use super::*;
     use crate::backends::{CameraBackend, CameraHandle};
     use crate::events::UiEvent;
+    use crate::fakes::FakeCamera;
     use crate::fakes::{FakeAudio, FixedScorer, ScriptedDetector, circle_at};
     use crate::frames::TrackingStatus;
     use crate::paths::DataPaths;
@@ -342,10 +430,13 @@ mod tests {
         running.handle.send(Command::OpenSession(session));
         running.handle.send(Command::SelectShot(0));
         running.handle.send(Command::ReplayPlay);
+        let finished = Cell::new(false);
         wait_for(&running.events, |e| {
-            *e == UiEvent::Player(PlayerEvent::Finished)
+            if *e == UiEvent::Player(PlayerEvent::Finished) {
+                finished.set(true);
+            }
+            finished.get() && *e == UiEvent::ReplayPlaying(false)
         });
-        wait_for(&running.events, |e| *e == UiEvent::ReplayPlaying(false));
     }
 
     #[test]
@@ -373,5 +464,154 @@ mod tests {
         assert_eq!(until(f64::NAN), POLL_INTERVAL);
         assert_eq!(until(f64::INFINITY), POLL_INTERVAL);
         assert_eq!(until(0.25), Duration::from_millis(250));
+    }
+
+    /// Spawns over the given backends with a recording sink.
+    fn spawn_with(
+        camera: Box<dyn CameraBackend>,
+        audio: FakeAudio,
+    ) -> (ControllerHandle, mpsc::Receiver<UiEvent>, tempfile::TempDir) {
+        let dir = tempfile::tempdir().unwrap();
+        let backends = Backends {
+            camera,
+            audio: Box::new(audio),
+            detector: Box::new(ScriptedDetector::default()),
+            scorer: Box::new(FixedScorer::default()),
+        };
+        let (sender, events) = mpsc::channel();
+        let sender = Mutex::new(sender);
+        let handle = ControllerHandle::spawn(
+            ControllerConfig {
+                paths: DataPaths::in_dir(dir.path()),
+                app_version: "1".into(),
+            },
+            backends,
+            RuntimeOptions::default(),
+            Box::new(move |event| {
+                let _ = sender.lock().unwrap().send(event);
+            }),
+        )
+        .unwrap();
+        (handle, events, dir)
+    }
+
+    /// Waits until `condition` holds, failing after `WAIT`.
+    fn wait_until(what: &str, condition: impl Fn() -> bool) {
+        let deadline = Instant::now() + WAIT;
+        while !condition() {
+            assert!(Instant::now() < deadline, "timed out waiting for {what}");
+            std::thread::sleep(Duration::from_millis(2));
+        }
+    }
+
+    #[test]
+    fn spawn_opens_no_device_until_start() {
+        let camera = FakeCamera::with_cameras(&[(0, "Test")]);
+        let audio = FakeAudio::default();
+        let (handle, events, _dir) = spawn_with(Box::new(camera.clone()), audio.clone());
+        // A command's reply proves the thread is running and has drained
+        // everything sent before it.
+        handle.send(Command::ListSessions);
+        wait_for(&events, |e| matches!(e, UiEvent::Sessions(_)));
+        assert!(camera.state().started.is_empty(), "camera opened by spawn");
+        assert!(
+            audio.state().started.is_empty(),
+            "microphone opened by spawn"
+        );
+
+        handle.start();
+        wait_until("both devices to open", || {
+            !camera.state().started.is_empty() && !audio.state().started.is_empty()
+        });
+        handle.shutdown();
+    }
+
+    struct PanickingCamera;
+
+    impl CameraBackend for PanickingCamera {
+        fn list_cameras(&mut self) -> Vec<(i64, String)> {
+            vec![(0, "Test".into())]
+        }
+
+        fn start(&mut self, _: i32, _: ClockFn, _: EventSink) -> Box<dyn CameraHandle> {
+            panic!("camera backend failed");
+        }
+    }
+
+    #[test]
+    fn a_panic_on_the_controller_thread_is_reported() {
+        let (handle, events, _dir) = spawn_with(Box::new(PanickingCamera), FakeAudio::default());
+        assert!(handle.is_running());
+        handle.start();
+        let event = wait_for(&events, |e| matches!(e, UiEvent::ControllerFailed(_)));
+        assert_eq!(
+            event,
+            UiEvent::ControllerFailed("camera backend failed".into())
+        );
+        wait_until("the handle to report the thread ended", || {
+            !handle.is_running()
+        });
+    }
+
+    #[test]
+    fn is_running_is_false_after_the_thread_exits_normally() {
+        let (handle, _events, _dir) =
+            spawn_with(Box::new(FakeCamera::default()), FakeAudio::default());
+        assert!(handle.is_running());
+        let running = handle.running.clone();
+        handle.shutdown();
+        assert!(!running.load(Ordering::SeqCst));
+    }
+
+    fn schedule(interval_ms: u64) -> (Instant, PollSchedule) {
+        let now = Instant::now();
+        (
+            now,
+            PollSchedule::new(now, Duration::from_millis(interval_ms)),
+        )
+    }
+
+    #[test]
+    fn a_far_replay_deadline_does_not_delay_the_settings_poll() {
+        let (now, schedule) = schedule(20);
+        assert_eq!(schedule.wait(now, Some(10.0)), Duration::from_millis(20));
+    }
+
+    #[test]
+    fn a_near_replay_deadline_wakes_before_the_poll() {
+        let (now, schedule) = schedule(20);
+        assert_eq!(schedule.wait(now, Some(0.005)), Duration::from_millis(5));
+    }
+
+    #[test]
+    fn the_next_poll_is_a_full_interval_after_the_last() {
+        let (now, mut schedule) = schedule(20);
+        let at = now + Duration::from_millis(25);
+        assert!(schedule.due(at));
+        assert_eq!(schedule.wait(at, None), Duration::from_millis(20));
+        assert!(!schedule.due(at), "a poll is not due twice");
+        assert!(!schedule.due(at + Duration::from_millis(19)));
+        assert!(schedule.due(at + Duration::from_millis(20)));
+    }
+
+    #[test]
+    fn a_poll_is_not_due_early() {
+        let (now, mut schedule) = schedule(20);
+        assert!(!schedule.due(now + Duration::from_millis(19)));
+    }
+
+    #[test]
+    fn unusable_deadlines_neither_spin_nor_panic() {
+        let (now, schedule) = schedule(20);
+        assert_eq!(
+            schedule.wait(now, Some(f64::NAN)),
+            Duration::from_millis(20)
+        );
+        assert_eq!(
+            schedule.wait(now, Some(f64::INFINITY)),
+            Duration::from_millis(20)
+        );
+        assert_eq!(schedule.wait(now, Some(-3.0)), Duration::ZERO);
+        assert_eq!(schedule.wait(now, None), Duration::from_millis(20));
     }
 }
