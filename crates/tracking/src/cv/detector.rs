@@ -67,9 +67,10 @@ impl CircleTargetDetector {
         let (w, h) = (mat_width(grey), mat_height(grey));
         let region = Region::new(w, h, s);
         let (search_rect, ox, oy) = search_rect(self.lock.position, grey, s);
-        // A view, not a copy. Hough's gradient filters read pixels outside a
-        // submatrix, and Python passes a numpy view, so a copy would differ.
-        let search = Mat::roi(grey, search_rect)?;
+        // OpenCV filters read the parent's pixels beyond a Rust submatrix edge,
+        // but cv2 treats a numpy slice as a standalone image and replicates its
+        // border. Cloning gives Hough the same standalone image.
+        let search = Mat::roi(grey, search_rect)?.try_clone()?;
 
         let min_dist = s.min_radius_px.saturating_mul(2).max(30);
         let mut circles = Vector::<Vec3f>::new();
