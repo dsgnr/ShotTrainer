@@ -9,9 +9,10 @@
     shots?: Snippet;
     target?: Snippet;
     side?: Snippet;
+    onsettings?: () => void;
   }
 
-  let { page, header, status, nav, shots, target, side }: Props = $props();
+  let { page, header, status, nav, shots, target, side, onsettings }: Props = $props();
   let shotsCollapsed = $state(false);
   let sessionCollapsed = $state(false);
 </script>
@@ -28,6 +29,7 @@
   <header class="header">
     {@render header?.()}
     <div class="pane-controls">
+      <div class="left">
       <button type="button" aria-expanded={!shotsCollapsed} aria-controls="session-shots"
         aria-label={shotsCollapsed ? "Show shots" : "Hide shots"}
         title={shotsCollapsed ? "Show shots" : "Hide shots"}
@@ -38,6 +40,17 @@
           <path d={shotsCollapsed ? "M13 9l3 3-3 3" : "M16 9l-3 3 3 3"} />
         </svg>
       </button>
+      {#if onsettings}
+        <button type="button" aria-haspopup="dialog" aria-label="Session settings" title="Session settings"
+          onclick={onsettings}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">
+            <path d="M4 7h10M18 7h2M4 17h2M10 17h10" />
+            <circle cx="16" cy="7" r="2" />
+            <circle cx="8" cy="17" r="2" />
+          </svg>
+        </button>
+      {/if}
+      </div>
       <button type="button" aria-expanded={!sessionCollapsed} aria-controls="session-controls"
         aria-label={sessionCollapsed ? "Show session" : "Hide session"}
         title={sessionCollapsed ? "Show session" : "Hide session"}
@@ -158,6 +171,8 @@
     stroke-linecap: round;
     stroke-linejoin: round;
   }
+
+  .left { display: flex; gap: var(--space-1, 4px); }
 
   .pane-controls {
     display: flex;

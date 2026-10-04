@@ -171,14 +171,16 @@
   let preferencesOpen = $state(false);
   let page = $state<"target" | "sessions" | "about">("target");
   let popoutOpen = $state(false);
+  let sessionSettingsOpen = $state(false);
   let sheet = $state<{ print: () => Promise<void> }>();
 
-  const anyModalOpen = $derived(newSessionOpen || preferencesOpen || popoutOpen);
+  const anyModalOpen = $derived(newSessionOpen || preferencesOpen || popoutOpen || sessionSettingsOpen);
 
   function closeModals(): void {
     newSessionOpen = false;
     preferencesOpen = false;
     popoutOpen = false;
+    sessionSettingsOpen = false;
   }
 
   function isTyping(target: EventTarget | null): boolean {
@@ -245,7 +247,7 @@
   <About {updates} />
 {/snippet}
 <div style="height: 100%" inert={updates.stage === "installing"}>
-<AppShell page={page === "sessions" ? sessionsPage : page === "about" ? aboutPage : undefined}>
+<AppShell onsettings={() => sessionSettingsOpen = true} page={page === "sessions" ? sessionsPage : page === "about" ? aboutPage : undefined}>
   {#snippet nav()}
     <NavRail
       {page}
@@ -287,8 +289,6 @@
       {tracePoints}
       {rings}
     />
-    <SessionSettings prefs={app.preferences.prefs} faces={app.preferences.faces}
-      locked={app.session.state.kind !== "idle" || app.shots.shots.length > 0} {send} />
     <div class="session-footer">
       <SessionControls session={app.session.state} summary={app.session.summary} {send}
         name={sessionName} category={sessionCategory} onnew={() => newSessionOpen = true} />
@@ -349,6 +349,12 @@
 />
 <LiveRegion {announcer} />
 <UpdateBanner {updates} recording={app.session.state.kind === "recording"} />
+
+{#if sessionSettingsOpen}
+  <SessionSettings prefs={app.preferences.prefs} faces={app.preferences.faces}
+    locked={app.session.state.kind !== "idle" || app.shots.shots.length > 0} {send}
+    onclose={() => sessionSettingsOpen = false} />
+{/if}
 
 {#if newSessionOpen && app.preferences.prefs}
   <NewSessionDialog prefs={app.preferences.prefs} faces={app.preferences.faces} onclose={() => newSessionOpen = false}
