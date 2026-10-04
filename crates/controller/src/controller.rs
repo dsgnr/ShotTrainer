@@ -566,6 +566,7 @@ impl Controller {
         f(&mut self.session, &cx)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use shottrainer_audio::models::ShotEvent;
@@ -1240,6 +1241,7 @@ mod tests {
         );
         assert!(matches!(&events[1], UiEvent::TargetFaces(faces) if faces.len() >= 6));
     }
+
     /// Emits one frame on capture `start`, checks the capture's sink let it
     /// through and hands it to the controller.
     fn pump_one_frame(rig: &TestRig, controller: &mut Controller, start: usize, id: i64) {
