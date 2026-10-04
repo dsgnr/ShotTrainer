@@ -220,7 +220,7 @@ pub struct AudioInput {
 impl AudioInput {
     /// Spawns the stream thread and returns at once, because opening can block
     /// while the operating system asks for microphone permission. Events,
-    /// including `Started` and `Error`, arrive through `on_event` from the
+    /// including `Started` (always first) and `Error`, arrive through `on_event` from the
     /// stream thread and the audio callback thread.
     pub fn start(
         settings: ShotDetectorSettings,
@@ -245,10 +245,22 @@ impl AudioInput {
                     // `Send` on every host.
                     match open_stream(&device, &shared, clock, &on_event) {
                         Ok(stream) => {
+                            // Started goes out before play so that no Level
+                            // can reach the consumer ahead of it.
                             started.store(true, Ordering::SeqCst);
                             on_event(AudioEvent::Started);
-                            // Returns on a stop request or when the handle is dropped.
-                            let _ = stop_rx.recv();
+                            match stream.play() {
+                                Ok(()) => {
+                                    // Returns on a stop request or when the handle is dropped.
+                                    let _ = stop_rx.recv();
+                                }
+                                Err(error) => {
+                                    started.store(false, Ordering::SeqCst);
+                                    on_event(AudioEvent::Error(format!(
+                                        "Could not open microphone: {error}"
+                                    )));
+                                }
+                            }
                             drop(stream);
                         }
                         Err(error) => {
@@ -356,7 +368,6 @@ fn open_stream(
         SampleFormat::I16 => build::<i16>(&device, config, shared, on_event),
         SampleFormat::U16 => build::<u16>(&device, config, shared, on_event),
     }?;
-    stream.play()?;
     Ok(stream)
 }
 
