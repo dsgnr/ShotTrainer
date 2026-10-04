@@ -402,6 +402,7 @@ fn mat_width(mat: &Mat) -> u32 {
 fn mat_height(mat: &Mat) -> u32 {
     u32::try_from(mat.rows()).unwrap_or(0)
 }
+
 #[cfg(test)]
 mod tests {
     use testkit::{assert_close, load_golden};
