@@ -1,0 +1,27 @@
+[package]
+name = "shottrainer-controller"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "shottrainer_controller"
+
+[features]
+# The OpenCV camera, detector and optimiser scorer from the tracking crate.
+opencv = ["shottrainer-tracking/opencv"]
+
+[dependencies]
+shottrainer-tracking = { path = "../tracking" }
+shottrainer-audio = { path = "../audio" }
+shottrainer-core = { path = "../core" }
+shottrainer-settings = { path = "../settings" }
+log.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
