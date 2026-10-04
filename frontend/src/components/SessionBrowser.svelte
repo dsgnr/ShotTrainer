@@ -2,6 +2,7 @@
   import { untrack } from "svelte";
   import SessionActionDialog, { type SessionAction } from "./SessionActionDialog.svelte";
   import Dropdown from "./Dropdown.svelte";
+  import CategoryIcon from "./CategoryIcon.svelte";
   import type { CommandSender } from "../lib/app/commands";
   import { filterSessions, scoreBadge, sessionMeta } from "../lib/sessions/rows";
   import { SESSION_CATEGORIES, categoryLabel } from "../lib/wire/categories";
@@ -63,7 +64,9 @@
       <div class="filters">
         <input type="search" placeholder="Search session names..." bind:value={query} />
         <Dropdown label="Filter by category" bind:value={categoryFilter}
-          options={[{ value: "", label: "All categories" }, ...SESSION_CATEGORIES.map((value) => ({ value, label: categoryLabel(value) }))]} />
+          options={[{ value: "", label: "All categories" }, ...SESSION_CATEGORIES.map((value) => ({ value, label: categoryLabel(value) }))]}>
+          {#snippet icon(value)}<CategoryIcon category={String(value)} />{/snippet}
+        </Dropdown>
       </div>
 
       {#if matches.length === 0}
@@ -82,6 +85,7 @@
               ondblclick={openSession}
               onkeydown={(event) => (event.key === "Enter" || event.key === " ") && (selected = session.id)}
             >
+              <span class="category" title={categoryLabel(session.category)}><CategoryIcon category={session.category} /></span>
               <span class="info">
                 <span class="title">{session.name || `Session #${session.id}`}</span>
                 <span class="meta">{sessionMeta(session)}</span>
@@ -162,6 +166,8 @@
   li.selected {
     background: var(--panel-raised);
   }
+
+  .category { display: flex; color: var(--text-dim); }
 
   .info {
     display: flex;

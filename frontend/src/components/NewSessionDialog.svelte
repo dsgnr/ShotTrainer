@@ -6,6 +6,7 @@
   import type { WireFace, WirePreferences } from "../lib/wire/types";
   import SessionOptions from "./SessionOptions.svelte";
   import Dropdown from "./Dropdown.svelte";
+  import CategoryIcon from "./CategoryIcon.svelte";
   let { prefs, faces, onclose, oncreate }: {
     prefs: WirePreferences; faces: WireFace[]; onclose: () => void;
     oncreate: (name: string, category: string, prefs: WirePreferences) => Promise<void>;
@@ -38,7 +39,9 @@
         <label class="name">Session name <input type="text" bind:value={name} /></label>
         <label for="new-session-category">Session category</label>
         <Dropdown id="new-session-category" label="Session category" bind:value={category}
-          options={SESSION_CATEGORIES.map(value => ({ value, label: categoryLabel(value) }))} />
+          options={SESSION_CATEGORIES.map(value => ({ value, label: categoryLabel(value) }))}>
+          {#snippet icon(value)}<CategoryIcon category={String(value)} />{/snippet}
+        </Dropdown>
         <SessionOptions bind:draft {faces} targetId="new-session-target" />
       </fieldset>
       </div>

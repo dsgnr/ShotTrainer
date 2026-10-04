@@ -12,6 +12,7 @@
   import { SESSION_CATEGORIES, categoryLabel } from "../lib/wire/categories";
   import type { WireCommand } from "../lib/wire/types";
   import Dropdown from "./Dropdown.svelte";
+  import CategoryIcon from "./CategoryIcon.svelte";
 
   let { action, recording, onconfirm, onclose }: {
     action: SessionAction; recording: boolean;
@@ -63,7 +64,9 @@
         {:else if action.kind === "category"}
           <label for="session-action-category">Category</label>
           <Dropdown id="session-action-category" label="Session category" bind:value
-            options={SESSION_CATEGORIES.map(value => ({ value, label: categoryLabel(value) }))} />
+            options={SESSION_CATEGORIES.map(value => ({ value, label: categoryLabel(value) }))}>
+            {#snippet icon(value)}<CategoryIcon category={String(value)} />{/snippet}
+          </Dropdown>
         {:else if action.kind === "delete"}
           <p>Delete {action.session.name || `Session #${action.session.id}`} and all its shots and trace data?</p>
         {:else if action.kind === "export"}

@@ -1,4 +1,6 @@
 <script lang="ts" generics="T extends string | number">
+  import type { Snippet } from "svelte";
+
   interface Props {
     value: T;
     options: { value: T; label: string }[];
@@ -7,8 +9,9 @@
     title?: string;
     upwards?: boolean;
     onchange?: (value: T) => void;
+    icon?: Snippet<[T]>;
   }
-  let { value = $bindable(), options, label, id, title, upwards = false, onchange }: Props = $props();
+  let { value = $bindable(), options, label, id, title, upwards = false, onchange, icon }: Props = $props();
   let menuOpen = $state(false);
   let picker: HTMLDivElement;
   let trigger: HTMLButtonElement;
@@ -73,7 +76,7 @@
         openMenu();
       }
     }}>
-    <span>{selectedLabel}</span>
+    <span class="label">{@render icon?.(value)}{selectedLabel}</span>
     <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
       <path d="m2 4 3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" />
     </svg>
@@ -84,7 +87,7 @@
       style:bottom={opensAbove ? `${bounds.bottom}px` : undefined} style:min-width={`${Math.max(120, bounds.width)}px`}>
       {#each options as option (option.value)}
         <button type="button" role="menuitemradio" aria-checked={value === option.value}
-          tabindex="-1" onclick={() => choose(option.value)}>{option.label}</button>
+          tabindex="-1" onclick={() => choose(option.value)}>{@render icon?.(option.value)}{option.label}</button>
       {/each}
     </div>
   {/if}
@@ -93,6 +96,8 @@
 <style>
   .picker { min-width: 0; width: 100%; }
   .trigger { width: 100%; justify-content: space-between; gap: var(--space-2); }
+  .label { display: inline-flex; align-items: center; gap: var(--space-2); }
+  .menu button { gap: var(--space-2); }
   .trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .trigger svg { flex-shrink: 0; }
   .menu {
