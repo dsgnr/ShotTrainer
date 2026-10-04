@@ -132,12 +132,12 @@ impl<'a> SessionRepository<'a> {
             .query_map([], |row| {
                 Ok(SessionSummary {
                     id: row.get(0)?,
-                    name: row.get(1)?,
+                    name: read_text(row, 1)?,
                     started_at: read_datetime(row, 2)?,
                     ended_at: read_optional_datetime(row, 3)?,
                     shot_count: 0,
                     total_score: 0.0,
-                    category: row.get(4)?,
+                    category: read_text(row, 4)?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -158,7 +158,7 @@ impl<'a> SessionRepository<'a> {
             };
             let summary = &mut sessions[i];
             summary.shot_count += 1;
-            if let Some(value) = label_to_value(&row.get::<_, String>(1)?) {
+            if let Some(value) = label_to_value(&read_text(row, 1)?) {
                 summary.total_score += value;
             }
         }
@@ -175,13 +175,13 @@ impl<'a> SessionRepository<'a> {
                 |row| {
                     Ok(Session {
                         id: row.get(0)?,
-                        name: row.get(1)?,
+                        name: read_text(row, 1)?,
                         started_at: read_datetime(row, 2)?,
                         ended_at: read_optional_datetime(row, 3)?,
-                        notes: row.get(4)?,
-                        target_profile: row.get(5)?,
-                        category: row.get(6)?,
-                        app_version: row.get(7)?,
+                        notes: read_text(row, 4)?,
+                        target_profile: read_text(row, 5)?,
+                        category: read_text(row, 6)?,
+                        app_version: read_text(row, 7)?,
                         schema_version: row.get(8)?,
                         shots: Vec::new(),
                     })
@@ -353,12 +353,17 @@ impl<'a> SessionRepository<'a> {
                     y_mm: row.get(4)?,
                     audio_level: row.get(5)?,
                     confidence: row.get(6)?,
-                    score: row.get(7)?,
+                    score: read_text(row, 7)?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
         Ok(shots)
     }
+}
+
+/// Reads a text column, treating NULL (a hand-edited database) as empty.
+fn read_text(row: &Row, idx: usize) -> rusqlite::Result<String> {
+    Ok(row.get::<_, Option<String>>(idx)?.unwrap_or_default())
 }
 
 fn epoch() -> NaiveDateTime {
