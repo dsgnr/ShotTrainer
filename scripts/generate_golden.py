@@ -1889,6 +1889,118 @@ def _tracker_rejects(diameter: float) -> bool:
     return False
 
 
+def detector_tuning() -> dict:
+    from dataclasses import asdict
+
+    import cv2
+    import numpy as np
+
+    import shottrainer.tracking.detector_tuning as tuning
+    from shottrainer.tracking.detector import DetectorSettings
+    from shottrainer.tracking.models import Detection
+
+    real = tuning.CircleTargetDetector
+    default_grid = {
+        "block_sizes": [15, 31],
+        "offsets": [2, 8],
+        "blurs": [3, 5],
+        "closing_kernels": [0, 5],
+        "brightness_steps": [-100.0, -50.0, 0.0, 50.0, 100.0],
+        "contrast_steps": [0.5, 1.0, 1.5, 2.0],
+    }
+
+    def call(frame, base, grid, subclass):
+        tuning.CircleTargetDetector = subclass
+        try:
+            return tuning.optimise_detector_settings(
+                frame, base, **{k: tuple(v) for k, v in grid.items()}
+            )
+        finally:
+            tuning.CircleTargetDetector = real
+
+    def record(frame) -> list:
+        """Scores the real Hough pass produced, one per call, in call order."""
+        calls: list = []
+
+        class Recording(real):
+            def _try_hough(self, grey, s):
+                det = super()._try_hough(grey, s)
+                calls.append(None if det is None else det.confidence)
+                return det
+
+            def _apply_lock_and_region(self, det, shape, s):
+                out = super()._apply_lock_and_region(det, shape, s)
+                if out is None or not out.found:
+                    calls[-1] = None
+                return out
+
+        call(frame, DetectorSettings(), default_grid, Recording)
+        return calls
+
+    def scripted_case(name, scores, grid=default_grid, base=None, empty=False):
+        base = base or DetectorSettings()
+        queue = list(scores)
+        pixels: list[int] = []
+
+        class Scripted(real):
+            def _try_hough(self, grey, s):
+                pixels.append(int(grey.reshape(-1)[0]))
+                score = queue.pop(0)
+                if score is None:
+                    return None
+                return Detection(found=True, x_px=1.0, y_px=1.0, radius_px=5.0, confidence=score)
+
+            def _apply_lock_and_region(self, det, shape, s):
+                return det
+
+        frame = np.array([], dtype=np.uint8) if empty else np.full((4, 4), 100, dtype=np.uint8)
+        settings, adjustment, score = call(frame, base, grid, Scripted)
+        assert not queue, name
+        return {
+            "name": name,
+            "grid": grid,
+            "base": asdict(base),
+            "scores": scores,
+            "pixels": pixels,
+            "empty": empty,
+            "settings": None if settings is None else asdict(settings),
+            "adjustment": [adjustment.brightness, adjustment.contrast],
+            "score": score,
+        }
+
+    target = np.full((480, 640), 255, dtype=np.uint8)
+    cv2.circle(target, (320, 240), 30, 0, -1)
+    dim = (target.astype(np.float32) * 0.4).astype(np.uint8)
+    blank = np.full((480, 640), 255, dtype=np.uint8)
+    n = 5 * 4 * 2
+    cases = [
+        scripted_case("recorded_target", record(target)),
+        scripted_case("recorded_dim", record(dim)),
+        scripted_case("recorded_blank", record(blank)),
+        scripted_case("all_none", [None] * n),
+        scripted_case("all_zero", [0.0] * n),
+        scripted_case("tie_across_cells", [0.5, None] + [0.5, 0.5] * (n // 2 - 1)),
+        scripted_case("tie_within_cell", [None] * 10 + [0.4, 0.4] + [None] * (n - 12)),
+        scripted_case("rising", [i / 100 for i in range(n)]),
+        scripted_case("falling_blur", [0.3, 0.2] * (n // 2)),
+        scripted_case(
+            "custom_grid",
+            [0.1, 0.7, 0.2, 0.7],
+            grid={
+                "block_sizes": [21],
+                "offsets": [4, 9],
+                "blurs": [0, 7],
+                "closing_kernels": [3],
+                "brightness_steps": [0.0],
+                "contrast_steps": [1.0, 3.0],
+            },
+            base=DetectorSettings(region_fraction=0.5, min_radius_px=6, lock_boost=2.0),
+        ),
+        scripted_case("empty_frame", [], empty=True),
+    ]
+    return {"cases": cases}
+
+
 AREAS = {
     "frame_ops": frame_ops,
     "preferences": preferences,
@@ -1901,6 +2013,7 @@ AREAS = {
     "shot_detector": shot_detector,
     "audio_pipeline": audio_pipeline,
     "tracker": tracker,
+    "detector_tuning": detector_tuning,
 }
 
 if __name__ == "__main__":
@@ -1932,6 +2045,7 @@ if __name__ == "__main__":
         "audio_pipeline",
         "frame_ops",
         "tracker",
+        "detector_tuning",
     ):
 
         def compact(v: object) -> str:
