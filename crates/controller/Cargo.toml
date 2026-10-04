@@ -22,6 +22,7 @@ shottrainer-audio = { path = "../audio" }
 shottrainer-core = { path = "../core" }
 shottrainer-settings = { path = "../settings" }
 log.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
