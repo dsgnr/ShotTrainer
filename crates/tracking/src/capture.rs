@@ -96,8 +96,13 @@ impl CameraCapture {
     /// and nothing else. Otherwise `Opened` comes first, then frames with ids
     /// counting from 1 and the clock read just after each read returned, an
     /// optional `Error` when the device stops producing frames, and `Closed`
-    /// exactly once after the device is released. If the thread cannot be
-    /// spawned the `Error` is delivered on the caller's thread.
+    /// after the device is released. `Closed` is sent at most once, and
+    /// exactly once unless an event callback panics.
+    ///
+    /// If `stop` was requested while the opener was still blocked, a device
+    /// that then opens is released with `Closed` and no `Opened`, and an open
+    /// that then fails emits nothing. If the thread cannot be spawned the
+    /// `Error` is delivered on the caller's thread.
     pub fn start_with(
         opener: SourceOpener,
         options: CaptureOptions,
@@ -176,10 +181,17 @@ fn run(
     let opened = match opener() {
         Ok(opened) => opened,
         Err(message) => {
-            on_event(CameraEvent::Error(message));
+            if running.load(Ordering::SeqCst) {
+                on_event(CameraEvent::Error(message));
+            }
             return;
         }
     };
+    if !running.load(Ordering::SeqCst) {
+        drop(opened.source);
+        on_event(CameraEvent::Closed);
+        return;
+    }
     on_event(CameraEvent::Opened {
         width: opened.width,
         height: opened.height,
@@ -237,12 +249,28 @@ mod tests {
         }
     }
 
-    /// A read that takes `delay` and then returns a frame.
-    struct Slow(Duration);
+    /// A read that takes `delay` and then returns a frame. `started` is
+    /// signalled as each read begins.
+    struct Slow {
+        delay: Duration,
+        started: Option<mpsc::Sender<()>>,
+    }
+
+    impl Slow {
+        fn new(delay: Duration) -> Self {
+            Slow {
+                delay,
+                started: None,
+            }
+        }
+    }
 
     impl FrameSource for Slow {
         fn read(&mut self) -> Option<Frame> {
-            std::thread::sleep(self.0);
+            if let Some(started) = &self.started {
+                let _ = started.send(());
+            }
+            std::thread::sleep(self.delay);
             Some(frame())
         }
     }
@@ -371,9 +399,9 @@ mod tests {
     fn a_failed_open_emits_one_error_and_nothing_else() {
         let failing: SourceOpener = Box::new(|| Err("Could not open camera 3".to_owned()));
         let (mut capture, rx) = start(failing, fast());
+        let events = until_finished(&rx);
         capture.stop();
         capture.stop();
-        let events: Vec<_> = rx.try_iter().collect();
         assert_eq!(
             events,
             vec![CameraEvent::Error("Could not open camera 3".to_owned())]
@@ -382,7 +410,7 @@ mod tests {
 
     #[test]
     fn stop_ends_streaming_with_one_closed_and_no_later_frames() {
-        let (mut capture, rx) = start(opener(Slow(Duration::from_millis(5))), fast());
+        let (mut capture, rx) = start(opener(Slow::new(Duration::from_millis(5))), fast());
         assert!(matches!(
             rx.recv_timeout(Duration::from_secs(5)),
             Ok(CameraEvent::Opened { .. })
@@ -402,9 +430,67 @@ mod tests {
         assert!(rx.try_recv().is_err());
     }
 
+    /// Collects events until the sink is dropped, which happens when the
+    /// capture thread has finished.
+    fn until_finished(rx: &Receiver<CameraEvent>) -> Vec<CameraEvent> {
+        let mut events = Vec::new();
+        loop {
+            match rx.recv_timeout(Duration::from_secs(5)) {
+                Ok(event) => events.push(event),
+                Err(mpsc::RecvTimeoutError::Disconnected) => return events,
+                Err(mpsc::RecvTimeoutError::Timeout) => panic!("thread did not finish"),
+            }
+        }
+    }
+
+    /// An opener that blocks until released, then opens an idle device or
+    /// fails with the given message.
+    fn blocked_opener(release: Receiver<()>, failure: Option<&'static str>) -> SourceOpener {
+        Box::new(move || {
+            release.recv().unwrap();
+            match failure {
+                Some(message) => Err(message.to_owned()),
+                None => Ok(OpenedSource {
+                    source: Box::new(Script(Vec::new().into_iter())),
+                    width: 2,
+                    height: 2,
+                    fps: 30.0,
+                }),
+            }
+        })
+    }
+
+    fn short_stop() -> CaptureOptions {
+        CaptureOptions {
+            stop_timeout: Duration::from_millis(50),
+            ..fast()
+        }
+    }
+
+    #[test]
+    fn a_device_that_opens_after_stop_is_released_without_opened() {
+        let (release_tx, release_rx) = mpsc::channel();
+        let (mut capture, rx) = start(blocked_opener(release_rx, None), short_stop());
+        capture.stop();
+        release_tx.send(()).unwrap();
+        assert_eq!(until_finished(&rx), vec![CameraEvent::Closed]);
+    }
+
+    #[test]
+    fn an_open_that_fails_after_stop_emits_nothing() {
+        let (release_tx, release_rx) = mpsc::channel();
+        let (mut capture, rx) = start(
+            blocked_opener(release_rx, Some("late failure")),
+            short_stop(),
+        );
+        capture.stop();
+        release_tx.send(()).unwrap();
+        assert_eq!(until_finished(&rx), Vec::new());
+    }
+
     #[test]
     fn dropping_the_handle_stops_the_thread() {
-        let (capture, rx) = start(opener(Slow(Duration::from_millis(5))), fast());
+        let (capture, rx) = start(opener(Slow::new(Duration::from_millis(5))), fast());
         assert!(matches!(
             rx.recv_timeout(Duration::from_secs(5)),
             Ok(CameraEvent::Opened { .. })
@@ -419,11 +505,17 @@ mod tests {
             stop_timeout: Duration::from_millis(100),
             ..fast()
         };
-        let (mut capture, rx) = start(opener(Slow(Duration::from_millis(1500))), options);
+        let (started_tx, started_rx) = mpsc::channel();
+        let slow = Slow {
+            delay: Duration::from_millis(1500),
+            started: Some(started_tx),
+        };
+        let (mut capture, rx) = start(opener(slow), options);
         assert!(matches!(
             rx.recv_timeout(Duration::from_secs(5)),
             Ok(CameraEvent::Opened { .. })
         ));
+        started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
         let started = Instant::now();
         capture.stop();
         assert!(
