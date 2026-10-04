@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 use shottrainer_settings::{
-    Platform, Preferences, data_dir_for, load_preferences, save_preferences,
+    Platform, Preferences, data_dir_for, load_preferences, save_preferences, validate_preferences,
 };
 use testkit::{assert_close, load_golden};
 
@@ -225,4 +225,39 @@ fn seventeen_digit_floats_parse_exactly() {
     .unwrap();
     let loaded = load_preferences(&path).tracking_region_fraction;
     assert_eq!(loaded.to_bits(), 0.198_620_745_386_945_19_f64.to_bits());
+}
+
+#[test]
+fn validate_keeps_valid_values() {
+    let prefs = Preferences {
+        camera_id: None,
+        camera_rotation: 270,
+        camera_brightness: -100.0,
+        audio_gain: 10.0,
+        shot_refractory_ms: 50,
+        target_face: "issf_10m_air_rifle".into(),
+        show_hold_zone: false,
+        ..Preferences::default()
+    };
+    assert_eq!(validate_preferences(&prefs), prefs);
+}
+
+#[test]
+fn validate_replaces_each_invalid_value_with_its_default() {
+    let prefs = Preferences {
+        camera_id: Some(-1),
+        camera_rotation: 45,
+        camera_contrast: f64::NAN,
+        audio_gain: f64::INFINITY,
+        shot_threshold: 0.0,
+        pre_shot_ms: 10_001,
+        circle_diameter_mm: 4.9,
+        invert_trace_vertical: true,
+        ..Preferences::default()
+    };
+    let expected = Preferences {
+        invert_trace_vertical: true,
+        ..Preferences::default()
+    };
+    assert_eq!(validate_preferences(&prefs), expected);
 }
