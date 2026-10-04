@@ -225,12 +225,17 @@ fn unusable_paths_return_errors() {
     assert!(make_engine(file.join("child.db").to_str().unwrap()).is_err());
 }
 
+// Windows file names cannot contain a colon, so the probe is Unix only.
 /// Removes the probe files even when an assertion fails.
+#[cfg(unix)]
 struct ProbeFiles;
 
+#[cfg(unix)]
 const PROBE_URI: &str = "file:uri_flag_probe.db";
+#[cfg(unix)]
 const PROBE_PLAIN: &str = "uri_flag_probe.db";
 
+#[cfg(unix)]
 impl ProbeFiles {
     fn clean() {
         let _ = std::fs::remove_file(PROBE_URI);
@@ -238,12 +243,14 @@ impl ProbeFiles {
     }
 }
 
+#[cfg(unix)]
 impl Drop for ProbeFiles {
     fn drop(&mut self) {
         Self::clean();
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn file_prefixed_name_is_a_plain_path() {
     // The path itself must start with `file:` for SQLite to URI-parse it, so
