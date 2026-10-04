@@ -26,7 +26,9 @@ impl Controller {
     /// Remembers the preferences to restore on cancel and shows the camera
     /// the dialog has selected.
     pub(crate) fn begin_preview(&mut self, camera_id: Option<i32>) {
-        self.preview = Some(self.prefs.clone());
+        if self.preview.is_none() {
+            self.preview = Some(self.prefs.clone());
+        }
         if camera_id != self.camera.device_index() {
             self.preview_camera(camera_id);
         }
@@ -244,6 +246,47 @@ mod tests {
         );
         assert_eq!(controller.frames().transform().brightness, 50.0);
         assert!(!rig.paths.settings.exists());
+    }
+
+    #[test]
+    fn saving_the_dialog_persists_image_changes_that_were_only_previewed() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        command(&mut controller, Command::BeginPreview { camera_id: None });
+        brightness(&mut controller, 40.0);
+        let previewed = controller.preferences().clone();
+        command(&mut controller, Command::SetPreferences(previewed));
+        command(&mut controller, Command::EndPreview { saved: true });
+        assert_eq!(
+            shottrainer_settings::load_preferences(&rig.paths.settings).camera_brightness,
+            40.0
+        );
+        assert_eq!(controller.preferences().camera_brightness, 40.0);
+    }
+
+    #[test]
+    fn saving_without_changing_anything_writes_nothing() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        command(&mut controller, Command::BeginPreview { camera_id: None });
+        brightness(&mut controller, 40.0);
+        brightness(&mut controller, 0.0);
+        command(
+            &mut controller,
+            Command::SetPreferences(Preferences::default()),
+        );
+        assert!(!rig.paths.settings.exists());
+    }
+
+    #[test]
+    fn a_second_begin_keeps_the_first_restore_point() {
+        let rig = TestRig::new();
+        let mut controller = rig.build();
+        command(&mut controller, Command::BeginPreview { camera_id: None });
+        brightness(&mut controller, 80.0);
+        command(&mut controller, Command::BeginPreview { camera_id: None });
+        command(&mut controller, Command::EndPreview { saved: false });
+        assert_eq!(controller.preferences().camera_brightness, 0.0);
     }
 
     #[test]
