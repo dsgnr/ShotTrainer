@@ -217,16 +217,53 @@ pub struct AudioInput {
     thread: Option<JoinHandle<()>>,
 }
 
+/// A built stream that can be started. Dropping it releases the device.
+trait InputStream {
+    fn play(&self) -> Result<(), String>;
+}
+
+impl InputStream for cpal::Stream {
+    fn play(&self) -> Result<(), String> {
+        StreamTrait::play(self).map_err(|error| error.to_string())
+    }
+}
+
+/// Builds a stream on the stream thread. The callback it installs must drop
+/// buffers until the `live` flag is set.
+type Opener = Box<
+    dyn FnOnce(&SharedState, &Sink, &Arc<AtomicBool>) -> Result<Box<dyn InputStream>, String>
+        + Send,
+>;
+
 impl AudioInput {
     /// Spawns the stream thread and returns at once, because opening can block
-    /// while the operating system asks for microphone permission. Events,
-    /// including `Started` (always first) and `Error`, arrive through `on_event` from the
-    /// stream thread and the audio callback thread.
+    /// while the operating system asks for microphone permission.
+    ///
+    /// Events arrive through `on_event` from the stream thread and the audio
+    /// callback thread. A failed open or play yields one `Error` and nothing
+    /// else. Otherwise `Started` is the first event, `Error` may follow any
+    /// number of times while the stream runs, and `Stopped` is emitted exactly
+    /// once by `stop()` or on drop. If the stream thread cannot be spawned the
+    /// `Error` is delivered on the caller's thread before `start` returns, so
+    /// `on_event` must not wait on state the caller holds.
     pub fn start(
         settings: ShotDetectorSettings,
         device: DeviceSelector,
         clock: ClockFn,
         on_event: Box<dyn Fn(AudioEvent) + Send + Sync + 'static>,
+    ) -> AudioInput {
+        let opener: Opener = Box::new(move |shared, sink, live| {
+            open_stream(&device, shared, clock, sink, live)
+                .map(|stream| Box::new(stream) as Box<dyn InputStream>)
+                .map_err(|error| error.to_string())
+        });
+        Self::start_with(settings, on_event, opener)
+    }
+
+    fn start_with(
+        settings: ShotDetectorSettings,
+        on_event: Box<dyn Fn(AudioEvent) + Send + Sync + 'static>,
+        opener: Opener,
     ) -> AudioInput {
         let shared = Arc::new(Mutex::new(Shared {
             settings,
@@ -234,6 +271,7 @@ impl AudioInput {
         }));
         let on_event: Sink = Arc::from(on_event);
         let started = Arc::new(AtomicBool::new(false));
+        let live = Arc::new(AtomicBool::new(false));
         let (stop_tx, stop_rx) = mpsc::channel();
 
         let thread = {
@@ -243,24 +281,19 @@ impl AudioInput {
                 .spawn(move || {
                     // The stream is created and dropped here because it is not
                     // `Send` on every host.
-                    match open_stream(&device, &shared, clock, &on_event) {
+                    let stream = opener(&shared, &on_event, &live).and_then(|stream| {
+                        stream.play()?;
+                        Ok(stream)
+                    });
+                    match stream {
                         Ok(stream) => {
-                            // Started goes out before play so that no Level
-                            // can reach the consumer ahead of it.
+                            // The callback drops buffers until `live`, so no
+                            // `Level` can precede `Started`.
                             started.store(true, Ordering::SeqCst);
                             on_event(AudioEvent::Started);
-                            match stream.play() {
-                                Ok(()) => {
-                                    // Returns on a stop request or when the handle is dropped.
-                                    let _ = stop_rx.recv();
-                                }
-                                Err(error) => {
-                                    started.store(false, Ordering::SeqCst);
-                                    on_event(AudioEvent::Error(format!(
-                                        "Could not open microphone: {error}"
-                                    )));
-                                }
-                            }
+                            live.store(true, Ordering::SeqCst);
+                            // Returns on a stop request or when the handle is dropped.
+                            let _ = stop_rx.recv();
                             drop(stream);
                         }
                         Err(error) => {
@@ -289,7 +322,9 @@ impl AudioInput {
         }
     }
 
-    /// Takes effect from the next block. The audio callback only holds the
+    /// Takes effect from the next block. A new `block_size` applies from the
+    /// next block that is cut, whereas Python fixes the block size when the
+    /// stream opens. The audio callback only holds the
     /// lock while it pushes one buffer, so this waits at most that long.
     pub fn update_settings(&self, settings: ShotDetectorSettings) {
         let mut shared = lock(&self.shared);
@@ -328,6 +363,7 @@ fn open_stream(
     shared: &SharedState,
     clock: ClockFn,
     on_event: &Sink,
+    live: &Arc<AtomicBool>,
 ) -> Result<cpal::Stream, OpenError> {
     let host = cpal::default_host();
     let device = select_device(&host, selector)?;
@@ -364,9 +400,9 @@ fn open_stream(
         buffer_size: cpal::BufferSize::Default,
     };
     let stream = match choice.sample_format {
-        SampleFormat::F32 => build::<f32>(&device, config, shared, on_event),
-        SampleFormat::I16 => build::<i16>(&device, config, shared, on_event),
-        SampleFormat::U16 => build::<u16>(&device, config, shared, on_event),
+        SampleFormat::F32 => build::<f32>(&device, config, shared, on_event, live),
+        SampleFormat::I16 => build::<i16>(&device, config, shared, on_event, live),
+        SampleFormat::U16 => build::<u16>(&device, config, shared, on_event, live),
     }?;
     Ok(stream)
 }
@@ -376,13 +412,18 @@ fn build<T: InputSample>(
     config: cpal::StreamConfig,
     shared: &SharedState,
     on_event: &Sink,
+    live: &Arc<AtomicBool>,
 ) -> Result<cpal::Stream, cpal::Error> {
     let (data_shared, data_sink) = (shared.clone(), on_event.clone());
     let error_sink = on_event.clone();
+    let (data_live, error_live) = (live.clone(), live.clone());
     let mut scratch: Vec<f32> = Vec::new();
     device.build_input_stream(
         config,
         move |data: &[T], _: &cpal::InputCallbackInfo| {
+            if !data_live.load(Ordering::SeqCst) {
+                return;
+            }
             scratch.clear();
             scratch.extend(data.iter().map(|s| s.to_f32()));
             let events = match lock(&data_shared).pipeline.as_mut() {
@@ -395,7 +436,10 @@ fn build<T: InputSample>(
         },
         move |error: cpal::Error| match error.kind() {
             cpal::ErrorKind::Xrun => log::debug!("audio status: {error}"),
-            _ => error_sink(AudioEvent::Error(format!("Audio stream error: {error}"))),
+            _ if error_live.load(Ordering::SeqCst) => {
+                error_sink(AudioEvent::Error(format!("Audio stream error: {error}")))
+            }
+            _ => log::warn!("audio stream error before start: {error}"),
         },
         None,
     )
@@ -555,6 +599,78 @@ mod tests {
             to_f32(&[0_u16, 32768, u16::MAX]),
             vec![-1.0, 0.0, 32767.0 / 32768.0]
         );
+    }
+
+    fn collect_events(opener: Opener) -> (AudioInput, mpsc::Receiver<AudioEvent>) {
+        let (tx, rx) = mpsc::channel();
+        let tx = std::sync::Mutex::new(tx);
+        let input = AudioInput::start_with(
+            ShotDetectorSettings::default(),
+            Box::new(move |event| {
+                let _ = tx.lock().unwrap().send(event);
+            }),
+            opener,
+        );
+        (input, rx)
+    }
+
+    struct FakeStream {
+        play_result: Result<(), String>,
+    }
+
+    impl InputStream for FakeStream {
+        fn play(&self) -> Result<(), String> {
+            self.play_result.clone()
+        }
+    }
+
+    #[test]
+    fn a_running_stream_emits_started_first_and_stopped_once() {
+        let opener: Opener = Box::new(|_, _, live| {
+            assert!(!live.load(Ordering::SeqCst));
+            Ok(Box::new(FakeStream {
+                play_result: Ok(()),
+            }))
+        });
+        let (mut input, rx) = collect_events(opener);
+        assert_eq!(
+            rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+            AudioEvent::Started
+        );
+        input.stop();
+        input.stop();
+        assert_eq!(rx.try_recv().unwrap(), AudioEvent::Stopped);
+        drop(input);
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn a_failed_play_emits_one_error_and_nothing_else() {
+        let opener: Opener = Box::new(|_, _, _| {
+            Ok(Box::new(FakeStream {
+                play_result: Err("denied".to_owned()),
+            }))
+        });
+        let (mut input, rx) = collect_events(opener);
+        assert_eq!(
+            rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+            AudioEvent::Error("Could not open microphone: denied".to_owned())
+        );
+        input.stop();
+        drop(input);
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn a_failed_build_emits_one_error_and_nothing_else() {
+        let opener: Opener = Box::new(|_, _, _| Err("no device".to_owned()));
+        let (mut input, rx) = collect_events(opener);
+        assert_eq!(
+            rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+            AudioEvent::Error("Could not open microphone: no device".to_owned())
+        );
+        input.stop();
+        assert!(rx.try_recv().is_err());
     }
 
     fn start_expecting_error(device: DeviceSelector) {
