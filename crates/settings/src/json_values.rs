@@ -33,10 +33,10 @@ pub(crate) fn read_i32_choice(value: &Value, choices: &[i32]) -> Option<i32> {
     read_i32(value).filter(|v| choices.contains(v))
 }
 
-/// Rewrites tokens serde_json and Python read differently. Replaces `NaN`, `Infinity`, `-Infinity` and numbers that overflow to
-/// infinity with `[]`, which no preference accepts, so the rest of the
-/// document still parses. Python's `json` reads these tokens and writes them
-/// for non-finite floats.
+/// Rewrites tokens serde_json and Python read differently. Replaces `NaN`,
+/// `Infinity`, `-Infinity` and numbers that overflow to infinity with `[]`,
+/// which no preference accepts, so the rest of the document still parses.
+/// Python's `json` reads these tokens and writes them for non-finite floats.
 pub(crate) fn replace_non_finite(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();
     let mut out = String::with_capacity(text.len());
