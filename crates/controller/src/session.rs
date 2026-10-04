@@ -136,7 +136,9 @@ impl SessionManager {
         }
     }
 
-    /// Flushes and closes the recording. Ignored when not recording.
+    /// Flushes and closes the recording. Ignored when not recording. When the
+    /// save fails the recording stays open and the only event is a warning
+    /// message, with no `Session` event.
     pub fn stop(&mut self, cx: &SessionContext) {
         if !self.recorder.is_recording() {
             return;
