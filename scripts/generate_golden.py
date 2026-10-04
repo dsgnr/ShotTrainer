@@ -565,12 +565,343 @@ def preferences() -> dict:
     return {"defaults": defaults, "cases": cases, "saves": saves, "data_dirs": data_dirs}
 
 
+def stores() -> dict:
+    import logging
+    from dataclasses import asdict
+
+    from shottrainer.app.camera_selection import (
+        CameraSelection,
+        load_camera_selection,
+        resolve_camera_index,
+        save_camera_selection,
+    )
+    from shottrainer.app.detector_store import load_detector_settings, save_detector_settings
+    from shottrainer.app.ui_state import UiState, load_ui_state, save_ui_state
+    from shottrainer.app.zero_offset_store import load_zero_offset, save_zero_offset
+    from shottrainer.tracking.detector import DetectorSettings
+
+    def dumps(value: object) -> str:
+        return json.dumps(value, allow_nan=True)
+
+    class Warned(logging.Handler):
+        """Records whether a loader logged a warning, which marks a rejected file."""
+
+        def __init__(self) -> None:
+            super().__init__(logging.WARNING)
+            self.hit = False
+
+        def emit(self, record: logging.LogRecord) -> None:
+            self.hit = True
+
+    def run(texts: list[tuple[str, str | bytes]], load, logger: str, convert) -> list[dict]:
+        out = []
+        handler = Warned()
+        logging.getLogger(logger).addHandler(handler)
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                target = Path(tmp) / "state.json"
+                for name, text in texts:
+                    if isinstance(text, bytes):
+                        target.write_bytes(text)
+                    else:
+                        target.write_text(text, encoding="utf-8")
+                    handler.hit = False
+                    value = load(target)
+                    case = {"name": name, "expected": convert(value, handler.hit)}
+                    case["hex" if isinstance(text, bytes) else "raw"] = (
+                        text.hex() if isinstance(text, bytes) else text
+                    )
+                    out.append(case)
+        finally:
+            logging.getLogger(logger).removeHandler(handler)
+        return out
+
+    def saved_text(save, value, name: str) -> dict:
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / name
+            save(value, target)
+            return {"text": target.read_text() if target.exists() else None}
+
+    common: list[tuple[str, str | bytes]] = [
+        ("empty object", "{}"),
+        ("null", "null"),
+        ("array", "[]"),
+        ("number", "3"),
+        ("string", '"x"'),
+        ("true", "true"),
+        ("invalid json", "not json"),
+        ("truncated", '{"x_mm": 1.5,'),
+        ("empty file", ""),
+        ("invalid utf-8", b"\xff\xfe"),
+    ]
+
+    # Detector settings. A rejected file loads as None.
+    defaults = asdict(DetectorSettings())
+    detector_texts = [
+        *common,
+        ("detector valid", dumps({**defaults, "min_radius_px": 8, "region_fraction": 0.5})),
+        ("detector unknown keys", '{"min_radius_px": 12, "totally_unknown": 99}'),
+        ("detector truncated", '{"min_radius_px": 12, "max_ra'),
+        ("detector integers for floats", '{"lock_radius_px": 80, "lock_boost": 2}'),
+        ("detector float 17 digits", '{"min_circularity": 0.19862074538694519}'),
+        ("detector int32 max", '{"max_candidates": 2147483647}'),
+        ("detector int past int32", '{"max_candidates": 2147483648}'),
+        ("detector huge float", '{"lock_radius_px": 1e999}'),
+    ]
+    for key, values in {
+        "min_radius_px": [0, 1, -1, 201, 200, "4", 4.0, None, True],
+        "max_radius_px": [3, 4, 5, 0, [], "x"],
+        "blur_kernel": [0, 1, 2, 3, 4, 7, -1, "5", 3.5, True, None],
+        "min_circularity": [0, 1, 1.0, 0.0, 1.01, -0.01, "0.5", True, None, float("nan")],
+        "adaptive_block_size": [2, 3, 4, 31, 3.5, "31", True],
+        "adaptive_offset": [-5, 0, 5, 5.5, "5", None, False],
+        "region_fraction": [0, 0.01, 1, 1.0, 1.01, 2.0, -1, None, float("inf"), "0.7"],
+        "lock_radius_px": [0, 0.5, -1, 1e300, float("-inf"), True, None, "80"],
+        "lock_boost": [0, 0.1, -0.5, 100, True, None],
+        "lock_release_after_misses": [0, 1, -1, 8.0, True, None],
+        "opening_kernel_px": [-1, 0, 1, 2, 3, "3", 3.0],
+        "closing_kernel_px": [-1, 0, 4, None],
+        "max_candidates": [0, 1, -1, True, None, "200"],
+        "lock_search_radius_factor": [0, 0.1, -2, float("nan"), "2.0", True],
+    }.items():
+        for value in values:
+            detector_texts.append((f"detector {key} {value!r}", dumps({key: value})))
+    detector_texts.append(("detector min above max", dumps({"min_radius_px": 201})))
+    detector_texts.append(
+        ("detector min equals max", dumps({"min_radius_px": 9, "max_radius_px": 9}))
+    )
+
+    detector_saves = [
+        DetectorSettings(),
+        DetectorSettings(min_radius_px=8, max_radius_px=300, blur_kernel=7, region_fraction=0.5),
+        DetectorSettings(min_circularity=0.1 + 0.2, lock_radius_px=1e16, lock_boost=1e-5),
+    ]
+
+    # Zero offset. A rejected file loads as (0, 0), told apart by the warning.
+    zero_texts = [
+        *common,
+        ("zero valid", dumps({"x_mm": 1.5, "y_mm": -2.25})),
+        ("zero unknown keys", '{"x_mm": 1, "y_mm": 2, "z": 3}'),
+        ("zero integers", '{"x_mm": 3, "y_mm": -4}'),
+        ("zero explicit zeros", '{"x_mm": 0, "y_mm": 0}'),
+        ("zero negative zero float", '{"x_mm": -0.0, "y_mm": 0.0}'),
+        ("zero negative zero int", '{"x_mm": -0, "y_mm": 1}'),
+        ("zero missing y", '{"x_mm": 1}'),
+        ("zero missing x", '{"y_mm": 1}'),
+        ("zero 17 digit float", '{"x_mm": 0.19862074538694519, "y_mm": 1}'),
+        ("zero largest finite", dumps({"x_mm": 1.7976931348623157e308, "y_mm": 1})),
+        ("zero numeric strings", '{"x_mm": "2.5", "y_mm": " -1_0.5e1 "}'),
+        ("zero bad strings", '{"x_mm": "abc", "y_mm": 1}'),
+        ("zero empty string", '{"x_mm": "", "y_mm": 1}'),
+        ("zero underscore at end", '{"x_mm": "1_", "y_mm": 1}'),
+        ("zero double underscore", '{"x_mm": "1__0", "y_mm": 1}'),
+        ("zero dot only", '{"x_mm": ".", "y_mm": 1}'),
+        ("zero leading dot", '{"x_mm": ".5", "y_mm": 1}'),
+        ("zero trailing dot", '{"x_mm": "5.", "y_mm": 1}'),
+        ("zero overflow string", '{"x_mm": "1e999", "y_mm": 1}'),
+        ("zero nan string", '{"x_mm": "nan", "y_mm": 1}'),
+        ("zero inf string", '{"x_mm": "-inf", "y_mm": 1}'),
+        ("zero not json number", '{"x_mm": 1.5.5, "y_mm": 1}'),
+    ]
+    for axis in ("x_mm", "y_mm"):
+        other = "y_mm" if axis == "x_mm" else "x_mm"
+        for label, value in [
+            ("nan", float("nan")),
+            ("infinity", float("inf")),
+            ("negative infinity", float("-inf")),
+        ]:
+            zero_texts.append((f"zero {axis} {label}", dumps({axis: value, other: 2.5})))
+        for label, literal in [
+            ("exponent", "1e999"),
+            ("negative exponent", "-1e999"),
+            ("huge int", "9" * 400),
+            ("bool", "true"),
+            ("null", "null"),
+            ("list", "[]"),
+            ("object", "{}"),
+        ]:
+            zero_texts.append((f"zero {axis} {label}", f'{{"{axis}": {literal}, "{other}": 2.5}}'))
+
+    zero_saves = [
+        (1.5, -2.25),
+        (1e-5, 1e16),
+        (-0.0, 0.5),
+        (0.1 + 0.2, -3.0),
+        (0.0, 0.0),
+        (-0.0, 0.0),
+    ]
+
+    # Camera selection. The Python loader raises on a document that is not an
+    # object, so those cases are left to the Rust fallback tests.
+    camera_texts = [
+        ("camera empty object", "{}"),
+        ("camera truncated", '{"name": "USB'),
+        ("camera empty file", ""),
+        ("camera invalid json", "not json"),
+        ("camera valid", '{"name": "USB Cam", "index": 2}'),
+        ("camera unicode", '{"name": "Cam \\u00e9 \\ud83c\\udfa4", "index": 1}'),
+        ("camera unknown keys", '{"name": "A", "index": 3, "extra": [1]}'),
+        ("camera index null", '{"name": "A", "index": null}'),
+        ("camera missing index", '{"name": "A"}'),
+        ("camera missing name", '{"index": 4}'),
+        ("camera negative index", '{"name": "A", "index": -1}'),
+        ("camera index true", '{"name": "A", "index": true}'),
+        ("camera index false", '{"name": "A", "index": false}'),
+        ("camera index float", '{"name": "A", "index": 1.0}'),
+        ("camera index string", '{"name": "A", "index": "1"}'),
+        ("camera index list", '{"name": "A", "index": [1]}'),
+        ("camera index big", '{"name": "A", "index": 9007199254740993}'),
+        ("camera name null", '{"name": null, "index": 1}'),
+        ("camera name int", '{"name": 5, "index": 1}'),
+        ("camera name float", '{"name": 2.50, "index": 1}'),
+        ("camera name true", '{"name": true, "index": 1}'),
+        ("camera name false", '{"name": false}'),
+        ("camera name list", '{"name": [1, "a", null, true, 1.5, {"k": []}]}'),
+        ("camera name object", '{"name": {"it\'s": "x", "b": "say \\"hi\\"", "c": "both \' \\""}}'),
+        ("camera name escapes", '{"name": ["tab\\t nl\\n back\\\\ \\u0001 \\u007f \\u00e9"]}'),
+    ]
+    camera_saves = [
+        CameraSelection(),
+        CameraSelection(name="USB Cam", index=2),
+        CameraSelection(name="", index=None),
+        CameraSelection(name='quote " back \\ tab \t \u00e9 \U0001f3a4 \x7f', index=-3),
+    ]
+    available_sets = [
+        [],
+        [(0, "Built-in"), (3, "USB Cam")],
+        [(0, "Built-in"), (2, "USB Cam")],
+        [(1, "Built-in")],
+        [(5, "Same"), (6, "Same")],
+    ]
+    selections = [
+        CameraSelection(name="USB Cam", index=99),
+        CameraSelection(name="Unknown", index=2),
+        CameraSelection(name="Unknown", index=99),
+        CameraSelection(name="Anything", index=5),
+        CameraSelection(name="", index=None),
+        CameraSelection(name="Same", index=6),
+        CameraSelection(),
+    ]
+    resolves = [
+        {
+            "name": sel.name,
+            "index": sel.index,
+            "available": [list(a) for a in avail],
+            "result": resolve_camera_index(sel, avail),
+        }
+        for sel in selections
+        for avail in available_sets
+    ]
+
+    # Window state.
+    ui_texts = [
+        *common,
+        ("ui valid", '{"window_geometry_b64": "QmFzZTY0", "main_splitter_sizes": [200, 400]}'),
+        ("ui unknown keys", '{"window_geometry_b64": "x", "main_splitter_sizes": [1], "k": 1}'),
+        ("ui missing geometry", '{"main_splitter_sizes": [5]}'),
+        ("ui missing sizes", '{"window_geometry_b64": "abc"}'),
+        ("ui geometry not base64", '{"window_geometry_b64": "not base64 ###"}'),
+        ("ui geometry number", '{"window_geometry_b64": 5, "main_splitter_sizes": [1]}'),
+        ("ui geometry null", '{"window_geometry_b64": null}'),
+        ("ui sizes not list", '{"window_geometry_b64": "a", "main_splitter_sizes": "1,2"}'),
+        ("ui sizes object", '{"main_splitter_sizes": {"a": 1}}'),
+        (
+            "ui mixed sizes",
+            dumps(
+                {
+                    "window_geometry_b64": "QmFzZTY0",
+                    "main_splitter_sizes": [
+                        200,
+                        "400",
+                        "--1",
+                        "\u00b2",
+                        -1,
+                        True,
+                        None,
+                        2.5,
+                        2**40,
+                        0,
+                    ],
+                }
+            ),
+        ),
+        (
+            "ui string sizes",
+            '{"main_splitter_sizes": [" 7 ", "+8", "1_000", "1__0", "_1", "1_", "", " ", "0x10", "1e2", "-0", "-1", "2147483647", "2147483648", "9'
+            + "9" * 40
+            + '", "\\u00a05\\u00a0", "\\n6\\n"]}',
+        ),
+        (
+            "ui int bounds",
+            '{"main_splitter_sizes": [2147483647, 2147483648, -2147483648, 0, -0, 1e2, 1.0, 100000000000000000000]}',
+        ),
+        ("ui nan sizes", '{"main_splitter_sizes": [NaN, 1, Infinity, -Infinity, 1e999, 2]}'),
+        ("ui nested sizes", '{"main_splitter_sizes": [[1], {"a": 1}, false, 3]}'),
+        ("ui empty strings", '{"window_geometry_b64": "", "main_splitter_sizes": []}'),
+        ("ui unicode geometry", r'{"window_geometry_b64": "\u00e9 \ud83c\udfa4"}'),
+    ]
+    ui_saves = [
+        UiState(),
+        UiState(window_geometry_b64="QmFzZTY0", main_splitter_sizes=[200, 400]),
+        UiState(
+            window_geometry_b64='q " \\ \n \u00e9 \U0001f3a4 \x7f',
+            main_splitter_sizes=[0, 2147483647],
+        ),
+    ]
+
+    def convert_detector(value, _warned):
+        return None if value is None else asdict(value)
+
+    def convert_zero(value, warned):
+        return None if warned else list(value)
+
+    return {
+        "detector_defaults": defaults,
+        "detector": run(
+            detector_texts,
+            load_detector_settings,
+            "shottrainer.app.detector_store",
+            convert_detector,
+        ),
+        "detector_saves": [
+            {"value": asdict(v), **saved_text(save_detector_settings, v, "d.json")}
+            for v in detector_saves
+        ],
+        "zero": run(
+            zero_texts, load_zero_offset, "shottrainer.app.zero_offset_store", convert_zero
+        ),
+        "zero_saves": [
+            {
+                "value": [encode_number(a), encode_number(b)],
+                **saved_text(save_zero_offset, (a, b), "z.json"),
+            }
+            for a, b in zero_saves
+        ],
+        "camera": run(
+            camera_texts,
+            load_camera_selection,
+            "shottrainer.app.camera_selection",
+            lambda v, _w: asdict(v),
+        ),
+        "camera_saves": [
+            {"value": asdict(v), **saved_text(save_camera_selection, v, "c.json")}
+            for v in camera_saves
+        ],
+        "resolve": resolves,
+        "ui": run(ui_texts, load_ui_state, "shottrainer.app.ui_state", lambda v, _w: asdict(v)),
+        "ui_saves": [
+            {"value": asdict(v), **saved_text(save_ui_state, v, "u.json")} for v in ui_saves
+        ],
+    }
+
+
 AREAS = {
     "preferences": preferences,
     "scoring": scoring,
     "shot_stats": shot_stats,
     "trace": trace,
     "export_csv": export_csv,
+    "stores": stores,
 }
 
 if __name__ == "__main__":
@@ -591,7 +922,7 @@ if __name__ == "__main__":
             )
             + "\n}\n"
         )
-    elif name == "preferences":
+    elif name in ("preferences", "stores"):
 
         def compact(v: object) -> str:
             return json.dumps(v, separators=(",", ":"))
@@ -600,7 +931,7 @@ if __name__ == "__main__":
             "{\n"
             + ",\n".join(
                 f"{json.dumps(k)}:{compact(v)}"
-                if k == "defaults"
+                if not isinstance(v, list)
                 else f"{json.dumps(k)}:[\n" + ",\n".join(compact(i) for i in v) + "\n]"
                 for k, v in data.items()
             )
