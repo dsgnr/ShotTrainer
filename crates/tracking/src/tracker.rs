@@ -43,9 +43,26 @@ fn check_diameter(diameter_mm: f64) -> Result<f64, TrackerError> {
 
 impl<D: TargetDetector> Tracker<D> {
     pub fn new(circle_diameter_mm: f64, detector: D) -> Result<Self, TrackerError> {
-        Ok(Tracker {
+        Ok(Self::with_diameter(
+            check_diameter(circle_diameter_mm)?,
             detector,
-            diameter_mm: check_diameter(circle_diameter_mm)?,
+        ))
+    }
+
+    /// Falls back to `fallback_mm` when `circle_diameter_mm` is not a
+    /// positive finite number, so a caller that must keep its detector has
+    /// no error to handle. `fallback_mm` must itself be valid.
+    pub fn new_or(circle_diameter_mm: f64, fallback_mm: f64, detector: D) -> Self {
+        let diameter = check_diameter(circle_diameter_mm)
+            .or_else(|_| check_diameter(fallback_mm))
+            .unwrap_or(60.0);
+        Self::with_diameter(diameter, detector)
+    }
+
+    fn with_diameter(diameter_mm: f64, detector: D) -> Self {
+        Tracker {
+            detector,
+            diameter_mm,
             frame_id: 0,
             last_sample: None,
             last_detection: None,
@@ -57,7 +74,7 @@ impl<D: TargetDetector> Tracker<D> {
             last_angle_rad: 0.0,
             zero_offset_mm: (0.0, 0.0),
             trace_signs: (-1.0, -1.0),
-        })
+        }
     }
 
     pub fn detector(&self) -> &D {

@@ -127,15 +127,11 @@ impl FramePipeline {
     /// A diameter the tracker refuses falls back to 60 mm. Validated
     /// preferences never hold one.
     pub fn new(prefs: &Preferences, detector: Box<dyn TargetDetector>) -> Self {
-        let diameter = if prefs.circle_diameter_mm > 0.0 && prefs.circle_diameter_mm.is_finite() {
-            prefs.circle_diameter_mm
-        } else {
-            DEFAULT_CIRCLE_DIAMETER_MM
-        };
-        let tracker = match Tracker::new(diameter, FiniteDetections::new(detector)) {
-            Ok(tracker) => tracker,
-            Err(_) => unreachable!("the diameter was checked above"),
-        };
+        let tracker = Tracker::new_or(
+            prefs.circle_diameter_mm,
+            DEFAULT_CIRCLE_DIAMETER_MM,
+            FiniteDetections::new(detector),
+        );
         FramePipeline {
             tracker,
             transform: FrameTransform::default(),
