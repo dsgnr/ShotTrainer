@@ -65,6 +65,19 @@ cargo test --workspace
 Run `cargo fmt --all` to apply formatting. The [rust workflow](.github/workflows/rust.yml)
 runs the same three commands on Linux, macOS and Windows, so avoid tests that
 depend on POSIX paths, file permissions or the platform clock resolution.
+
+The `tracking` crate has an optional `opencv` feature that the commands above
+do not build. It needs OpenCV 4 or 5 and libclang. On macOS run
+`brew install opencv pkgconf`. On Debian and Ubuntu run
+`sudo apt-get install libopencv-dev clang libclang-dev pkg-config`. Then:
+
+```bash
+cargo clippy -p shottrainer-tracking --features opencv --all-targets -- -D warnings
+cargo test -p shottrainer-tracking --features opencv
+```
+
+The CI job for these is best effort and is not required to pass.
+
 Golden fixtures are regenerated from the Python code with
 `uv run python scripts/generate_golden.py <name>`. The crate layout, fixtures
 and compatibility checks are described in the

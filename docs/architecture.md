@@ -179,15 +179,15 @@ This is where the Qt application and the core services are connected together.
 ## Rust workspace
 
 A Cargo workspace under `crates/` holds Rust implementations of the storage,
-scoring, statistics, services and settings code. Camera capture, target
-detection, the tracker, the controller and the interface are not part of the
-workspace yet and remain in Python. The Python code under `src/shottrainer/`
+scoring, statistics, services, settings, audio and tracking code. The
+controller and the interface are not part of the workspace yet and remain in
+Python. The Python code under `src/shottrainer/`
 is the reference for behaviour. The Rust crates read and write the same
 `sessions.db`, JSON files and CSV exports.
 
 | Crate      | Contents                                                                                                                                         |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `tracking` | Shared tracking value types such as `TrackingSample`                                                                                             |
+| `tracking` | Frames and frame transforms, detector settings and the circle detector, the auto-optimise search, the tracker and camera capture                 |
 | `audio`    | Shot detector, block pipeline and microphone input                                                                                               |
 | `core`     | Sessions database, migrations and repository, scoring, statistics, trace buffer, shot and replay coordinators, session recorder and CSV exporter |
 | `settings` | Data paths, preferences, detector, zero offset, camera and window state stores and the target face catalogue                                     |
@@ -256,14 +256,65 @@ It needs a device and microphone permission, so it is run by hand and not by
 cargo run -p shottrainer-audio --example audio_input -- default 10
 ```
 
+### Tracking crate
+
+The `tracking` crate has five layers. Only the last one needs a camera.
+
+- `Frame` holds a BGR or grey 8-bit image. The transforms in `frame_ops` port
+  the Python helpers. Greyscale conversion uses OpenCV's generic fixed-point
+  formula on every platform. opencv-python on Apple silicon uses KleidiCV's
+  15-bit coefficients, which can differ from it by one level.
+- `TargetDetector` is the trait for finding the target circle in a frame.
+  `DetectorSettings` and the arithmetic shared by detector implementations live
+  in `detector`.
+- `Tracker` turns detections into `TrackingSample` values. It applies the
+  pixel to millimetre conversion and the zero offset, and rejects non-finite
+  diameters.
+- The auto-optimise search in `tuning` scores candidate settings through the
+  `HoughScorer` trait. An empty grid falls back to the base settings.
+- `CameraCapture` reads frames from a `FrameSource` on its own thread and
+  delivers `CameraEvent` values through one callback. `Opened` comes first and
+  frames are numbered from 1. An `Error` may follow, and `Closed` is emitted
+  exactly once. Nothing is delivered after a stop request. If the capture
+  thread does not finish within the stop timeout of 5 seconds it is detached
+  rather than terminated. The caller supplies a `ClockFn` returning seconds on
+  the shared monotonic timeline, the same one the audio pipeline uses.
+
+The `opencv` cargo feature is off by default, so `cargo test --workspace` and
+default builds never compile OpenCV. It adds `cv::CircleTargetDetector`,
+`cv::tuning::OpenCvHoughScorer`, `CameraCapture::start` and
+`cv::camera::probe_cameras`. It needs OpenCV 4 or 5 and libclang. OpenCV 5
+moved the contour geometry functions into a separate `geometry` module, so
+`build.rs` reads the major version from the OpenCV headers and sets
+`cfg(opencv_5)`. The `SHOTTRAINER_OPENCV_MAJOR` environment variable overrides
+the detection. A CI job builds and tests the feature on Ubuntu and macOS, but
+it is allowed to fail because the distribution versions are not pinned. The
+Ubuntu OpenCV 4.6 build has not been checked against the fixtures.
+
+macOS asks for camera permission only when the request comes from the main
+thread, so the crate does not request it and the app has to make the request
+at start-up. A plain terminal process cannot open a camera
+through the `camera_capture` example unless the terminal itself has been
+granted access.
+
+The `camera_capture` example opens a camera, runs the circle detector on each
+frame and prints a line about once a second. It needs a camera, so it is run
+by hand and not by `cargo test`.
+
+```bash
+cargo run -p shottrainer-tracking --features opencv --example camera_capture -- 0 5
+```
+
 ### Golden fixtures
 
 Behaviour that has to match Python is fixed by JSON fixtures in
 `testdata/golden/`. Each fixture is generated from the Python implementation by
 `scripts/generate_golden.py`, and the Rust tests load it through `testkit`.
 The available names are `preferences`, `scoring`, `shot_stats`, `trace`,
-`export_csv`, `stores`, `target_faces`, `shot_detector` and `audio_pipeline`.
-To regenerate one and check the Rust side against it:
+`export_csv`, `stores`, `target_faces`, `shot_detector`, `audio_pipeline`,
+`frame_ops`, `tracker`, `detector_tuning` and `detector`. The `detector`
+generator also writes the PNG frames in `testdata/frames/detector/`, and those
+tests only run with the `opencv` feature. To regenerate one and check the Rust side against it:
 
 ```bash
 uv run python scripts/generate_golden.py scoring
