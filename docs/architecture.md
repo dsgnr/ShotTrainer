@@ -275,7 +275,9 @@ The `tracking` crate has five layers. Only the last one needs a camera.
 - `CameraCapture` reads frames from a `FrameSource` on its own thread and
   delivers `CameraEvent` values through one callback. `Opened` comes first and
   frames are numbered from 1. An `Error` may follow, and `Closed` is emitted
-  exactly once. Nothing is delivered after a stop request. If the capture
+  exactly once unless an event callback panics. No frame is delivered after a
+  stop request, but `Closed` still is. A device that finishes opening after
+  the stop request is released without an `Opened` event. If the capture
   thread does not finish within the stop timeout of 5 seconds it is detached
   rather than terminated. The caller supplies a `ClockFn` returning seconds on
   the shared monotonic timeline, the same one the audio pipeline uses.
@@ -293,9 +295,8 @@ Ubuntu OpenCV 4.6 build has not been checked against the fixtures.
 
 macOS asks for camera permission only when the request comes from the main
 thread, so the crate does not request it and the app has to make the request
-at start-up. A plain terminal process cannot open a camera
-through the `camera_capture` example unless the terminal itself has been
-granted access.
+at start-up. A plain terminal process cannot open a camera through the
+`camera_capture` example unless the terminal itself has been granted access.
 
 The `camera_capture` example opens a camera, runs the circle detector on each
 frame and prints a line about once a second. It needs a camera, so it is run
@@ -314,7 +315,8 @@ The available names are `preferences`, `scoring`, `shot_stats`, `trace`,
 `export_csv`, `stores`, `target_faces`, `shot_detector`, `audio_pipeline`,
 `frame_ops`, `tracker`, `detector_tuning` and `detector`. The `detector`
 generator also writes the PNG frames in `testdata/frames/detector/`, and those
-tests only run with the `opencv` feature. To regenerate one and check the Rust side against it:
+tests only run with the `opencv` feature. To regenerate one and check the Rust
+side against it:
 
 ```bash
 uv run python scripts/generate_golden.py scoring
@@ -322,8 +324,9 @@ cargo test --workspace
 ```
 
 Keep fixtures compact, with one case per line, and choose boundary cases over
-exhaustive combinations. The largest fixture, `trace.json`, is about 215 KB. Floating-point comparisons use a tolerance of `1e-9`,
-so a case whose result can be zero also asserts the sign explicitly.
+exhaustive combinations. The largest fixture, `trace.json`, is about 215 KB.
+Floating-point comparisons use a tolerance of `1e-9`, so a case whose result
+can be zero also asserts the sign explicitly.
 
 ### Compatibility checks
 
