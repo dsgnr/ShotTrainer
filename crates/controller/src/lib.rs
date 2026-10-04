@@ -3,5 +3,6 @@
 
 pub mod convert;
 pub mod paths;
+pub mod player;
 
 pub use paths::DataPaths;
