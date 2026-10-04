@@ -180,9 +180,8 @@ make lint       # ruff check
 make run        # launch the app from source
 ```
 
-The Rust workspace is checked with `cargo fmt --all --check`,
-`cargo clippy --workspace --all-targets -- -D warnings` and
-`cargo test --workspace`.
+The Rust workspace checks are listed in the
+[Rust workspace section of `CONTRIBUTING.md`](CONTRIBUTING.md#rust-workspace).
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full contributor workflow, the
 conventional commit rules, the pre-commit hook setup and the documentation
