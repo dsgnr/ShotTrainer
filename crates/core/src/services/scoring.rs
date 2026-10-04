@@ -109,7 +109,7 @@ where
     scores
         .into_iter()
         .filter_map(|s| label_to_value(s.as_ref()))
-        .sum()
+        .fold(0.0, |acc, v| acc + v)
 }
 
 #[cfg(test)]
@@ -188,11 +188,21 @@ mod tests {
                 .iter()
                 .map(|l| l.as_str().unwrap())
                 .collect();
-            assert_close(
-                total_score(labels),
-                case["total"].as_f64().unwrap(),
-                "total",
-            );
+            let got = total_score(labels);
+            match &case["total"] {
+                serde_json::Value::String(s) if s == "nan" => assert!(got.is_nan(), "{case}"),
+                serde_json::Value::String(s) if s == "inf" => {
+                    assert_eq!(got, f64::INFINITY, "{case}")
+                }
+                serde_json::Value::String(s) if s == "-inf" => {
+                    assert_eq!(got, f64::NEG_INFINITY, "{case}")
+                }
+                v => {
+                    let expected = v.as_f64().unwrap();
+                    assert_close(got, expected, "total");
+                    assert_eq!(got.to_bits(), expected.to_bits(), "sign of {case}");
+                }
+            }
         }
     }
 }

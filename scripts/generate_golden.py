@@ -27,6 +27,7 @@ def scoring() -> dict:
         "standard": [(r.radius_mm, r.label) for r in rings],
         "empty": [],
         "single": [(10.0, "X")],
+        "unsorted": [(20.0, "8"), (5.0, "10"), (10.0, "9")],
     }
     positions = [
         (0.0, 0.0),
@@ -90,8 +91,18 @@ def scoring() -> dict:
         "score_shot": cases,
         "label_to_value": [{"label": s, "value": encode_number(label_to_value(s))} for s in labels],
         "total_score": [
-            {"labels": ls, "total": total_score(ls)}
-            for ls in ([], ["10", "X", "9"], ["10", "abc", ""], ["x", "x"], ["8.5", "7.5"])
+            {"labels": ls, "total": encode_number(total_score(ls))}
+            for ls in (
+                [],
+                ["10", "X", "9"],
+                ["10", "abc", ""],
+                ["x", "x"],
+                ["8.5", "7.5"],
+                ["inf"],
+                ["inf", "-inf"],
+                ["nan", "5"],
+                ["-0"],
+            )
         ],
     }
 
