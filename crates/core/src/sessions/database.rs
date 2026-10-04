@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use rusqlite::{Connection, OptionalExtension};
+use rusqlite::{Connection, OpenFlags, OptionalExtension};
 
 use super::models::SCHEMA_VERSION;
 
@@ -98,7 +98,13 @@ pub fn make_engine(db_path: &str) -> Result<Db, DatabaseError> {
                 ))
             })?;
         }
-        Connection::open(db_path)?
+        // No URI flag, so a name starting with `file:` is a plain path.
+        Connection::open_with_flags(
+            db_path,
+            OpenFlags::SQLITE_OPEN_READ_WRITE
+                | OpenFlags::SQLITE_OPEN_CREATE
+                | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?
     };
     // SQLite leaves foreign keys off by default, which stops the
     // ON DELETE CASCADE declarations from firing.

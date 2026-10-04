@@ -1,6 +1,6 @@
 //! Session and shot records, plus the datetime text format used on disk.
 
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, SubsecRound};
 
 pub const SCHEMA_VERSION: i64 = 3;
 
@@ -15,7 +15,14 @@ pub const DATETIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.6f";
 
 /// Naive UTC time, matching the tz-naive `DateTime` columns.
 pub fn utc_now() -> NaiveDateTime {
-    chrono::Utc::now().naive_utc()
+    truncate_to_micros(chrono::Utc::now().naive_utc())
+}
+
+/// Drops sub-microsecond precision, which the stored text cannot hold.
+/// Every datetime written to the database goes through this first so it
+/// reads back equal.
+pub fn truncate_to_micros(dt: NaiveDateTime) -> NaiveDateTime {
+    dt.trunc_subsecs(6)
 }
 
 pub fn format_datetime(dt: &NaiveDateTime) -> String {
@@ -35,6 +42,11 @@ pub fn parse_datetime(text: &str) -> Option<NaiveDateTime> {
     FORMATS
         .iter()
         .find_map(|format| NaiveDateTime::parse_from_str(text, format).ok())
+        .or_else(|| {
+            chrono::NaiveDate::parse_from_str(text, "%Y-%m-%d")
+                .ok()
+                .and_then(|date| date.and_hms_opt(0, 0, 0))
+        })
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -102,6 +114,32 @@ mod tests {
         assert_eq!(parse_datetime(""), None);
         assert_eq!(parse_datetime("yesterday"), None);
         assert_eq!(parse_datetime("2026-13-02 03:04:05"), None);
+    }
+
+    #[test]
+    fn parse_accepts_date_only_as_midnight() {
+        assert_eq!(
+            parse_datetime("2026-01-02"),
+            NaiveDate::from_ymd_opt(2026, 1, 2)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+        );
+    }
+
+    #[test]
+    fn truncation_drops_sub_microsecond_digits() {
+        let nanos = NaiveDate::from_ymd_opt(2026, 1, 2)
+            .unwrap()
+            .and_hms_nano_opt(3, 4, 5, 123_456_789)
+            .unwrap();
+        assert_eq!(
+            format_datetime(&truncate_to_micros(nanos)),
+            "2026-01-02 03:04:05.123456"
+        );
+        assert_eq!(
+            parse_datetime(&format_datetime(&truncate_to_micros(nanos))),
+            Some(truncate_to_micros(nanos))
+        );
     }
 
     #[test]

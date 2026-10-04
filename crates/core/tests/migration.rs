@@ -224,3 +224,37 @@ fn unusable_paths_return_errors() {
     std::fs::write(&file, b"x").unwrap();
     assert!(make_engine(file.join("child.db").to_str().unwrap()).is_err());
 }
+
+#[test]
+fn file_prefixed_name_is_a_plain_path() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("file:plain.db");
+    let conn = make_engine(path.to_str().unwrap()).unwrap();
+    assert_eq!(version(&conn), 3);
+    assert!(path.is_file());
+}
+
+#[test]
+fn missing_tables_are_created_with_their_indexes() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("partial.db");
+    Connection::open(&path)
+        .unwrap()
+        .execute_batch(
+            "CREATE TABLE schema_meta (id INTEGER NOT NULL, version INTEGER NOT NULL,
+                 app_version VARCHAR(32) NOT NULL, PRIMARY KEY (id));
+             INSERT INTO schema_meta VALUES (1, 1, '0.0.0');
+             CREATE TABLE sessions (id INTEGER NOT NULL,
+                 name VARCHAR(120) NOT NULL DEFAULT '', started_at DATETIME NOT NULL,
+                 ended_at DATETIME, notes TEXT NOT NULL DEFAULT '', calibration_json TEXT,
+                 target_profile VARCHAR(64) NOT NULL DEFAULT 'default',
+                 app_version VARCHAR(32) NOT NULL DEFAULT '',
+                 schema_version INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (id));",
+        )
+        .unwrap();
+    let conn = make_engine(path.to_str().unwrap()).unwrap();
+    assert_eq!(version(&conn), 3);
+    assert_eq!(indexes(&conn, "trace_samples"), ["ix_trace_session_ts"]);
+    assert_eq!(indexes(&conn, "shots"), ["ix_shots_session_id"]);
+    assert!(column_names(&conn, "sessions").contains(&"category".to_string()));
+}
