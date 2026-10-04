@@ -97,7 +97,9 @@ impl AudioPipeline {
             );
         }
 
-        // A zero block size would never drain, so it is treated as one frame.
+        // Deviates from Python, where blocksize=0 lets the driver choose the
+        // block size. Here the pipeline cuts the blocks itself and a zero size
+        // would never drain, so it is treated as one frame.
         let block_size = self.settings.block_size.max(1);
         let total = self.pending.len();
         let rate = f64::from(self.sample_rate);
