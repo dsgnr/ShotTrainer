@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { CommandSender } from "../lib/app/commands";
+  import { focusTrap } from "../lib/app/focus-trap";
   import { filterSessions, scoreBadge, sessionMeta } from "../lib/sessions/rows";
   import { SESSION_CATEGORIES, categoryLabel } from "../lib/wire/categories";
   import type { WireSessionSummary } from "../lib/wire/types";
@@ -90,6 +91,7 @@
       aria-modal="true"
       aria-label="Sessions"
       tabindex="-1"
+      use:focusTrap
       onclick={(event) => event.stopPropagation()}
     >
       <h2>Sessions</h2>

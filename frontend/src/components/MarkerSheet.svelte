@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { focusTrap } from "../lib/app/focus-trap";
   import { shotRows } from "../lib/shots/rows";
   import type { WireSessionState, WireShot } from "../lib/wire/types";
 
@@ -39,6 +40,7 @@
       aria-modal="true"
       aria-label="Marker sheet"
       tabindex="-1"
+      use:focusTrap
       onclick={(event) => event.stopPropagation()}
     >
       <header>

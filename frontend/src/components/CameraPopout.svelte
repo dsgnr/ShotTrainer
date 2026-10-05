@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { focusTrap } from "../lib/app/focus-trap";
   import type { FrameSink } from "../lib/frames/sink";
   import type { CameraState } from "../lib/stores/camera";
   import CameraView from "./CameraView.svelte";
@@ -30,6 +31,7 @@
       aria-modal="true"
       aria-label="Camera"
       tabindex="-1"
+      use:focusTrap
       onclick={(event) => event.stopPropagation()}
     >
       <CameraView {camera} {frames} {regionFraction} {manualZero} />
