@@ -206,7 +206,7 @@ crates/
     controller/  application controller without an interface framework
     testkit/     helpers for tests that use the golden fixtures
 src-tauri/       Tauri application shell
-frontend/        placeholder page for the shell
+frontend/        Svelte and TypeScript front end for the shell
 testdata/        golden fixtures and legacy database dumps for the Rust tests
 scripts/         fixture generators and compatibility checks
 docs/            engineering notes, accuracy notes, troubleshooting
@@ -216,7 +216,8 @@ tests/           pytest suite
 
 The Rust crates cover storage, scoring, statistics, services, settings,
 capture, detection and the controller. The Tauri shell in `src-tauri/` runs them
-behind a placeholder page until the web front end is written.
+behind the web front end in `frontend/`, which does not yet offer every view of
+the Python application.
 
 See [`docs/architecture.md`](docs/architecture.md) for a longer description.
 

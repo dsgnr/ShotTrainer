@@ -69,10 +69,23 @@ depend on POSIX paths, file permissions or the platform clock resolution.
 On Debian and Ubuntu the `src-tauri` application crate also needs
 `sudo apt-get install libwebkit2gtk-4.1-dev libxdo-dev libssl-dev librsvg2-dev`.
 
-Run the application with `cargo run -p shottrainer-app -- --fake-devices`, or
-set `SHOTTRAINER_FAKE_DEVICES=1`, to use a synthetic camera and microphone that
+The web front end in `frontend/` needs Node 26 and npm 11. Install its packages
+once with `npm ci --prefix frontend`. The [frontend workflow](.github/workflows/frontend.yml)
+runs its checks:
+
+```bash
+npm --prefix frontend run check
+npm --prefix frontend test
+npm --prefix frontend run build
+```
+
+`cargo build` and `cargo test` do not need Node, because the application then
+loads the page from the Vite server at `http://localhost:5173`. Start Vite with
+`npm --prefix frontend run dev`, then run the application in a second terminal
+with `cargo run -p shottrainer-app -- --fake-devices`, or set
+`SHOTTRAINER_FAKE_DEVICES=1`, to use a synthetic camera and microphone that
 keep their data in the system temporary directory. A build without the `opencv`
-feature always uses them.
+feature always uses them. `cargo tauri dev` starts Vite itself.
 
 The `tracking` crate has an optional `opencv` feature that the commands above
 do not build. It needs OpenCV 4 or 5 and libclang. On macOS run

@@ -1,21 +1,12 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ShotTrainer</title>
-    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <main>
-      <h1>ShotTrainer</h1>
-      <p id="status" role="status">Starting</p>
-      <button id="restart" type="button" hidden>Restart controller</button>
-      <canvas id="camera" width="640" height="480" aria-label="Camera view"></canvas>
-      <p id="frame"></p>
-      <h2>Recent events</h2>
-      <pre id="events" tabindex="0"></pre>
-    </main>
-    <script src="main.js"></script>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
