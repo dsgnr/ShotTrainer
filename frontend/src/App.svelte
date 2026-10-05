@@ -4,6 +4,7 @@
   import CameraView from "./components/CameraView.svelte";
   import LiveRegion from "./components/LiveRegion.svelte";
   import HeroStats from "./components/HeroStats.svelte";
+  import ReplayControls from "./components/ReplayControls.svelte";
   import SessionControls from "./components/SessionControls.svelte";
   import ShotList from "./components/ShotList.svelte";
   import StatusLine from "./components/StatusLine.svelte";
@@ -51,6 +52,34 @@
       })),
     );
     targetModel.setSelectedShot(app.shots.selected);
+  });
+
+  // Reflect a loaded replay in the target: the saved trace, its phase
+  // boundaries, the playhead and the hold zone. Clearing it returns the
+  // model to the live view.
+  $effect(() => {
+    const loaded = app.replay.loaded;
+    if (loaded === null) {
+      targetModel.setIsolateSelectedShot(false);
+      return;
+    }
+    const points = loaded.points.filter(
+      (point): point is [number, number] => point[0] !== null && point[1] !== null,
+    );
+    targetModel.setIsolateSelectedShot(true);
+    targetModel.setTrace(points);
+    targetModel.setTraceSegments(loaded.releaseIndex, loaded.splitIndex);
+    const zone = loaded.holdZone;
+    const centre = zone === null ? null : zone.centreMm;
+    const finiteCentre =
+      centre !== null && centre[0] !== null && centre[1] !== null
+        ? ([centre[0], centre[1]] as [number, number])
+        : null;
+    targetModel.setHoldZone(finiteCentre, zone?.radiusMm ?? 0);
+  });
+
+  $effect(() => {
+    targetModel.setPlayhead(app.replay.playhead);
   });
 
   // Fit the extent to the active face's rings when they arrive.
@@ -113,6 +142,7 @@
   {#snippet target()}
     <div class="target-column">
       <TargetView model={targetModel} {rings} onextent={setExtent} />
+      <ReplayControls replay={app.replay} {send} />
       <ZoomControls {extentMm} onextent={setExtent} />
     </div>
   {/snippet}
