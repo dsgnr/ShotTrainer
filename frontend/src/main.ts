@@ -20,5 +20,5 @@ const frames = new FrameSink();
 const announcer = new Announcer();
 const connection = new Connection(createBridge(), app, frames);
 
-mount(App, { target, props: { app, connection, announcer } });
+mount(App, { target, props: { app, connection, announcer, frames } });
 void connection.start();
