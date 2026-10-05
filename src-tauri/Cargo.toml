@@ -1,0 +1,52 @@
+[package]
+name = "shottrainer-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+default-run = "shottrainer"
+
+# The workspace forbids unsafe code, and `forbid` cannot be lifted locally.
+# The macOS permission request calls AVFoundation and allows it in that
+# module only.
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[lib]
+name = "shottrainer_app"
+
+[[bin]]
+name = "shottrainer"
+path = "src/main.rs"
+
+[features]
+# The OpenCV camera and detector. Without it the application runs only with
+# the synthetic devices.
+opencv = ["shottrainer-controller/opencv"]
+
+[build-dependencies]
+tauri-build = { version = "2.6", features = [] }
+
+[dependencies]
+shottrainer-audio = { path = "../crates/audio" }
+shottrainer-controller = { path = "../crates/controller" }
+shottrainer-core = { path = "../crates/core" }
+shottrainer-settings = { path = "../crates/settings" }
+shottrainer-tracking = { path = "../crates/tracking" }
+log.workspace = true
+serde.workspace = true
+tauri = { version = "2.12", features = [] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+objc2 = "0.6"
+objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "block2", "AVCaptureDevice", "AVMediaFormat"] }
+
+[dev-dependencies]
+serde_json.workspace = true
+tauri = { version = "2.12", features = ["test"] }
+tempfile.workspace = true

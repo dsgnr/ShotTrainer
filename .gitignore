@@ -51,3 +51,4 @@ sessions.db-journal
 local_data/
 
 /target
+/src-tauri/gen/
