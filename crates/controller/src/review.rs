@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use shottrainer_core::services::exporter::export_session_csv;
+use shottrainer_core::services::exporter::export_session;
 use shottrainer_core::services::replay_coordinator::shot_window;
 use shottrainer_core::services::shot_stats::compute_trace_stats;
 use shottrainer_core::sessions::SESSION_CATEGORIES;
@@ -72,7 +72,7 @@ impl SessionManager {
             ));
             return;
         }
-        match shottrainer_core::services::importer::import_session_csv(cx.db, path) {
+        match shottrainer_core::services::importer::import_session(cx.db, path) {
             Ok(_) => {
                 self.list_sessions(cx);
                 cx.message(StatusMessage::info("Imported session", 4000));
@@ -84,10 +84,10 @@ impl SessionManager {
         }
     }
 
-    pub fn export_session(&self, cx: &SessionContext, id: i64, dir: &Path) {
-        match export_session_csv(&cx.repo(), id, dir) {
-            Ok(files) => cx.message(StatusMessage::info(
-                format!("Wrote {} files to {}", files.len(), dir.display()),
+    pub fn export_session(&self, cx: &SessionContext, id: i64, path: &Path) {
+        match export_session(&cx.repo(), id, path) {
+            Ok(()) => cx.message(StatusMessage::info(
+                format!("Exported session to {}", path.display()),
                 4000,
             )),
             Err(error) => {
@@ -653,9 +653,9 @@ mod tests {
         let sid = saved_session(&rig, "default");
         let mut mgr = SessionManager::new(&rig.prefs);
         let dir = tempfile::tempdir().unwrap();
-        rig.run(|cx| mgr.export_session(cx, sid, dir.path()));
+        let path = dir.path().join("session.json");
+        rig.run(|cx| mgr.export_session(cx, sid, &path));
         rig.take();
-        let path = dir.path().join(format!("session_{sid}_shots.csv"));
         rig.run(|cx| mgr.import_session(cx, &path));
         assert_eq!(rig.repo().list_sessions().unwrap().len(), 2);
         assert!(
@@ -673,20 +673,19 @@ mod tests {
     }
 
     #[test]
-    fn export_writes_both_files() {
+    fn export_writes_one_file() {
         let rig = Rig::new();
         let sid = saved_session(&rig, "default");
         let mgr = SessionManager::new(&rig.prefs);
         let dir = tempfile::tempdir().unwrap();
-        let target = dir.path().join("out");
-        rig.run(|cx| mgr.export_session(cx, sid, &target));
-        assert!(target.join(format!("session_{sid}_shots.csv")).exists());
-        assert!(target.join(format!("session_{sid}_trace.csv")).exists());
+        let path = dir.path().join("round.json");
+        rig.run(|cx| mgr.export_session(cx, sid, &path));
+        assert!(path.exists());
         let texts = find(&rig.take(), |e| match e {
             UiEvent::Message(m) => Some(m.text.clone()),
             _ => None,
         });
-        assert_eq!(texts, [format!("Wrote 2 files to {}", target.display())]);
+        assert_eq!(texts, [format!("Exported session to {}", path.display())]);
     }
     #[test]
     fn selecting_recent_shots_previews_pending_trace_during_and_after_recording() {

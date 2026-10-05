@@ -1,14 +1,13 @@
 //! Writes a small sessions database through `SessionRepository` and prints a
 //! JSON summary for external SQLite consumers to compare with the stored rows.
 //!
-//! Usage: `write_fixture_db <database path> [<csv export directory>]`
+//! Usage: `write_fixture_db <database path>`
 
 use std::path::Path;
 use std::process::ExitCode;
 
 use chrono::NaiveDate;
 use serde_json::{Value, json};
-use shottrainer_core::services::exporter::export_session_csv;
 use shottrainer_core::sessions::{NewSession, NewShot, SessionRepository, make_engine};
 use shottrainer_tracking::models::TrackingSample;
 
@@ -18,10 +17,10 @@ const MISSING_MM_INDEX: usize = 17;
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let Some(db_path) = args.first() else {
-        eprintln!("usage: write_fixture_db <database path> [<csv export directory>]");
+        eprintln!("usage: write_fixture_db <database path>");
         return ExitCode::from(2);
     };
-    match run(db_path, args.get(1).map(Path::new)) {
+    match run(db_path) {
         Ok(summary) => {
             println!("{summary}");
             ExitCode::SUCCESS
@@ -33,7 +32,7 @@ fn main() -> ExitCode {
     }
 }
 
-fn run(db_path: &str, csv_dir: Option<&Path>) -> Result<Value, Box<dyn std::error::Error>> {
+fn run(db_path: &str) -> Result<Value, Box<dyn std::error::Error>> {
     if Path::new(db_path).exists() {
         return Err(format!("{db_path} already exists").into());
     }
@@ -93,11 +92,6 @@ fn run(db_path: &str, csv_dir: Option<&Path>) -> Result<Value, Box<dyn std::erro
         name: "Practice one",
         ..NewSession::default()
     })?;
-
-    if let Some(dir) = csv_dir {
-        export_session_csv(&repo, match_id, dir)?;
-        export_session_csv(&repo, practice_id, dir)?;
-    }
 
     let ordered: Vec<i64> = repo.list_shots(match_id)?.iter().map(|s| s.id).collect();
     let total_sessions = repo.list_sessions()?.len();

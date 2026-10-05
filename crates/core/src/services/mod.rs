@@ -2,6 +2,7 @@ pub mod exporter;
 pub mod importer;
 pub mod replay_coordinator;
 pub mod scoring;
+pub mod session_file;
 pub mod session_recorder;
 pub mod shot_coordinator;
 pub mod shot_stats;

@@ -1,10 +1,15 @@
-//! Imports the shot and optional trace files written by the CSV exporter.
+//! Imports a session file written by the exporter.
 
+use std::io::Read;
 use std::path::Path;
 
+use chrono::NaiveDateTime;
 use shottrainer_tracking::models::TrackingSample;
 
-use crate::sessions::{DatabaseError, Db, NewSession, NewShot, SessionRepository};
+use crate::services::session_file::{FORMAT, SessionFile, VERSION};
+use crate::sessions::{
+    DatabaseError, Db, NewSession, NewShot, SESSION_CATEGORIES, SessionRepository, parse_datetime,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ImportError {
@@ -12,176 +17,112 @@ pub enum ImportError {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     Database(#[from] DatabaseError),
-    #[error("Invalid CSV: {0}")]
+    #[error("Invalid session file: {0}")]
     Invalid(String),
 }
 
-pub fn import_session_csv(db: &Db, path: &Path) -> Result<i64, ImportError> {
-    let stem = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .and_then(|s| s.strip_suffix("_shots"))
-        .ok_or_else(|| ImportError::Invalid("select a *_shots.csv file".into()))?;
-    let rows = read_rows(
-        path,
-        &[
-            "index",
-            "timestamp",
-            "x_mm",
-            "y_mm",
-            "audio_level",
-            "confidence",
-            "score",
-        ],
-    )?;
-    let mut shots = Vec::new();
-    for (position, row) in rows.iter().enumerate() {
-        let index = integer(&row[0])?;
-        if index != position as i64 {
-            return Err(ImportError::Invalid(
-                "shot indices must be consecutive from zero".into(),
-            ));
-        }
-        shots.push(NewShot {
-            series_index: i32::try_from(index / 10)
-                .map_err(|_| ImportError::Invalid("too many shots".into()))?,
-            ts: number(&row[1])?,
-            x_mm: optional(&row[2])?,
-            y_mm: optional(&row[3])?,
-            audio_level: number(&row[4])?,
-            confidence: number(&row[5])?,
-            score: row[6].clone(),
-        });
+/// Larger than any session the application records, so only a wrong or
+/// hostile file reaches it.
+const MAX_FILE_BYTES: u64 = 256 * 1024 * 1024;
+
+pub fn import_session(db: &Db, path: &Path) -> Result<i64, ImportError> {
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)?
+        .take(MAX_FILE_BYTES + 1)
+        .read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > MAX_FILE_BYTES {
+        return Err(ImportError::Invalid("file is too large".into()));
     }
-    let trace_path = path.with_file_name(format!("{stem}_trace.csv"));
-    let trace_rows = match read_rows(
-        &trace_path,
-        &[
-            "timestamp",
-            "x_px",
-            "y_px",
-            "x_mm",
-            "y_mm",
-            "confidence",
-            "frame_id",
-        ],
-    ) {
-        Err(ImportError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
-        result => result?,
-    };
-    let mut trace = Vec::new();
-    for row in trace_rows {
-        trace.push(TrackingSample {
-            timestamp: number(&row[0])?,
-            x_px: number(&row[1])?,
-            y_px: number(&row[2])?,
-            x_mm: optional(&row[3])?,
-            y_mm: optional(&row[4])?,
-            confidence: number(&row[5])?,
-            frame_id: integer(&row[6])?,
-        });
+    let file: SessionFile =
+        serde_json::from_slice(&bytes).map_err(|error| ImportError::Invalid(error.to_string()))?;
+    if file.format != FORMAT {
+        return Err(ImportError::Invalid("not a ShotTrainer session".into()));
     }
-    let repo = SessionRepository::new(db);
-    Ok(repo.import_session(
+    if file.version != VERSION {
+        return Err(ImportError::Invalid(format!(
+            "unsupported version {}",
+            file.version
+        )));
+    }
+    let s = &file.session;
+    if !SESSION_CATEGORIES.contains(&s.category.as_str()) {
+        return Err(ImportError::Invalid(format!(
+            "unknown category {:?}",
+            s.category
+        )));
+    }
+    let timings = [
+        s.pre_shot_ms,
+        s.post_shot_ms,
+        s.release_window_ms,
+        s.shot_refractory_ms,
+    ];
+    if timings.iter().any(|ms| *ms < 0)
+        || s.shots_per_series < 1
+        || !(s.shot_diameter_mm.is_finite() && s.shot_diameter_mm > 0.0)
+        || file.shots.iter().any(|shot| shot.series_index < 0)
+    {
+        return Err(ImportError::Invalid("value out of range".into()));
+    }
+    let started_at = datetime(&s.started_at)?;
+    let ended_at = s.ended_at.as_deref().map(datetime).transpose()?;
+
+    let shots: Vec<NewShot> = file
+        .shots
+        .iter()
+        .map(|shot| NewShot {
+            series_index: shot.series_index,
+            ts: shot.ts,
+            x_mm: shot.x_mm,
+            y_mm: shot.y_mm,
+            audio_level: shot.audio_level,
+            confidence: shot.confidence,
+            score: shot.score.clone(),
+        })
+        .collect();
+    let trace: Vec<TrackingSample> = file
+        .trace
+        .iter()
+        .map(|t| TrackingSample {
+            timestamp: t.timestamp,
+            x_px: t.x_px,
+            y_px: t.y_px,
+            x_mm: t.x_mm,
+            y_mm: t.y_mm,
+            confidence: t.confidence,
+            frame_id: t.frame_id,
+        })
+        .collect();
+    Ok(SessionRepository::new(db).import_session(
         &NewSession {
-            name: &format!("Imported {stem}"),
-            app_version: env!("CARGO_PKG_VERSION"),
-            ..NewSession::default()
+            name: &s.name,
+            notes: &s.notes,
+            target_profile: &s.target_profile,
+            app_version: &s.app_version,
+            category: &s.category,
+            pre_shot_ms: s.pre_shot_ms,
+            post_shot_ms: s.post_shot_ms,
+            release_window_ms: s.release_window_ms,
+            shot_refractory_ms: s.shot_refractory_ms,
+            shot_diameter_mm: s.shot_diameter_mm,
+            position: &s.position,
+            shots_per_series: s.shots_per_series,
         },
         &shots,
         &trace,
+        started_at,
+        ended_at,
     )?)
 }
 
-fn number(value: &str) -> Result<f64, ImportError> {
-    value
-        .parse::<f64>()
-        .ok()
-        .filter(|n| n.is_finite())
-        .ok_or_else(|| ImportError::Invalid(format!("expected a finite number, got {value:?}")))
-}
-
-fn optional(value: &str) -> Result<Option<f64>, ImportError> {
-    if value.is_empty() {
-        Ok(None)
-    } else {
-        number(value).map(Some)
-    }
-}
-
-fn integer(value: &str) -> Result<i64, ImportError> {
-    value
-        .parse()
-        .map_err(|_| ImportError::Invalid(format!("expected an integer, got {value:?}")))
-}
-
-fn read_rows(path: &Path, header: &[&str]) -> Result<Vec<Vec<String>>, ImportError> {
-    let text = std::fs::read_to_string(path)?;
-    let mut chars = text.trim_start_matches('\u{feff}').chars().peekable();
-    let mut rows = Vec::new();
-    let mut row = Vec::new();
-    let mut field = String::new();
-    let mut quoted = false;
-    let mut closed = false;
-    while let Some(c) = chars.next() {
-        if quoted {
-            if c == '"' {
-                if chars.peek() == Some(&'"') {
-                    chars.next();
-                    field.push('"');
-                } else {
-                    quoted = false;
-                    closed = true;
-                }
-            } else {
-                field.push(c);
-            }
-        } else {
-            match c {
-                '"' if field.is_empty() && !closed => quoted = true,
-                ',' => {
-                    row.push(std::mem::take(&mut field));
-                    closed = false;
-                }
-                '\r' | '\n' => {
-                    if c == '\r' && chars.peek() == Some(&'\n') {
-                        chars.next();
-                    }
-                    row.push(std::mem::take(&mut field));
-                    rows.push(std::mem::take(&mut row));
-                    closed = false;
-                }
-                '"' => return Err(ImportError::Invalid("unexpected quote".into())),
-                _ if closed => return Err(ImportError::Invalid("text after closing quote".into())),
-                _ => field.push(c),
-            }
-        }
-    }
-    if quoted {
-        return Err(ImportError::Invalid("unterminated quoted field".into()));
-    }
-    if !field.is_empty() || !row.is_empty() || closed {
-        row.push(field);
-        rows.push(row);
-    }
-    if rows
-        .first()
-        .map(|r| r.iter().map(String::as_str).collect::<Vec<_>>())
-        != Some(header.to_vec())
-    {
-        return Err(ImportError::Invalid("unexpected column headers".into()));
-    }
-    rows.remove(0);
-    if rows.iter().any(|r| r.len() != header.len()) {
-        return Err(ImportError::Invalid("incorrect column count".into()));
-    }
-    Ok(rows)
+fn datetime(text: &str) -> Result<NaiveDateTime, ImportError> {
+    parse_datetime(text).ok_or_else(|| ImportError::Invalid(format!("invalid datetime {text:?}")))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::exporter::export_session_csv;
+    use crate::services::exporter::export_session;
     use crate::sessions::{init_database, make_engine};
 
     fn db() -> Db {
@@ -191,10 +132,22 @@ mod tests {
     }
 
     #[test]
-    fn exported_shots_and_trace_round_trip() {
+    fn exported_session_round_trips_with_settings_shots_and_trace() {
         let db = db();
         let repo = SessionRepository::new(&db);
-        let id = repo.create_session(&NewSession::default()).unwrap();
+        let id = repo
+            .create_session(&NewSession {
+                name: "Match",
+                notes: "windy",
+                target_profile: "air-rifle",
+                category: "match",
+                pre_shot_ms: 1000,
+                shot_diameter_mm: 5.6,
+                position: "kneeling",
+                shots_per_series: 5,
+                ..NewSession::default()
+            })
+            .unwrap();
         repo.add_shot(
             id,
             &NewShot {
@@ -219,47 +172,74 @@ mod tests {
         };
         repo.append_trace(id, std::slice::from_ref(&sample))
             .unwrap();
+        repo.end_session(id, None).unwrap();
         let dir = tempfile::tempdir().unwrap();
-        let files = export_session_csv(&repo, id, dir.path()).unwrap();
-        let imported = import_session_csv(&db, &files[0]).unwrap();
+        let path = dir.path().join("match.json");
+        export_session(&repo, id, &path).unwrap();
+
+        let imported = import_session(&db, &path).unwrap();
+        assert_ne!(imported, id);
+        let original = repo.get_session(id).unwrap().unwrap();
+        let copy = repo.get_session(imported).unwrap().unwrap();
+        assert_eq!(
+            (copy.started_at, copy.ended_at),
+            (original.started_at, original.ended_at)
+        );
+        assert_eq!(copy.name, "Match");
+        assert_eq!(copy.notes, "windy");
+        assert_eq!(copy.target_profile, "air-rifle");
+        assert_eq!(copy.category, "match");
+        assert_eq!(copy.pre_shot_ms, 1000);
+        assert_eq!(copy.shot_diameter_mm, 5.6);
+        assert_eq!(copy.position, "kneeling");
+        assert_eq!(copy.shots_per_series, 5);
         let shot = &repo.list_shots(imported).unwrap()[0];
         assert_eq!(shot.score, "X,\"quoted\"\nscore");
         assert_eq!(shot.x_mm, None);
         assert_eq!(shot.ts, 2.5);
         assert_eq!(repo.load_trace(imported, None, None).unwrap(), vec![sample]);
-        assert!(
-            repo.get_session(imported)
-                .unwrap()
-                .unwrap()
-                .ended_at
-                .is_some()
-        );
     }
 
     #[test]
-    fn missing_trace_is_allowed_and_bad_rows_create_no_session() {
+    fn invalid_files_create_no_session() {
         let db = db();
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("session_1_shots.csv");
-        let header = "index,timestamp,x_mm,y_mm,audio_level,confidence,score\n";
-        std::fs::write(&path, format!("{header}0,1,,,0.5,1,9\n")).unwrap();
-        import_session_csv(&db, &path).unwrap();
-        for row in [
-            "0,NaN,,,0.5,1,9",
-            "0,1,,,0.5,1",
-            "1,1,,,0.5,1,9",
-            "0,1,,,0.5,1,\"unclosed",
-        ] {
-            std::fs::write(&path, format!("{header}{row}\n")).unwrap();
-            assert!(import_session_csv(&db, &path).is_err());
-            assert_eq!(
-                SessionRepository::new(&db).list_sessions().unwrap().len(),
-                1
-            );
-        }
-        std::fs::write(&path, header).unwrap();
-        std::fs::write(dir.path().join("session_1_trace.csv"), "wrong headers\n").unwrap();
-        assert!(import_session_csv(&db, &path).is_err());
+        let path = dir.path().join("session.json");
+        let valid = |edit: &dyn Fn(&mut serde_json::Value)| {
+            let mut value = serde_json::json!({
+                "format": FORMAT, "version": VERSION,
+                "session": {
+                    "name": "", "startedAt": "2026-01-02 03:04:05.000000", "endedAt": null,
+                    "notes": "", "targetProfile": "default", "category": "practice",
+                    "appVersion": "", "preShotMs": 1, "postShotMs": 1, "releaseWindowMs": 1,
+                    "shotRefractoryMs": 1, "shotDiameterMm": 4.5, "position": "standing",
+                    "shotsPerSeries": 10
+                },
+                "shots": [], "trace": []
+            });
+            edit(&mut value);
+            std::fs::write(&path, value.to_string()).unwrap();
+            import_session(&db, &path)
+        };
+        let unfinished = valid(&|_| {}).unwrap();
+        assert_eq!(
+            SessionRepository::new(&db)
+                .get_session(unfinished)
+                .unwrap()
+                .unwrap()
+                .ended_at,
+            None
+        );
+        assert!(valid(&|v| v["format"] = "other".into()).is_err());
+        assert!(valid(&|v| v["version"] = 99.into()).is_err());
+        assert!(valid(&|v| v["session"]["category"] = "bogus".into()).is_err());
+        assert!(valid(&|v| v["session"]["startedAt"] = "yesterday".into()).is_err());
+        assert!(valid(&|v| v["shots"] = "nope".into()).is_err());
+        assert!(valid(&|v| v["session"]["preShotMs"] = (-1).into()).is_err());
+        assert!(valid(&|v| v["session"]["shotsPerSeries"] = 0.into()).is_err());
+        assert!(valid(&|v| v["session"]["shotDiameterMm"] = 0.into()).is_err());
+        std::fs::write(&path, "not json").unwrap();
+        assert!(import_session(&db, &path).is_err());
         assert_eq!(
             SessionRepository::new(&db).list_sessions().unwrap().len(),
             1
@@ -280,8 +260,9 @@ mod tests {
             confidence: 1.0,
             score: "9".into(),
         };
+        let now = crate::sessions::utc_now();
         assert!(
-            repo.import_session(&NewSession::default(), &[shot], &[])
+            repo.import_session(&NewSession::default(), &[shot], &[], now, None)
                 .is_err()
         );
         assert!(repo.list_sessions().unwrap().is_empty());

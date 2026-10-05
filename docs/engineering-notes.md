@@ -18,11 +18,11 @@ coordinates. The frontend filters unavailable points when drawing traces.
 
 ## Compatibility
 
-SQLite migrations, JSON preferences, target-face definitions and CSV exports are
+SQLite migrations, JSON preferences, target-face definitions and session export files are
 data formats. Golden fixtures and versioned database schemas are test inputs.
 Check existing migrations and fixture tests before changing
-formats. CSV output preserves established column order, formatting and CRLF line
-endings.
+formats. Session export files carry a `version` field, which the importer
+checks.
 
 Session rows store pre-shot, post-shot, release-window and refractory timings,
 shot diameter and the target profile. Schema version 4 adds the numeric settings

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
+  import { open as openFile, save as saveFile } from "@tauri-apps/plugin-dialog";
   import SessionActionDialog, { type SessionAction } from "./SessionActionDialog.svelte";
   import Dropdown from "./Dropdown.svelte";
   import CategoryIcon from "./CategoryIcon.svelte";
@@ -42,11 +43,25 @@
   }
 
   function beginAction(kind: SessionAction["kind"]): void {
-    if (kind === "import") {
-      if (!recording) action = { kind };
-    } else if (selectedSession) {
-      action = { kind, session: { ...selectedSession } };
-    }
+    if (selectedSession) action = { kind, session: { ...selectedSession } };
+  }
+
+  const fileFilter = [{ name: "ShotTrainer session", extensions: ["json"] }];
+
+  async function importCsv(): Promise<void> {
+    if (recording) return;
+    const path = await openFile({ title: "Import session", filters: fileFilter });
+    if (path) await send({ type: "importSession", path });
+  }
+
+  async function exportCsv(): Promise<void> {
+    if (!selectedSession) return;
+    const path = await saveFile({
+      title: "Export session",
+      defaultPath: `session_${selectedSession.id}.json`,
+      filters: fileFilter,
+    });
+    if (path) await send({ type: "exportSession", id: selectedSession.id, path });
   }
 
   async function confirmAction(command: WireCommand): Promise<void> {
@@ -59,7 +74,7 @@
 
 {#if open}
   <section class="sessions-page" aria-label="Sessions">
-      <header><h2>Sessions</h2><button type="button" class="primary" disabled={recording} onclick={onnew}>New session</button><button type="button" disabled={recording} onclick={() => beginAction("import")}>Import CSV...</button></header>
+      <header><h2>Sessions</h2><button type="button" class="primary" disabled={recording} onclick={onnew}>New session</button><button type="button" disabled={recording} onclick={importCsv}>Import...</button></header>
 
       <div class="filters">
         <input type="search" placeholder="Search session names..." bind:value={query} />
@@ -103,10 +118,10 @@
         <button type="button" disabled={selected === null} onclick={() => beginAction("rename")}>Rename...</button>
         <button type="button" disabled={selected === null} onclick={() => beginAction("category")}>Category...</button>
         <button type="button" disabled={selected === null} onclick={() => beginAction("delete")}>Delete</button>
-        <button type="button" disabled={selected === null} onclick={() => beginAction("export")}>Export CSV...</button>
+        <button type="button" disabled={selected === null} onclick={exportCsv}>Export...</button>
       </div>
       {#if action}
-        {#key action}<SessionActionDialog {action} {recording} onconfirm={confirmAction} onclose={() => action = null} />{/key}
+        {#key action}<SessionActionDialog {action} onconfirm={confirmAction} onclose={() => action = null} />{/key}
       {/if}
   </section>
 {/if}

@@ -37,6 +37,8 @@ mod tests {
                 "updater:allow-download",
                 "updater:allow-install",
                 "process:allow-restart",
+                "dialog:allow-open",
+                "dialog:allow-save",
                 {"identifier": "opener:allow-open-url", "allow": [
                     {"url": "https://github.com/dsgnr/ShotTrainer"},
                     {"url": "https://github.com/dsgnr/ShotTrainer/releases"}

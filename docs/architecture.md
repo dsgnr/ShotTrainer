@@ -11,7 +11,7 @@ Tauri 2. Application processing and persistence run in Rust.
 | ------------------- | ------------------------------------------------------------------------------------ |
 | `crates/tracking`   | Frames, transforms, circle detection, tracking and optional OpenCV capture           |
 | `crates/audio`      | CPAL audio input and RMS shot detection                                              |
-| `crates/core`       | Scoring, trace buffering, recording, replay lookup, SQLite repository and CSV import/export |
+| `crates/core`       | Scoring, trace buffering, recording, replay lookup, SQLite repository and session file import/export |
 | `crates/settings`   | Preferences, JSON stores, platform paths and target-face catalogue                   |
 | `crates/controller` | Device backends, runtime coordination, sessions, previews and event production       |
 | `crates/testkit`    | Shared test fixture support                                                          |

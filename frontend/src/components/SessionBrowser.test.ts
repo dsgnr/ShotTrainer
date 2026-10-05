@@ -4,6 +4,9 @@ import { flushSync, mount, unmount } from "svelte";
 import { AppState } from "../lib/stores/app.svelte";
 import SessionBrowser from "./SessionBrowser.svelte";
 
+const dialog = vi.hoisted(() => ({ open: vi.fn(), save: vi.fn() }));
+vi.mock("@tauri-apps/plugin-dialog", () => dialog);
+
 // @ts-expect-error Svelte exposes types for its public entry, not this internal file.
 vi.mock("svelte", () => import("../../node_modules/svelte/src/index-client.js"));
 
@@ -49,8 +52,6 @@ it("opens in-app dialogues and sends each confirmed session action", async () =>
     { button: "Rename...", input: " Updated name ", command: { type: "renameSession", id: 7, name: "Updated name" } },
     { button: "Category...", category: "Match", command: { type: "setSessionCategory", id: 7, category: "match" } },
     { button: "Delete", command: { type: "deleteSession", id: 7 } },
-    { button: "Export CSV...", input: " /tmp/export folder ", command: { type: "exportSession", id: 7, dir: "/tmp/export folder" } },
-    { button: "Import CSV...", input: " /tmp/session_1_shots.csv ", command: { type: "importSession", path: "/tmp/session_1_shots.csv" } },
   ];
   const prompt = vi.spyOn(window, "prompt");
   const confirm = vi.spyOn(window, "confirm");
@@ -89,28 +90,41 @@ it("opens in-app dialogues and sends each confirmed session action", async () =>
   prompt.mockRestore(); confirm.mockRestore();
 });
 
-it("cancels an action without changing the session and blocks imports during recording", async () => {
-  for (const recording of [false, true]) {
-    const target = document.createElement("div");
-    const send = vi.fn(async () => undefined);
-    const component = mount(SessionBrowser, { target, props: { open: true, sessions: [], recording, send, onnew: vi.fn(), onopen: vi.fn() } });
-    flushSync();
-    const button = [...target.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Import CSV...")!;
-    expect(button.disabled).toBe(recording);
-    button.click();
-    flushSync();
-    const dialog = target.querySelector('[role="dialog"]');
-    if (recording) expect(dialog).toBeNull();
-    else {
-      const input = dialog!.querySelector<HTMLInputElement>("input")!;
-      input.value = "/tmp/session_1_shots.csv";
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      flushSync();
-      [...dialog!.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Cancel")!.click();
-      flushSync();
-      expect(target.querySelector('[role="dialog"]')).toBeNull();
-    }
-    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ type: "importSession" }));
-    await unmount(component);
-  }
+it("sends the paths chosen in the OS file dialogs", async () => {
+  const session = { id: 7, name: "Practice", startedAt: "2026-10-09T10:00:00", endedAt: null, shotCount: 10, totalScore: 98, category: "practice" };
+  const click = (target: HTMLElement, label: string) =>
+    [...target.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === label)!.click();
+  const target = document.createElement("div");
+  const send = vi.fn(async () => undefined);
+  const component = mount(SessionBrowser, { target, props: { open: true, sessions: [session], send, onnew: vi.fn(), onopen: vi.fn() } });
+  flushSync();
+
+  dialog.open.mockResolvedValueOnce("/tmp/session_1.json");
+  click(target, "Import...");
+  await vi.waitFor(() => expect(send).toHaveBeenCalledWith({ type: "importSession", path: "/tmp/session_1.json" }));
+
+  target.querySelector<HTMLElement>('[role="option"]')!.click();
+  flushSync();
+  dialog.save.mockResolvedValueOnce("/tmp/round.json");
+  click(target, "Export...");
+  await vi.waitFor(() => expect(send).toHaveBeenCalledWith({ type: "exportSession", id: 7, path: "/tmp/round.json" }));
+  expect(dialog.save).toHaveBeenCalledWith(expect.objectContaining({ defaultPath: "session_7.json" }));
+
+  send.mockClear();
+  dialog.open.mockResolvedValueOnce(null);
+  dialog.save.mockResolvedValueOnce(null);
+  click(target, "Import...");
+  click(target, "Export...");
+  await vi.waitFor(() => expect(dialog.save).toHaveBeenCalledTimes(2));
+  expect(send).not.toHaveBeenCalled();
+  await unmount(component);
+});
+
+it("disables importing during recording", async () => {
+  const target = document.createElement("div");
+  const component = mount(SessionBrowser, { target, props: { open: true, sessions: [], recording: true, send: vi.fn(async () => undefined), onnew: vi.fn(), onopen: vi.fn() } });
+  flushSync();
+  const button = [...target.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Import...")!;
+  expect(button.disabled).toBe(true);
+  await unmount(component);
 });

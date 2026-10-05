@@ -86,10 +86,16 @@ impl<'a> SessionRepository<'a> {
         new: &NewSession,
         shots: &[NewShot],
         trace: &[TrackingSample],
+        started_at: NaiveDateTime,
+        ended_at: Option<NaiveDateTime>,
     ) -> Result<i64, DatabaseError> {
         let tx = self.db.unchecked_transaction()?;
         let repo = SessionRepository::new(&tx);
         let id = repo.create_session(new)?;
+        tx.execute(
+            "UPDATE sessions SET started_at = ?1 WHERE id = ?2",
+            params![format_datetime(&truncate_to_micros(started_at)), id],
+        )?;
         for shot in shots {
             repo.add_shot(id, shot)?;
         }
@@ -99,7 +105,9 @@ impl<'a> SessionRepository<'a> {
                 params![id, sample.timestamp, sample.x_px, sample.y_px, sample.x_mm, sample.y_mm, sample.confidence, sample.frame_id],
             )?;
         }
-        repo.end_session(id, None)?;
+        if ended_at.is_some() {
+            repo.end_session(id, ended_at)?;
+        }
         tx.commit()?;
         Ok(id)
     }

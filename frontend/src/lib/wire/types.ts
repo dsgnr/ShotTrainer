@@ -216,7 +216,7 @@ export type WireCommand =
   | { type: "setSessionCategory"; id: number; category: string }
   | { type: "deleteSession"; id: number }
   | { type: "importSession"; path: string }
-  | { type: "exportSession"; id: number; dir: string }
+  | { type: "exportSession"; id: number; path: string }
   | { type: "replayPlay" }
   | { type: "replayPause" }
   | { type: "replayReset" }

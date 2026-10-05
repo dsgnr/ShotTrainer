@@ -56,7 +56,7 @@ pub enum Command {
     DeleteSession(i64),
     ExportSession {
         id: i64,
-        dir: PathBuf,
+        path: PathBuf,
     },
     ImportSession {
         path: PathBuf,
@@ -342,8 +342,8 @@ impl Controller {
                 self.with_session(|s, cx| s.set_session_category(cx, id, &category));
             }
             Command::DeleteSession(id) => self.with_session(|s, cx| s.delete_session(cx, id)),
-            Command::ExportSession { id, dir } => {
-                self.with_session(|s, cx| s.export_session(cx, id, &dir));
+            Command::ExportSession { id, path } => {
+                self.with_session(|s, cx| s.export_session(cx, id, &path));
             }
             Command::ImportSession { path } => {
                 self.with_session(|s, cx| s.import_session(cx, &path));
