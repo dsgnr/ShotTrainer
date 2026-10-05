@@ -1,0 +1,93 @@
+/*
+ * Colour tokens. The dark values keep the Python palette (src/shottrainer/ui/theme.py)
+ * where it meets WCAG AA. The light values apply when the system asks for a light
+ * appearance. theme.test.ts checks the contrast of every pair the interface uses.
+ */
+:root {
+  color-scheme: dark light;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius: 6px;
+
+  --bg: #0e1014;
+  --bg-sunken: #0a0c10;
+  --panel: #14171c;
+  --panel-raised: #1c2128;
+  --border: #1f242c;
+  --text: #e6e6e6;
+  --text-heading: #d6dae3;
+  --text-dim: #929cab;
+  --accent: #1d7f60;
+  --accent-hover: #176b51;
+  --on-accent: #ffffff;
+  --focus: #62d7ac;
+
+  --tone-info: #929cab;
+  --tone-success: #62d7ac;
+  --tone-warning: #f39c12;
+  --tone-error: #ff6b5b;
+
+  --pill-idle: #8a90a0;
+  --pill-recording: #ff6b5b;
+  --pill-replay: #62d7ac;
+
+  --target-bg: #0e1014;
+  --target-face: #181e25;
+  --target-ring: #7a8796;
+  --target-label: #929cab;
+  --target-crosshair: #303c48;
+  --target-shot: #e2e9ed;
+  --target-live-aim: #27ae60;
+  --target-hold-zone: #f39c12;
+  --trace-approach: #00c83c;
+  --trace-release: #ffdc00;
+  --trace-follow: #ff4a4a;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f4f5f7;
+    --bg-sunken: #ffffff;
+    --panel: #ffffff;
+    --panel-raised: #eceef1;
+    --border: #d0d5dc;
+    --text: #1b1f24;
+    --text-heading: #111418;
+    --text-dim: #4f5966;
+    --accent: #1d7f60;
+    --accent-hover: #176b51;
+    --on-accent: #ffffff;
+    --focus: #1d7f60;
+
+    --tone-info: #4f5966;
+    --tone-success: #17694f;
+    --tone-warning: #8a5300;
+    --tone-error: #b3261e;
+
+    --pill-idle: #5f6672;
+    --pill-recording: #b3261e;
+    --pill-replay: #17694f;
+
+    --target-bg: #f4f5f7;
+    --target-face: #ffffff;
+    --target-ring: #6b7684;
+    --target-label: #4f5966;
+    --target-crosshair: #c3c9d1;
+    --target-shot: #1b1f24;
+    --target-live-aim: #1e8449;
+    --target-hold-zone: #b9770e;
+    --trace-approach: #00963a;
+    --trace-release: #a67c00;
+    --trace-follow: #c0392b;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
