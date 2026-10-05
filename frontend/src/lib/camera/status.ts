@@ -6,7 +6,7 @@ export interface StatusBadge {
   colour: string;
 }
 
-/** `_STATUS_STYLES` in `src/shottrainer/ui/camera_view.py`. */
+/** The badge label and dot colour for each tracking status. */
 export const STATUS_BADGES: Record<TrackingStatus, StatusBadge> = {
   idle: { label: "Idle", colour: "#888888" },
   tracking: { label: "Tracking", colour: "#27ae60" },

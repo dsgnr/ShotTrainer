@@ -69,7 +69,7 @@ describe("trackingRegion", () => {
 });
 
 describe("statusBadge", () => {
-  it("shows the frame's tracking status in Python's words", () => {
+  it("shows the frame's tracking status label and colour", () => {
     const frame = { ...SAMPLE_EVENTS.frame, status: "lost" as const };
     expect(statusBadge({ frame, idle: false })).toEqual({ label: "No target", colour: "#e67e22" });
     expect(statusBadge({ frame: SAMPLE_EVENTS.frame, idle: false })?.label).toBe("Outside region");

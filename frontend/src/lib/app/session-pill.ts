@@ -7,7 +7,7 @@ export interface SessionPill {
   tone: PillTone;
 }
 
-/** The header pill, as Python's `StatePill` shows it. */
+/** The header pill label and tone for a session state. */
 export function sessionPill(state: WireSessionState): SessionPill {
   switch (state.kind) {
     case "recording":

@@ -1,5 +1,5 @@
-// The target trace, shots and replay state, ported from `target_view.py`.
-// The painter reads this model and redraws when `version` changes.
+// The target trace, shots and replay state. The painter reads this model and
+// redraws when `version` changes.
 import { DEFAULT_EXTENT_MM } from "./geometry";
 
 export type TracePoint = [number, number];
@@ -16,7 +16,7 @@ export interface VisibleTrace {
   follow: TracePoint[];
 }
 
-/** Live trace length, matching `_live_trace_capacity` in `target_view.py`. */
+/** Live trace length. Older points fall off the front once it is full. */
 export const TRACE_CAPACITY = 600;
 
 /** A noisy detection can land far off the face. Drop points past this multiple of the extent. */

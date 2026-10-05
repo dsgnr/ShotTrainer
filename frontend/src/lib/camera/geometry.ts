@@ -1,5 +1,4 @@
-// Camera overlay positions in view pixels, as `CameraView` in
-// `src/shottrainer/ui/camera_view.py` works them out.
+// Camera overlay positions in view pixels.
 import { finiteOr, finitePair, isFiniteNumber } from "../wire/numbers";
 import type { Pair, WireMarker } from "../wire/types";
 

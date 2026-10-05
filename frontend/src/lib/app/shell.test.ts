@@ -4,7 +4,7 @@ import { Announcer } from "./announcer.svelte";
 import { sessionPill } from "./session-pill";
 
 describe("sessionPill", () => {
-  it("names the session state as the Python header did", () => {
+  it("names the session state for the header pill", () => {
     expect(sessionPill({ kind: "idle" })).toEqual({ label: "Idle", tone: "idle" });
     expect(sessionPill({ kind: "recording", sessionId: 3 })).toEqual({
       label: "Recording",
