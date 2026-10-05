@@ -3,6 +3,7 @@
 
 mod logging;
 mod shell;
+pub mod wire;
 
 pub use shell::run;
 
