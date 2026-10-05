@@ -6,6 +6,7 @@
   import LiveRegion from "./components/LiveRegion.svelte";
   import HeroStats from "./components/HeroStats.svelte";
   import MarkerSheet from "./components/MarkerSheet.svelte";
+  import NavRail from "./components/NavRail.svelte";
   import PreferencesDialog from "./components/PreferencesDialog.svelte";
   import ReplayControls from "./components/ReplayControls.svelte";
   import SessionBrowser from "./components/SessionBrowser.svelte";
@@ -189,6 +190,14 @@
 </script>
 
 <AppShell>
+  {#snippet nav()}
+    <NavRail
+      onsessions={() => (sessionsOpen = true)}
+      onpreferences={() => (preferencesOpen = true)}
+      onpopout={() => (popoutOpen = true)}
+      onsheet={() => (sheetOpen = true)}
+    />
+  {/snippet}
   {#snippet header()}
     <AppHeader session={app.session.state} trackingText={app.status.trackingText} />
   {/snippet}
@@ -208,12 +217,6 @@
     </div>
   {/snippet}
   {#snippet side()}
-    <div class="toolbar">
-      <button type="button" onclick={() => (sessionsOpen = true)}>Sessions</button>
-      <button type="button" onclick={() => (preferencesOpen = true)}>Preferences</button>
-      <button type="button" onclick={() => (popoutOpen = true)}>Pop out camera</button>
-      <button type="button" onclick={() => (sheetOpen = true)}>Shot sheet</button>
-    </div>
     <SessionControls session={app.session.state} summary={app.session.summary} {send} />
     <ShotList shots={app.shots.shots} selected={app.shots.selected} {send} />
     <HeroStats
@@ -231,12 +234,6 @@
 </AppShell>
 
 <style>
-  .toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
   .target-column {
     display: flex;
     flex: 1;
