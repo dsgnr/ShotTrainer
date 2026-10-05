@@ -384,3 +384,19 @@ fn v5_series_migration_preserves_shots_and_stable_membership() {
     assert_eq!(repo.get_session(id).unwrap().unwrap().shots_per_series, 10);
     assert_eq!(version(&db), SCHEMA_VERSION);
 }
+
+#[test]
+fn a_newer_database_is_refused_and_left_unchanged() {
+    let db = make_engine(":memory:").unwrap();
+    db.execute_batch("UPDATE schema_meta SET version = 99, app_version = '9.9.9'")
+        .unwrap();
+
+    let error = shottrainer_core::sessions::init_database(&db).unwrap_err();
+
+    assert!(error.to_string().contains("99"), "{error}");
+    assert_eq!(version(&db), 99);
+    let app_version: String = db
+        .query_row("SELECT app_version FROM schema_meta", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(app_version, "9.9.9");
+}

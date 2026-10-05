@@ -152,6 +152,14 @@ pub fn init_database(conn: &Db) -> Result<(), DatabaseError> {
                 (SCHEMA_VERSION, APP_VERSION),
             )?;
         }
+        // A newer layout is left untouched. Stamping it with this build's
+        // version would make a later build re-run migrations on it.
+        Some((_, version)) if version > SCHEMA_VERSION => {
+            return Err(DatabaseError::Other(format!(
+                "the session database uses schema version {version}, which is newer than \
+                 this version of the app supports ({SCHEMA_VERSION})"
+            )));
+        }
         Some((id, version)) if version != SCHEMA_VERSION => {
             apply_migrations(conn, version)?;
             conn.execute(
