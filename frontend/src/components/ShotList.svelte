@@ -29,6 +29,14 @@
     }
   });
 
+  // Follow new shots as they arrive.
+  $effect(() => {
+    const last = shots.length - 1;
+    if (last >= 0 && list) {
+      list.querySelector<HTMLElement>(`[data-index="${last}"]`)?.scrollIntoView?.({ block: "nearest" });
+    }
+  });
+
   function select(index: number): void {
     void send({ type: "selectShot", index });
   }
