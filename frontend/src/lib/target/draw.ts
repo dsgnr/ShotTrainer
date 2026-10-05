@@ -17,6 +17,10 @@ export interface TargetColours {
   follow: string;
 }
 
+/** Ring and shot labels use a compact technical face at a fixed pixel size. */
+const LABEL_PX = 10;
+const LABEL_FONT = 'ui-monospace, "SF Mono", "Cascadia Code", monospace';
+
 /** Draw the target, its rings, trace, shots and live aim into a view of the given CSS size. */
 export function drawTarget(
   ctx: CanvasRenderingContext2D,
@@ -61,6 +65,9 @@ function drawRings(
 ): void {
   ctx.strokeStyle = colours.ring;
   ctx.lineWidth = 1;
+  ctx.font = `${LABEL_PX}px ${LABEL_FONT}`;
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "right";
   for (const ring of rings) {
     if (ring.diameterMm === null) {
       continue;
@@ -71,9 +78,11 @@ function drawRings(
     ctx.stroke();
     if (ring.label !== null && ring.label !== "") {
       ctx.fillStyle = colours.label;
-      ctx.fillText(ring.label, cx + r - 6, cy);
+      ctx.fillText(ring.label, cx + r - 4, cy);
     }
   }
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
 }
 
 function drawCrosshair(
@@ -148,9 +157,20 @@ function drawShots(
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fillStyle = colours.shot;
     ctx.fill();
+    // The selected shot wears a thin accent ring so it reads at a glance.
+    if (selected) {
+      ctx.strokeStyle = colours.liveAim;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, y, r + 2.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     if (shot.label !== "") {
-      ctx.fillStyle = colours.ring;
+      ctx.fillStyle = colours.label;
+      ctx.font = `${LABEL_PX}px ${LABEL_FONT}`;
+      ctx.textBaseline = "middle";
       ctx.fillText(shot.label, x + r + 4, y);
+      ctx.textBaseline = "alphabetic";
     }
   });
 }
