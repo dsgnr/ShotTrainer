@@ -73,17 +73,11 @@
   const series = $derived(currentSeries(app.shots.shots, app.shots.selected, app.preferences.prefs?.shotsPerSeries ?? 10));
   const seriesShots = $derived(series.entries.map(entry => entry.shot));
 
-  // Keep the shot markers and selection in step with the shots store.
+  // The target shows only the current shot: the selected one, else the latest.
   $effect(() => {
-    targetModel.setShots(
-      series.entries.map(({ shot, index }) => ({
-        xMm: shot.xMm,
-        yMm: shot.yMm,
-        label: String(index + 1),
-      })),
-    );
-    const local = series.entries.findIndex(entry => entry.index === app.shots.selected);
-    targetModel.setSelectedShot(local < 0 ? null : local);
+    const current = series.entries.find(entry => entry.index === app.shots.selected) ?? series.entries.at(-1);
+    targetModel.setShots(current === undefined ? [] : [{ xMm: current.shot.xMm, yMm: current.shot.yMm, label: String(current.index + 1) }]);
+    targetModel.setSelectedShot(current === undefined ? null : 0);
   });
 
   $effect(() => {
