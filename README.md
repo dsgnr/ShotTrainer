@@ -203,7 +203,10 @@ crates/
     audio/       shared audio types
     core/        sessions database, scoring, statistics, services, export
     settings/    data paths, preferences, stores, target face catalogue
+    controller/  application controller without an interface framework
     testkit/     helpers for tests that use the golden fixtures
+src-tauri/       Tauri application shell
+frontend/        placeholder page for the shell
 testdata/        golden fixtures and legacy database dumps for the Rust tests
 scripts/         fixture generators and compatibility checks
 docs/            engineering notes, accuracy notes, troubleshooting
@@ -211,9 +214,9 @@ packaging/       Nuitka build script and platform notes
 tests/           pytest suite
 ```
 
-The Rust crates cover storage, scoring, statistics, services and settings.
-Capture, detection, the controller and the interface are not part of the
-workspace yet.
+The Rust crates cover storage, scoring, statistics, services, settings,
+capture, detection and the controller. The Tauri shell in `src-tauri/` runs them
+behind a placeholder page until the web front end is written.
 
 See [`docs/architecture.md`](docs/architecture.md) for a longer description.
 
