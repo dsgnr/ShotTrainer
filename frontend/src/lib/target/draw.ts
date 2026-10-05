@@ -154,6 +154,9 @@ function drawShots(
     if (shot.xMm === null || shot.yMm === null) {
       return;
     }
+    if (!model.isolate && shot.label === model.spentShotLabel) {
+      return;
+    }
     if (model.isolate) {
       if (i !== model.selected || !model.playheadReachedShot()) {
         return;

@@ -153,21 +153,37 @@ it("previews the complete saved shot before playback starts", () => {
 });
 
 
-it("colours live release and recoil samples retrospectively and retains phases after trimming", () => {
+it("colours live release and recoil samples retrospectively", () => {
   const model = new TargetModel();
   model.appendTracePoint(0, 0, 1);
   model.appendTracePoint(1, 1, 1.8);
   model.appendTracePoint(2, 2, 2);
   model.setLiveShotWindows([2], 250, 800);
   model.appendTracePoint(3, 3, 2.033);
-  model.appendTracePoint(4, 4, 3);
-  expect(model.approach).toEqual([[0, 0], [4, 4]]);
-  expect(model.release).toEqual([[1, 1], [2, 2]]);
-  expect(model.follow).toEqual([[3, 3]]);
-  for (let i = 0; i < TRACE_CAPACITY - 4; i++) model.appendTracePoint(0, 0, 4 + i);
+  expect(model.approach).toEqual([[0, 0]]);
   expect(model.release).toEqual([[1, 1], [2, 2]]);
   expect(model.follow).toEqual([[3, 3]]);
   model.clearTrace();
   model.appendTracePoint(0, 0, 2);
   expect(model.release).toEqual([]);
 });
+
+it("drops the previous shot when the first point after its follow-through arrives", () => {
+  const model = new TargetModel();
+  model.appendTracePoint(0, 0, 1);
+  model.appendTracePoint(2, 2, 2);
+  model.setLiveShotWindows([2], 250, 800);
+  model.appendTracePoint(3, 3, 2.8);
+  model.appendTracePoint(4, 4, 2.9);
+  expect(model.approach).toEqual([[4, 4]]);
+  expect(model.release).toEqual([]);
+  expect(model.follow).toEqual([]);
+  expect(model.spentShotLabel).toBeNull();
+  model.setShots([{ xMm: 0, yMm: 0, label: "1" }]);
+  model.appendTracePoint(5, 5, 3.9);
+  model.setLiveShotWindows([2, 3.9], 250, 800);
+  model.appendTracePoint(6, 6, 4.8);
+  model.appendTracePoint(7, 7, 4.9);
+  expect(model.spentShotLabel).toBe("1");
+});
+

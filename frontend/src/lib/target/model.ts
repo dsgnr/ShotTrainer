@@ -41,6 +41,8 @@ export class TargetModel {
   #extentMm = DEFAULT_EXTENT_MM;
 
   shots: ShotMarker[] = [];
+  /** Label of the shot whose trace was dropped. Its marker stays hidden until the next shot is fired. */
+  spentShotLabel: string | null = null;
   selected: number | null = null;
   liveAim: TracePoint | null = null;
   holdZone: { cx: number; cy: number; radiusMm: number } | null = null;
@@ -71,6 +73,13 @@ export class TargetModel {
     const clip = this.#extentMm * CLIP_EXTENT_MULTIPLE;
     if (Math.abs(xMm) > clip || Math.abs(yMm) > clip) {
       return;
+    }
+    // The first point after a shot's follow-through starts the next shot, so drop the previous one.
+    const previous = this.#timestamps.at(-1);
+    if (timestamp !== null && previous != null && this.#liveWindows.some(w => previous <= w.end && timestamp > w.end)) {
+      this.#trace = [];
+      this.#timestamps = [];
+      this.spentShotLabel = this.shots[0]?.label ?? null;
     }
     if (this.#trace.length >= TRACE_CAPACITY) {
       this.#trace.shift();
@@ -120,6 +129,7 @@ export class TargetModel {
     this.holdZone = null;
     this.#playhead = null;
     this.liveAim = null;
+    this.spentShotLabel = null;
     this.#bump();
   }
 
