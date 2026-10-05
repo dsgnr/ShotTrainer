@@ -6,6 +6,8 @@
     tremorFigure,
   } from "../lib/stats/hero";
   import type { F64, WireRing, WireShotStats, WireTraceStats } from "../lib/wire/types";
+  import Metric from "./Metric.svelte";
+  import Panel from "./Panel.svelte";
 
   interface Props {
     total: F64;
@@ -19,66 +21,45 @@
   let { total, shotCount, group, traceStats, tracePoints, rings }: Props = $props();
 
   const totalText = $derived(totalScoreFigure(total, shotCount));
-  const groupText = $derived(
-    group === null ? { value: "-", tooltip: "" } : groupFigure(group),
-  );
+  const groupText = $derived(group === null ? { value: "-", tooltip: "" } : groupFigure(group));
   const tremorText = $derived(tremorFigure(traceStats));
   const timeOnTarget = $derived(timeOnTargetFigure(tracePoints, rings));
 </script>
 
 <div class="hero">
-  <div class="card">
-    <p class="caption">Total score</p>
-    <p class="value">{totalText}</p>
-  </div>
-  <div class="card">
-    <p class="caption">Group size</p>
-    <p class="value" title={groupText.tooltip}>{groupText.value}</p>
-    <p class="subcaption">extreme spread</p>
-  </div>
-  <div class="card">
-    <p class="caption">Hold tremor</p>
-    <p class="value">{tremorText}</p>
-    <p class="subcaption">RMS deviation</p>
-  </div>
-  <div class="card">
-    <p class="caption">{timeOnTarget.caption}</p>
-    <p class="value">{timeOnTarget.value}</p>
-  </div>
+  <Panel title="Result">
+    <div class="grid">
+      <Metric caption="Total score" value={totalText} size="lg" accent />
+      <Metric
+        caption="Group size"
+        value={groupText.value}
+        sub="extreme spread"
+        title={groupText.tooltip}
+      />
+      <Metric caption={timeOnTarget.caption} value={timeOnTarget.value} />
+    </div>
+  </Panel>
+
+  <Panel title="Hold">
+    <Metric caption="Hold tremor" value={tremorText} sub="RMS deviation" />
+  </Panel>
 </div>
 
 <style>
   .hero {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--space-3);
   }
 
-  .card {
-    padding: 12px 16px;
-    background: var(--panel-raised);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4) var(--space-3);
   }
 
-  .caption {
-    margin: 0;
-    color: var(--text-dim);
-    font-size: 11px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
-
-  .value {
-    margin: 2px 0 0;
-    color: var(--text-heading);
-    font-size: 28px;
-    font-weight: 600;
-  }
-
-  .subcaption {
-    margin: 2px 0 0;
-    color: var(--text-dim);
-    font-size: 11px;
+  /* The headline figure spans the row above the two secondary measures. */
+  .grid :global(.metric:first-child) {
+    grid-column: 1 / -1;
   }
 </style>
