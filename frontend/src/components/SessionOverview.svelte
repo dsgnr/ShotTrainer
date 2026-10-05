@@ -23,13 +23,11 @@
   const series = $derived(currentSeries(shots, selected, shotsPerSeries));
   const viewport = $derived(sessionViewport(rings, series.entries.map(entry => entry.shot), shotDiameterMm));
   const extent = $derived(viewport.extentMm);
+  const current = $derived(selected ?? series.entries[series.entries.length - 1]?.index ?? null);
   const scale = $derived(targetScale(Math.min(width, height), extent));
+  const markerPx = $derived(Math.max(10, shotDiameterMm * scale));
 
   $effect(() => {
-    model.setShots(series.entries.map(({ shot, index }) => ({ xMm: shot.xMm, yMm: shot.yMm, label: String(index + 1) })));
-    const local = series.entries.findIndex(entry => entry.index === selected);
-    model.setSelectedShot(local < 0 ? null : local);
-    model.setShotDiameter(shotDiameterMm);
     model.setExtent(extent);
   });
 </script>
@@ -43,12 +41,12 @@
       <TargetView {model} {rings} centre={viewport.centre} animateZoom={false} onextent={() => model.setExtent(extent)} />
       {#each series.entries as { shot, index }}
         {#if shot.xMm !== null && shot.yMm !== null}
-          <button class="marker" class:selected={index === selected}
+          <button class="marker" class:selected={index === current}
             style:left={`${width / 2 + (shot.xMm - viewport.centre[0]) * scale}px`}
             style:top={`${height / 2 + (shot.yMm - viewport.centre[1]) * scale}px`}
+            style:width={`${markerPx}px`} style:height={`${markerPx}px`}
             aria-label={`Select shot ${index + 1}`} aria-pressed={index === selected}
             onclick={() => void send({ type: "selectShot", index })}>
-            {index + 1}
           </button>
         {/if}
       {/each}
@@ -80,14 +78,10 @@
   .marker {
     position: absolute;
     transform: translate(-50%, -50%);
-    min-width: 20px;
-    height: 20px;
-    padding: 0 3px;
+    padding: 0;
     border-radius: 50%;
-    border: 1px solid var(--target-shot);
-    color: var(--text);
-    background: var(--panel);
-    font-size: var(--text-xs);
+    border: 1px solid var(--panel);
+    background: var(--text-muted);
   }
   .marker:hover {
     border-color: var(--accent-strong);
@@ -97,9 +91,8 @@
   .marker:active { background: var(--accent); }
   .marker:focus-visible { z-index: 3; }
   .marker.selected {
-    border-color: var(--accent-strong);
-    color: var(--accent-strong);
-    z-index: 1;
+    background: var(--text);
+    z-index: 4;
   }
   .empty {
     margin: 0;
