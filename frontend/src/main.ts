@@ -9,6 +9,7 @@ import { Connection } from "./lib/app/connection";
 import { createBridge } from "./lib/bridge";
 import { FrameSink } from "./lib/frames/sink";
 import { AppState } from "./lib/stores/app.svelte";
+import { TargetModel } from "./lib/target/model";
 
 const target = document.getElementById("app");
 if (target === null) {
@@ -18,7 +19,8 @@ if (target === null) {
 const app = new AppState();
 const frames = new FrameSink();
 const announcer = new Announcer();
+const targetModel = new TargetModel();
 const connection = new Connection(createBridge(), app, frames);
 
-mount(App, { target, props: { app, connection, announcer, frames } });
+mount(App, { target, props: { app, connection, announcer, frames, targetModel } });
 void connection.start();
