@@ -11,6 +11,9 @@
 </script>
 
 <div class="status-line">
+  {#if line.text !== ""}
+    <span class="dot" data-tone={line.tone} aria-hidden="true"></span>
+  {/if}
   <p class="text" data-tone={line.tone}>{line.text}</p>
   {#if line.restart}
     <button type="button" disabled={restarting} onclick={onrestart}>
@@ -23,9 +26,33 @@
   .status-line {
     display: flex;
     align-items: center;
-    gap: 12px;
-    min-height: 36px;
-    padding: 4px 16px;
+    gap: var(--space-2);
+    min-height: 32px;
+    padding: var(--space-1) var(--space-4);
+    font-size: var(--text-sm);
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex: none;
+  }
+
+  .dot[data-tone="info"] {
+    background: var(--tone-info);
+  }
+
+  .dot[data-tone="success"] {
+    background: var(--tone-success);
+  }
+
+  .dot[data-tone="warning"] {
+    background: var(--tone-warning);
+  }
+
+  .dot[data-tone="error"] {
+    background: var(--tone-error);
   }
 
   .text {
