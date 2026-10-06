@@ -99,12 +99,7 @@ impl<'a> SessionRepository<'a> {
         for shot in shots {
             repo.add_shot(id, shot)?;
         }
-        for sample in trace {
-            tx.execute(
-                "INSERT INTO trace_samples (session_id, ts, x_px, y_px, x_mm, y_mm, confidence, frame_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![id, sample.timestamp, sample.x_px, sample.y_px, sample.x_mm, sample.y_mm, sample.confidence, sample.frame_id],
-            )?;
-        }
+        insert_trace(&tx, id, trace)?;
         if ended_at.is_some() {
             repo.end_session(id, ended_at)?;
         }
@@ -289,24 +284,7 @@ impl<'a> SessionRepository<'a> {
             return Ok(0);
         }
         let tx = self.db.unchecked_transaction()?;
-        {
-            let mut stmt = tx.prepare(
-                "INSERT INTO trace_samples (session_id, ts, x_px, y_px, x_mm, y_mm, \
-                 confidence, frame_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            )?;
-            for s in samples {
-                stmt.execute(params![
-                    session_id,
-                    s.timestamp,
-                    s.x_px,
-                    s.y_px,
-                    s.x_mm,
-                    s.y_mm,
-                    s.confidence,
-                    s.frame_id
-                ])?;
-            }
-        }
+        insert_trace(&tx, session_id, samples)?;
         tx.commit()?;
         Ok(samples.len())
     }
@@ -358,10 +336,12 @@ impl<'a> SessionRepository<'a> {
     }
 
     pub fn add_shot(&self, session_id: i64, shot: &NewShot) -> Result<i64, DatabaseError> {
-        self.db.execute(
-            "INSERT INTO shots (session_id, ts, x_mm, y_mm, audio_level, confidence, score, series_index) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![
+        self.db
+            .prepare_cached(
+                "INSERT INTO shots (session_id, ts, x_mm, y_mm, audio_level, confidence, score, series_index) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            )?
+            .execute(params![
                 session_id,
                 shot.ts,
                 shot.x_mm,
@@ -370,8 +350,7 @@ impl<'a> SessionRepository<'a> {
                 shot.confidence,
                 shot.score,
                 shot.series_index,
-            ],
-        )?;
+            ])?;
         Ok(self.db.last_insert_rowid())
     }
 
@@ -424,6 +403,28 @@ impl<'a> SessionRepository<'a> {
             .collect::<Result<Vec<_>, _>>()?;
         Ok(shots)
     }
+}
+
+/// Inserts the samples through one prepared statement. The caller owns the
+/// transaction.
+fn insert_trace(db: &Db, session_id: i64, samples: &[TrackingSample]) -> Result<(), DatabaseError> {
+    let mut stmt = db.prepare_cached(
+        "INSERT INTO trace_samples (session_id, ts, x_px, y_px, x_mm, y_mm, \
+         confidence, frame_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+    )?;
+    for s in samples {
+        stmt.execute(params![
+            session_id,
+            s.timestamp,
+            s.x_px,
+            s.y_px,
+            s.x_mm,
+            s.y_mm,
+            s.confidence,
+            s.frame_id
+        ])?;
+    }
+    Ok(())
 }
 
 /// Reads a text column, treating NULL (a hand-edited database) as empty.
