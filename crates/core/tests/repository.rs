@@ -668,23 +668,26 @@ proptest! {
     }
 }
 
-/// The real schema declares these columns NOT NULL, so the NULLs come from a
-/// copy of the tables without that constraint.
+/// The real schema declares the text columns NOT NULL, so the NULLs come from
+/// a copy of the tables without that constraint.
 fn lenient_db() -> Db {
     let conn = Db::open_in_memory().unwrap();
     conn.execute_batch(
         "CREATE TABLE sessions (
             id INTEGER PRIMARY KEY, name TEXT, started_at DATETIME, ended_at DATETIME,
             notes TEXT, target_profile TEXT, category TEXT, app_version TEXT,
-            schema_version INTEGER);
+            schema_version INTEGER, pre_shot_ms INTEGER, post_shot_ms INTEGER,
+            release_window_ms INTEGER, shot_refractory_ms INTEGER, shot_diameter_mm REAL,
+            position TEXT, shots_per_series INTEGER);
         CREATE TABLE shots (
             id INTEGER PRIMARY KEY, session_id INTEGER, ts FLOAT, x_mm FLOAT, y_mm FLOAT,
-            audio_level FLOAT, confidence FLOAT, score TEXT);
+            audio_level FLOAT, confidence FLOAT, score TEXT, series_index INTEGER);
         INSERT INTO sessions VALUES
-            (1, NULL, '2026-01-01 10:00:00.000000', NULL, NULL, NULL, NULL, NULL, 3);
+            (1, NULL, '2026-01-01 10:00:00.000000', NULL, NULL, NULL, NULL, NULL, 1,
+             1500, 800, 250, 400, 4.5, 'standing', 10);
         INSERT INTO shots VALUES
-            (1, 1, 1.0, 1.0, 1.0, 0.5, 0.9, NULL),
-            (2, 1, 2.0, 1.0, 1.0, 0.5, 0.9, '9.5');",
+            (1, 1, 1.0, 1.0, 1.0, 0.5, 0.9, NULL, 0),
+            (2, 1, 2.0, 1.0, 1.0, 0.5, 0.9, '9.5', 0);",
     )
     .unwrap();
     conn
@@ -704,7 +707,6 @@ fn list_sessions_reads_null_text_columns_as_empty() {
 #[test]
 fn get_session_reads_null_text_columns_as_empty() {
     let db = lenient_db();
-    shottrainer_core::sessions::migrate(&db, 3).unwrap();
     let session = SessionRepository::new(&db).get_session(1).unwrap().unwrap();
     assert_eq!(session.name, "");
     assert_eq!(session.notes, "");
@@ -718,7 +720,6 @@ fn get_session_reads_null_text_columns_as_empty() {
 #[test]
 fn list_shots_reads_a_null_score_as_empty() {
     let db = lenient_db();
-    shottrainer_core::sessions::migrate(&db, 3).unwrap();
     let shots = SessionRepository::new(&db).list_shots(1).unwrap();
     assert_eq!(shots.len(), 2);
     assert_eq!(shots[0].score, "");

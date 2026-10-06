@@ -2,7 +2,7 @@
 
 use chrono::{NaiveDateTime, SubsecRound};
 
-pub const SCHEMA_VERSION: i64 = 6;
+pub const SCHEMA_VERSION: i64 = 1;
 
 /// Allowed values for `Session::category`. The strings are stored verbatim
 /// in the database, so they stay stable across versions.

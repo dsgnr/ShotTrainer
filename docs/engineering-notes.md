@@ -18,26 +18,25 @@ coordinates. The frontend filters unavailable points when drawing traces.
 
 ## Compatibility
 
-SQLite migrations, JSON preferences, target-face definitions and session export files are
-data formats. Golden fixtures and versioned database schemas are test inputs.
-Check existing migrations and fixture tests before changing
-formats. Session export files carry a `version` field, which the importer
-checks.
+JSON preferences, target-face definitions, session export files and the session
+database are data formats. Golden fixtures are test inputs. Check the fixture
+tests before changing a format. Session export files carry a `version` field,
+which the importer checks.
+
+The session database is created from a single layout and records its schema
+version in `schema_meta`. A database stamped with any other version is refused
+and left unchanged. The app has no migrations, so a layout change needs a new
+version number and a decision on how existing data is carried over.
 
 Session rows store pre-shot, post-shot, release-window and refractory timings,
-shot diameter and the target profile. Schema version 4 adds the numeric settings
-without replacing existing rows. Older sessions retain their target profile and
-receive standard defaults for settings that were never stored.
+shot diameter, shooting position, series size and the target profile. Each shot
+stores its series index. Membership is stored independently of list position so
+deletion cannot move shots between series. The recording counter advances even
+when a shot cannot be saved.
 
-Shooting position is stored with each session and defaults to standing for
-older records. It is excluded from the global settings file. Global JSON
-preferences retain their persisted keys, but session controls do
-not update those values.
-
-Schema version 6 stores the session series size and each shot's series index.
-Older shots are grouped chronologically into series of 10. Membership is
-stored independently of list position so deletion cannot move shots between
-series. The recording counter advances even when a shot cannot be saved.
+Shooting position is excluded from the global settings file. Global JSON
+preferences retain their persisted keys, but session controls do not update
+those values.
 
 ## Devices and preview
 
