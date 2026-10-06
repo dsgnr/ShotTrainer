@@ -110,6 +110,13 @@ pub fn make_engine(db_path: &str) -> Result<Db, DatabaseError> {
     // SQLite leaves foreign keys off by default, which stops the
     // ON DELETE CASCADE declarations from firing.
     conn.pragma_update(None, "foreign_keys", "ON")?;
+    if db_path != ":memory:" {
+        // The recorder commits a batch every second. WAL with NORMAL syncing
+        // avoids an fsync per commit and stays consistent after a crash. A
+        // power cut can lose the last committed batch.
+        conn.pragma_update(None, "journal_mode", "WAL")?;
+        conn.pragma_update(None, "synchronous", "NORMAL")?;
+    }
     init_database(&conn)?;
     Ok(conn)
 }
@@ -142,4 +149,20 @@ pub fn init_database(conn: &Db) -> Result<(), DatabaseError> {
     }
     tx.commit()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_databases_use_wal() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("sessions.db");
+        let db = make_engine(path.to_str().unwrap()).unwrap();
+        let mode: String = db
+            .query_row("PRAGMA journal_mode", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(mode, "wal");
+    }
 }
