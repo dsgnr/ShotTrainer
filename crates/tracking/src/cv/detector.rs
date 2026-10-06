@@ -66,7 +66,7 @@ impl CircleTargetDetector {
         self.detect_contour(&grey, &s)
     }
 
-    /// Python `_try_hough`. `grey` is the blurred greyscale frame.
+    /// Hough circle search. `grey` is the blurred greyscale frame.
     pub(crate) fn try_hough(
         &self,
         grey: &Mat,
@@ -129,7 +129,7 @@ impl CircleTargetDetector {
         }))
     }
 
-    /// Python `_detect_contour`.
+    /// Contour search, the fallback when the Hough search finds no circle.
     fn detect_contour(&mut self, grey: &Mat, s: &DetectorSettings) -> opencv::Result<Detection> {
         let block = 3.max(s.adaptive_block_size | 1);
         let mut binary = Mat::default();
@@ -272,7 +272,7 @@ impl CircleTargetDetector {
 
 impl TargetDetector for CircleTargetDetector {
     /// An OpenCV error is reported as no detection, leaving the lock
-    /// untouched, as an exception in the Python frame slot would. Repeats of
+    /// untouched. Repeats of
     /// the same error are logged through a [`RepeatLimiter`].
     fn detect(&mut self, frame: &Frame) -> Detection {
         match self.try_detect(frame) {
@@ -314,7 +314,7 @@ pub(crate) fn grey_mat(frame: &Frame) -> opencv::Result<Mat> {
     }
 }
 
-/// Gaussian blur with sigma 0, skipped for kernels below 3 as in Python.
+/// Gaussian blur with sigma 0, skipped for kernels below 3.
 pub(crate) fn blur(grey: Mat, kernel: i32) -> opencv::Result<Mat> {
     if kernel < 3 {
         return Ok(grey);
@@ -431,7 +431,7 @@ mod tests {
     use crate::test_support::{assert_detection_close, load_png_frame, settings_from_json};
 
     #[test]
-    fn detector_matches_python() {
+    fn detector_matches_the_golden_cases() {
         let golden = load_golden("detector");
         let cases = golden["cases"].as_array().unwrap();
         assert!(cases.len() >= 40);

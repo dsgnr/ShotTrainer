@@ -18,8 +18,8 @@ fn remove_file_if_present(path: &Path) -> Result<(), SettingsError> {
     }
 }
 
-/// Detector tuning as stored in `detector_settings.json`. Field order is the
-/// order Python writes keys in.
+/// Detector tuning as stored in `detector_settings.json`. Fields are written in
+/// declaration order.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct DetectorSettings {
     pub min_radius_px: i32,
@@ -60,7 +60,7 @@ impl Default for DetectorSettings {
 }
 
 impl DetectorSettings {
-    /// The checks the Python loader applies after reading every field.
+    /// The range checks applied after every field has been read.
     fn is_usable(&self) -> bool {
         0 < self.min_radius_px
             && self.min_radius_px <= self.max_radius_px

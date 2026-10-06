@@ -17,7 +17,7 @@ pub enum ScoringDirection {
 }
 
 impl ScoringDirection {
-    /// Any string other than "outward" means inward, as in the Python code.
+    /// Any string other than "outward" means inward.
     pub fn from_name(name: &str) -> Self {
         if name == "outward" {
             Self::Outward
@@ -180,7 +180,7 @@ mod tests {
     }
 
     #[test]
-    fn score_shot_matches_python() {
+    fn score_shot_matches_the_golden_cases() {
         let golden = load_golden("scoring");
         let cases = golden["score_shot"].as_array().unwrap();
         assert!(cases.len() > 100);
@@ -281,7 +281,7 @@ mod tests {
     }
 
     #[test]
-    fn label_to_value_matches_python() {
+    fn label_to_value_matches_the_golden_cases() {
         let golden = load_golden("scoring");
         let cases = golden["label_to_value"].as_array().unwrap();
         assert!(!cases.is_empty());
@@ -296,7 +296,7 @@ mod tests {
     }
 
     #[test]
-    fn total_score_matches_python() {
+    fn total_score_matches_the_golden_cases() {
         let golden = load_golden("scoring");
         let cases = golden["total_score"].as_array().unwrap();
         assert!(!cases.is_empty());

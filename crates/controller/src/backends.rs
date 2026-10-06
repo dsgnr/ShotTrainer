@@ -100,7 +100,7 @@ mod system {
 
     use super::{Backends, CameraBackend, CameraHandle, CpalAudio};
 
-    /// Python probes OpenCV indices below 5 when Qt lists no cameras.
+    /// Camera indices below this limit are probed one by one.
     const PROBE_LIMIT: i32 = 5;
 
     /// OpenCV `VideoCapture`. Cameras are named `Camera N` by index because

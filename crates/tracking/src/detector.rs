@@ -68,7 +68,7 @@ impl<D: TargetDetector + ?Sized> TargetDetector for Box<D> {
     }
 }
 
-/// Python `max(0.05, min(1.0, fraction))`, which maps NaN to 1.0.
+/// The region fraction clamped to 0.05..=1.0. NaN maps to 1.0.
 pub fn effective_region_fraction(fraction: f64) -> f64 {
     0.05_f64.max(1.0_f64.min(fraction))
 }
@@ -94,7 +94,8 @@ impl Region {
         }
     }
 
-    /// Written as the negation of Python's rejection test so NaN behaves the same.
+    /// Written as the negation of the rejection test so a NaN coordinate counts
+    /// as inside.
     pub fn contains(&self, x: f64, y: f64) -> bool {
         !((x - self.centre_x).abs() > self.half_width
             || (y - self.centre_y).abs() > self.half_height)
@@ -112,7 +113,7 @@ pub fn lock_window(
     let radius =
         1.0_f64.max(settings.lock_radius_px) * 1.0_f64.max(settings.lock_search_radius_factor);
     let (lx, ly) = lock;
-    // `as i32` truncates towards zero like Python's `int()`.
+    // `as i32` truncates towards zero.
     let x0 = 0.max((lx - radius) as i32);
     let y0 = 0.max((ly - radius) as i32);
     let x1 = i32::try_from(width)
@@ -152,13 +153,13 @@ pub fn ellipse_axes(axis_a: f64, axis_b: f64, angle: f64) -> Option<(f64, f64, f
     if axis_a >= axis_b {
         Some((axis_a / 2.0, axis_b / 2.0, angle))
     } else {
-        // `rem_euclid` matches Python's `%` for a positive divisor.
+        // `rem_euclid` keeps the angle within 0..180.
         Some((axis_b / 2.0, axis_a / 2.0, (angle + 90.0).rem_euclid(180.0)))
     }
 }
 
-/// Python `_hough_edge_confidence` after the band means and the interior
-/// standard deviation are measured.
+/// Confidence of a Hough circle from the band means and the interior standard
+/// deviation.
 pub fn hough_confidence(inner_mean: f64, outer_mean: f64, interior_stddev: f64) -> f64 {
     let edge_score = (outer_mean - inner_mean).abs() / 255.0;
     let uniformity_score = 0.0_f64.max(1.0 - interior_stddev / 30.0);
@@ -182,7 +183,7 @@ impl SoftLock {
     }
 
     /// Counts a contour-path miss and drops the lock once the count reaches
-    /// `release_after`. The count keeps rising while no lock is held, as in Python.
+    /// `release_after`. The count keeps rising while no lock is held.
     pub fn miss(&mut self, release_after: i32) {
         self.consecutive_misses = self.consecutive_misses.saturating_add(1);
         if self.position.is_some() && self.consecutive_misses >= i64::from(release_after) {
@@ -198,7 +199,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn defaults_match_python() {
+    fn defaults_are_unchanged() {
         let s = DetectorSettings::default();
         assert_eq!(
             (
@@ -231,7 +232,7 @@ mod tests {
     }
 
     #[test]
-    fn region_fraction_is_clamped_like_python() {
+    fn region_fraction_is_clamped() {
         for (input, expected) in [
             (0.7, 0.7),
             (0.0, 0.05),
@@ -264,7 +265,7 @@ mod tests {
     }
 
     #[test]
-    fn lock_window_truncates_and_clips_like_python() {
+    fn lock_window_truncates_and_clips() {
         let s = DetectorSettings::default();
         assert_eq!(
             lock_window((320.0, 240.0), 640, 480, &s),
@@ -288,7 +289,7 @@ mod tests {
     }
 
     #[test]
-    fn lock_score_matches_python() {
+    fn lock_score_matches_the_golden_cases() {
         let s = DetectorSettings::default();
         let lock = Some((320.0, 240.0));
         assert_eq!(lock_adjusted_score(0.8, (1.0, 2.0), None, &s), 0.8);
@@ -319,7 +320,7 @@ mod tests {
     }
 
     #[test]
-    fn hough_confidence_matches_python() {
+    fn hough_confidence_matches_the_golden_cases() {
         for (inner, outer, stddev, expected) in [
             (10.0, 240.0, 0.0, 0.8080065359477124),
             (100.0, 100.0, 5.0, 0.0),

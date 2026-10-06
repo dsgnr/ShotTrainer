@@ -21,7 +21,7 @@ impl Default for ImageAdjustment {
     }
 }
 
-/// The values the search walks. The default is Python's.
+/// The values the search walks.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TuningGrid {
     pub block_sizes: Vec<i32>,
@@ -54,17 +54,16 @@ pub struct TuningResult {
     pub score: f64,
 }
 
-/// Python `_evaluate_cell`'s Hough pass for one blur kernel on the adjusted
-/// grey frame. Returns the confidence of a detection inside the tracking
-/// region, or `None`.
+/// The Hough pass for one blur kernel on the adjusted grey frame. Returns the
+/// confidence of a detection inside the tracking region, or `None`.
 pub trait HoughScorer {
     fn hough_score(&mut self, adjusted: &Frame, blur: i32, base: &DetectorSettings) -> Option<f64>;
 }
 
-/// Python `optimise_detector_settings`. Cells run brightness-major. Within a
-/// cell a blur only wins with a strictly higher score, and across cells the
-/// first best cell wins, as Python's `max` does. An empty `block_sizes`,
-/// `offsets` or `closing_kernels` keeps the base value, where Python raises.
+/// Searches the grid for the best detector settings and image adjustment.
+/// Cells run brightness-major. Within a cell a blur only wins with a strictly
+/// higher score, and across cells the first best cell wins. An empty
+/// `block_sizes`, `offsets` or `closing_kernels` keeps the base value.
 pub fn optimise_detector_settings(
     frame: &Frame,
     base: &DetectorSettings,
@@ -160,7 +159,7 @@ mod tests {
     use crate::frame::PixelFormat;
     use crate::test_support::{f64_at, settings_from_json};
 
-    /// Replays the Hough scores Python saw, in call order.
+    /// Replays the recorded Hough scores in call order.
     struct Replay {
         scores: VecDeque<Option<f64>>,
         calls: Vec<(i32, u8)>,
@@ -176,7 +175,7 @@ mod tests {
             self.calls.push((blur, adjusted.data()[0]));
             self.scores
                 .pop_front()
-                .expect("more Hough calls than Python made")
+                .expect("more Hough calls than recorded")
         }
     }
 
@@ -208,7 +207,7 @@ mod tests {
     }
 
     #[test]
-    fn search_matches_python() {
+    fn search_matches_the_golden_cases() {
         let golden = load_golden("detector_tuning");
         let cases = golden["cases"].as_array().unwrap();
         assert!(cases.len() >= 10);
@@ -238,7 +237,7 @@ mod tests {
 
             assert!(
                 replay.scores.is_empty(),
-                "{name}: fewer Hough calls than Python made"
+                "{name}: fewer Hough calls than recorded"
             );
             let cells = if frame.is_empty() {
                 0

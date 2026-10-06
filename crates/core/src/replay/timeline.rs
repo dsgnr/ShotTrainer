@@ -54,7 +54,7 @@ mod tests {
     use crate::trace_fixture::*;
 
     #[test]
-    fn slice_window_matches_python() {
+    fn slice_window_matches_the_golden_cases() {
         let mut checked = 0;
         for case in cases() {
             let snapshot = samples(&case["snapshot"]);
@@ -73,7 +73,7 @@ mod tests {
     }
 
     #[test]
-    fn index_of_nearest_matches_python_and_prefers_the_earlier_tie() {
+    fn index_of_nearest_matches_the_golden_cases_and_prefers_the_earlier_tie() {
         let mut checked = 0;
         for case in cases() {
             let snapshot = samples(&case["snapshot"]);

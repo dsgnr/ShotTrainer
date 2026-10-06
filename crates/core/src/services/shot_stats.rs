@@ -26,8 +26,7 @@ pub struct TraceStats {
     pub mean_y_mm: f64,
 }
 
-/// Python sums floats from an integer zero, so the fold starts at `+0.0`
-/// where `Iterator::sum` would start at `-0.0`.
+/// The fold starts at `+0.0` where `Iterator::sum` would start at `-0.0`.
 fn sum(values: impl Iterator<Item = f64>) -> f64 {
     values.fold(0.0, |acc, v| acc + v)
 }

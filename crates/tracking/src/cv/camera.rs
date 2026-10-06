@@ -45,7 +45,7 @@ pub fn open_camera(config: &CameraConfig) -> Result<OpenedSource, String> {
     ];
     for (property, value) in requests {
         if let Some(value) = value.filter(|v| *v > 0.0) {
-            // A refused request leaves the device default, as in Python.
+            // A refused request leaves the device default.
             let _ = capture.set(property, value);
         }
     }
@@ -84,9 +84,9 @@ impl CameraCapture {
     }
 }
 
-/// Probes OpenCV indices `0..max_index` and names them `Camera {index}`, as
-/// the Python fallback does. Each probe opens the device, so this is slow on
-/// macOS and may trigger the permission prompt.
+/// Probes OpenCV indices `0..max_index` and names them `Camera {index}`,
+/// because OpenCV has no device names. Each probe opens the device, so this is
+/// slow on macOS and may trigger the permission prompt.
 pub fn probe_cameras(max_index: i32) -> Vec<(i32, String)> {
     probe_cameras_skipping(max_index, None)
 }

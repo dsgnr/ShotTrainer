@@ -67,7 +67,7 @@ mod tests {
     use shottrainer_audio::models::ShotEvent;
 
     #[test]
-    fn handle_shot_matches_python() {
+    fn handle_shot_matches_the_golden_cases() {
         let mut checked = 0;
         let mut empty_buffer_shots = 0;
         for case in cases() {

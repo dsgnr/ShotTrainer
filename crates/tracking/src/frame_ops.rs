@@ -42,7 +42,7 @@ pub fn bgr_to_grey(frame: Frame) -> Frame {
 }
 
 /// Rotates clockwise by a multiple of 90 degrees. Negative and large angles
-/// are reduced modulo 360 as Python's `%` does.
+/// are reduced modulo 360.
 pub fn rotate_frame(frame: Frame, degrees: i32) -> Result<Frame, FrameError> {
     let (w, h) = (frame.width() as usize, frame.height() as usize);
     let rotated = match degrees.rem_euclid(360) {
@@ -89,7 +89,7 @@ pub fn adjust_image(frame: Frame, brightness: f64, contrast: f64) -> Frame {
     Frame::from_parts(w, h, format, data)
 }
 
-/// Rotation, then flips, then brightness and contrast, as in Python.
+/// Rotation, then flips, then brightness and contrast.
 pub fn transform_frame(frame: Frame, transform: &FrameTransform) -> Result<Frame, FrameError> {
     let frame = rotate_frame(frame, transform.rotation_degrees)?;
     let frame = flip_frame(frame, transform.flip_horizontal, transform.flip_vertical);
@@ -147,7 +147,7 @@ mod tests {
         images[case["image"].as_str().unwrap()].clone()
     }
 
-    /// `"error"` in the fixture means Python raised `ValueError`.
+    /// `"error"` in the fixture means the transform is rejected.
     fn check(got: Result<Frame, FrameError>, expected: &Value, context: &Value) {
         match (got, expected) {
             (Err(FrameError::UnsupportedRotation(_)), Value::String(s)) if s == "error" => {}
@@ -159,7 +159,7 @@ mod tests {
     }
 
     #[test]
-    fn rotate_matches_python() {
+    fn rotate_matches_the_golden_cases() {
         let (golden, images) = golden();
         for case in golden["rotate"].as_array().unwrap() {
             let degrees = i32::try_from(case["degrees"].as_i64().unwrap()).unwrap();
@@ -172,7 +172,7 @@ mod tests {
     }
 
     #[test]
-    fn flip_matches_python() {
+    fn flip_matches_the_golden_cases() {
         let (golden, images) = golden();
         for case in golden["flip"].as_array().unwrap() {
             let (h, v) = (case["h"].as_bool().unwrap(), case["v"].as_bool().unwrap());
@@ -185,7 +185,7 @@ mod tests {
     }
 
     #[test]
-    fn adjust_matches_python_exactly() {
+    fn adjust_matches_the_golden_cases_exactly() {
         let (golden, images) = golden();
         for case in golden["adjust"].as_array().unwrap() {
             let out = adjust_image(
@@ -198,7 +198,7 @@ mod tests {
     }
 
     #[test]
-    fn transform_matches_python() {
+    fn transform_matches_the_golden_cases() {
         let (golden, images) = golden();
         for case in golden["transform"].as_array().unwrap() {
             let transform = FrameTransform {
@@ -216,11 +216,11 @@ mod tests {
         }
     }
 
-    /// opencv-python on Apple silicon converts with KleidiCV's 15-bit
-    /// coefficients, so the fixture may differ by one level from the generic
-    /// formula Rust uses on every platform.
+    /// The fixture was recorded with a converter that uses 15-bit coefficients
+    /// on some platforms, so it may differ by one level from the generic
+    /// formula used on every platform here.
     #[test]
-    fn bgr_to_grey_is_within_one_level_of_python() {
+    fn bgr_to_grey_is_within_one_level_of_the_fixture() {
         let (golden, images) = golden();
         for case in golden["bgr_to_grey"].as_array().unwrap() {
             let got = bgr_to_grey(image(&images, case));

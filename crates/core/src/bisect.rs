@@ -1,7 +1,7 @@
-//! Binary searches that follow the probing order of Python's `bisect`.
+//! Binary searches with a fixed probing order.
 //!
-//! Following the same order keeps results identical to the reference on input
-//! that is not sorted, such as a NaN timestamp, where the comparisons are all false.
+//! The fixed order keeps results deterministic on input that is not sorted,
+//! such as a NaN timestamp, where the comparisons are all false.
 
 pub(crate) fn bisect_left(len: usize, key: impl Fn(usize) -> f64, x: f64) -> usize {
     let (mut lo, mut hi) = (0, len);

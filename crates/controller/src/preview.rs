@@ -91,7 +91,7 @@ impl Controller {
     }
 
     /// Searches the latest frame for detector settings and an image
-    /// adjustment. Runs inline as Python does, for about 100 ms.
+    /// adjustment. Runs inline, for about 100 ms.
     pub(crate) fn optimise(&mut self) {
         let Some(source) = self.frames.latest_unadjusted().cloned() else {
             self.detector_status(StatusMessage::warning(

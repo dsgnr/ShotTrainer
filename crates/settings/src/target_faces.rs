@@ -259,7 +259,7 @@ mod tests {
     }
 
     #[test]
-    fn built_in_catalogue_matches_python() {
+    fn built_in_catalogue_matches_the_golden_cases() {
         let golden = load_golden("target_faces");
         let expected = &golden["built_in"];
         assert!(!expected.as_array().unwrap().is_empty());
@@ -267,7 +267,7 @@ mod tests {
     }
 
     #[test]
-    fn custom_files_match_python() {
+    fn custom_files_match_the_golden_cases() {
         let golden = load_golden("target_faces");
         let cases = golden["cases"].as_array().unwrap();
         assert!(cases.len() > 20);

@@ -19,7 +19,7 @@ use crate::convert::{coordinator_settings, score_for};
 use crate::events::{HoldTrace, ShotsView, StatusMessage, UiEvent};
 use crate::player::TracePlayer;
 
-/// The live trace buffer holds about 6.6 minutes at 30 fps, as in Python.
+/// The live trace buffer holds about 6.6 minutes at 30 fps.
 pub const TRACE_BUFFER_CAPACITY: usize = 12_000;
 
 /// One shot in the on-screen list. `shot_id` is the database row when the
@@ -370,7 +370,7 @@ impl SessionManager {
         }
     }
 
-    /// Python `_render_shots` followed by `_refresh_stats`.
+    /// Sends the shot list and clears the hold trace.
     pub(crate) fn render(&self, cx: &SessionContext) {
         (cx.emit)(UiEvent::Shots(self.shots_view()));
         (cx.emit)(UiEvent::HoldTrace(None));

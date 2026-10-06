@@ -235,8 +235,7 @@ impl AudioManager {
         }
     }
 
-    /// Takes effect at the next start, as in Python. A running stream stays
-    /// on its device.
+    /// Takes effect at the next start. A running stream stays on its device.
     pub fn set_device(&mut self, device: &str) {
         device.clone_into(&mut self.device);
     }

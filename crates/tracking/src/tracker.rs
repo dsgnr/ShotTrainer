@@ -32,8 +32,8 @@ pub struct Tracker<D: TargetDetector> {
     trace_signs: (f64, f64),
 }
 
-/// Python accepts NaN because `nan <= 0` is false. Rust also rejects
-/// non-finite diameters, which validated preferences never contain.
+/// Rejects non-positive and non-finite diameters. Validated preferences never
+/// contain either.
 fn check_diameter(diameter_mm: f64) -> Result<f64, TrackerError> {
     if diameter_mm > 0.0 && diameter_mm.is_finite() {
         Ok(diameter_mm)
@@ -273,7 +273,8 @@ impl<D: TargetDetector> Tracker<D> {
         if let (Some(major), Some(minor)) = (self.smoothed_major_px, self.smoothed_minor_px) {
             return (major, minor);
         }
-        // Python `max(radius_px, 4.0)` keeps a NaN radius, which `f64::max` would not.
+        // Written as a comparison so a NaN radius is kept, which `f64::max` would
+        // replace.
         let radius = if MIN_INFORMATIVE_RADIUS_PX > radius_px {
             MIN_INFORMATIVE_RADIUS_PX
         } else {
@@ -417,7 +418,7 @@ mod tests {
     }
 
     #[test]
-    fn tracker_matches_python() {
+    fn tracker_matches_the_golden_cases() {
         let golden = load_golden("tracker");
         let cases = golden["cases"].as_array().unwrap();
         assert!(cases.len() >= 10);
@@ -496,7 +497,7 @@ mod tests {
     }
 
     #[test]
-    fn constructor_rejects_what_python_rejects() {
+    fn constructor_rejects_the_golden_invalid_diameters() {
         let golden = load_golden("tracker");
         for case in golden["constructor"].as_array().unwrap() {
             let result = Tracker::new(number(&case["diameter"]), scripted());

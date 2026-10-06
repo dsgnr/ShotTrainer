@@ -10,7 +10,7 @@ use shottrainer_tracking::log_limit::RepeatLimiter;
 use shottrainer_tracking::models::{Detection, TrackingSample};
 use shottrainer_tracking::tracker::Tracker;
 
-/// Python refreshes the header status line every fifth frame.
+/// The header status line is refreshed every fifth frame.
 const STATUS_REFRESH_EVERY_N_FRAMES: i64 = 5;
 const DEFAULT_CIRCLE_DIAMETER_MM: f64 = 60.0;
 
@@ -57,7 +57,7 @@ pub struct FrameOutcome {
 
 /// Turns a detection with any non-finite number into not-found. One NaN
 /// centre or radius would otherwise stay in the tracker's moving averages
-/// until the circle diameter changes, as it does in Python.
+/// until the circle diameter changes.
 pub struct FiniteDetections<D> {
     inner: D,
     warnings: RepeatLimiter,
@@ -240,7 +240,7 @@ impl FramePipeline {
         })
     }
 
-    /// Python `_refresh_tracking_status`.
+    /// The header status line for the current tracking state.
     pub fn status_text(&self) -> String {
         match self.tracker.mm_per_pixel() {
             None => "Acquiring target...".to_owned(),

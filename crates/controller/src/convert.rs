@@ -53,7 +53,7 @@ pub fn detector_to_store(s: &DetectorSettings) -> StoredDetectorSettings {
     }
 }
 
-/// Python `max(0.01, prefs.audio_gain)`, which also maps NaN to 0.01.
+/// The audio gain, raised to 0.01 at the lowest. NaN also maps to 0.01.
 pub fn effective_gain(prefs: &Preferences) -> f64 {
     if prefs.audio_gain > 0.01 {
         prefs.audio_gain
@@ -64,7 +64,7 @@ pub fn effective_gain(prefs: &Preferences) -> f64 {
 
 /// The detector threshold is divided by the gain so the meter, which shows
 /// the level multiplied by the gain, crosses the threshold line when a shot
-/// fires. Block size, sample rate and filter keep their defaults, as in Python.
+/// fires. Block size, sample rate and filter keep their defaults.
 pub fn shot_detector_settings(prefs: &Preferences) -> ShotDetectorSettings {
     let defaults = ShotDetectorSettings::default();
     ShotDetectorSettings {
@@ -93,8 +93,8 @@ pub fn frame_transform(prefs: &Preferences) -> FrameTransform {
     }
 }
 
-/// Python `SessionManager._score_for`. An unmapped shot, or no face at all,
-/// scores the empty string.
+/// The score label for a shot. An unmapped shot, or no face at all, scores the
+/// empty string.
 pub fn score_for(
     faces: &[TargetFace],
     prefs: &Preferences,
@@ -118,7 +118,7 @@ pub fn score_for(
             })
         })
         .collect();
-    // Python's sort is stable and treats incomparable values as equal.
+    // The sort is stable and treats incomparable values as equal.
     rings.sort_by(|a, b| {
         a.radius_mm
             .partial_cmp(&b.radius_mm)

@@ -81,7 +81,7 @@ fn expect(prefs: &Preferences, expected: &Value, context: &str) {
 }
 
 #[test]
-fn defaults_match_python() {
+fn defaults_match_the_golden_values() {
     expect(
         &Preferences::default(),
         &load_golden("preferences")["defaults"],
@@ -90,7 +90,7 @@ fn defaults_match_python() {
 }
 
 #[test]
-fn load_cases_match_python() {
+fn load_cases_match_the_golden_cases() {
     let golden = load_golden("preferences");
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("settings.json");
@@ -117,7 +117,7 @@ fn parse(text: &str) -> Value {
 }
 
 #[test]
-fn save_matches_python_text() {
+fn save_writes_the_golden_values() {
     let golden = load_golden("preferences");
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("nested").join("settings.json");
@@ -207,7 +207,7 @@ fn missing_path_and_directory_give_defaults() {
 }
 
 #[test]
-fn data_dirs_match_python() {
+fn data_dirs_match_the_golden_cases() {
     let golden = load_golden("preferences");
     for case in golden["data_dirs"].as_array().unwrap() {
         let platform = match case["platform"].as_str().unwrap() {

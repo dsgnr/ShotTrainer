@@ -86,7 +86,7 @@ impl ShotDetector {
             }
         }
 
-        // Python divides by the sample rate and raises when it is zero.
+        // A zero sample rate cannot give a timestamp.
         if self.settings.sample_rate == 0 {
             return None;
         }
@@ -125,7 +125,7 @@ mod tests {
     }
 
     #[test]
-    fn golden_cases_match_the_python_detector() {
+    fn detector_matches_the_golden_cases() {
         let golden = testkit::load_golden("shot_detector");
         let cases = golden["cases"].as_array().unwrap();
         assert!(cases.len() > 15, "only {} cases", cases.len());

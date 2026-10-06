@@ -1,4 +1,4 @@
-//! Helpers for tests that compare against fixtures generated from the Python code.
+//! Helpers for tests that compare against the committed golden fixtures.
 use std::path::PathBuf;
 
 const TOLERANCE: f64 = 1e-9;

@@ -75,7 +75,7 @@ impl AudioPipeline {
     /// Feeds one interleaved buffer that arrived now and returns the events
     /// for every block it completes, in order.
     ///
-    /// Only channel 0 is analysed, as Python opens the input with one channel.
+    /// Only channel 0 is analysed.
     /// The clock is read once per non-empty buffer, so the end of the buffer's
     /// last frame is at the arrival time. A trailing partial frame is dropped
     /// rather than carried, because a device delivers whole frames and keeping
@@ -94,9 +94,8 @@ impl AudioPipeline {
                 .extend(interleaved.chunks_exact(channels).map(|frame| frame[0]));
         }
 
-        // Deviates from Python, where blocksize=0 lets the driver choose the
-        // block size. Here the pipeline cuts the blocks itself and a zero size
-        // would never drain, so it is treated as one frame.
+        // The pipeline cuts the blocks itself and a zero size would never
+        // drain, so it is treated as one frame.
         let block_size = self.settings.block_size.max(1);
         let total = self.pending.len();
         let rate = f64::from(self.sample_rate);
@@ -158,7 +157,7 @@ mod tests {
     }
 
     #[test]
-    fn golden_cases_match_the_python_listener() {
+    fn listener_matches_the_golden_cases() {
         let golden = testkit::load_golden("audio_pipeline");
         let cases = golden["cases"].as_array().unwrap();
         assert!(cases.len() >= 4);

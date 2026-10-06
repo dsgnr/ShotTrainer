@@ -5,7 +5,8 @@
 use shottrainer_core::replay::timeline::index_of_nearest;
 use shottrainer_tracking::models::TrackingSample;
 
-/// Python's `point`, `index_changed`, `progress` and `finished` signals.
+/// What the player reports. The point, index and progress change as the
+/// playhead moves and `Finished` marks the end of the trace.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PlayerEvent {
     Point { x_mm: f64, y_mm: f64 },
@@ -42,7 +43,7 @@ impl TracePlayer {
     }
 
     /// Replaces the trace, dropping samples without both millimetre
-    /// coordinates. Like Python, the events of the implicit `stop` on the old
+    /// coordinates. The events of the implicit `stop` on the old
     /// trace come first, then the first point and a progress of zero.
     pub fn load(&mut self, samples: &[TrackingSample]) -> Vec<PlayerEvent> {
         let mut events = self.stop();
@@ -57,7 +58,7 @@ impl TracePlayer {
         events
     }
 
-    /// Python `max(0.1, speed)`, which also maps NaN to the minimum.
+    /// Raises the speed to 0.1 at the lowest. NaN also maps to the minimum.
     pub fn set_speed(&mut self, speed: f64) {
         self.speed = if speed > 0.1 { speed } else { 0.1 };
     }
@@ -99,7 +100,7 @@ impl TracePlayer {
     }
 
     /// Moves the playhead to `fraction` of the recorded time, clamped to
-    /// 0..=1 with NaN treated as 1 as Python's `min` and `max` do. Seeking
+    /// 0..=1 with NaN treated as 1. Seeking
     /// keeps the play or pause state.
     pub fn seek_fraction(&mut self, fraction: f64, now: f64) -> Vec<PlayerEvent> {
         let mut events = Vec::new();
@@ -113,7 +114,7 @@ impl TracePlayer {
             let timestamp = first.timestamp + fraction * duration;
             index_of_nearest(&self.samples, timestamp).unwrap_or(0)
         } else {
-            // Python's `round` rounds halves to even.
+            // Halves round to even.
             (fraction * (self.samples.len() - 1) as f64).round_ties_even() as usize
         };
         self.push_current(&mut events);
@@ -472,7 +473,7 @@ mod tests {
     }
 
     #[test]
-    fn halves_round_to_even_as_in_python() {
+    fn halves_round_to_even() {
         let mut player = TracePlayer::new();
         player.load(&samples(6, 0.0));
         player.seek_fraction(0.5, 0.0);

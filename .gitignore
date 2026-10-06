@@ -7,14 +7,8 @@ node_modules/
 # Documentation tools and generated site
 /site/
 __pycache__/
-*.py[cod]
 .venv/
 .cache/
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
-.hypothesis/
-*.egg-info/
 
 # Editors and operating systems
 .vscode/

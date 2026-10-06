@@ -37,8 +37,7 @@ impl SessionManager {
         self.list_sessions(cx);
     }
 
-    /// Only the stored category strings are accepted, as the Python dialog
-    /// offers no others.
+    /// Only the stored category strings are accepted.
     pub fn set_session_category(&self, cx: &SessionContext, id: i64, category: &str) {
         if !SESSION_CATEGORIES.contains(&category) {
             log::warn!("Ignoring unknown session category {category:?}");
@@ -244,8 +243,7 @@ impl SessionManager {
     }
 }
 
-/// Forwards player events. `Finished` also resets the play button, as the
-/// Python `finished` signal does.
+/// Forwards player events. `Finished` also resets the play button.
 fn emit_player(cx: &SessionContext, events: Vec<PlayerEvent>) {
     for event in events {
         let finished = event == PlayerEvent::Finished;

@@ -49,7 +49,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn tracking_sample_defaults_match_python() {
+    fn tracking_sample_defaults_are_unchanged() {
         let s = TrackingSample::new(1.5, 10.0, 20.0);
         assert_eq!(
             (s.confidence, s.frame_id, s.x_mm, s.y_mm),

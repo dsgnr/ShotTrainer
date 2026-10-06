@@ -200,7 +200,7 @@ impl Controller {
         };
         controller.push_preferences();
         // Saved detector tuning wins over the region fraction from the
-        // preferences, as in Python.
+        // preferences.
         if let Some(saved) = load_detector_settings(&controller.paths.detector_settings) {
             controller
                 .frames
@@ -453,8 +453,8 @@ impl Controller {
         }
     }
 
-    /// Python `_apply_preferences`, the one place that reacts to changed
-    /// preferences, whether from the interface or from the file.
+    /// The one place that reacts to changed preferences, whether from the
+    /// interface or from the file.
     pub(crate) fn apply_preferences(&mut self, mut prefs: Preferences, persist: bool) {
         prefs.pre_shot_ms = self.prefs.pre_shot_ms;
         prefs.post_shot_ms = self.prefs.post_shot_ms;
@@ -478,13 +478,13 @@ impl Controller {
         let saved = self.preview.as_ref().unwrap_or(&previous);
         if persist && saved != &self.prefs {
             let mut global = self.prefs.clone();
-            let legacy = load_preferences(&self.paths.settings);
-            global.pre_shot_ms = legacy.pre_shot_ms;
-            global.post_shot_ms = legacy.post_shot_ms;
-            global.release_window_ms = legacy.release_window_ms;
-            global.shot_refractory_ms = legacy.shot_refractory_ms;
-            global.shot_diameter_mm = legacy.shot_diameter_mm;
-            global.target_face = legacy.target_face;
+            let stored = load_preferences(&self.paths.settings);
+            global.pre_shot_ms = stored.pre_shot_ms;
+            global.post_shot_ms = stored.post_shot_ms;
+            global.release_window_ms = stored.release_window_ms;
+            global.shot_refractory_ms = stored.shot_refractory_ms;
+            global.shot_diameter_mm = stored.shot_diameter_mm;
+            global.target_face = stored.target_face;
             if let Err(error) = save_preferences(&global, &self.paths.settings) {
                 log::warn!("Could not save preferences: {error}");
             }

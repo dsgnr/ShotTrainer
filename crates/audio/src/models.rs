@@ -31,7 +31,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn shot_detector_defaults_match_python() {
+    fn shot_detector_defaults_are_unchanged() {
         let s = ShotDetectorSettings::default();
         assert_eq!(
             (

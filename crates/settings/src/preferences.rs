@@ -9,7 +9,7 @@ use crate::json_values::{
 };
 use crate::json_write::write_json_atomic;
 
-/// Field order is the order Python writes keys in.
+/// Fields are written to the settings file in declaration order.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Preferences {
     /// `None` means no camera is selected.

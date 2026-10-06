@@ -76,7 +76,7 @@ fn zero_from(v: &Value) -> ZeroOffset {
 }
 
 #[test]
-fn detector_defaults_match_python() {
+fn detector_defaults_match_the_golden_values() {
     let golden = load_golden("stores");
     assert_eq!(
         DetectorSettings::default(),
@@ -85,7 +85,7 @@ fn detector_defaults_match_python() {
 }
 
 #[test]
-fn detector_load_cases_match_python() {
+fn detector_load_cases_match_the_golden_cases() {
     let golden = load_golden("stores");
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("detector.json");
@@ -97,7 +97,7 @@ fn detector_load_cases_match_python() {
 }
 
 #[test]
-fn detector_save_matches_python_text() {
+fn detector_save_writes_the_golden_values() {
     let golden = load_golden("stores");
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("nested").join("detector.json");
@@ -132,7 +132,7 @@ fn detector_round_trip_clear_and_bad_paths() {
 }
 
 #[test]
-fn zero_offset_load_cases_match_python() {
+fn zero_offset_load_cases_match_the_golden_cases() {
     let golden = load_golden("stores");
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("zero.json");
@@ -154,13 +154,13 @@ fn zero_offset_load_cases_match_python() {
                     "{name}"
                 );
             }
-            (got, want) => panic!("{name}: got {got:?}, Python gave {want:?}"),
+            (got, want) => panic!("{name}: got {got:?}, expected {want:?}"),
         }
     }
 }
 
 #[test]
-fn zero_offset_save_matches_python_text() {
+fn zero_offset_save_writes_the_golden_values() {
     let golden = load_golden("stores");
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("nested").join("zero.json");
@@ -202,7 +202,7 @@ fn zero_offset_round_trip_clear_and_bad_paths() {
 }
 
 #[test]
-fn camera_load_cases_match_python() {
+fn camera_load_cases_match_the_golden_cases() {
     let golden = load_golden("stores");
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("camera.json");
@@ -218,7 +218,7 @@ fn camera_load_cases_match_python() {
 }
 
 #[test]
-fn camera_save_matches_python_text() {
+fn camera_save_writes_the_golden_values() {
     let golden = load_golden("stores");
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("nested").join("camera.json");
@@ -267,7 +267,7 @@ fn camera_round_trip_and_bad_paths() {
 }
 
 #[test]
-fn resolve_camera_index_matches_python() {
+fn resolve_camera_index_matches_the_golden_cases() {
     let golden = load_golden("stores");
     for case in cases(&golden, "resolve") {
         let selection = CameraSelection {

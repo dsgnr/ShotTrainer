@@ -48,7 +48,7 @@ mod tests {
     }
 
     #[test]
-    fn the_bundle_keeps_the_python_identifier() {
+    fn the_bundle_identifier_is_stable() {
         let config: Value = serde_json::from_str(CONFIG).unwrap();
         // macOS remembers camera and microphone consent per identifier.
         assert_eq!(config["identifier"], "org.shottrainer.app");

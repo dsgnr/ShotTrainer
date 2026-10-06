@@ -323,9 +323,8 @@ impl AudioInput {
     }
 
     /// Takes effect from the next block. A new `block_size` applies from the
-    /// next block that is cut, whereas Python fixes the block size when the
-    /// stream opens. The audio callback only holds the
-    /// lock while it pushes one buffer, so this waits at most that long.
+    /// next block that is cut. The audio callback only holds the lock while it
+    /// pushes one buffer, so this waits at most that long.
     pub fn update_settings(&self, settings: ShotDetectorSettings) {
         let mut shared = lock(&self.shared);
         if let Some(pipeline) = shared.pipeline.as_mut() {

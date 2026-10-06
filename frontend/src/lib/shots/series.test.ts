@@ -13,9 +13,9 @@ it("shows the latest series until a shot in another series is selected", () => {
 it("preserves recorded membership after deleting shots", () => {
   expect(currentSeries(shots.slice(1), 1).entries.map(e => e.shot.shotId)).toEqual([2, 3]);
 });
-it("groups legacy shots using the session size and tolerates an empty list", () => {
-  const legacy = shots.map(({ seriesIndex: _, ...shot }) => shot);
-  expect(currentSeries(legacy, null, 2).entries.map(e => e.index)).toEqual([4]);
+it("groups shots without a series index using the session size and tolerates an empty list", () => {
+  const unindexed = shots.map(({ seriesIndex: _, ...shot }) => shot);
+  expect(currentSeries(unindexed, null, 2).entries.map(e => e.index)).toEqual([4]);
   expect(currentSeries([], null)).toEqual({ active: 0, entries: [] });
 });
 it("returns to the latest series when a new shot arrives", () => {

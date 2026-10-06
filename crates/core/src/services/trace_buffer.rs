@@ -6,8 +6,7 @@ use std::collections::VecDeque;
 
 const DEFAULT_CAPACITY: usize = 6000;
 
-/// The most recent samples, oldest first. A capacity of zero keeps nothing,
-/// as with a Python `deque(maxlen=0)`.
+/// The most recent samples, oldest first. A capacity of zero keeps nothing.
 #[derive(Debug, Clone)]
 pub struct TraceBuffer {
     samples: VecDeque<TrackingSample>,
@@ -59,7 +58,7 @@ impl TraceBuffer {
     }
 
     /// Returns the sample closest to `timestamp`. On an exact tie the later
-    /// sample wins, matching the candidate order of the Python reference.
+    /// sample wins.
     pub fn nearest(&self, timestamp: f64) -> Option<&TrackingSample> {
         if self.samples.is_empty() {
             return None;
@@ -67,7 +66,7 @@ impl TraceBuffer {
         let i = bisect_left(self.samples.len(), |i| self.samples[i].timestamp, timestamp);
         let distance = |idx: usize| (self.samples[idx].timestamp - timestamp).abs();
         let mut best = if i < self.samples.len() { i } else { i - 1 };
-        // Python's `min` keeps the first candidate unless a later one is strictly smaller.
+        // The later candidate wins unless the earlier one is strictly closer.
         if i < self.samples.len() && i > 0 && distance(i - 1) < distance(i) {
             best = i - 1;
         }
@@ -96,7 +95,7 @@ mod tests {
     use crate::trace_fixture::*;
 
     #[test]
-    fn buffer_matches_python() {
+    fn buffer_matches_the_golden_cases() {
         let (mut nearest_checked, mut window_checked, mut ties) = (0, 0, 0);
         for case in cases() {
             let name = case["name"].as_str().unwrap().to_string();
@@ -137,7 +136,7 @@ mod tests {
     }
 
     #[test]
-    fn zero_capacity_keeps_nothing_as_python_deque_maxlen_zero() {
+    fn zero_capacity_keeps_nothing() {
         let mut buf = TraceBuffer::new(0);
         buf.append(TrackingSample::new(1.0, 0.0, 0.0));
         assert!(buf.is_empty());

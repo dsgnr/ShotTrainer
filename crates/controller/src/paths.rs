@@ -14,7 +14,7 @@ pub struct DataPaths {
 }
 
 impl DataPaths {
-    /// The file names the Python application uses inside `dir`.
+    /// The data files inside `dir`.
     pub fn in_dir(dir: &Path) -> Self {
         DataPaths {
             sessions_db: dir.join("sessions.db"),
@@ -37,7 +37,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn file_names_match_python() {
+    fn file_names_are_stable() {
         let paths = DataPaths::in_dir(Path::new("data"));
         let names: Vec<_> = [
             &paths.sessions_db,

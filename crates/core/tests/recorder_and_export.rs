@@ -1,5 +1,4 @@
-//! Replay coordinator and session recorder tests, ported from the
-//! Python suite plus the extra cases for the Rust port.
+//! Replay coordinator and session recorder tests.
 
 use shottrainer_core::services::replay_coordinator::{DEFAULT_RELEASE_WINDOW_MS, shot_window};
 use shottrainer_core::services::session_recorder::{

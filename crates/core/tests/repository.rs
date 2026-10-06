@@ -1,5 +1,4 @@
-//! Repository tests, ported from the Python suite plus the extra cases for
-//! the Rust port.
+//! Repository tests.
 
 use std::collections::HashMap;
 use std::sync::Mutex;

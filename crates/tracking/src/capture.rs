@@ -13,8 +13,8 @@ use crate::frame::Frame;
 /// Seconds on the shared monotonic timeline, supplied by the caller.
 pub type ClockFn = Arc<dyn Fn() -> f64 + Send + Sync>;
 
-/// Python `CameraConfig`. `width`, `height` and `fps` are requests the device
-/// may round. `None` or zero leaves the device default.
+/// Camera settings. `width`, `height` and `fps` are requests the device may
+/// round. `None` or zero leaves the device default.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CameraConfig {
     pub device_index: i32,
@@ -62,7 +62,7 @@ pub type EventSink = Box<dyn Fn(CameraEvent) + Send + Sync + 'static>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CaptureOptions {
-    /// Consecutive failed reads tolerated before giving up. Python uses 30.
+    /// Consecutive failed reads tolerated before giving up.
     pub max_consecutive_failures: u32,
     /// Pause after a failed read so a dead device does not spin a core.
     pub failure_backoff: Duration,
@@ -80,7 +80,7 @@ impl Default for CaptureOptions {
     }
 }
 
-/// A running capture thread. Single use, as in Python.
+/// A running capture thread. Single use.
 pub struct CameraCapture {
     running: Arc<AtomicBool>,
     done: Option<mpsc::Receiver<()>>,

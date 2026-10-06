@@ -24,7 +24,7 @@ pub enum Severity {
     Success,
 }
 
-/// A transient status line, Python's `statusBar().showMessage(text, ms)`.
+/// A transient status line that stays visible for `duration_ms`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StatusMessage {
     pub text: String,

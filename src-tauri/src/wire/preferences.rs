@@ -1,5 +1,5 @@
 //! The preferences in the webview's camelCase form. `settings.json` keeps
-//! Python's snake_case keys, so the settings crate's `Serialize` cannot be
+//! snake_case keys, so the settings crate's `Serialize` cannot be
 //! reused.
 
 use serde::{Deserialize, Serialize};

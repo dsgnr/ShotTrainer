@@ -55,7 +55,7 @@ mod tests {
     use crate::tuning::{TuningGrid, optimise_detector_settings};
 
     #[test]
-    fn optimiser_matches_python() {
+    fn optimiser_matches_the_golden_cases() {
         let golden = load_golden("detector");
         let cases = golden["tuning"].as_array().unwrap();
         assert!(!cases.is_empty());
