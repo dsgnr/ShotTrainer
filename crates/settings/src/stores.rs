@@ -7,10 +7,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::error::SettingsError;
-use crate::json_values::{
-    parse_python_finite_float, parse_python_int, python_str, read_finite_f64, read_i32,
-    read_json_object, read_string,
-};
+use crate::json_values::{read_finite_f64, read_i32, read_json_object, read_string};
 use crate::json_write::write_json_atomic;
 
 /// Removes `path`, treating a missing file as success.
@@ -148,23 +145,12 @@ pub struct ZeroOffset {
     pub y_mm: f64,
 }
 
-/// A coordinate the way Python's `float()` reads it, except that booleans,
-/// non-finite values and values that overflow to infinity are rejected.
-/// Strings are converted like `float(str)`, so `"2.5"` is accepted.
-fn read_offset_coordinate(value: &Value) -> Option<f64> {
-    match value {
-        Value::String(text) => parse_python_finite_float(text),
-        other => read_finite_f64(other),
-    }
-}
-
 /// Reads the saved offset. `None` means there is none to apply, because the
-/// file is missing, malformed or holds a missing, non-numeric, non-finite or
-/// overflowing coordinate. Python treats `None` and `(0, 0)` alike. A file that
-/// holds valid zeros loads as `Some`.
+/// file is missing, malformed or holds a missing or non-numeric coordinate. A
+/// file that holds valid zeros loads as `Some`.
 pub fn load_zero_offset(path: &Path) -> Option<ZeroOffset> {
     let raw = read_json_object(path, "Zero offset")?;
-    let coordinate = |key: &str| raw.get(key).and_then(read_offset_coordinate);
+    let coordinate = |key: &str| raw.get(key).and_then(read_finite_f64);
     match (coordinate("x_mm"), coordinate("y_mm")) {
         (Some(x_mm), Some(y_mm)) => Some(ZeroOffset { x_mm, y_mm }),
         _ => {
@@ -177,9 +163,8 @@ pub fn load_zero_offset(path: &Path) -> Option<ZeroOffset> {
     }
 }
 
-/// Saves the offset. An offset of zero on both axes removes the file, as in
-/// Python. A non-finite coordinate is written as `null`, which the loader
-/// rejects.
+/// Saves the offset. An offset of zero on both axes removes the file. A
+/// non-finite coordinate is written as `null`, which the loader rejects.
 pub fn save_zero_offset(z: &ZeroOffset, path: &Path) -> Result<(), SettingsError> {
     if z.x_mm == 0.0 && z.y_mm == 0.0 {
         return clear_zero_offset(path);
@@ -208,22 +193,16 @@ impl Default for CameraSelection {
     }
 }
 
-/// Reads the saved camera selection. Like Python, a `name` that is not a string
-/// is converted with `str()` and an `index` that is not an integer (a boolean
-/// counts as 0 or 1) becomes `None`, including a missing one. A document that
-/// is not an object, which makes Python raise, gives the default. Integers
-/// beyond `i64` become `None`. A non-finite `name` prints as `[]`.
+/// Reads the saved camera selection. A `name` that is not a string becomes
+/// empty, and an `index` that is not an integer becomes `None`, including a
+/// missing one. A document that is not an object gives the default.
 pub fn load_camera_selection(path: &Path) -> CameraSelection {
     let Some(raw) = read_json_object(path, "Camera selection") else {
         return CameraSelection::default();
     };
     CameraSelection {
-        name: raw.get("name").map(python_str).unwrap_or_default(),
-        index: match raw.get("index") {
-            Some(Value::Bool(b)) => Some(i64::from(*b)),
-            Some(Value::Number(n)) => n.as_i64(),
-            _ => None,
-        },
+        name: raw.get("name").and_then(read_string).unwrap_or_default(),
+        index: raw.get("index").and_then(Value::as_i64),
     }
 }
 
@@ -249,55 +228,4 @@ pub fn resolve_camera_index(selection: &CameraSelection, available: &[(i64, Stri
         return saved;
     }
     first.0
-}
-
-/// The saved window layout. `window_geometry_b64` is an opaque string that is
-/// stored and returned unchanged. Python fills it with a base64 Qt blob and the
-/// Rust application will use its own key later. Python writes no other keys and
-/// drops unknown ones on save, so this does too.
-#[derive(Debug, Clone, PartialEq, Default, Serialize)]
-pub struct UiState {
-    pub window_geometry_b64: String,
-    pub main_splitter_sizes: Vec<i32>,
-}
-
-/// A splitter size the way Python's loader accepts it. Integers and decimal
-/// strings in `0..=i32::MAX` are kept. Booleans, floats and anything else are
-/// dropped.
-fn read_splitter_size(value: &Value) -> Option<i32> {
-    let size = match value {
-        Value::Number(n) => i128::from(n.as_i64()?),
-        Value::String(text) => parse_python_int(text)?,
-        _ => return None,
-    };
-    i32::try_from(size).ok().filter(|v| *v >= 0)
-}
-
-/// Reads the saved layout. A missing or malformed file, or a geometry or sizes
-/// value of the wrong type, gives the default. Invalid entries are dropped
-/// from the sizes individually.
-pub fn load_ui_state(path: &Path) -> UiState {
-    let Some(raw) = read_json_object(path, "UI state") else {
-        return UiState::default();
-    };
-    let geometry = match raw.get("window_geometry_b64") {
-        None => Some(String::new()),
-        Some(value) => read_string(value),
-    };
-    let sizes = match raw.get("main_splitter_sizes") {
-        None => Some(&[][..]),
-        Some(Value::Array(items)) => Some(items.as_slice()),
-        Some(_) => None,
-    };
-    match (geometry, sizes) {
-        (Some(window_geometry_b64), Some(items)) => UiState {
-            window_geometry_b64,
-            main_splitter_sizes: items.iter().filter_map(read_splitter_size).collect(),
-        },
-        _ => UiState::default(),
-    }
-}
-
-pub fn save_ui_state(u: &UiState, path: &Path) -> Result<(), SettingsError> {
-    write_json_atomic(u, path)
 }

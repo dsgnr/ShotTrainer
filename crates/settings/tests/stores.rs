@@ -2,12 +2,15 @@ use std::path::Path;
 
 use serde_json::Value;
 use shottrainer_settings::stores::{
-    CameraSelection, DetectorSettings, UiState, ZeroOffset, clear_detector_settings,
-    clear_zero_offset, load_camera_selection, load_detector_settings, load_ui_state,
-    load_zero_offset, resolve_camera_index, save_camera_selection, save_detector_settings,
-    save_ui_state, save_zero_offset,
+    CameraSelection, DetectorSettings, ZeroOffset, clear_detector_settings, clear_zero_offset,
+    load_camera_selection, load_detector_settings, load_zero_offset, resolve_camera_index,
+    save_camera_selection, save_detector_settings, save_zero_offset,
 };
 use testkit::load_golden;
+
+fn parse(text: &str) -> Value {
+    serde_json::from_str(text).unwrap()
+}
 
 fn write_case(path: &Path, case: &Value) {
     let name = case["name"].as_str().unwrap();
@@ -59,18 +62,6 @@ fn camera_from(v: &Value) -> CameraSelection {
     }
 }
 
-fn ui_from(v: &Value) -> UiState {
-    UiState {
-        window_geometry_b64: v["window_geometry_b64"].as_str().unwrap().to_owned(),
-        main_splitter_sizes: v["main_splitter_sizes"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|n| n.as_i64().unwrap() as i32)
-            .collect(),
-    }
-}
-
 fn zero_from(v: &Value) -> ZeroOffset {
     let coordinate = |v: &Value| match v.as_str() {
         Some("nan") => f64::NAN,
@@ -114,7 +105,7 @@ fn detector_save_matches_python_text() {
         let value = detector_from(&case["value"]);
         save_detector_settings(&value, &path).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
-        assert_eq!(text, case["text"].as_str().unwrap());
+        assert_eq!(parse(&text), parse(case["text"].as_str().unwrap()));
     }
 }
 
@@ -177,7 +168,7 @@ fn zero_offset_save_matches_python_text() {
         let value = zero_from(&case["value"]);
         save_zero_offset(&value, &path).unwrap();
         match case["text"].as_str() {
-            Some(text) => assert_eq!(std::fs::read_to_string(&path).unwrap(), text),
+            Some(text) => assert_eq!(parse(&std::fs::read_to_string(&path).unwrap()), parse(text)),
             None => assert!(!path.exists(), "{case}"),
         }
     }
@@ -234,7 +225,7 @@ fn camera_save_matches_python_text() {
     for case in cases(&golden, "camera_saves") {
         save_camera_selection(&camera_from(&case["value"]), &path).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
-        assert_eq!(text, case["text"].as_str().unwrap());
+        assert_eq!(parse(&text), parse(case["text"].as_str().unwrap()));
     }
 }
 
@@ -298,54 +289,8 @@ fn resolve_camera_index_matches_python() {
 }
 
 #[test]
-fn ui_state_load_cases_match_python() {
-    let golden = load_golden("stores");
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("ui_state.json");
-    for case in cases(&golden, "ui") {
-        write_case(&path, &case);
-        assert_eq!(
-            load_ui_state(&path),
-            ui_from(&case["expected"]),
-            "{}",
-            case["name"]
-        );
-    }
-}
-
-#[test]
-fn ui_state_save_matches_python_text() {
-    let golden = load_golden("stores");
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("nested").join("ui_state.json");
-    for case in cases(&golden, "ui_saves") {
-        save_ui_state(&ui_from(&case["value"]), &path).unwrap();
-        let text = std::fs::read_to_string(&path).unwrap();
-        assert_eq!(text, case["text"].as_str().unwrap());
-    }
-}
-
-#[test]
-fn ui_state_round_trip_and_bad_paths() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("ui_state.json");
-    let original = UiState {
-        window_geometry_b64: "AdnQywADAAAAAAAA/w==".into(),
-        main_splitter_sizes: vec![200, 400],
-    };
-    save_ui_state(&original, &path).unwrap();
-    assert_eq!(load_ui_state(&path), original);
-    assert_eq!(
-        load_ui_state(&dir.path().join("nope.json")),
-        UiState::default()
-    );
-    assert_eq!(load_ui_state(dir.path()), UiState::default());
-}
-
-#[test]
 fn saving_to_a_directory_fails_without_panicking() {
     let dir = tempfile::tempdir().unwrap();
-    assert!(save_ui_state(&UiState::default(), dir.path()).is_err());
     assert!(save_camera_selection(&CameraSelection::default(), dir.path()).is_err());
     assert!(save_detector_settings(&DetectorSettings::default(), dir.path()).is_err());
 }

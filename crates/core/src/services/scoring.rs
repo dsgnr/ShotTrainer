@@ -136,7 +136,7 @@ pub fn score_shot_decimal(
 }
 
 /// Best-effort numeric value for a ring label. `X` scores 10 and anything
-/// that does not parse as a number returns `None`.
+/// that does not parse as a finite number returns `None`.
 pub fn label_to_value(label: &str) -> Option<f64> {
     if label.is_empty() {
         return None;
@@ -144,29 +144,11 @@ pub fn label_to_value(label: &str) -> Option<f64> {
     if label.to_uppercase() == "X" {
         return Some(10.0);
     }
-    parse_python_float(label)
-}
-
-/// Mirrors Python's `float()` for ASCII input. Surrounding whitespace is
-/// ignored and single underscores are allowed between digits. Non-ASCII
-/// digits, which Python also accepts, are not supported.
-fn parse_python_float(text: &str) -> Option<f64> {
-    let text = text.trim();
-    if text.contains('_') {
-        let chars: Vec<char> = text.chars().collect();
-        for (i, c) in chars.iter().enumerate() {
-            if *c == '_' {
-                let before = i.checked_sub(1).and_then(|j| chars.get(j));
-                let after = chars.get(i + 1);
-                let digit = |c: Option<&char>| c.is_some_and(|c| c.is_ascii_digit());
-                if !digit(before) || !digit(after) {
-                    return None;
-                }
-            }
-        }
-        return text.replace('_', "").parse().ok();
-    }
-    text.parse().ok()
+    label
+        .trim()
+        .parse()
+        .ok()
+        .filter(|value: &f64| value.is_finite())
 }
 
 /// Sums the numeric values of the labels. Labels without a value count as zero.
@@ -308,15 +290,6 @@ mod tests {
             let got = label_to_value(label);
             match &case["value"] {
                 serde_json::Value::Null => assert_eq!(got, None, "{label:?}"),
-                serde_json::Value::String(s) if s == "nan" => {
-                    assert!(got.unwrap().is_nan(), "{label:?}")
-                }
-                serde_json::Value::String(s) if s == "inf" => {
-                    assert_eq!(got, Some(f64::INFINITY), "{label:?}")
-                }
-                serde_json::Value::String(s) if s == "-inf" => {
-                    assert_eq!(got, Some(f64::NEG_INFINITY), "{label:?}")
-                }
                 v => assert_close(got.unwrap(), v.as_f64().unwrap(), label),
             }
         }
@@ -335,20 +308,9 @@ mod tests {
                 .map(|l| l.as_str().unwrap())
                 .collect();
             let got = total_score(labels);
-            match &case["total"] {
-                serde_json::Value::String(s) if s == "nan" => assert!(got.is_nan(), "{case}"),
-                serde_json::Value::String(s) if s == "inf" => {
-                    assert_eq!(got, f64::INFINITY, "{case}")
-                }
-                serde_json::Value::String(s) if s == "-inf" => {
-                    assert_eq!(got, f64::NEG_INFINITY, "{case}")
-                }
-                v => {
-                    let expected = v.as_f64().unwrap();
-                    assert_close(got, expected, "total");
-                    assert_eq!(got.to_bits(), expected.to_bits(), "sign of {case}");
-                }
-            }
+            let expected = case["total"].as_f64().unwrap();
+            assert_close(got, expected, "total");
+            assert_eq!(got.to_bits(), expected.to_bits(), "sign of {case}");
         }
     }
 }

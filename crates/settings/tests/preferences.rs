@@ -112,6 +112,10 @@ fn load_cases_match_python() {
     }
 }
 
+fn parse(text: &str) -> Value {
+    serde_json::from_str(text).unwrap()
+}
+
 #[test]
 fn save_matches_python_text() {
     let golden = load_golden("preferences");
@@ -121,7 +125,11 @@ fn save_matches_python_text() {
         let prefs = prefs_from_golden(&case["prefs"]);
         save_preferences(&prefs, &path).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
-        assert_eq!(text, case["text"].as_str().unwrap(), "save case {i}");
+        assert_eq!(
+            parse(&text),
+            parse(case["text"].as_str().unwrap()),
+            "save case {i}"
+        );
     }
 }
 

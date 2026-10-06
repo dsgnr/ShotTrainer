@@ -9,8 +9,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
-use crate::json_values::replace_non_finite;
-use crate::json_values::{parse_python_finite_float, python_str, read_json_object};
+use crate::json_values::read_json_object;
 use crate::paths::data_dir;
 
 /// Built-in faces in catalogue order, which is the sorted order of the file
@@ -67,35 +66,17 @@ pub fn custom_faces_path() -> PathBuf {
     data_dir().join("custom_target_faces.json")
 }
 
-/// Python truthiness of a decoded JSON value, as used by `value or default`.
-fn is_truthy(value: &Value) -> bool {
-    match value {
-        Value::Null => false,
-        Value::Bool(b) => *b,
-        Value::Number(n) => n.as_f64().is_none_or(|f| f != 0.0),
-        Value::String(s) => !s.is_empty(),
-        Value::Array(a) => !a.is_empty(),
-        Value::Object(o) => !o.is_empty(),
-    }
-}
-
-/// `str(body.get(field) or default)`.
+/// A non-empty string field, otherwise `default`.
 fn label_or(body: &Map<String, Value>, field: &str, default: &str) -> String {
-    match body.get(field) {
-        Some(value) if is_truthy(value) => python_str(value),
+    match body.get(field).and_then(Value::as_str) {
+        Some(label) if !label.is_empty() => label.to_owned(),
         _ => default.to_owned(),
     }
 }
 
-/// `float(body[field])` kept only when it is finite and positive. Booleans and
-/// null are rejected, strings follow Python's `float()` and anything that is
-/// not a number or string is rejected.
+/// A JSON number kept only when it is finite and positive.
 fn optional_positive_float(body: &Map<String, Value>, field: &str) -> Option<f64> {
-    let value = match body.get(field)? {
-        Value::Number(n) => n.as_f64()?,
-        Value::String(s) => parse_python_finite_float(s)?,
-        _ => return None,
-    };
+    let value = body.get(field)?.as_f64()?;
     (value.is_finite() && value > 0.0).then_some(value)
 }
 
@@ -146,7 +127,7 @@ pub fn built_in_faces() -> Vec<TargetFace> {
     BUILT_IN_SOURCES
         .iter()
         .filter_map(|(key, text)| {
-            let raw = match serde_json::from_str::<Value>(&replace_non_finite(text)) {
+            let raw = match serde_json::from_str::<Value>(text) {
                 Ok(raw) => raw,
                 Err(err) => {
                     log::warn!("Could not read built-in face {key}: {err}");
@@ -409,7 +390,7 @@ mod tests {
     }
 
     #[test]
-    fn huge_integer_dimension_in_a_file_is_discarded() {
+    fn a_number_too_large_for_a_float_makes_the_file_unreadable() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("c.json");
         let huge = "1".repeat(400);
@@ -418,9 +399,7 @@ mod tests {
             format!(r#"{{"c": {{"shot_diameter_mm": {huge}, "rings": [{{"diameter_mm": 5}}]}}}}"#),
         )
         .unwrap();
-        let faces = load_custom_faces(&path);
-        assert_eq!(faces.len(), 1);
-        assert_eq!(faces[0].shot_diameter_mm, None);
+        assert!(load_custom_faces(&path).is_empty());
     }
 
     #[test]
