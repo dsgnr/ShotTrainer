@@ -103,3 +103,18 @@ it("marks only the selected navigation page as current", async () => {
   expect(ontarget).toHaveBeenCalledOnce();
   await unmount(component);
 });
+
+it("offers a labelled header icon button that invokes printing", async () => {
+  const content = createRawSnippet(() => ({ render: () => "<span>Content</span>" }));
+  const target = document.createElement("div");
+  const onprint = vi.fn();
+  const component = mount(AppShell, { target, props: { status: content, onprint } });
+  flushSync();
+  const button = target.querySelector<HTMLButtonElement>('header [aria-label="Print shot sheet"]')!;
+  expect(button.title).toBe("Print shot sheet");
+  expect(button.textContent?.trim()).toBe("");
+  expect(button.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+  button.click();
+  expect(onprint).toHaveBeenCalledOnce();
+  await unmount(component);
+});

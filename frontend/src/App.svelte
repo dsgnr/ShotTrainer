@@ -9,7 +9,6 @@
   import SessionOverview from "./components/SessionOverview.svelte";
   import LiveRegion from "./components/LiveRegion.svelte";
   import HeroStats from "./components/HeroStats.svelte";
-  import PrintButton from "./components/PrintButton.svelte";
   import MarkerSheet from "./components/MarkerSheet.svelte";
   import NavRail from "./components/NavRail.svelte";
   import PreferencesDialog from "./components/PreferencesDialog.svelte";
@@ -241,7 +240,7 @@
   <About {updates} />
 {/snippet}
 <div style="height: 100%" inert={updates.stage === "installing"}>
-<AppShell onsettings={() => sessionSettingsOpen = true} page={page === "sessions" ? sessionsPage : page === "about" ? aboutPage : undefined}>
+<AppShell onsettings={() => sessionSettingsOpen = true} onprint={() => void sheet?.print()} page={page === "sessions" ? sessionsPage : page === "about" ? aboutPage : undefined}>
   {#snippet nav()}
     <NavRail
       {page}
@@ -270,7 +269,6 @@
         <ReplayControls replay={app.replay} {send} />
         <ZoomControls extentMm={visibleExtent} auto={autoZoom} onauto={() => autoZoom = true}
           referenceExtentMm={extentForRings(rings)} onextent={setExtent} />
-        <PrintButton onprint={() => void sheet?.print()} />
       </div>
     </div>
   {/snippet}

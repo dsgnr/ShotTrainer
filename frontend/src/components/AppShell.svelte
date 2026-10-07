@@ -10,9 +10,10 @@
     target?: Snippet;
     side?: Snippet;
     onsettings?: () => void;
+    onprint?: () => void;
   }
 
-  let { page, header, status, nav, shots, target, side, onsettings }: Props = $props();
+  let { page, header, status, nav, shots, target, side, onsettings, onprint }: Props = $props();
   let shotsCollapsed = $state(false);
   let sessionCollapsed = $state(false);
 </script>
@@ -47,6 +48,15 @@
             <path d="M4 7h10M18 7h2M4 17h2M10 17h10" />
             <circle cx="16" cy="7" r="2" />
             <circle cx="8" cy="17" r="2" />
+          </svg>
+        </button>
+      {/if}
+      {#if onprint}
+        <button type="button" aria-label="Print shot sheet" title="Print shot sheet" onclick={onprint}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">
+            <path d="M7 8V3h10v5M7 17H4V8h16v9h-3" />
+            <rect x="7" y="14" width="10" height="7" rx="1" />
+            <path d="M16 11h1" />
           </svg>
         </button>
       {/if}
