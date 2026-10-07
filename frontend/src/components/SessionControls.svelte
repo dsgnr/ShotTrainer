@@ -17,7 +17,9 @@
   <button type="button" class="primary" data-variant={recording ? "stop" : ""} onclick={onPrimary}>
     {session.kind === "reviewing" ? "New session" : primaryLabel(session)}
   </button>
-  <p class="summary">{summary || "Not recording"}</p>
+  {#if session.kind !== "reviewing"}
+    <p class="summary">{summary || "Not recording"}</p>
+  {/if}
 </div>
 <style>
   .session { display: flex; flex-direction: column; gap: 8px; }

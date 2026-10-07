@@ -24,9 +24,10 @@ it("opens creation when reviewing without starting a recording", async () => {
   const send = vi.fn(async () => undefined);
   const onnew = vi.fn();
   const component = mount(SessionControls, { target, props: {
-    session: { kind: "reviewing", sessionId: 1 }, summary: "", send, onnew,
+    session: { kind: "reviewing", sessionId: 1 }, summary: "Reviewing session 1", send, onnew,
   } });
   flushSync();
+  expect(target.querySelector(".summary")).toBeNull();
   target.querySelector<HTMLButtonElement>("button")!.click();
   expect(onnew).toHaveBeenCalledOnce();
   expect(send).not.toHaveBeenCalled();
