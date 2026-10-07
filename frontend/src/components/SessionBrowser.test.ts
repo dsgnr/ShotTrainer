@@ -21,7 +21,7 @@ it("offers a new session on the page and disables it during recording", async ()
     flushSync();
     expect(send).toHaveBeenCalledWith({ type: "listSessions" });
     expect(target.querySelector('[role="dialog"]')).toBeNull();
-    const button = target.querySelector<HTMLButtonElement>("header button")!;
+    const button = target.querySelector<HTMLButtonElement>(".create .primary")!;
     expect(button.disabled).toBe(recording);
     button.click();
     expect(onnew).toHaveBeenCalledTimes(recording ? 0 : 1);

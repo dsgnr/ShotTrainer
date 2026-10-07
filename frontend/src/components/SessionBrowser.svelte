@@ -74,14 +74,18 @@
 
 {#if open}
   <section class="sessions-page" aria-label="Sessions">
-      <header><h2>Sessions</h2><button type="button" class="primary" disabled={recording} onclick={onnew}>New session</button><button type="button" disabled={recording} onclick={importCsv}>Import...</button></header>
+      <header><h2>Sessions</h2></header>
 
       <div class="filters">
         <input type="search" placeholder="Search session names..." bind:value={query} />
-        <Dropdown label="Filter by category" bind:value={categoryFilter}
+        <div class="category-filter"><Dropdown label="Filter by category" bind:value={categoryFilter}
           options={[{ value: "", label: "All categories" }, ...SESSION_CATEGORIES.map((value) => ({ value, label: categoryLabel(value) }))]}>
           {#snippet icon(value)}<CategoryIcon category={String(value)} />{/snippet}
-        </Dropdown>
+        </Dropdown></div>
+        <div class="create">
+          <button type="button" class="primary" disabled={recording} onclick={onnew}>New session</button>
+          <button type="button" disabled={recording} onclick={importCsv}>Import...</button>
+        </div>
       </div>
 
       {#if matches.length === 0}
@@ -149,7 +153,16 @@
   }
 
   .filters input {
-    flex: 1;
+    flex: 1 1 160px;
+    max-width: 320px;
+  }
+
+  .category-filter { flex: 0 0 200px; }
+
+  .create {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
   }
 
   input {
