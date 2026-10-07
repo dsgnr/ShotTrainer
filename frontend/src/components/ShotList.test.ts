@@ -3,6 +3,7 @@ import { expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import { AppState } from "../lib/stores/app.svelte";
 import { resolveShortcut } from "../lib/app/shortcuts";
+import { SAMPLE_EVENTS } from "../lib/wire/samples";
 import ShotList from "./ShotList.svelte";
 
 // @ts-expect-error Svelte exposes types for its public entry, not this internal file.
@@ -44,6 +45,64 @@ it("moves focus with arrow selection without bubbling to global shortcuts", asyn
   target.remove();
 });
 
+
+it("renders only the rows near the viewport and moves focus to a far selection", async () => {
+  const target = document.createElement("div");
+  document.body.append(target);
+  const state = new AppState();
+  const send = vi.fn(async () => undefined);
+  const shots = Array.from({ length: 3000 }, (_, i) => ({ timestamp: i, xMm: 1, yMm: 1, score: "9", shotId: i }));
+  const component = mount(ShotList, { target, props: {
+    get selected() { return state.shots.selected; }, send, shots,
+  } });
+  flushSync();
+
+  const options = () => [...target.querySelectorAll<HTMLElement>('[role="option"]')];
+  expect(options().length).toBeGreaterThan(0);
+  expect(options().length).toBeLessThan(100);
+  expect(options()[0]!.getAttribute("aria-setsize")).toBe("3000");
+  expect(target.querySelector(".count")!.textContent).toBe("3000");
+
+  options()[0]!.focus();
+  state.dispatch({ type: "selectedShot", index: 2500 });
+  flushSync();
+
+  expect(options().length).toBeLessThan(100);
+  const row = target.querySelector<HTMLElement>('[data-index="2500"]')!;
+  expect(row.getAttribute("aria-selected")).toBe("true");
+  expect(row.getAttribute("aria-posinset")).toBe("2501");
+  expect(document.activeElement).toBe(row);
+  expect(options().filter(option => option.tabIndex === 0)).toEqual([row]);
+
+  await unmount(component);
+  target.remove();
+});
+
+it("keeps the scroll position when the same number of shots is sent again", async () => {
+  const target = document.createElement("div");
+  document.body.append(target);
+  const state = new AppState();
+  const make = () => Array.from({ length: 3000 }, (_, i) => ({ timestamp: i, xMm: 1, yMm: 1, score: "9", shotId: i }));
+  state.dispatch({ type: "shots", shots: make(), group: SAMPLE_EVENTS.shots.group, totalScore: 0 });
+  const component = mount(ShotList, { target, props: {
+    get selected() { return state.shots.selected; }, get shots() { return state.shots.shots; },
+    send: async () => undefined,
+  } });
+  flushSync();
+  // A new list is followed to its last shot, then a selection near the top scrolls back up.
+  expect(target.querySelector('[data-index="2999"]')).not.toBeNull();
+  state.dispatch({ type: "selectedShot", index: 5 });
+  flushSync();
+  expect(target.querySelector('[data-index="5"]')).not.toBeNull();
+
+  state.dispatch({ type: "shots", shots: make(), group: SAMPLE_EVENTS.shots.group, totalScore: 0 });
+  flushSync();
+  expect(target.querySelector('[data-index="5"]')).not.toBeNull();
+  expect(target.querySelector('[data-index="2999"]')).toBeNull();
+
+  await unmount(component);
+  target.remove();
+});
 
 it("lets Space toggle replay after a row click while Enter still selects", async () => {
   const target = document.createElement("div"); document.body.append(target);
