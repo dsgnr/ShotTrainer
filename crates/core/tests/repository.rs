@@ -263,6 +263,38 @@ fn test_session_summary_includes_total_score() {
 }
 
 #[test]
+fn test_session_summaries_group_repeated_labels() {
+    let db = engine();
+    let repo = SessionRepository::new(&db);
+    let first = repo.create_session(&named("first")).unwrap();
+    let second = repo.create_session(&named("second")).unwrap();
+    let empty = repo.create_session(&named("empty")).unwrap();
+    for (ts, score) in [
+        (0.1, "10.4"),
+        (0.2, "X"),
+        (0.3, "10.4"),
+        (0.4, ""),
+        (0.5, "10.4"),
+    ] {
+        repo.add_shot(first, &shot(ts, 0.0, 0.0, 0.4, 0.9, score))
+            .unwrap();
+    }
+    for (ts, score) in [(0.1, "9"), (0.2, "9")] {
+        repo.add_shot(second, &shot(ts, 0.0, 0.0, 0.4, 0.9, score))
+            .unwrap();
+    }
+
+    let summaries = repo.list_sessions().unwrap();
+    let find = |id| summaries.iter().find(|s| s.id == id).unwrap();
+    assert_eq!(find(first).shot_count, 5);
+    assert!((find(first).total_score - 41.2).abs() < 1e-9);
+    assert_eq!(find(second).shot_count, 2);
+    assert!((find(second).total_score - 18.0).abs() < 1e-9);
+    assert_eq!(find(empty).shot_count, 0);
+    assert_eq!(find(empty).total_score.to_bits(), 0.0f64.to_bits());
+}
+
+#[test]
 fn test_session_summary_zero_for_unscored_shots() {
     let db = engine();
     let repo = SessionRepository::new(&db);
