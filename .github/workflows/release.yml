@@ -18,7 +18,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  rust:
+    uses: ./.github/workflows/rust.yml
+
+  frontend:
+    uses: ./.github/workflows/frontend.yml
+
   prepare:
+    needs: [rust, frontend]
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.tag.outputs.tag }}

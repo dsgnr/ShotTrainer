@@ -3,6 +3,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 jobs:
   test:
@@ -25,9 +26,9 @@ jobs:
       - run: cargo test --workspace
 
   opencv:
-    # Best effort. Distribution OpenCV versions are not pinned, so a failure
-    # here is reported without failing the workflow.
-    continue-on-error: true
+    # The Linux leg is required. Homebrew OpenCV is not pinned, so a macOS
+    # failure is reported without failing the workflow.
+    continue-on-error: ${{ matrix.os == 'macos-latest' }}
     strategy:
       fail-fast: false
       matrix:
