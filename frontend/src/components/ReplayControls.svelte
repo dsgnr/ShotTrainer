@@ -79,7 +79,11 @@
   svg { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
   input { flex: 1; min-width: 36px; width: 80px; }
   .time {
-    min-width: 100px;
+    flex: 0 1 100px;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     text-align: right;
     color: var(--text-dim);
     font-size: var(--text-xs);
