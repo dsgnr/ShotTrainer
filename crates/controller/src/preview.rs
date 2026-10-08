@@ -1,6 +1,8 @@
 //! Applies live previews, auto-optimisation and detector resets from Preferences.
-//! Preview changes update cached preferences and the frame transform only, so
-//! cancelling restores them and saving goes through `SetPreferences`.
+//! Preview changes update cached preferences, the frame transform and the
+//! in-memory detector settings only, so cancelling restores them. Saving goes
+//! through `SetPreferences` for the preferences and `end_preview` for the
+//! detector settings file.
 
 use shottrainer_settings::Preferences;
 use shottrainer_settings::stores::{clear_detector_settings, save_detector_settings};
@@ -11,6 +13,21 @@ use shottrainer_tracking::tuning::{HoughScorer, TuningGrid, optimise_detector_se
 use crate::controller::{Controller, ImageControl};
 use crate::convert::{detector_to_store, frame_transform};
 use crate::events::{StatusMessage, UiEvent};
+
+/// What the dialog did to the detector settings file, applied when it saves.
+#[derive(Debug, Clone, Copy)]
+enum DetectorFile {
+    Save,
+    Clear,
+}
+
+/// What to restore when the Preferences dialog is cancelled.
+#[derive(Debug)]
+pub(crate) struct Preview {
+    pub(crate) prefs: Preferences,
+    detector: DetectorSettings,
+    file: Option<DetectorFile>,
+}
 
 /// Lets the boxed scorer be passed where a sized scorer is expected.
 struct DynScorer<'a>(&'a mut (dyn HoughScorer + Send));
@@ -26,7 +43,11 @@ impl Controller {
     /// the dialog has selected.
     pub(crate) fn begin_preview(&mut self, camera_id: Option<i32>) {
         if self.preview.is_none() {
-            self.preview = Some(self.prefs.clone());
+            self.preview = Some(Preview {
+                prefs: self.prefs.clone(),
+                detector: self.frames.tracker().detector().settings().clone(),
+                file: None,
+            });
         }
         if camera_id != self.camera.device_index() {
             self.preview_camera(camera_id);
@@ -73,13 +94,28 @@ impl Controller {
         self.set_preview_preferences(prefs);
     }
 
-    /// Restores the camera and the image settings unless the dialog saved.
+    /// Restores the camera, the image settings and the detector settings
+    /// unless the dialog saved. Saving writes the detector settings file.
     pub(crate) fn end_preview(&mut self, saved: bool) {
-        let Some(original) = self.preview.take() else {
+        let Some(Preview {
+            prefs: original,
+            detector,
+            file,
+        }) = self.preview.take()
+        else {
             return;
         };
         if saved {
+            if let Some(file) = file {
+                self.write_detector_file(file);
+            }
             return;
+        }
+        if file.is_some() {
+            self.frames
+                .tracker_mut()
+                .detector_mut()
+                .set_settings(detector);
         }
         if self.camera.device_index() != original.camera_id {
             match original.camera_id {
@@ -121,15 +157,7 @@ impl Controller {
         let unchanged = settings == base
             && adjustment.brightness == self.prefs.camera_brightness
             && adjustment.contrast == self.prefs.camera_contrast;
-        self.frames
-            .tracker_mut()
-            .detector_mut()
-            .set_settings(settings.clone());
-        if let Err(error) =
-            save_detector_settings(&detector_to_store(&settings), &self.paths.detector_settings)
-        {
-            log::warn!("Could not save detector settings: {error}");
-        }
+        self.apply_detector(settings, DetectorFile::Save);
         let prefs = Preferences {
             camera_brightness: adjustment.brightness,
             camera_contrast: adjustment.contrast,
@@ -148,20 +176,45 @@ impl Controller {
         });
     }
 
-    /// Default detector settings with the preferred region, and no saved file.
+    /// Default detector settings with the preferred region, and no saved file
+    /// once the dialog saves.
     pub(crate) fn reset_detector(&mut self) {
         let defaults = DetectorSettings {
             region_fraction: self.prefs.tracking_region_fraction,
             ..DetectorSettings::default()
         };
+        self.apply_detector(defaults, DetectorFile::Clear);
+        self.detector_status(StatusMessage::info("Detector reset to defaults", 3000));
+    }
+
+    /// Applies the settings in memory. Outside the dialog nothing would
+    /// confirm them later, so the file is written at once.
+    fn apply_detector(&mut self, settings: DetectorSettings, file: DetectorFile) {
         self.frames
             .tracker_mut()
             .detector_mut()
-            .set_settings(defaults);
-        if let Err(error) = clear_detector_settings(&self.paths.detector_settings) {
-            log::warn!("Could not remove the detector settings: {error}");
+            .set_settings(settings);
+        match self.preview.as_mut() {
+            Some(preview) => preview.file = Some(file),
+            None => self.write_detector_file(file),
         }
-        self.detector_status(StatusMessage::info("Detector reset to defaults", 3000));
+    }
+
+    fn write_detector_file(&self, file: DetectorFile) {
+        let path = &self.paths.detector_settings;
+        match file {
+            DetectorFile::Save => {
+                let settings = self.frames.tracker().detector().settings();
+                if let Err(error) = save_detector_settings(&detector_to_store(settings), path) {
+                    log::warn!("Could not save detector settings: {error}");
+                }
+            }
+            DetectorFile::Clear => {
+                if let Err(error) = clear_detector_settings(path) {
+                    log::warn!("Could not remove the detector settings: {error}");
+                }
+            }
+        }
     }
 
     fn set_preview_preferences(&mut self, prefs: Preferences) {
@@ -391,7 +444,7 @@ mod tests {
     }
 
     #[test]
-    fn optimise_applies_and_saves_the_best_settings() {
+    fn optimise_applies_the_best_settings_and_saves_them_with_the_dialog() {
         let rig = TestRig::new();
         *rig.scorer.0.lock().unwrap() = Some(0.8);
         let mut controller = rig.build();
@@ -408,8 +461,10 @@ mod tests {
             (settings.blur_kernel, settings.adaptive_block_size),
             (3, 15)
         );
-        let saved = load_detector_settings(&rig.paths.detector_settings).unwrap();
-        assert_eq!(detector_from_store(&saved), settings);
+        assert!(
+            !rig.paths.detector_settings.exists(),
+            "saved only with the dialog"
+        );
         let prefs = controller.preferences();
         assert_eq!(
             (prefs.camera_brightness, prefs.camera_contrast),
@@ -433,6 +488,56 @@ mod tests {
             rig.messages().last().map(String::as_str),
             Some("Already optimal (confidence 0.80)")
         );
+        command(&mut controller, Command::EndPreview { saved: true });
+        let saved = load_detector_settings(&rig.paths.detector_settings).unwrap();
+        assert_eq!(detector_from_store(&saved), settings);
+    }
+
+    #[test]
+    fn cancelling_undoes_an_optimisation() {
+        let rig = TestRig::new();
+        *rig.scorer.0.lock().unwrap() = Some(0.8);
+        let mut controller = rig.build();
+        controller.start();
+        feed_frame(&rig, &mut controller);
+        command(
+            &mut controller,
+            Command::BeginPreview { camera_id: Some(0) },
+        );
+        command(&mut controller, Command::Optimise);
+        assert_ne!(
+            controller.frames().tracker().detector().settings(),
+            &DetectorSettings::default()
+        );
+        command(&mut controller, Command::EndPreview { saved: false });
+        assert_eq!(
+            controller.frames().tracker().detector().settings(),
+            &DetectorSettings::default()
+        );
+        assert_eq!(controller.preferences().camera_brightness, 0.0);
+        assert!(!rig.paths.detector_settings.exists());
+    }
+
+    #[test]
+    fn cancelling_undoes_a_reset_and_saving_applies_it() {
+        let rig = TestRig::new();
+        let custom = DetectorSettings {
+            blur_kernel: 9,
+            ..DetectorSettings::default()
+        };
+        save_detector_settings(&detector_to_store(&custom), &rig.paths.detector_settings).unwrap();
+        let mut controller = rig.build();
+        command(&mut controller, Command::BeginPreview { camera_id: None });
+        command(&mut controller, Command::ResetDetector);
+        command(&mut controller, Command::EndPreview { saved: false });
+        assert_eq!(controller.frames().tracker().detector().settings(), &custom);
+        assert!(rig.paths.detector_settings.exists());
+
+        command(&mut controller, Command::BeginPreview { camera_id: None });
+        command(&mut controller, Command::ResetDetector);
+        assert!(rig.paths.detector_settings.exists());
+        command(&mut controller, Command::EndPreview { saved: true });
+        assert!(!rig.paths.detector_settings.exists());
     }
 
     #[test]

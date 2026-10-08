@@ -146,8 +146,8 @@ pub struct Controller {
     pub(crate) audio: AudioManager,
     pub(crate) watcher: SettingsWatcher,
     pub(crate) scorer: Box<dyn HoughScorer + Send>,
-    /// The preferences from when the Preferences dialog opened.
-    pub(crate) preview: Option<Preferences>,
+    /// The state from when the Preferences dialog opened.
+    pub(crate) preview: Option<crate::preview::Preview>,
 }
 
 impl Controller {
@@ -475,7 +475,7 @@ impl Controller {
         }
         // Preview commands edit the cache, so while the dialog is open the
         // saved values are the ones from when it opened.
-        let saved = self.preview.as_ref().unwrap_or(&previous);
+        let saved = self.preview.as_ref().map_or(&previous, |p| &p.prefs);
         if persist && saved != &self.prefs {
             let mut global = self.prefs.clone();
             let stored = load_preferences(&self.paths.settings);
