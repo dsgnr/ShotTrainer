@@ -16,6 +16,8 @@ export default defineConfig({
   },
   test: {
     include: ["src/**/*.test.ts"],
+    // Tests that format local times need a fixed zone.
+    env: { TZ: "Europe/Paris" },
     css: { include: [/theme\.css/] },
   },
 });

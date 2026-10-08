@@ -130,7 +130,7 @@ export const SAMPLE_EVENTS: { [T in WireEventType]: EventOf<T> } = {
       {
         id: 1,
         name: "S",
-        startedAt: "1970-01-01T00:00:00",
+        startedAt: "1970-01-01T00:00:00Z",
         endedAt: null,
         shotCount: 2,
         totalScore: 19.5,

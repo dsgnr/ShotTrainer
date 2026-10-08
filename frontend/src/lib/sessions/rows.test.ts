@@ -7,8 +7,8 @@ function summary(overrides: Partial<WireSessionSummary> = {}): WireSessionSummar
   return {
     id: 1,
     name: "Evening",
-    startedAt: "2026-02-03T14:05:00",
-    endedAt: "2026-02-03T14:21:30",
+    startedAt: "2026-02-03T14:05:00Z",
+    endedAt: "2026-02-03T14:21:30Z",
     shotCount: 10,
     totalScore: 98.5,
     category: "practice",
@@ -18,7 +18,12 @@ function summary(overrides: Partial<WireSessionSummary> = {}): WireSessionSummar
 
 describe("sessionMeta", () => {
   it("joins the date, shot count and duration", () => {
-    expect(sessionMeta(summary())).toBe("3 Feb 2026, 14:05  \u00b7  10 shots  \u00b7  16m 30s");
+    expect(sessionMeta(summary())).toBe("3 Feb 2026, 15:05  \u00b7  10 shots  \u00b7  16m 30s");
+  });
+
+  it("shows the start in the local time zone", () => {
+    // TZ is Europe/Paris (UTC+2 in July), set in vite.config.ts.
+    expect(sessionMeta(summary({ startedAt: "2026-07-01T23:30:00Z" }))).toMatch(/^2 Jul 2026, 01:30 /);
   });
 
   it("uses the singular for one shot", () => {
@@ -26,7 +31,7 @@ describe("sessionMeta", () => {
   });
 
   it("shows seconds only for a short session", () => {
-    expect(sessionMeta(summary({ endedAt: "2026-02-03T14:05:08" }))).toContain("8s");
+    expect(sessionMeta(summary({ endedAt: "2026-02-03T14:05:08Z" }))).toContain("8s");
   });
 
   it("reports a session still in progress", () => {

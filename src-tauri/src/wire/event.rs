@@ -296,7 +296,7 @@ impl From<&ReplayView> for WireReplay {
 pub struct WireSessionSummary {
     pub id: i64,
     pub name: String,
-    /// ISO 8601 local time without a zone, as stored in `sessions.db`.
+    /// ISO 8601 UTC time with a trailing `Z`. `sessions.db` stores UTC without a zone.
     pub started_at: String,
     pub ended_at: Option<String>,
     pub shot_count: i64,
@@ -304,7 +304,7 @@ pub struct WireSessionSummary {
     pub category: String,
 }
 
-const STORED_TIME: &str = "%Y-%m-%dT%H:%M:%S%.f";
+const STORED_TIME: &str = "%Y-%m-%dT%H:%M:%S%.fZ";
 
 impl From<&SessionSummary> for WireSessionSummary {
     fn from(s: &SessionSummary) -> Self {
@@ -810,7 +810,7 @@ mod tests {
     }
 
     #[test]
-    fn session_times_are_iso_local_times() {
+    fn session_times_are_iso_utc_times() {
         let summary = SessionSummary {
             id: 1,
             name: "S".into(),
@@ -827,7 +827,7 @@ mod tests {
                 "sessions": [{
                     "id": 1,
                     "name": "S",
-                    "startedAt": "1970-01-01T00:00:00",
+                    "startedAt": "1970-01-01T00:00:00Z",
                     "endedAt": null,
                     "shotCount": 2,
                     "totalScore": 19.5,
