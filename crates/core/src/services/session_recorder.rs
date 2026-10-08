@@ -2,11 +2,17 @@
 //!
 //! Samples are batched so the database is not asked to commit a transaction
 //! for every frame. A batch flushes once `flush_every` samples are pending or
-//! `flush_seconds` of trace time has passed since the last flush.
+//! `flush_seconds` of trace time has passed since the last flush. After a
+//! failed write the batch is retried at most once per `flush_seconds`, and the
+//! pending samples are capped at `MAX_PENDING` so a broken database cannot grow
+//! memory without limit.
 
 use shottrainer_tracking::models::TrackingSample;
 
 use crate::sessions::{DatabaseError, NewSession, NewShot, SessionRepository, utc_now};
+
+/// About two minutes of trace at 30 frames per second.
+const MAX_PENDING: usize = 3600;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RecorderError {
@@ -39,6 +45,7 @@ pub struct SessionRecorder {
     session_id: Option<i64>,
     pending: Vec<TrackingSample>,
     last_flush_ts: f64,
+    last_failed_ts: Option<f64>,
 }
 
 impl SessionRecorder {
@@ -48,6 +55,7 @@ impl SessionRecorder {
             session_id: None,
             pending: Vec::new(),
             last_flush_ts: 0.0,
+            last_failed_ts: None,
         }
     }
 
@@ -71,6 +79,7 @@ impl SessionRecorder {
         self.session_id = Some(id);
         self.pending.clear();
         self.last_flush_ts = 0.0;
+        self.last_failed_ts = None;
         log::info!("started session {id}");
         Ok(id)
     }
@@ -86,6 +95,15 @@ impl SessionRecorder {
         }
         let timestamp = sample.timestamp;
         self.pending.push(sample);
+        if self.pending.len() > MAX_PENDING {
+            self.pending.remove(0);
+        }
+        if self
+            .last_failed_ts
+            .is_some_and(|failed| timestamp - failed < self.config.flush_seconds)
+        {
+            return Ok(());
+        }
         if self.pending.len() >= self.config.flush_every
             || timestamp - self.last_flush_ts >= self.config.flush_seconds
         {
@@ -131,6 +149,7 @@ impl SessionRecorder {
     }
 
     /// Keeps the pending samples when the write fails so a retry loses none.
+    /// `add_sample` backs off after a failure. The other callers always try.
     fn flush(&mut self, repo: &SessionRepository, now_ts: f64) -> Result<(), DatabaseError> {
         let Some(session_id) = self.session_id else {
             return Ok(());
@@ -138,9 +157,13 @@ impl SessionRecorder {
         if self.pending.is_empty() {
             return Ok(());
         }
-        repo.append_trace(session_id, &self.pending)?;
+        if let Err(error) = repo.append_trace(session_id, &self.pending) {
+            self.last_failed_ts = Some(now_ts);
+            return Err(error);
+        }
         self.pending.clear();
         self.last_flush_ts = now_ts;
+        self.last_failed_ts = None;
         Ok(())
     }
 }
@@ -149,10 +172,46 @@ impl SessionRecorder {
 mod tests {
     use super::*;
 
+    use crate::sessions::{init_database, make_engine};
+
     fn assert_send<T: Send>() {}
+
+    fn sample(ts: f64) -> TrackingSample {
+        TrackingSample::new(ts, 0.0, 0.0)
+    }
 
     #[test]
     fn recorder_is_send() {
         assert_send::<SessionRecorder>();
+    }
+
+    #[test]
+    fn a_failed_write_is_retried_once_per_interval_and_stays_bounded() {
+        let db = make_engine(":memory:").unwrap();
+        init_database(&db).unwrap();
+        let repo = SessionRepository::new(&db);
+        let mut recorder = SessionRecorder::new(RecorderConfig {
+            flush_every: 1,
+            flush_seconds: 1.0,
+        });
+        let id = recorder.start(&repo, &NewSession::default()).unwrap();
+        db.execute_batch("CREATE TRIGGER reject_trace BEFORE INSERT ON trace_samples BEGIN SELECT RAISE(ABORT, 'test failure'); END;").unwrap();
+
+        assert!(recorder.add_sample(&repo, sample(0.1)).is_err());
+        // Inside the back-off window no write is attempted, so no error is raised.
+        assert!(recorder.add_sample(&repo, sample(0.2)).is_ok());
+        assert_eq!(recorder.pending.len(), 2);
+
+        for i in 0..MAX_PENDING + 10 {
+            recorder
+                .add_sample(&repo, sample(0.3 + i as f64 * 1e-6))
+                .unwrap();
+        }
+        assert_eq!(recorder.pending.len(), MAX_PENDING);
+
+        db.execute_batch("DROP TRIGGER reject_trace").unwrap();
+        recorder.add_sample(&repo, sample(1.2)).unwrap();
+        assert!(recorder.pending.is_empty());
+        assert_eq!(repo.trace_count(id).unwrap(), MAX_PENDING as i64);
     }
 }
