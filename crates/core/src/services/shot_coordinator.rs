@@ -8,6 +8,9 @@ use shottrainer_tracking::models::TrackingSample;
 pub struct ShotCoordinatorSettings {
     pub pre_shot_ms: i64,
     pub post_shot_ms: i64,
+    /// Largest distance between a shot and the sample used to place it.
+    /// A shot further from every sample is left unmapped.
+    pub max_sample_gap_ms: i64,
 }
 
 impl Default for ShotCoordinatorSettings {
@@ -15,6 +18,7 @@ impl Default for ShotCoordinatorSettings {
         ShotCoordinatorSettings {
             pre_shot_ms: 1500,
             post_shot_ms: 800,
+            max_sample_gap_ms: 250,
         }
     }
 }
@@ -40,9 +44,13 @@ impl ShotCoordinator {
         self.settings = settings;
     }
 
-    /// `sample` is `None` when the buffer is empty.
+    /// `sample` is `None` when the buffer is empty or its nearest sample is
+    /// further than `max_sample_gap_ms` from the shot.
     pub fn handle_shot(&self, buffer: &TraceBuffer, event: ShotEvent) -> ShotResult {
-        let nearest = buffer.nearest(event.timestamp);
+        let max_gap = self.settings.max_sample_gap_ms as f64 / 1000.0;
+        let nearest = buffer
+            .nearest(event.timestamp)
+            .filter(|s| (s.timestamp - event.timestamp).abs() <= max_gap);
         let start = event.timestamp - self.settings.pre_shot_ms as f64 / 1000.0;
         let end = event.timestamp + self.settings.post_shot_ms as f64 / 1000.0;
         let trace = buffer.window(start, end);
@@ -77,6 +85,8 @@ mod tests {
                 let coordinator = ShotCoordinator::new(ShotCoordinatorSettings {
                     pre_shot_ms: shot["pre_shot_ms"].as_i64().unwrap(),
                     post_shot_ms: shot["post_shot_ms"].as_i64().unwrap(),
+                    // The golden cases predate the gap limit.
+                    max_sample_gap_ms: i64::MAX,
                 });
                 let event = ShotEvent {
                     timestamp: number(&shot["timestamp"]),
@@ -86,7 +96,12 @@ mod tests {
                 let result = coordinator.handle_shot(&buf, event);
                 let context = format!("{} {shot}", case["name"]);
                 assert_eq!(result.event.timestamp.to_bits(), event.timestamp.to_bits());
-                assert_ref(result.sample.as_ref(), &shot["sample"], &context);
+                if event.timestamp.is_finite() {
+                    assert_ref(result.sample.as_ref(), &shot["sample"], &context);
+                } else {
+                    // A non-finite shot time is never within the gap of a sample.
+                    assert!(result.sample.is_none(), "{context}");
+                }
                 assert_refs(&result.trace, &shot["trace"], &context);
                 if buf.is_empty() {
                     assert!(result.sample.is_none() && result.trace.is_empty());
@@ -114,7 +129,26 @@ mod tests {
         c.update_settings(ShotCoordinatorSettings {
             pre_shot_ms: 0,
             post_shot_ms: 0,
+            ..ShotCoordinatorSettings::default()
         });
         assert_eq!(c.handle_shot(&buf, event).trace.len(), 1);
+    }
+
+    #[test]
+    fn a_shot_after_tracking_loss_is_left_unmapped() {
+        let mut buf = TraceBuffer::default();
+        buf.extend([0.0, 0.1, 0.2].map(|t| TrackingSample::new(t, 1.0, 2.0)));
+        let c = ShotCoordinator::default();
+        let shot = |timestamp| ShotEvent {
+            timestamp,
+            audio_level: 0.5,
+            sample_rate: 48000,
+        };
+        // 0.25 s after the last sample is still inside the limit.
+        let fresh = c.handle_shot(&buf, shot(0.45));
+        assert_eq!(fresh.sample.map(|s| s.timestamp), Some(0.2));
+        let stale = c.handle_shot(&buf, shot(0.46));
+        assert!(stale.sample.is_none());
+        assert!(!stale.trace.is_empty());
     }
 }

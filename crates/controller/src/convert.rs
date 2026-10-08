@@ -80,6 +80,7 @@ pub fn coordinator_settings(prefs: &Preferences) -> ShotCoordinatorSettings {
     ShotCoordinatorSettings {
         pre_shot_ms: i64::from(prefs.pre_shot_ms),
         post_shot_ms: i64::from(prefs.post_shot_ms),
+        ..ShotCoordinatorSettings::default()
     }
 }
 
@@ -272,6 +273,7 @@ mod tests {
             ShotCoordinatorSettings {
                 pre_shot_ms: 2000,
                 post_shot_ms: 100,
+                ..ShotCoordinatorSettings::default()
             }
         );
     }

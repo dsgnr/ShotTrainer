@@ -49,9 +49,7 @@ reporting a problem.
 
 ## Shot registration after tracking loss
 
-The controller can map and score a shot using an earlier valid tracking sample
-when the target is subsequently lost. It does not currently enforce a maximum
-sample age for that mapping. A displayed score therefore does not prove that the
-target was being tracked at the instant of the shot. Check the camera and
-tracking status, restore a clear target view, and treat shots recorded during
-tracking loss as unreliable.
+A shot is mapped and scored only when a tracking sample exists within 250 ms
+of it. If the target was lost for longer, the shot is recorded without a
+position and receives no score. Check the camera and tracking status and
+restore a clear target view if shots appear unscored.

@@ -59,8 +59,10 @@ for commands, and [architecture](architecture.md) for crate ownership.
 
 ## Shot registration after tracking loss
 
-The nearest trace sample is selected without a maximum age limit. A shot after
-tracking loss can therefore receive a position and score from an earlier
-sample. A timing policy must preserve timestamp alignment and cover stale,
-missing and newly reacquired samples. See [troubleshooting](troubleshooting.md)
-for the user-facing limitation.
+`ShotCoordinator::handle_shot` maps a shot to the nearest trace sample only when
+that sample lies within `max_sample_gap_ms` of the shot (250 ms by default).
+Beyond that the shot has no sample and `score_for` returns an empty score.
+`TraceBuffer::nearest` has no age limit of its own, so its golden cases are
+unchanged. The `handle_shot` golden cases run with an unbounded gap, and the
+limit has its own test. See [troubleshooting](troubleshooting.md) for the
+user-facing behaviour.
