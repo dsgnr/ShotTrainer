@@ -147,6 +147,38 @@ impl<'a> SessionRepository<'a> {
         Ok(())
     }
 
+    /// Stamps `ended_at` on sessions left open, for example by a crash, and
+    /// returns how many there were. The end is the start plus the span of the
+    /// stored trace, or the start itself when there is none. Trace timestamps
+    /// come from a monotonic clock, so only their span is meaningful.
+    pub fn end_unfinished_sessions(&self) -> Result<usize, DatabaseError> {
+        let tx = self.db.unchecked_transaction()?;
+        let open = {
+            let mut stmt = tx.prepare(
+                "SELECT id, started_at, (SELECT MAX(ts) - MIN(ts) FROM trace_samples \
+                 WHERE session_id = sessions.id) FROM sessions WHERE ended_at IS NULL",
+            )?;
+            stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    read_datetime(row, 1)?,
+                    row.get::<_, Option<f64>>(2)?,
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?
+        };
+        for (id, started_at, span) in &open {
+            let micros = (span.unwrap_or(0.0).max(0.0) * 1e6) as i64;
+            let span =
+                chrono::TimeDelta::new(micros / 1_000_000, (micros % 1_000_000) as u32 * 1000)
+                    .unwrap_or_default();
+            let ended_at = started_at.checked_add_signed(span).unwrap_or(*started_at);
+            self.end_session(*id, Some(ended_at))?;
+        }
+        tx.commit()?;
+        Ok(open.len())
+    }
+
     /// Stores the trimmed name. Returns `false` when the session is missing.
     pub fn rename_session(&self, session_id: i64, name: &str) -> Result<bool, DatabaseError> {
         let changed = self.db.execute(

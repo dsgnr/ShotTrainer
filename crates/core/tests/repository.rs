@@ -791,3 +791,34 @@ fn session_settings_round_trip_independently() {
     assert_eq!(saved.target_profile, "air_rifle_10m");
     assert_eq!(repo.get_session(b).unwrap().unwrap().pre_shot_ms, 1500);
 }
+
+#[test]
+fn unfinished_sessions_end_at_the_span_of_their_trace() {
+    let db = engine();
+    let repo = SessionRepository::new(&db);
+    let traced = repo.create_session(&named("traced")).unwrap();
+    // The trace clock is monotonic, so only the 2.5 s span counts.
+    repo.append_trace(
+        traced,
+        &[sample(1000.0, 0.0, 0.0), sample(1002.5, 1.0, 1.0)],
+    )
+    .unwrap();
+    let empty = repo.create_session(&named("empty")).unwrap();
+    let finished = repo.create_session(&named("finished")).unwrap();
+    repo.end_session(finished, None).unwrap();
+    let before = repo.get_session(finished).unwrap().unwrap().ended_at;
+
+    assert_eq!(repo.end_unfinished_sessions().unwrap(), 2);
+    assert_eq!(repo.end_unfinished_sessions().unwrap(), 0);
+
+    let span = |id| {
+        let s = repo.get_session(id).unwrap().unwrap();
+        s.ended_at.unwrap() - s.started_at
+    };
+    assert_eq!(span(traced), chrono::Duration::milliseconds(2500));
+    assert_eq!(span(empty), chrono::Duration::zero());
+    assert_eq!(
+        repo.get_session(finished).unwrap().unwrap().ended_at,
+        before
+    );
+}

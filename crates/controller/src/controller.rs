@@ -172,6 +172,11 @@ impl Controller {
             .to_str()
             .ok_or_else(|| ControllerError::DatabasePath(paths.sessions_db.clone()))?;
         let db = make_engine(db_path)?;
+        match shottrainer_core::sessions::SessionRepository::new(&db).end_unfinished_sessions() {
+            Ok(0) => {}
+            Ok(count) => log::info!("Ended {count} session(s) left open by an earlier run"),
+            Err(error) => log::warn!("Could not end unfinished sessions: {error}"),
+        }
         let faces = merged_faces(
             &built_in_faces(),
             &load_custom_faces(&paths.custom_target_faces),
