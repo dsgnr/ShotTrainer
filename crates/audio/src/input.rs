@@ -1,9 +1,10 @@
 //! Microphone capture over cpal.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{self, Sender};
+use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::thread::JoinHandle;
+use std::time::Duration;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
@@ -11,6 +12,9 @@ use crate::models::ShotDetectorSettings;
 use crate::pipeline::{AudioEvent, AudioPipeline, ClockFn};
 
 const DEFAULT_NAME: &str = "default";
+
+/// How long `stop` waits for the stream thread before detaching it.
+const STOP_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Names of every input device, led by `"default"`. Position `n` is the device
 /// that `DeviceSelector::Index(n)` opens. Falls back to `["default"]` when the
@@ -214,7 +218,9 @@ pub struct AudioInput {
     on_event: Sink,
     started: Arc<AtomicBool>,
     stop_tx: Option<Sender<()>>,
+    done: Option<mpsc::Receiver<()>>,
     thread: Option<JoinHandle<()>>,
+    stop_timeout: Duration,
 }
 
 /// A built stream that can be started. Dropping it releases the device.
@@ -273,12 +279,15 @@ impl AudioInput {
         let started = Arc::new(AtomicBool::new(false));
         let live = Arc::new(AtomicBool::new(false));
         let (stop_tx, stop_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel::<()>();
 
         let thread = {
             let (shared, on_event, started) = (shared.clone(), on_event.clone(), started.clone());
             std::thread::Builder::new()
                 .name("audio-input".to_owned())
                 .spawn(move || {
+                    // Dropped on every exit path, which wakes `stop`.
+                    let _done = done_tx;
                     // The stream is created and dropped here because it is not
                     // `Send` on every host.
                     let stream = opener(&shared, &on_event, &live).and_then(|stream| {
@@ -318,7 +327,9 @@ impl AudioInput {
             on_event,
             started,
             stop_tx: Some(stop_tx),
+            done: Some(done_rx),
             thread,
+            stop_timeout: STOP_TIMEOUT,
         }
     }
 
@@ -333,20 +344,31 @@ impl AudioInput {
         shared.settings = settings;
     }
 
-    /// Joins the stream thread and emits `Stopped` if the stream had started.
-    /// Safe to call repeatedly. Blocks while a pending open is still waiting
-    /// on the operating system.
+    /// Waits up to the stop timeout for the stream thread and emits `Stopped`
+    /// if the stream had started. A thread still blocked in a pending open
+    /// after that is detached with a warning. Safe to call repeatedly.
     pub fn stop(&mut self) {
         if let Some(stop_tx) = self.stop_tx.take() {
             let _ = stop_tx.send(());
         }
-        if let Some(thread) = self.thread.take() {
-            if thread.join().is_err() {
-                log::error!("audio input thread panicked");
-            }
-            if self.started.swap(false, Ordering::SeqCst) {
-                (self.on_event)(AudioEvent::Stopped);
-            }
+        let Some(thread) = self.thread.take() else {
+            return;
+        };
+        let done = self.done.take();
+        if let Some(Err(RecvTimeoutError::Timeout)) =
+            done.map(|rx| rx.recv_timeout(self.stop_timeout))
+        {
+            log::warn!(
+                "Audio input thread did not stop within {:?}, detaching it",
+                self.stop_timeout
+            );
+            return;
+        }
+        if thread.join().is_err() {
+            log::error!("audio input thread panicked");
+        }
+        if self.started.swap(false, Ordering::SeqCst) {
+            (self.on_event)(AudioEvent::Stopped);
         }
     }
 }
@@ -641,6 +663,21 @@ mod tests {
         assert_eq!(rx.try_recv().unwrap(), AudioEvent::Stopped);
         drop(input);
         assert!(rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn stop_detaches_a_thread_stuck_in_a_pending_open() {
+        let (release_tx, release_rx) = mpsc::channel::<()>();
+        let opener: Opener = Box::new(move |_, _, _| {
+            let _ = release_rx.recv();
+            Err("late".to_owned())
+        });
+        let (mut input, _rx) = collect_events(opener);
+        input.stop_timeout = Duration::from_millis(50);
+        let began = std::time::Instant::now();
+        input.stop();
+        assert!(began.elapsed() < Duration::from_secs(2));
+        drop(release_tx);
     }
 
     #[test]
