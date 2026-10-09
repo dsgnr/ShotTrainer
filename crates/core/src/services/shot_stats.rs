@@ -101,18 +101,6 @@ pub fn compute_trace_stats(points: &[(f64, f64)]) -> TraceStats {
     }
 }
 
-/// Fraction of samples within `radius_mm` of `centre`, or `0.0` for an empty trace.
-pub fn time_inside_radius(points: &[(f64, f64)], radius_mm: f64, centre: (f64, f64)) -> f64 {
-    if points.is_empty() {
-        return 0.0;
-    }
-    let inside = points
-        .iter()
-        .filter(|p| (p.0 - centre.0).hypot(p.1 - centre.1) <= radius_mm)
-        .count();
-    inside as f64 / points.len() as f64
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,18 +155,6 @@ mod tests {
             check(trace.trace_length_mm, &e["trace_length_mm"], name);
             check(trace.mean_x_mm, &e["mean_x_mm"], name);
             check(trace.mean_y_mm, &e["mean_y_mm"], name);
-
-            let inside = case["inside"].as_array().unwrap();
-            assert_eq!(inside.len(), 8, "{name}");
-            for item in inside {
-                let c = &item["centre"];
-                let got = time_inside_radius(
-                    &pts,
-                    item["radius_mm"].as_f64().unwrap(),
-                    (c[0].as_f64().unwrap(), c[1].as_f64().unwrap()),
-                );
-                check(got, &item["fraction"], name);
-            }
         }
     }
 
@@ -186,16 +162,12 @@ mod tests {
         #[test]
         fn invariants_hold(
             pts in prop::collection::vec((-1000.0f64..1000.0, -1000.0f64..1000.0), 0..40),
-            radius in 0.0f64..2000.0,
-            centre in (-1000.0f64..1000.0, -1000.0f64..1000.0),
         ) {
             let stats = compute_stats(&pts);
             prop_assert!(stats.extreme_spread_mm >= 0.0);
             if pts.len() >= 2 {
                 prop_assert!(stats.mean_radius_mm <= stats.extreme_spread_mm + 1e-9);
             }
-            let fraction = time_inside_radius(&pts, radius, centre);
-            prop_assert!((0.0..=1.0).contains(&fraction));
         }
     }
 }

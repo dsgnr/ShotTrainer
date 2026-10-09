@@ -5,12 +5,11 @@
 //! keyed by id. A custom face shadows a built-in with the same key. Loaders
 //! are pure, so the caller decides when to reload and where to cache.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde_json::{Map, Value};
 
 use crate::json_values::read_json_object;
-use crate::paths::data_dir;
 
 /// Built-in faces in catalogue order, which is the sorted order of the file
 /// names. The key is the file name stem and is stored in preferences and in
@@ -59,11 +58,6 @@ pub struct TargetFace {
     pub shot_diameter_mm: Option<f64>,
     pub face_diameter_mm: Option<f64>,
     pub scoring_direction: String,
-}
-
-/// The on-disk path for user-defined custom faces.
-pub fn custom_faces_path() -> PathBuf {
-    data_dir().join("custom_target_faces.json")
 }
 
 /// A non-empty string field, otherwise `default`.
@@ -165,17 +159,6 @@ pub fn merged_faces(built_in: &[TargetFace], custom: &[TargetFace]) -> Vec<Targe
     merged
 }
 
-/// `(key, label)` for every face. `default` comes first and the rest follow by
-/// lower-cased label.
-pub fn list_target_faces(faces: &[TargetFace]) -> Vec<(String, String)> {
-    let mut items: Vec<&TargetFace> = faces.iter().collect();
-    items.sort_by_cached_key(|face| (face.key != "default", face.label.to_lowercase()));
-    items
-        .into_iter()
-        .map(|face| (face.key.clone(), face.label.clone()))
-        .collect()
-}
-
 /// The face for `name`, without any fallback.
 pub fn face_for_name<'a>(faces: &'a [TargetFace], name: &str) -> Option<&'a TargetFace> {
     faces.iter().find(|face| face.key == name)
@@ -192,18 +175,6 @@ pub fn get_face<'a>(faces: &'a [TargetFace], name: &str) -> Option<&'a TargetFac
 /// no faces.
 pub fn rings_for_face<'a>(faces: &'a [TargetFace], name: &str) -> &'a [TargetRing] {
     get_face(faces, name).map_or(&[], |face| face.rings.as_slice())
-}
-
-/// The smallest ring and a mid-sized one, which are worth reporting time-in-ring
-/// for. A single ring gives just that ring.
-pub fn diagnostic_rings(rings: &[TargetRing]) -> Vec<TargetRing> {
-    let mut sorted = rings.to_vec();
-    sorted.sort_by(|a, b| a.diameter_mm.total_cmp(&b.diameter_mm));
-    match sorted.len() {
-        0 => Vec::new(),
-        1 => sorted,
-        n => vec![sorted[0].clone(), sorted[n / 2].clone()],
-    }
 }
 
 #[cfg(test)]
@@ -301,11 +272,6 @@ mod tests {
                 .map(|k| k.as_str().unwrap())
                 .collect();
             assert_eq!(keys, want_keys, "{name} merged keys");
-            let listed: Vec<Vec<String>> = list_target_faces(&merged)
-                .into_iter()
-                .map(|(k, l)| vec![k, l])
-                .collect();
-            assert_eq!(json!(listed), case["list"], "{name} list");
             let fallback = get_face(&merged, "nonsense").map(|f| f.key.as_str());
             assert_eq!(fallback, case["fallback"].as_str(), "{name} fallback");
         }
@@ -347,24 +313,6 @@ mod tests {
         );
         assert!(rings_for_face(&[], "default").is_empty());
         assert!(get_face(&[], "default").is_none());
-    }
-
-    #[test]
-    fn diagnostic_rings_picks_inner_and_mid() {
-        let ring = |d: f64, l: &str| TargetRing {
-            diameter_mm: d,
-            label: Some(l.to_owned()),
-        };
-        let rings = [
-            ring(60.0, "outer"),
-            ring(30.0, "mid"),
-            ring(10.0, "inner"),
-            ring(2.0, "x"),
-        ];
-        let chosen = diagnostic_rings(&rings);
-        assert_eq!(chosen, vec![ring(2.0, "x"), ring(30.0, "mid")]);
-        assert_eq!(diagnostic_rings(&rings[..1]), vec![ring(60.0, "outer")]);
-        assert!(diagnostic_rings(&[]).is_empty());
     }
 
     #[test]

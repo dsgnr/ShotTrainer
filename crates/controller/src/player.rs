@@ -15,26 +15,13 @@ pub enum PlayerEvent {
     Finished,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct TracePlayer {
     samples: Vec<TrackingSample>,
     index: usize,
     playing: bool,
-    speed: f64,
     /// Seconds on the controller clock when the next step is due.
     deadline: Option<f64>,
-}
-
-impl Default for TracePlayer {
-    fn default() -> Self {
-        TracePlayer {
-            samples: Vec::new(),
-            index: 0,
-            playing: false,
-            speed: 1.0,
-            deadline: None,
-        }
-    }
 }
 
 impl TracePlayer {
@@ -56,15 +43,6 @@ impl TracePlayer {
         self.push_current(&mut events);
         events.push(PlayerEvent::Progress(0.0));
         events
-    }
-
-    /// Raises the speed to 0.1 at the lowest. NaN also maps to the minimum.
-    pub fn set_speed(&mut self, speed: f64) {
-        self.speed = if speed > 0.1 { speed } else { 0.1 };
-    }
-
-    pub fn speed(&self) -> f64 {
-        self.speed
     }
 
     /// Starts or resumes playback. At the last sample it rewinds first, so
@@ -161,8 +139,7 @@ impl TracePlayer {
     }
 
     /// Sends `Finished` at the last sample. Otherwise the delay is the gap to
-    /// the next sample divided by the speed, rounded half to even and at
-    /// least 1 ms. A NaN gap also gives 1 ms.
+    /// the next sample, rounded half to even and at least 1 ms. A NaN gap also gives 1 ms.
     fn schedule_next(&mut self, now: f64, events: &mut Vec<PlayerEvent>) {
         if self.index + 1 >= self.samples.len() {
             self.playing = false;
@@ -171,7 +148,7 @@ impl TracePlayer {
             return;
         }
         let gap = self.samples[self.index + 1].timestamp - self.samples[self.index].timestamp;
-        let delay_ms = (gap * 1000.0 / self.speed).round_ties_even();
+        let delay_ms = (gap * 1000.0).round_ties_even();
         let delay_ms = if delay_ms > 1.0 { delay_ms } else { 1.0 };
         self.deadline = Some(now + delay_ms / 1000.0);
     }
@@ -331,21 +308,11 @@ mod tests {
     }
 
     #[test]
-    fn set_speed_does_not_drop_below_the_minimum() {
-        let mut player = TracePlayer::new();
-        for (speed, expected) in [(0.0, 0.1), (-3.0, 0.1), (f64::NAN, 0.1), (2.0, 2.0)] {
-            player.set_speed(speed);
-            assert_eq!(player.speed(), expected, "speed {speed}");
-        }
-    }
-
-    #[test]
     fn play_steps_through_every_sample_and_finishes() {
         let mut player = TracePlayer::new();
-        let mut events = player.load(&samples(6, 0.005));
-        player.set_speed(50.0);
+        let mut events = player.load(&samples(6, 0.0004));
         events.extend(player.play(0.0));
-        // 5 ms at 50x rounds to 0 ms, which is raised to the 1 ms minimum.
+        // 0.4 ms rounds to 0 ms, which is raised to the 1 ms minimum.
         assert_eq!(player.deadline(), Some(0.001));
         events.extend(run_to_end(&mut player));
         let expected: Vec<(f64, f64)> = (0..6).map(|i| (i as f64, -(i as f64))).collect();
@@ -358,7 +325,6 @@ mod tests {
     fn play_after_finishing_rewinds_to_the_start() {
         let mut player = TracePlayer::new();
         player.load(&samples(4, 0.005));
-        player.set_speed(50.0);
         player.play(0.0);
         run_to_end(&mut player);
         let start = player.play(1.0);
@@ -390,7 +356,6 @@ mod tests {
     fn pause_keeps_the_playhead_stop_rewinds_it() {
         let mut player = TracePlayer::new();
         player.load(&samples(20, 0.01));
-        player.set_speed(2.0);
         player.play(0.0);
         for _ in 0..3 {
             let due = player.deadline().unwrap();

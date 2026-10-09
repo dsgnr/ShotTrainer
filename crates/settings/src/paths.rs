@@ -60,11 +60,3 @@ pub fn data_dir() -> PathBuf {
     }
     path
 }
-
-pub fn sessions_db_path() -> PathBuf {
-    data_dir().join("sessions.db")
-}
-
-pub fn settings_path() -> PathBuf {
-    data_dir().join("settings.json")
-}

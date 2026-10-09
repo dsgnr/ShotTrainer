@@ -212,10 +212,6 @@ impl<D: TargetDetector> Tracker<D> {
         self.last_detection.as_ref()
     }
 
-    pub fn last_sample(&self) -> Option<&TrackingSample> {
-        self.last_sample.as_ref()
-    }
-
     /// Mean millimetres per pixel over both smoothed axes, for display.
     pub fn mm_per_pixel(&self) -> Option<f64> {
         let (major, minor) = (self.smoothed_major_px?, self.smoothed_minor_px?);
