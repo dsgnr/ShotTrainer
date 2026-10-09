@@ -49,7 +49,7 @@ impl SessionManager {
         self.list_sessions(cx);
     }
 
-    pub fn delete_session(&self, cx: &SessionContext, id: i64) {
+    pub fn delete_session(&mut self, cx: &SessionContext, id: i64) {
         if self.recorder.session_id() == Some(id) {
             cx.message(StatusMessage::info(
                 "Stop recording before deleting this session",
@@ -59,6 +59,9 @@ impl SessionManager {
         }
         if let Err(error) = cx.repo().delete_session(id) {
             return db_warning(cx, "Could not delete the session", &error);
+        }
+        if self.reviewing == Some(id) {
+            self.prepare(cx);
         }
         self.list_sessions(cx);
     }
@@ -624,7 +627,7 @@ mod tests {
     fn browser_actions_update_the_database_and_relist() {
         let rig = Rig::new();
         let sid = saved_session(&rig, "default");
-        let mgr = SessionManager::new(&rig.prefs);
+        let mut mgr = SessionManager::new(&rig.prefs);
         rig.run(|cx| {
             mgr.rename_session(cx, sid, "  Renamed  ");
             mgr.set_session_category(cx, sid, "match");
@@ -643,6 +646,34 @@ mod tests {
         rig.run(|cx| mgr.delete_session(cx, sid));
         assert!(rig.repo().get_session(sid).unwrap().is_none());
         assert_eq!(rig.take(), [UiEvent::Sessions(vec![])]);
+    }
+
+    #[test]
+    fn deleting_the_reviewed_session_clears_the_display() {
+        let rig = Rig::new();
+        let sid = saved_session(&rig, "default");
+        let other = saved_session(&rig, "default");
+        let mut mgr = SessionManager::new(&rig.prefs);
+        rig.run(|cx| mgr.open_session(cx, sid));
+        rig.take();
+
+        rig.run(|cx| mgr.delete_session(cx, other));
+        assert_eq!(
+            mgr.reviewing(),
+            Some(sid),
+            "another session leaves the display alone"
+        );
+
+        rig.take();
+        rig.run(|cx| mgr.delete_session(cx, sid));
+        assert_eq!(mgr.reviewing(), None);
+        assert!(mgr.player().is_empty());
+        let events = rig.take();
+        assert!(events.contains(&UiEvent::ReplayCleared));
+        assert!(events.contains(&UiEvent::Session {
+            state: SessionState::Idle,
+            summary: "Ready to start a new session".into(),
+        }));
     }
 
     #[test]
