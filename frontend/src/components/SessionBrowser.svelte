@@ -48,13 +48,13 @@
 
   const fileFilter = [{ name: "ShotTrainer session", extensions: ["json"] }];
 
-  async function importCsv(): Promise<void> {
+  async function importSession(): Promise<void> {
     if (recording) return;
     const path = await openFile({ title: "Import session", filters: fileFilter });
     if (path) await send({ type: "importSession", path });
   }
 
-  async function exportCsv(): Promise<void> {
+  async function exportSession(): Promise<void> {
     if (!selectedSession) return;
     const path = await saveFile({
       title: "Export session",
@@ -84,7 +84,7 @@
         </Dropdown></div>
         <div class="create">
           <button type="button" class="primary" disabled={recording} onclick={onnew}>New session</button>
-          <button type="button" disabled={recording} onclick={importCsv}>Import...</button>
+          <button type="button" disabled={recording} onclick={importSession}>Import...</button>
         </div>
       </div>
 
@@ -122,7 +122,7 @@
         <button type="button" disabled={selected === null} onclick={() => beginAction("rename")}>Rename...</button>
         <button type="button" disabled={selected === null} onclick={() => beginAction("category")}>Category...</button>
         <button type="button" disabled={selected === null} onclick={() => beginAction("delete")}>Delete</button>
-        <button type="button" disabled={selected === null} onclick={exportCsv}>Export...</button>
+        <button type="button" disabled={selected === null} onclick={exportSession}>Export...</button>
       </div>
       {#if action}
         {#key action}<SessionActionDialog {action} onconfirm={confirmAction} onclose={() => action = null} />{/key}
