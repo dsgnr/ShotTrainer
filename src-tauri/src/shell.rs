@@ -128,12 +128,15 @@ fn start_when_permitted(app: &AppHandle, mode: DeviceMode) {
 }
 
 pub fn run() {
-    logging::init();
     let mode = mode::device_mode(
         std::env::args().skip(1),
         std::env::var(FAKE_DEVICES_ENV).ok().as_deref(),
         cfg!(feature = "opencv"),
     );
+    logging::init(&match mode {
+        DeviceMode::System => shottrainer_settings::data_dir(),
+        DeviceMode::Fake => mode::fake_data_dir(),
+    });
     if mode == DeviceMode::Fake {
         log::info!("Using fake devices");
     }

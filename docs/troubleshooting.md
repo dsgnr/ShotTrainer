@@ -4,6 +4,10 @@ description: "Fix common ShotTrainer camera, tracking and audio problems, includ
 
 # Troubleshooting
 
+ShotTrainer writes its log to `app.log` in the data directory described in
+[preferences](preferences.md). The file is truncated at start-up once it passes
+1 MiB. Include the end of it when reporting a problem.
+
 ## Only synthetic devices appear
 
 The default desktop build has no OpenCV backend. Install the native OpenCV and
