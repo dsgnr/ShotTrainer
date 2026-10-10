@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
-  import { drawTarget, type TargetColours } from "../lib/target/draw";
+  import { themeColours } from "../lib/target/colours";
+  import { drawTarget } from "../lib/target/draw";
   import { clampExtent, wheelFactor } from "../lib/target/geometry";
   import type { TargetModel } from "../lib/target/model";
   import type { WireRing } from "../lib/wire/types";
@@ -21,23 +22,6 @@
   let canvas: HTMLCanvasElement;
   let width = $state(0);
   let height = $state(0);
-
-  function colours(element: HTMLElement): TargetColours {
-    const style = getComputedStyle(element);
-    const token = (name: string): string => style.getPropertyValue(name).trim();
-    return {
-      face: token("--target-face"),
-      ring: token("--target-ring"),
-      label: token("--target-label"),
-      crosshair: token("--target-crosshair"),
-      shot: token("--target-shot"),
-      liveAim: token("--target-live-aim"),
-      holdZone: token("--target-hold-zone"),
-      approach: token("--trace-approach"),
-      release: token("--trace-release"),
-      follow: token("--trace-follow"),
-    };
-  }
 
   let displayedExtent: number | undefined;
   let zoomFrom = 0;
@@ -65,7 +49,7 @@
     }
     const context = canvas.getContext("2d");
     if (context === null || currentWidth === 0 || currentHeight === 0) return;
-    const palette = colours(canvas);
+    const palette = themeColours(canvas);
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     const animate = animateZoom && !reduceMotion;
     let frame: number | undefined;
