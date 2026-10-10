@@ -15,7 +15,8 @@ pub enum AudioEvent {
     Error(String),
 }
 
-/// Seconds on the shared monotonic timeline.
+/// Seconds on the shared monotonic timeline. Declared here as well as in the
+/// tracking crate because the two crates do not depend on each other.
 pub type ClockFn = Arc<dyn Fn() -> f64 + Send + Sync>;
 
 /// Cuts incoming audio into detector blocks and stamps each one.
