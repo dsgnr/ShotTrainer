@@ -74,6 +74,14 @@ pub struct HoldTrace {
     pub stats: TraceStats,
 }
 
+/// One shot's trace window with the same phase indices as [`ReplayView`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShotTrace {
+    pub points: Vec<(f64, f64)>,
+    pub release_index: Option<usize>,
+    pub split_index: Option<usize>,
+}
+
 /// The amber circle at the mean pre-shot position with the tremor radius.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct HoldZone {
@@ -156,6 +164,8 @@ pub enum UiEvent {
     Player(PlayerEvent),
     /// Highlights a shot on the target, whether or not a replay follows.
     SelectedShot(usize),
+    /// The trace window of every shot, in shot order, for the overlay.
+    ShotTraces(Vec<ShotTrace>),
     ReplayLoaded(ReplayView),
     /// The play or pause glyph of the replay controls.
     ReplayPlaying(bool),

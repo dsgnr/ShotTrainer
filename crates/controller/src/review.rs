@@ -8,7 +8,7 @@ use shottrainer_core::services::replay_coordinator::shot_window;
 use shottrainer_core::services::shot_stats::compute_trace_stats;
 use shottrainer_core::sessions::SESSION_CATEGORIES;
 
-use crate::events::{HoldZone, ReplayView, StatusMessage, UiEvent};
+use crate::events::{HoldZone, ReplayView, ShotTrace, StatusMessage, UiEvent};
 use crate::player::PlayerEvent;
 use crate::session::{
     SessionContext, SessionManager, SessionState, ShotEntry, hold_trace, mapped_points_until,
@@ -147,6 +147,41 @@ impl SessionManager {
             .collect();
         self.render(cx);
         OpenOutcome { switch_face }
+    }
+
+    /// Emits the mapped trace window of every shot so the front end can overlay them.
+    pub fn load_shot_traces(&mut self, cx: &SessionContext) {
+        let Some(session_id) = self.reviewing.or(self.trace_session_id) else {
+            return;
+        };
+        if let Err(error) = self.recorder.flush_pending(&cx.repo()) {
+            return db_warning(cx, "Could not save the shot trace", &error);
+        }
+        let prefs = cx.prefs;
+        let mut traces = Vec::with_capacity(self.shots.len());
+        for shot in &self.shots {
+            let window = shot_window(
+                &cx.repo(),
+                session_id,
+                shot.timestamp,
+                i64::from(prefs.pre_shot_ms),
+                i64::from(prefs.post_shot_ms),
+                i64::from(prefs.release_window_ms),
+            );
+            match window {
+                Ok(window) => traces.push(ShotTrace {
+                    points: window
+                        .samples
+                        .iter()
+                        .map(|s| (s.x_mm.unwrap_or(0.0), s.y_mm.unwrap_or(0.0)))
+                        .collect(),
+                    release_index: window.release_index,
+                    split_index: window.split_index,
+                }),
+                Err(error) => return db_warning(cx, "Could not load the shot traces", &error),
+            }
+        }
+        (cx.emit)(UiEvent::ShotTraces(traces));
     }
 
     /// Highlights the shot and, while reviewing, loads its trace window into
@@ -397,6 +432,27 @@ mod tests {
         let saved = rig.repo().get_session(live).unwrap().unwrap();
         assert!(saved.ended_at.is_some());
         assert_eq!(saved.shots.len(), 1);
+    }
+
+    #[test]
+    fn loading_shot_traces_emits_each_shots_mapped_window() {
+        let mut rig = Rig::new();
+        rig.prefs.pre_shot_ms = 1000;
+        rig.prefs.post_shot_ms = 1000;
+        rig.prefs.release_window_ms = 500;
+        let sid = saved_session(&rig, "default");
+        let mut mgr = SessionManager::new(&rig.prefs);
+        rig.run(|cx| mgr.open_session(cx, sid));
+        rig.take();
+        rig.run(|cx| mgr.load_shot_traces(cx));
+        assert_eq!(
+            rig.take(),
+            [UiEvent::ShotTraces(vec![ShotTrace {
+                points: vec![(0.0, 0.0), (1.0, 2.0), (3.0, 4.0), (9.0, 9.0)],
+                release_index: Some(1),
+                split_index: Some(2),
+            }])]
+        );
     }
 
     #[test]

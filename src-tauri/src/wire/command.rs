@@ -47,6 +47,7 @@ pub enum WireCommand {
     SelectShot {
         index: usize,
     },
+    LoadShotTraces,
     ListSessions,
     OpenSession {
         id: i64,
@@ -125,6 +126,7 @@ impl From<WireCommand> for Command {
             WireCommand::DeleteShot { index } => Command::DeleteShot(index),
             WireCommand::Rescore => Command::Rescore,
             WireCommand::SelectShot { index } => Command::SelectShot(index),
+            WireCommand::LoadShotTraces => Command::LoadShotTraces,
             WireCommand::ListSessions => Command::ListSessions,
             WireCommand::OpenSession { id } => Command::OpenSession(id),
             WireCommand::RenameSession { id, name } => Command::RenameSession { id, name },
@@ -208,6 +210,7 @@ mod tests {
                 json!({"type": "selectShot", "index": 4}),
                 Command::SelectShot(4),
             ),
+            (json!({"type": "loadShotTraces"}), Command::LoadShotTraces),
             (json!({"type": "listSessions"}), Command::ListSessions),
             (
                 json!({"type": "openSession", "id": 7}),

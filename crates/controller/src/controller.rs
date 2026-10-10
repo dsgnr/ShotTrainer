@@ -43,6 +43,7 @@ pub enum Command {
     DeleteShot(usize),
     Rescore,
     SelectShot(usize),
+    LoadShotTraces,
     ListSessions,
     OpenSession(i64),
     RenameSession {
@@ -315,6 +316,7 @@ impl Controller {
             Command::DeleteShot(index) => self.with_session(|s, cx| s.delete_shot(cx, index)),
             Command::Rescore => self.with_session(|s, cx| s.rescore(cx)),
             Command::SelectShot(index) => self.with_session(|s, cx| s.select_shot(cx, index)),
+            Command::LoadShotTraces => self.with_session(|s, cx| s.load_shot_traces(cx)),
             Command::ListSessions => self.with_session(|s, cx| s.list_sessions(cx)),
             Command::OpenSession(id) => {
                 let outcome = self.with_session(|s, cx| s.open_session(cx, id));

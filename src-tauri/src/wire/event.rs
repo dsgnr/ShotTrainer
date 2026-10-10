@@ -4,7 +4,7 @@
 use serde::Serialize;
 use shottrainer_controller::UiEvent;
 use shottrainer_controller::events::{
-    HoldTrace, HoldZone, ReplayView, Severity, ShotsView, StatusMessage,
+    HoldTrace, HoldZone, ReplayView, Severity, ShotTrace, ShotsView, StatusMessage,
 };
 use shottrainer_controller::frames::{FrameView, Marker, TrackingStatus};
 use shottrainer_controller::player::PlayerEvent;
@@ -267,6 +267,24 @@ impl From<&HoldZone> for WireHoldZone {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct WireShotTrace {
+    pub points: Vec<(f64, f64)>,
+    pub release_index: Option<usize>,
+    pub split_index: Option<usize>,
+}
+
+impl From<&ShotTrace> for WireShotTrace {
+    fn from(t: &ShotTrace) -> Self {
+        WireShotTrace {
+            points: t.points.clone(),
+            release_index: t.release_index,
+            split_index: t.split_index,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WireReplay {
     pub index: usize,
     pub points: Vec<(f64, f64)>,
@@ -397,6 +415,9 @@ pub enum WireEvent {
     SelectedShot {
         index: usize,
     },
+    ShotTraces {
+        traces: Vec<WireShotTrace>,
+    },
     ReplayLoaded(WireReplay),
     ReplayPlaying {
         playing: bool,
@@ -486,6 +507,9 @@ impl From<&UiEvent> for WireEvent {
             },
             UiEvent::Player(PlayerEvent::Finished) => WireEvent::PlayerFinished,
             UiEvent::SelectedShot(index) => WireEvent::SelectedShot { index: *index },
+            UiEvent::ShotTraces(traces) => WireEvent::ShotTraces {
+                traces: traces.iter().map(WireShotTrace::from).collect(),
+            },
             UiEvent::ReplayLoaded(view) => WireEvent::ReplayLoaded(view.into()),
             UiEvent::ReplayPlaying(playing) => WireEvent::ReplayPlaying { playing: *playing },
             UiEvent::Sessions(sessions) => WireEvent::Sessions {
@@ -569,6 +593,14 @@ mod tests {
             (
                 UiEvent::SelectedShot(5),
                 json!({"type": "selectedShot", "index": 5}),
+            ),
+            (
+                UiEvent::ShotTraces(vec![ShotTrace {
+                    points: vec![(1.0, 2.0)],
+                    release_index: Some(0),
+                    split_index: None,
+                }]),
+                json!({"type": "shotTraces", "traces": [{"points": [[1.0, 2.0]], "releaseIndex": 0, "splitIndex": null}]}),
             ),
             (
                 UiEvent::ReplayPlaying(true),
