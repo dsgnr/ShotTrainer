@@ -307,11 +307,7 @@ impl Controller {
                 let version = self.app_version.clone();
                 self.with_session(|s, cx| s.start(cx, &name, &category, &version));
                 if !was_recording && self.session.is_recording() {
-                    let tracker = self.frames.tracker_mut();
-                    let diameter = tracker.circle_diameter_mm();
-                    tracker
-                        .set_circle_diameter_mm(diameter)
-                        .expect("valid current circle diameter");
+                    self.frames.tracker_mut().reset_smoothing();
                 }
             }
             Command::StopSession => self.with_session(|s, cx| s.stop(cx)),

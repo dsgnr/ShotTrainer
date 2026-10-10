@@ -86,14 +86,19 @@ impl<D: TargetDetector> Tracker<D> {
         &mut self.detector
     }
 
-    /// Resets the smoothed axes and centroid so the next frame starts afresh.
+    /// Resets the smoothing, see [`Tracker::reset_smoothing`].
     pub fn set_circle_diameter_mm(&mut self, diameter_mm: f64) -> Result<(), TrackerError> {
         self.diameter_mm = check_diameter(diameter_mm)?;
+        self.reset_smoothing();
+        Ok(())
+    }
+
+    /// Clears the smoothed axes and centroid so the next frame starts afresh.
+    pub fn reset_smoothing(&mut self) {
         self.smoothed_major_px = None;
         self.smoothed_minor_px = None;
         self.smoothed_cx_px = None;
         self.smoothed_cy_px = None;
-        Ok(())
     }
 
     pub fn set_trace_inversion(&mut self, invert_x: bool, invert_y: bool) {
