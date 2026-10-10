@@ -76,7 +76,7 @@ export const MOCK_FACES: WireFace[] = Object.entries(sources).sort(([a], [b]) =>
   scoringDirection: face.scoring_direction ?? "inward",
 }));
 
-import { simulatedAim } from "./simulated-aim";
+import { simulatedAim, simulatedShot } from "./simulated-aim";
 
 const UNAVAILABLE = "Not available in the browser preview";
 
@@ -160,13 +160,13 @@ export class MockBridge implements Bridge {
           shotDiameterMm: current.shotDiameterMm, sessionPosition: current.sessionPosition,
           shotsPerSeries: current.shotsPerSeries,
         };
-        this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_FACES.find(face => face.key === this.#prefs.targetFace)?.rings ?? MOCK_RINGS });
+        this.#emit({ type: "preferences", prefs: this.#prefs, rings: this.#rings() });
         break;
       }
       case "setSessionSettings":
         if (this.#session.kind !== "idle" || this.#shots.length > 0) break;
         this.#prefs = { ...command.prefs };
-        this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_FACES.find(face => face.key === this.#prefs.targetFace)?.rings ?? MOCK_RINGS });
+        this.#emit({ type: "preferences", prefs: this.#prefs, rings: this.#rings() });
         break;
       case "newSession":
         if (this.#session.kind === "recording") break;
@@ -178,7 +178,7 @@ export class MockBridge implements Bridge {
           shotRefractoryMs: MOCK_PREFERENCES.shotRefractoryMs, shotDiameterMm: MOCK_PREFERENCES.shotDiameterMm,
           sessionPosition: MOCK_PREFERENCES.sessionPosition, shotsPerSeries: MOCK_PREFERENCES.shotsPerSeries,
         };
-        this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_FACES.find(face => face.key === this.#prefs.targetFace)?.rings ?? MOCK_RINGS });
+        this.#emit({ type: "preferences", prefs: this.#prefs, rings: this.#rings() });
         this.#session = { kind: "idle" };
         this.#summary = "Ready to start a new session";
         this.#shots = [];
@@ -286,7 +286,7 @@ export class MockBridge implements Bridge {
 
   #sendState(): void {
     this.#emit({ type: "targetFaces", faces: MOCK_FACES });
-    this.#emit({ type: "preferences", prefs: this.#prefs, rings: MOCK_FACES.find(face => face.key === this.#prefs.targetFace)?.rings ?? MOCK_RINGS });
+    this.#emit({ type: "preferences", prefs: this.#prefs, rings: this.#rings() });
     this.#emit({ type: "zeroOffset", active: false, offsetMm: [0, 0] });
     this.#emitSession();
     this.#emitShots();
@@ -326,9 +326,10 @@ export class MockBridge implements Bridge {
       && ++this.#recordingFrames % MOCK_SHOT_EVERY_FRAMES === 0;
     this.#emit({ type: "audioLevel", level: shot ? 0.9 : 0.02 });
     if (shot && this.#session.kind === "recording") {
+      const [shotX, shotY] = simulatedShot(this.#shotNumber);
       this.#shots = [
         ...this.#shots,
-        { timestamp: t, xMm: this.#aimMm[0], yMm: this.#aimMm[1], score: this.#score(), shotId: null,
+        { timestamp: t, xMm: shotX, yMm: shotY, score: this.#score(shotX, shotY), shotId: null,
           seriesIndex: Math.floor(this.#shotNumber++ / this.#prefs.shotsPerSeries) },
       ];
       this.#emitShots();
@@ -380,9 +381,13 @@ export class MockBridge implements Bridge {
     this.#emit({type: "playerProgress", fraction: this.#playerIndex / Math.max(1, replay.points.length - 1)});
   }
 
-  #score(): string {
-    const distance = Math.hypot(...this.#aimMm);
-    const rings = MOCK_RINGS.filter((ring): ring is WireRing & { diameterMm: number } => ring.diameterMm !== null).sort((a, b) => a.diameterMm - b.diameterMm);
+  #rings(): WireRing[] {
+    return MOCK_FACES.find(face => face.key === this.#prefs.targetFace)?.rings ?? MOCK_RINGS;
+  }
+
+  #score(x: number, y: number): string {
+    const distance = Math.hypot(x, y);
+    const rings = this.#rings().filter((ring): ring is WireRing & { diameterMm: number } => ring.diameterMm !== null).sort((a, b) => a.diameterMm - b.diameterMm);
     if (!this.#prefs.decimalScoring) {
       return rings.find(r => distance <= r.diameterMm / 2 + this.#prefs.shotDiameterMm / 2)?.label ?? "";
     }

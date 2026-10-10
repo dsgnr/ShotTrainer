@@ -123,7 +123,7 @@ hide:
         <a href="assets/img/replay_shot.mp4">Download the replay demonstration</a>.
       </video>
       <figcaption>
-        A 9.5-second replay using demonstration data. Use the video controls
+        A 10-second replay using demonstration data. Use the video controls
         to play or pause.
       </figcaption>
     </figure>

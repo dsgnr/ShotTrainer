@@ -169,3 +169,23 @@ it("previews the full shot window before replay and preserves it after stopping"
     expect(ofType("playerIndex").at(-1)?.index).toBe(replay.points.length - 1);
   }
 });
+
+it("scores shots on the selected target face", async () => {
+  await bridge.send({ type: "setSessionSettings", prefs: { ...MOCK_PREFERENCES, targetFace: "nsra_50m_prone_rifle_mm12c_199618" } });
+  await bridge.send({ type: "startSession", name: "", category: "practice" });
+  vi.advanceTimersByTime(MOCK_FRAME_MS * MOCK_SHOT_EVERY_FRAMES);
+  expect(ofType("shots").at(-1)!.shots[0]!.score).toBe("X");
+});
+
+it("keeps ten consecutive preview shots in the X ring of the recorded face", async () => {
+  await bridge.send({ type: "setSessionSettings", prefs: { ...MOCK_PREFERENCES, targetFace: "nsra_50m_prone_rifle_mm12c_199618" } });
+  await bridge.send({ type: "startSession", name: "", category: "practice" });
+  vi.advanceTimersByTime(MOCK_FRAME_MS * MOCK_SHOT_EVERY_FRAMES * 10);
+  expect(ofType("shots").at(-1)!.shots.map(shot => shot.score)).toEqual(Array(10).fill("X"));
+});
+
+it("places every preview shot inside the 2.25 mm X ring", async () => {
+  await bridge.send({ type: "startSession", name: "", category: "practice" });
+  vi.advanceTimersByTime(MOCK_FRAME_MS * MOCK_SHOT_EVERY_FRAMES * 10);
+  expect(ofType("shots").at(-1)!.shots.every(shot => Math.hypot(shot.xMm!, shot.yMm!) < 2.25)).toBe(true);
+});
