@@ -294,6 +294,11 @@ impl AudioInput {
                         stream.play()?;
                         Ok(stream)
                     });
+                    // A stop requested during the open, possibly one that gave
+                    // up waiting, leaves no events behind.
+                    if !matches!(stop_rx.try_recv(), Err(mpsc::TryRecvError::Empty)) {
+                        return;
+                    }
                     match stream {
                         Ok(stream) => {
                             // The callback drops buffers until `live`, so no
@@ -346,7 +351,8 @@ impl AudioInput {
 
     /// Waits up to the stop timeout for the stream thread and emits `Stopped`
     /// if the stream had started. A thread still blocked in a pending open
-    /// after that is detached with a warning. Safe to call repeatedly.
+    /// after that is detached with a warning and emits no events once the
+    /// open returns. Safe to call repeatedly.
     pub fn stop(&mut self) {
         if let Some(stop_tx) = self.stop_tx.take() {
             let _ = stop_tx.send(());
@@ -672,12 +678,13 @@ mod tests {
             let _ = release_rx.recv();
             Err("late".to_owned())
         });
-        let (mut input, _rx) = collect_events(opener);
+        let (mut input, rx) = collect_events(opener);
         input.stop_timeout = Duration::from_millis(50);
         let began = std::time::Instant::now();
         input.stop();
         assert!(began.elapsed() < Duration::from_secs(2));
         drop(release_tx);
+        assert!(rx.recv_timeout(Duration::from_millis(200)).is_err());
     }
 
     #[test]
