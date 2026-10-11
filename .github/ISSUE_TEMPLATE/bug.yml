@@ -38,3 +38,10 @@ body:
     attributes:
       label: Logs / screenshots
       description: Paste any console output or attach screenshots.
+  - type: checkboxes
+    id: duplicate
+    attributes:
+      label: Duplicates
+      options:
+        - label: I searched existing issues and this has not been reported.
+          required: true

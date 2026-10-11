@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest something we should add.
+description: Suggest a feature or improvement.
 title: "[feat] "
 labels: ["enhancement"]
 body:
@@ -7,7 +7,7 @@ body:
     id: problem
     attributes:
       label: What problem are you trying to solve?
-      description: Tell us about the situation, not the solution. We'll figure out the design together.
+      description: Describe the situation rather than a solution. The design is worked out in the issue discussion.
     validations:
       required: true
   - type: textarea

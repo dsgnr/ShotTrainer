@@ -13,5 +13,8 @@ notable. -->
   `refactor:`, `perf:`, `docs:`, `test:`, `chore:`, `ci:`, `build:`)
 - [ ] `make test` passes
 - [ ] `make lint` is clean
+- [ ] `npm --prefix frontend test` passes for frontend changes
+- [ ] Camera or microphone changes were tested on real hardware, or the PR
+  states that they were not
 - [ ] Comments and docs updated where the behaviour changed
 - [ ] Screenshot or screen capture attached for UI changes

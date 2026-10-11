@@ -6,9 +6,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Use this template to request a new built-in target face. We need
-        enough information to add the rings without guessing dimensions,
-        and a verifiable source so we can check we got it right.
+        Use this template to request a new built-in target face. The request
+        needs enough information to add the rings without guessing
+        dimensions, and a verifiable source to check them against.
   - type: input
     id: discipline
     attributes:
@@ -50,4 +50,4 @@ body:
     id: notes
     attributes:
       label: Anything else?
-      description: Optional. Anything we should know that the rule book doesn't say.
+      description: Optional. Anything the rule book doesn't say.
