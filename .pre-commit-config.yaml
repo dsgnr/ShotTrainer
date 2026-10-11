@@ -1,3 +1,4 @@
+default_install_hook_types: [pre-commit, pre-push, commit-msg]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -17,3 +18,16 @@ repos:
         language: system
         types: [rust]
         pass_filenames: false
+      - id: clippy
+        name: clippy
+        entry: cargo clippy --workspace --all-targets -- -D warnings
+        language: system
+        types: [rust]
+        pass_filenames: false
+        stages: [pre-push]
+      - id: conventional-commit
+        name: conventional commit subject
+        entry: '^(feat|fix|refactor|perf|docs|test|chore|ci|build)(\([^)]+\))?!?: .+'
+        args: [--negate]
+        language: pygrep
+        stages: [commit-msg]
