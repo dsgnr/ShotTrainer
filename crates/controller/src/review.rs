@@ -22,6 +22,10 @@ pub struct OpenOutcome {
     pub switch_face: Option<String>,
 }
 
+/// Longest accepted session name, in characters. Matches the column width,
+/// which SQLite does not enforce.
+pub const MAX_SESSION_NAME_CHARS: usize = 120;
+
 /// Longest accepted session notes, in characters.
 pub const MAX_SESSION_NOTES_CHARS: usize = 4000;
 
@@ -34,6 +38,10 @@ impl SessionManager {
     }
 
     pub fn rename_session(&self, cx: &SessionContext, id: i64, name: &str) {
+        if name.trim().chars().count() > MAX_SESSION_NAME_CHARS {
+            cx.message(StatusMessage::info("The name is too long", 4000));
+            return;
+        }
         if let Err(error) = cx.repo().rename_session(id, name) {
             return db_warning(cx, "Could not rename the session", &error);
         }
@@ -702,6 +710,7 @@ mod tests {
         let mut mgr = SessionManager::new(&rig.prefs);
         rig.run(|cx| {
             mgr.rename_session(cx, sid, "  Renamed  ");
+            mgr.rename_session(cx, sid, &"x".repeat(MAX_SESSION_NAME_CHARS + 1));
             mgr.set_session_category(cx, sid, "match");
             mgr.set_session_category(cx, sid, "bogus");
         });

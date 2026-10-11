@@ -15,7 +15,7 @@ in-app dialogues. **Cancel** or Escape dismisses a dialogue without sending its
 action.
 
 - **Open** loads the session for review. Double-clicking also opens it.
-- **Rename...** opens a dialogue for a new name.
+- **Rename...** opens a dialogue for a new name, up to 120 characters.
 - **Category...** opens a dropdown of session categories.
 - **Notes...** opens a text box for free-form notes on the whole session, up to 4000 characters.
   Notes can be edited at any time, including during a recording. The first line shows under the session in the list.
