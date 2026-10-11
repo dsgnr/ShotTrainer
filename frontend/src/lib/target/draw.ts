@@ -214,7 +214,7 @@ function strokePolyline(ctx: CanvasRenderingContext2D, points: TracePoint[], col
   ctx.stroke();
 }
 
-function drawTrace(
+export function drawTrace(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,

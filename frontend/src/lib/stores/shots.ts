@@ -1,4 +1,4 @@
-import type { F64, WireEvent, WireHoldTrace, WireShot, WireShotStats } from "../wire/types";
+import type { F64, WireEvent, WireHoldTrace, WireShot, WireShotStats, WireShotTrace } from "../wire/types";
 
 export interface ShotsState {
   shots: WireShot[];
@@ -9,6 +9,8 @@ export interface ShotsState {
   selected: number | null;
   /** The hold figures for the selected or latest shot. */
   holdTrace: WireHoldTrace | null;
+  /** Each shot's trace window, in shot order. Filled on request for the overlay. */
+  traces: WireShotTrace[];
 }
 
 export const initialShots: ShotsState = {
@@ -17,6 +19,7 @@ export const initialShots: ShotsState = {
   totalScore: 0,
   selected: null,
   holdTrace: null,
+  traces: [],
 };
 
 export function reduceShots(state: ShotsState, event: WireEvent): ShotsState {
@@ -28,6 +31,8 @@ export function reduceShots(state: ShotsState, event: WireEvent): ShotsState {
       return { ...state, selected: event.index };
     case "holdTrace":
       return { ...state, holdTrace: event.trace };
+    case "shotTraces":
+      return { ...state, traces: event.traces };
     default:
       return state;
   }

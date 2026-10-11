@@ -113,6 +113,7 @@ export const SAMPLE_EVENTS: { [T in WireEventType]: EventOf<T> } = {
   playerProgress: { type: "playerProgress", fraction: 0.5 },
   playerFinished: { type: "playerFinished" },
   selectedShot: { type: "selectedShot", index: 5 },
+  shotTraces: { type: "shotTraces", traces: [{ points: [[1.0, 2.0]], releaseIndex: 0, splitIndex: null }] },
   replayLoaded: {
     type: "replayLoaded",
     index: 2,
@@ -150,6 +151,7 @@ export const SAMPLE_COMMANDS: {
   deleteShot: { type: "deleteShot", index: 2 },
   rescore: { type: "rescore" },
   selectShot: { type: "selectShot", index: 4 },
+  loadShotTraces: { type: "loadShotTraces" },
   listSessions: { type: "listSessions" },
   openSession: { type: "openSession", id: 7 },
   renameSession: { type: "renameSession", id: 7, name: "Evening" },

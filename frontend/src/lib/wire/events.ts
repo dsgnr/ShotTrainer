@@ -26,6 +26,7 @@ const KNOWN: Record<WireEventType, true> = {
   playerProgress: true,
   playerFinished: true,
   selectedShot: true,
+  shotTraces: true,
   replayLoaded: true,
   replayPlaying: true,
   sessions: true,

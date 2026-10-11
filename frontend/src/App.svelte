@@ -12,6 +12,7 @@
   import MarkerSheet from "./components/MarkerSheet.svelte";
   import NavRail from "./components/NavRail.svelte";
   import PreferencesDialog from "./components/PreferencesDialog.svelte";
+  import TraceOverlay from "./components/TraceOverlay.svelte";
   import ReplayControls from "./components/ReplayControls.svelte";
   import SessionBrowser from "./components/SessionBrowser.svelte";
   import { currentSeries } from "./lib/shots/series";
@@ -165,15 +166,17 @@
   let page = $state<"target" | "sessions" | "about">("target");
   let popoutOpen = $state(false);
   let sessionSettingsOpen = $state(false);
+  let tracesOpen = $state(false);
   let sheet = $state<{ print: () => Promise<void> }>();
 
-  const anyModalOpen = $derived(newSessionOpen || preferencesOpen || popoutOpen || sessionSettingsOpen);
+  const anyModalOpen = $derived(newSessionOpen || preferencesOpen || popoutOpen || sessionSettingsOpen || tracesOpen);
 
   function closeModals(): void {
     newSessionOpen = false;
     preferencesOpen = false;
     popoutOpen = false;
     sessionSettingsOpen = false;
+    tracesOpen = false;
   }
 
   function isTyping(target: EventTarget | null): boolean {
@@ -240,7 +243,7 @@
   <About {updates} />
 {/snippet}
 <div style="height: 100%" inert={updates.stage === "installing"}>
-<AppShell onsettings={() => sessionSettingsOpen = true} onprint={() => void sheet?.print()} page={page === "sessions" ? sessionsPage : page === "about" ? aboutPage : undefined}>
+<AppShell onsettings={() => sessionSettingsOpen = true} onprint={() => void sheet?.print()} ontraces={() => tracesOpen = true} page={page === "sessions" ? sessionsPage : page === "about" ? aboutPage : undefined}>
   {#snippet nav()}
     <NavRail
       {page}
@@ -346,6 +349,13 @@
   <SessionSettings prefs={app.preferences.prefs} faces={app.preferences.faces}
     locked={app.session.state.kind !== "idle" || app.shots.shots.length > 0} {send}
     onclose={() => sessionSettingsOpen = false} />
+{/if}
+
+{#if tracesOpen}
+  <TraceOverlay shots={app.shots.shots} traces={app.shots.traces} {rings}
+    shotsPerSeries={app.preferences.prefs?.shotsPerSeries ?? 10}
+    shotDiameterMm={app.preferences.prefs?.shotDiameterMm ?? 4.5}
+    {send} onclose={() => tracesOpen = false} />
 {/if}
 
 {#if newSessionOpen && app.preferences.prefs}

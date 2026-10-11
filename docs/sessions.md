@@ -39,3 +39,6 @@ use a separate temporary data directory.
 
 Select the muted **Print shot sheet** icon beside the target controls on the
 main page to print the results. Printing includes all shots, scores and offsets.
+
+Select **Overlay shot traces**, beside the print icon, to draw the trace window of
+every shot on one target. The drop-down chooses all series or a single series.

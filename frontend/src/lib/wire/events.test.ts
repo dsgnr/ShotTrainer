@@ -11,9 +11,9 @@ describe("parseEvent", () => {
     }
   });
 
-  it("knows exactly the 26 event types", () => {
+  it("knows exactly the 27 event types", () => {
     expect([...EVENT_TYPES].sort()).toEqual(Object.keys(SAMPLE_EVENTS).sort());
-    expect(EVENT_TYPES).toHaveLength(26);
+    expect(EVENT_TYPES).toHaveLength(27);
   });
 
   it("refuses payloads that are not tagged events", () => {
@@ -44,8 +44,8 @@ describe("samples", () => {
     }
   });
 
-  it("cover the 33 commands the shell accepts", () => {
-    expect(Object.keys(SAMPLE_COMMANDS)).toHaveLength(33);
+  it("cover the 34 commands the shell accepts", () => {
+    expect(Object.keys(SAMPLE_COMMANDS)).toHaveLength(34);
   });
 });
 

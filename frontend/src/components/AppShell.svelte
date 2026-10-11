@@ -11,9 +11,10 @@
     side?: Snippet;
     onsettings?: () => void;
     onprint?: () => void;
+    ontraces?: () => void;
   }
 
-  let { page, header, status, nav, shots, target, side, onsettings, onprint }: Props = $props();
+  let { page, header, status, nav, shots, target, side, onsettings, onprint, ontraces }: Props = $props();
   let shotsCollapsed = $state(false);
   let sessionCollapsed = $state(false);
 </script>
@@ -48,6 +49,15 @@
             <path d="M4 7h10M18 7h2M4 17h2M10 17h10" />
             <circle cx="16" cy="7" r="2" />
             <circle cx="8" cy="17" r="2" />
+          </svg>
+        </button>
+      {/if}
+      {#if ontraces}
+        <button type="button" aria-haspopup="dialog" aria-label="Overlay shot traces" title="Overlay shot traces"
+          onclick={ontraces}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">
+            <path d="M3 17c4-10 7-10 9-3s5 3 9-8" />
+            <path d="M3 12c4 6 7 6 9 0s5-4 9 5" />
           </svg>
         </button>
       {/if}

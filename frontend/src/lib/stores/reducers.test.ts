@@ -12,7 +12,7 @@ import { activeMessage, initialStatus, reduceStatus } from "./status";
 
 const reducers: [string, unknown, (state: never, event: WireEvent) => unknown, WireEventType[]][] = [
   ["session", initialSession, reduceSession, ["session", "sessions"]],
-  ["shots", initialShots, reduceShots, ["shots", "selectedShot", "holdTrace"]],
+  ["shots", initialShots, reduceShots, ["shots", "selectedShot", "holdTrace", "shotTraces"]],
   [
     "preferences",
     initialPreferences,
@@ -60,6 +60,8 @@ describe("reduceShots", () => {
     let state = reduceShots(initialShots, SAMPLE_EVENTS.shots);
     state = reduceShots(state, SAMPLE_EVENTS.selectedShot);
     state = reduceShots(state, SAMPLE_EVENTS.holdTrace);
+    state = reduceShots(state, SAMPLE_EVENTS.shotTraces);
+    expect(state.traces).toEqual([{ points: [[1, 2]], releaseIndex: 0, splitIndex: null }]);
     expect(state.shots).toHaveLength(1);
     expect(state.group?.extremeSpreadMm).toBe(3);
     expect(state.totalScore).toBe(10);

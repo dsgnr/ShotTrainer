@@ -220,6 +220,15 @@ export class MockBridge implements Bridge {
           this.#loadReplay(command.index);
         }
         break;
+      case "loadShotTraces":
+        this.#emit({ type: "shotTraces", traces: this.#shots.map(shot => ({
+          points: this.#trace
+            .filter(s => shot.timestamp !== null && Math.abs(s.timestamp - shot.timestamp) <= this.#prefs.preShotMs / 1000)
+            .map(s => s.point),
+          releaseIndex: null,
+          splitIndex: null,
+        })) });
+        break;
       case "replayPlay":
         if (this.#replay?.enabled) {
           if (this.#playerIndex >= this.#replay.points.length - 1) this.#playerIndex = 0;

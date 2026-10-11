@@ -111,6 +111,13 @@ export interface WireReplay {
   enabled: boolean;
 }
 
+/** One shot's trace window, with the phase indices `WireReplay` uses. */
+export interface WireShotTrace {
+  points: Pair[];
+  releaseIndex: number | null;
+  splitIndex: number | null;
+}
+
 export interface WireSessionSummary {
   id: number;
   name: string;
@@ -188,6 +195,7 @@ export type WireEvent =
   | { type: "playerProgress"; fraction: F64 }
   | { type: "playerFinished" }
   | { type: "selectedShot"; index: number }
+  | { type: "shotTraces"; traces: WireShotTrace[] }
   | ({ type: "replayLoaded" } & WireReplay)
   | { type: "replayPlaying"; playing: boolean }
   | { type: "sessions"; sessions: WireSessionSummary[] };
@@ -210,6 +218,7 @@ export type WireCommand =
   | { type: "deleteShot"; index: number }
   | { type: "rescore" }
   | { type: "selectShot"; index: number }
+  | { type: "loadShotTraces" }
   | { type: "listSessions" }
   | { type: "openSession"; id: number }
   | { type: "renameSession"; id: number; name: string }
