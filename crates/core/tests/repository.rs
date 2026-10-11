@@ -249,6 +249,33 @@ fn test_update_session_category_returns_false_for_missing_id() {
 }
 
 #[test]
+fn test_update_session_notes_round_trips_and_clears() {
+    let db = engine();
+    let repo = SessionRepository::new(&db);
+    let sid = repo.create_session(&named("notes")).unwrap();
+    let notes = |repo: &SessionRepository| repo.list_sessions().unwrap()[0].notes.clone();
+    assert_eq!(notes(&repo), "");
+    assert!(
+        repo.update_session_notes(sid, "windy,\nfishtailing")
+            .unwrap()
+    );
+    assert_eq!(notes(&repo), "windy,\nfishtailing");
+    assert_eq!(
+        repo.get_session(sid).unwrap().unwrap().notes,
+        "windy,\nfishtailing"
+    );
+    assert!(repo.update_session_notes(sid, "").unwrap());
+    assert_eq!(notes(&repo), "");
+}
+
+#[test]
+fn test_update_session_notes_returns_false_for_missing_id() {
+    let db = engine();
+    let repo = SessionRepository::new(&db);
+    assert!(!repo.update_session_notes(999_999, "x").unwrap());
+}
+
+#[test]
 fn test_session_summary_includes_total_score() {
     let db = engine();
     let repo = SessionRepository::new(&db);

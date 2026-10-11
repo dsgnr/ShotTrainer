@@ -22,6 +22,9 @@ pub struct OpenOutcome {
     pub switch_face: Option<String>,
 }
 
+/// Longest accepted session notes, in characters.
+pub const MAX_SESSION_NOTES_CHARS: usize = 4000;
+
 impl SessionManager {
     pub fn list_sessions(&self, cx: &SessionContext) {
         match cx.repo().list_sessions() {
@@ -45,6 +48,19 @@ impl SessionManager {
         }
         if let Err(error) = cx.repo().update_session_category(id, category) {
             return db_warning(cx, "Could not change the category", &error);
+        }
+        self.list_sessions(cx);
+    }
+
+    /// Notes are free text for the whole session and may be edited while it
+    /// is recording. Longer text is refused rather than truncated.
+    pub fn set_session_notes(&self, cx: &SessionContext, id: i64, notes: &str) {
+        if notes.chars().count() > MAX_SESSION_NOTES_CHARS {
+            cx.message(StatusMessage::info("The notes are too long", 4000));
+            return;
+        }
+        if let Err(error) = cx.repo().update_session_notes(id, notes) {
+            return db_warning(cx, "Could not save the notes", &error);
         }
         self.list_sessions(cx);
     }
@@ -702,6 +718,29 @@ mod tests {
         rig.run(|cx| mgr.delete_session(cx, sid));
         assert!(rig.repo().get_session(sid).unwrap().is_none());
         assert_eq!(rig.take(), [UiEvent::Sessions(vec![])]);
+    }
+
+    #[test]
+    fn notes_are_saved_and_relisted_and_oversize_notes_are_refused() {
+        let rig = Rig::new();
+        let sid = saved_session(&rig, "default");
+        let mgr = SessionManager::new(&rig.prefs);
+        rig.run(|cx| {
+            mgr.set_session_notes(cx, sid, "gusty\nfrom the left");
+            mgr.set_session_notes(cx, sid, &"x".repeat(MAX_SESSION_NOTES_CHARS + 1));
+        });
+        let saved = rig.repo().get_session(sid).unwrap().unwrap();
+        assert_eq!(saved.notes, "gusty\nfrom the left");
+        let events = rig.take();
+        let lists = find(&events, |e| match e {
+            UiEvent::Sessions(list) => Some(list[0].notes.clone()),
+            _ => None,
+        });
+        assert_eq!(
+            lists,
+            ["gusty\nfrom the left"],
+            "the oversize notes are refused"
+        );
     }
 
     #[test]

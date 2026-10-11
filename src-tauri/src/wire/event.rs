@@ -320,6 +320,7 @@ pub struct WireSessionSummary {
     pub shot_count: i64,
     pub total_score: f64,
     pub category: String,
+    pub notes: String,
 }
 
 const STORED_TIME: &str = "%Y-%m-%dT%H:%M:%S%.fZ";
@@ -334,6 +335,7 @@ impl From<&SessionSummary> for WireSessionSummary {
             shot_count: s.shot_count,
             total_score: s.total_score,
             category: s.category.clone(),
+            notes: s.notes.clone(),
         }
     }
 }
@@ -851,6 +853,7 @@ mod tests {
             shot_count: 2,
             total_score: 19.5,
             category: "practice".into(),
+            notes: "windy".into(),
         };
         assert_eq!(
             wire(&UiEvent::Sessions(vec![summary])),
@@ -863,7 +866,8 @@ mod tests {
                     "endedAt": null,
                     "shotCount": 2,
                     "totalScore": 19.5,
-                    "category": "practice"
+                    "category": "practice",
+                    "notes": "windy"
                 }]
             })
         );

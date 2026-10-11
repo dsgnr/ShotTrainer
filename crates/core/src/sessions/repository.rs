@@ -24,6 +24,7 @@ pub struct SessionSummary {
     pub shot_count: i64,
     pub total_score: f64,
     pub category: String,
+    pub notes: String,
 }
 
 #[derive(Debug, Clone)]
@@ -201,13 +202,26 @@ impl<'a> SessionRepository<'a> {
         Ok(changed > 0)
     }
 
+    /// Stores the notes as given. Returns `false` when the session is missing.
+    pub fn update_session_notes(
+        &self,
+        session_id: i64,
+        notes: &str,
+    ) -> Result<bool, DatabaseError> {
+        let changed = self.db.execute(
+            "UPDATE sessions SET notes = ?1 WHERE id = ?2",
+            params![notes, session_id],
+        )?;
+        Ok(changed > 0)
+    }
+
     /// Newest session first, with ties in id order. Shot counts and totals
     /// come from one query over all shots, so the query count does not grow
     /// with the number of sessions.
     pub fn list_sessions(&self) -> Result<Vec<SessionSummary>, DatabaseError> {
         let tx = self.db.unchecked_transaction()?;
         let mut stmt = tx.prepare(
-            "SELECT id, name, started_at, ended_at, category FROM sessions \
+            "SELECT id, name, started_at, ended_at, category, notes FROM sessions \
              ORDER BY started_at DESC, id ASC",
         )?;
         let mut sessions = stmt
@@ -220,6 +234,7 @@ impl<'a> SessionRepository<'a> {
                     shot_count: 0,
                     total_score: 0.0,
                     category: read_text(row, 4)?,
+                    notes: read_text(row, 5)?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;

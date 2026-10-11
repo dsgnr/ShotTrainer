@@ -77,7 +77,7 @@
       <header><h2>Sessions</h2></header>
 
       <div class="filters">
-        <input type="search" placeholder="Search session names..." bind:value={query} />
+        <input type="search" placeholder="Search names and notes..." bind:value={query} />
         <div class="category-filter"><Dropdown label="Filter by category" bind:value={categoryFilter}
           options={[{ value: "", label: "All categories" }, ...SESSION_CATEGORIES.map((value) => ({ value, label: categoryLabel(value) }))]}>
           {#snippet icon(value)}<CategoryIcon category={String(value)} />{/snippet}
@@ -108,6 +108,7 @@
               <span class="info">
                 <span class="title">{session.name || `Session #${session.id}`}</span>
                 <span class="meta">{sessionMeta(session)}</span>
+                {#if session.notes !== ""}<span class="meta note">{session.notes.split("\n")[0]}</span>{/if}
               </span>
               {#if scoreBadge(session) !== ""}
                 <span class="score">{scoreBadge(session)}</span>
@@ -121,6 +122,7 @@
         <button type="button" disabled={selected === null} onclick={openSession}>Open</button>
         <button type="button" disabled={selected === null} onclick={() => beginAction("rename")}>Rename...</button>
         <button type="button" disabled={selected === null} onclick={() => beginAction("category")}>Category...</button>
+        <button type="button" disabled={selected === null} onclick={() => beginAction("notes")}>Notes...</button>
         <button type="button" disabled={selected === null} onclick={() => beginAction("delete")}>Delete</button>
         <button type="button" disabled={selected === null} onclick={exportSession}>Export...</button>
       </div>
@@ -201,12 +203,15 @@
     display: flex;
     flex: 1;
     flex-direction: column;
+    min-width: 0;
   }
 
   .meta {
     color: var(--text-dim);
     font-size: 12px;
   }
+
+  .note { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .score {
     color: var(--text-heading);

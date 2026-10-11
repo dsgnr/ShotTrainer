@@ -54,6 +54,10 @@ pub enum Command {
         id: i64,
         category: String,
     },
+    SetSessionNotes {
+        id: i64,
+        notes: String,
+    },
     DeleteSession(i64),
     ExportSession {
         id: i64,
@@ -343,6 +347,9 @@ impl Controller {
             }
             Command::SetSessionCategory { id, category } => {
                 self.with_session(|s, cx| s.set_session_category(cx, id, &category));
+            }
+            Command::SetSessionNotes { id, notes } => {
+                self.with_session(|s, cx| s.set_session_notes(cx, id, &notes));
             }
             Command::DeleteSession(id) => self.with_session(|s, cx| s.delete_session(cx, id)),
             Command::ExportSession { id, path } => {

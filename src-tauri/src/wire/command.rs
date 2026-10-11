@@ -60,6 +60,10 @@ pub enum WireCommand {
         id: i64,
         category: String,
     },
+    SetSessionNotes {
+        id: i64,
+        notes: String,
+    },
     DeleteSession {
         id: i64,
     },
@@ -133,6 +137,7 @@ impl From<WireCommand> for Command {
             WireCommand::SetSessionCategory { id, category } => {
                 Command::SetSessionCategory { id, category }
             }
+            WireCommand::SetSessionNotes { id, notes } => Command::SetSessionNotes { id, notes },
             WireCommand::DeleteSession { id } => Command::DeleteSession(id),
             WireCommand::ExportSession { id, path } => Command::ExportSession { id, path },
             WireCommand::ImportSession { path } => Command::ImportSession { path },
@@ -228,6 +233,13 @@ mod tests {
                 Command::SetSessionCategory {
                     id: 8,
                     category: "sighter".into(),
+                },
+            ),
+            (
+                json!({"type": "setSessionNotes", "id": 8, "notes": "windy"}),
+                Command::SetSessionNotes {
+                    id: 8,
+                    notes: "windy".into(),
                 },
             ),
             (

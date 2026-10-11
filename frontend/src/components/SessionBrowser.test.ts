@@ -47,10 +47,11 @@ it("requests sessions once when the response updates reactive state", async () =
 });
 
 it("opens in-app dialogues and sends each confirmed session action", async () => {
-  const session = { id: 7, name: "Practice", startedAt: "2026-10-09T10:00:00", endedAt: null, shotCount: 10, totalScore: 98, category: "practice" };
+  const session = { id: 7, name: "Practice", startedAt: "2026-10-09T10:00:00", endedAt: null, shotCount: 10, totalScore: 98, category: "practice", notes: "gusty\nsecond line" };
   const cases = [
     { button: "Rename...", input: " Updated name ", command: { type: "renameSession", id: 7, name: "Updated name" } },
     { button: "Category...", category: "Match", command: { type: "setSessionCategory", id: 7, category: "match" } },
+    { button: "Notes...", input: " Wind from the left ", textarea: true, command: { type: "setSessionNotes", id: 7, notes: "Wind from the left" } },
     { button: "Delete", command: { type: "deleteSession", id: 7 } },
   ];
   const prompt = vi.spyOn(window, "prompt");
@@ -67,7 +68,8 @@ it("opens in-app dialogues and sends each confirmed session action", async () =>
     const dialog = target.querySelector<HTMLElement>('[role="dialog"]')!;
     expect(dialog).not.toBeNull();
     if (test.input !== undefined) {
-      const input = dialog.querySelector<HTMLInputElement>("input")!;
+      const input = dialog.querySelector<HTMLInputElement>(test.textarea ? "textarea" : "input")!;
+      if (test.textarea) expect(input.value).toBe("gusty\nsecond line");
       input.value = test.input;
       input.dispatchEvent(new Event("input", { bubbles: true }));
     }
@@ -91,7 +93,7 @@ it("opens in-app dialogues and sends each confirmed session action", async () =>
 });
 
 it("sends the paths chosen in the OS file dialogs", async () => {
-  const session = { id: 7, name: "Practice", startedAt: "2026-10-09T10:00:00", endedAt: null, shotCount: 10, totalScore: 98, category: "practice" };
+  const session = { id: 7, name: "Practice", startedAt: "2026-10-09T10:00:00", endedAt: null, shotCount: 10, totalScore: 98, category: "practice", notes: "gusty\nsecond line" };
   const click = (target: HTMLElement, label: string) =>
     [...target.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === label)!.click();
   const target = document.createElement("div");

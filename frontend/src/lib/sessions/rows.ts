@@ -56,7 +56,7 @@ export function scoreBadge(summary: WireSessionSummary): string {
   return "";
 }
 
-/** Sessions whose name contains `query` and match `category`, both optional. */
+/** Sessions whose name or notes contain `query` and match `category`, both optional. */
 export function filterSessions(
   sessions: WireSessionSummary[],
   query: string,
@@ -65,7 +65,9 @@ export function filterSessions(
   const needle = query.trim().toLowerCase();
   return sessions.filter(
     (s) =>
-      (needle === "" || s.name.toLowerCase().includes(needle)) &&
+      (needle === "" ||
+        s.name.toLowerCase().includes(needle) ||
+        s.notes.toLowerCase().includes(needle)) &&
       (category === "" || s.category === category),
   );
 }

@@ -127,6 +127,7 @@ export interface WireSessionSummary {
   shotCount: number;
   totalScore: F64;
   category: string;
+  notes: string;
 }
 
 /**
@@ -223,6 +224,7 @@ export type WireCommand =
   | { type: "openSession"; id: number }
   | { type: "renameSession"; id: number; name: string }
   | { type: "setSessionCategory"; id: number; category: string }
+  | { type: "setSessionNotes"; id: number; notes: string }
   | { type: "deleteSession"; id: number }
   | { type: "importSession"; path: string }
   | { type: "exportSession"; id: number; path: string }

@@ -1,7 +1,7 @@
 <script module lang="ts">
   import type { WireSessionSummary } from "../lib/wire/types";
   export type SessionAction = {
-    kind: "rename" | "category" | "delete";
+    kind: "rename" | "category" | "notes" | "delete";
     session: WireSessionSummary;
   };
 </script>
@@ -14,14 +14,17 @@
   import Dropdown from "./Dropdown.svelte";
   import CategoryIcon from "./CategoryIcon.svelte";
 
+  // Matches MAX_SESSION_NOTES_CHARS in the controller.
+  const MAX_NOTES = 4000;
+
   let { action, onconfirm, onclose }: {
     action: SessionAction;
     onconfirm: (command: WireCommand) => Promise<void>; onclose: () => void;
   } = $props();
-  let value = $state(untrack(() => action.kind === "rename" ? action.session.name : action.kind === "category" ? action.session.category : ""));
+  let value = $state(untrack(() => action.kind === "rename" ? action.session.name : action.kind === "category" ? action.session.category : action.kind === "notes" ? action.session.notes : ""));
   let saving = $state(false);
   let error = $state<string | null>(null);
-  const title = $derived(({ rename: "Rename session", category: "Session category", delete: "Delete session" })[action.kind]);
+  const title = $derived(({ rename: "Rename session", category: "Session category", notes: "Session notes", delete: "Delete session" })[action.kind]);
   const confirmLabel = $derived(action.kind === "delete" ? "Delete session" : "Save");
 
   function close(): void { if (!saving) onclose(); }
@@ -35,6 +38,7 @@
     switch (action.kind) {
       case "rename": command = { type: "renameSession", id: action.session.id, name: text }; break;
       case "category": command = { type: "setSessionCategory", id: action.session.id, category: text }; break;
+      case "notes": command = { type: "setSessionNotes", id: action.session.id, notes: text }; break;
       case "delete": command = { type: "deleteSession", id: action.session.id }; break;
     }
     saving = true;
@@ -57,6 +61,8 @@
       <fieldset disabled={saving}>
         {#if action.kind === "rename"}
           <label>Session name <input type="text" bind:value /></label>
+        {:else if action.kind === "notes"}
+          <label>Notes <textarea rows="8" maxlength={MAX_NOTES} bind:value></textarea></label>
         {:else if action.kind === "category"}
           <label for="session-action-category">Category</label>
           <Dropdown id="session-action-category" label="Session category" bind:value
@@ -80,7 +86,8 @@
   h2 { margin: 0; padding: 20px 24px 12px; color: var(--text-heading); }
   fieldset { margin: 0; border: 0; padding: 8px 24px 20px; display: grid; gap: 12px; min-width: 0; }
   label { display: grid; gap: 8px; }
-  input { min-width: 0; padding: 6px 8px; color: var(--text); background: var(--panel-raised); border: 1px solid var(--border); border-radius: var(--radius-control); font: inherit; }
+  input, textarea { min-width: 0; padding: 6px 8px; color: var(--text); background: var(--panel-raised); border: 1px solid var(--border); border-radius: var(--radius-control); font: inherit; }
+  textarea { resize: vertical; }
   p { margin: 0; }
   .message { padding: 0 24px 16px; }
   footer { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--divider); }

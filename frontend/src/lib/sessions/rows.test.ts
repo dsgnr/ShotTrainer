@@ -12,6 +12,7 @@ function summary(overrides: Partial<WireSessionSummary> = {}): WireSessionSummar
     shotCount: 10,
     totalScore: 98.5,
     category: "practice",
+    notes: "",
     ...overrides,
   };
 }
@@ -65,6 +66,11 @@ describe("filterSessions", () => {
 
   it("matches the name case-insensitively", () => {
     expect(filterSessions(sessions, "MATCH", "").map((s) => s.id)).toEqual([2]);
+  });
+
+  it("matches notes as well as names", () => {
+    const withNotes = [summary({ id: 1, name: "A", notes: "Gusty wind" }), summary({ id: 2, name: "B" })];
+    expect(filterSessions(withNotes, "wind", "").map((s) => s.id)).toEqual([1]);
   });
 
   it("filters by category", () => {
