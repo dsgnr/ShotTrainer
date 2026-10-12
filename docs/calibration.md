@@ -63,6 +63,10 @@ competition target. Print at actual size and measure the finished diameter.
 Mount it flat at the target location, then enter its measured diameter in
 **Preferences > Tracking > Circle diameter**.
 
+<figure markdown="span">
+  ![The Tracking section of Preferences showing tracking region, circle diameter and trace toggles](assets/img/tracking_settings.jpg){ width="526" height="195" }
+</figure>
+
 Check that the complete mark remains visible within the tracking region during
 normal aiming movement. Tracking updates the scale as the detected apparent size
 changes. An incorrect configured diameter scales all millimetre offsets

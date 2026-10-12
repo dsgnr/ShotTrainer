@@ -10,6 +10,10 @@ samples inside the innermost scoring ring, and hold tremor. Without scored
 shots, the total figure shows the shot count. Missing tracking samples can
 leave measurements unavailable.
 
+<figure markdown="span">
+  ![The Result panel showing total score and group size for seven shots](assets/img/stats.jpg){ width="300" height="230" }
+</figure>
+
 **Group size** is the largest distance between any two positioned shots, shown
 in millimetres. Its tooltip also gives mean radius from the group centre.
 **Hold tremor** is the RMS deviation of the selected shot’s pre-shot trace from

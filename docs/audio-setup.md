@@ -10,6 +10,10 @@ Open **Preferences** and select **Microphone** in the **Audio** section. Adjust
 Set **Refractory** under **Session settings** on the target page before
 recording. This interval prevents repeated registration of one sound event.
 
+<figure markdown="span">
+  ![The Audio and Detection sections of Preferences showing Microphone, Gain and Shot threshold](assets/img/audio_detection.jpg){ width="526" height="192" }
+</figure>
+
 Check that a deliberate shot sound registers once and that ordinary background
 noise does not register. Raise the threshold if unrelated sounds trigger shots.
 Lower it or increase gain if shots are missed. Recheck after changing microphone

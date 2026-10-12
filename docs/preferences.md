@@ -20,6 +20,10 @@ Save to apply them or cancel to leave the saved preferences in place.
 - **Display:** show or hide shot offsets in the shot list.
 - **Tracking:** tracking region, measured circle diameter and display toggles.
 
+<figure markdown="span">
+  ![The Preferences dialogue with Camera, Audio, Detection, Scoring, Display and Tracking sections](assets/img/preferences.jpg){ width="584" height="1032" }
+</figure>
+
 Pre-shot, post-shot, release window, refractory interval, target face, shot
 diameter, shooting position and shots per series belong to each session.
 Configure them in **New session** or under **Session settings** on an idle

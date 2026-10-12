@@ -11,6 +11,10 @@ refractory interval and shots per series. **Create session** prepares these
 settings and returns to the target page. **Cancel** leaves the current session
 unchanged.
 
+<figure markdown="span">
+  ![The New session dialogue with name, category, position, target face and timing fields](assets/img/new_session.jpg){ width="464" height="852" }
+</figure>
+
 The session controls and current session status sit at the bottom of the right
 sidebar. Select **Start session** to begin recording and **Stop session** to
 finish. From an idle target page, Start session uses the prepared settings and
@@ -23,6 +27,10 @@ shots. Select **Apply session settings** to use the edited values. Create a new
 session to change settings after recording or while reviewing. The settings are
 stored with the session and restored when it is opened.
 
+<figure markdown="span">
+  ![The Session settings dialogue opened from the target page](assets/img/session_settings.jpg){ width="464" height="701" }
+</figure>
+
 Shots are grouped into series of the configured size. New sessions default to
 10 shots per series. The next series starts automatically as shots are recorded.
 Selecting a shot also selects its series in the compact overview.
@@ -30,6 +38,10 @@ Selecting a shot also selects its series in the compact overview.
 Shots appear in the shot list with their score and offset. Selecting a shot
 loads its saved trace window for review. Use [replay](replay.md) to inspect
 movement before and after the shot.
+
+<figure markdown="span">
+  ![The series target and shot list showing seven X scores with their offsets](assets/img/shot_list.jpg){ width="280" height="590" }
+</figure>
 
 Sessions are stored in a local SQLite database. Open **Sessions** from the
 navigation rail to find previous sessions, rename them, change categories,
@@ -42,3 +54,7 @@ main page to print the results. Printing includes all shots, scores and offsets.
 
 Select **Overlay shot traces**, beside the print icon, to draw the trace window of
 every shot on one target. The drop-down chooses all series or a single series.
+
+<figure markdown="span">
+  ![The shot traces dialogue with every trace drawn over one target](assets/img/trace_overlay.jpg){ width="744" height="804" }
+</figure>

@@ -68,6 +68,10 @@ air rifle and smallbore shooting.
 
 You can also create your own target definitions.
 
+<figure markdown="span">
+  ![The target face dropdown listing the built-in faces](assets/img/target_faces.jpg){ width="414" height="231" }
+</figure>
+
 For details of the built-in faces and custom face format, see
 [Provided targets](provided-targets.md).
 

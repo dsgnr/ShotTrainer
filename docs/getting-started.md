@@ -22,5 +22,9 @@ description: "Start using ShotTrainer with a rifle-mounted camera, microphone an
    or export sessions. Use the muted print icon beside the target controls to
    print the current results.
 
+<figure markdown="span">
+  ![The target page before a session, with an empty shot list and a Start session button](assets/img/target_idle.jpg){ width="1440" height="880" }
+</figure>
+
 A synthetic or browser mock session demonstrates the interface. It does not
 validate measurement accuracy or device support.
