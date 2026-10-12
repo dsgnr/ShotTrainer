@@ -28,12 +28,24 @@ function recorded(seconds: number): [number, number] {
   return [from[1] + (to[1] - from[1]) * p, from[2] + (to[2] - from[2]) * p];
 }
 
+/** Gives each shot its own hold by turning, scaling and shifting the one recording, so overlaid traces do not coincide. */
+function varied(shot: number, [x, y]: [number, number]): [number, number] {
+  const angle = (uniform(shot * 17 + 1) - 0.5) * 0.4;
+  const scale = 0.92 + uniform(shot * 17 + 2) * 0.16;
+  const dx = (uniform(shot * 17 + 3) - 0.5) * 4;
+  const dy = (uniform(shot * 17 + 4) - 0.5) * 4;
+  const cos = Math.cos(angle) * scale;
+  const sin = Math.sin(angle) * scale;
+  return [x * cos - y * sin + dx, x * sin + y * cos + dy];
+}
+
 export function simulatedAim(seconds: number): [number, number] {
-  const shot = Math.floor(seconds / 10);
+  const cycle = Math.floor(seconds / 10);
   const phase = seconds % 10;
   // The follow-through ends with the post-shot window. The next approach then starts off target, not at the last shot.
-  const following = shot > 0 && phase <= FOLLOW_SECONDS;
-  return recorded(following ? SHOT_AT + phase : phase - APPROACH_START);
+  const following = cycle > 0 && phase <= FOLLOW_SECONDS;
+  const point = recorded(following ? SHOT_AT + phase : phase - APPROACH_START);
+  return varied(following ? cycle - 1 : cycle, point);
 }
 
 /** Where the preview records each shot. The centre lies inside the X ring of the recorded face, which is 2.25 mm in radius. */

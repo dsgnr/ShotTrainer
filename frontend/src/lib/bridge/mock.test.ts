@@ -144,6 +144,17 @@ it("keeps hidden shot offsets across new sessions", async () => {
   expect(ofType("preferences").at(-1)?.prefs.showShotOffsets).toBe(false);
 });
 
+it("marks release and shot positions in the overlaid shot traces", async () => {
+  await bridge.send({type: "startSession", name: "", category: "practice"});
+  vi.advanceTimersByTime(MOCK_FRAME_MS * (MOCK_SHOT_EVERY_FRAMES + 30));
+  await bridge.send({type: "loadShotTraces"});
+  const trace = ofType("shotTraces").at(-1)!.traces[0]!;
+  expect(trace.points.length).toBeGreaterThan(50);
+  expect(trace.releaseIndex).not.toBeNull();
+  expect(trace.splitIndex).toBeGreaterThan(trace.releaseIndex!);
+  expect(trace.splitIndex).toBeLessThan(trace.points.length - 1);
+});
+
 it("previews the full shot window before replay and preserves it after stopping", async () => {
   await bridge.send({type: "startSession", name: "", category: "practice"});
   vi.advanceTimersByTime(MOCK_FRAME_MS * (MOCK_SHOT_EVERY_FRAMES + 30));

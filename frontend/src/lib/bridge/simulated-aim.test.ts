@@ -1,23 +1,23 @@
 import { expect, it } from "vitest";
-import { RECORDED_AIM } from "./recorded-aim";
 import { simulatedAim } from "./simulated-aim";
 
-const SHOT_AT = 8.067;
-
-it("repeats the recording exactly for every shot", () => {
-  for (const [time, x, y] of RECORDED_AIM) {
-    const cycle = 30;
-    const seconds = cycle + (time < SHOT_AT ? time + 10 - SHOT_AT : 10 + time - SHOT_AT);
-    const [ax, ay] = simulatedAim(seconds);
-    expect(ax).toBeCloseTo(x, 6);
-    expect(ay).toBeCloseTo(y, 6);
+it("gives each shot its own trace", () => {
+  const second = (shot: number) => simulatedAim(shot * 10 - 3);
+  const points = [1, 2, 3, 4, 5, 6, 7].map(second);
+  for (const [i, a] of points.entries()) {
+    for (const b of points.slice(i + 1)) expect(Math.hypot(a[0] - b[0], a[1] - b[1])).toBeGreaterThan(0.5);
   }
 });
 
-it("recoils above and to the left of the target after the shot", () => {
-  const follow = Array.from({length: 120}, (_, frame) => simulatedAim(10 + frame / 60));
-  expect(Math.min(...follow.map(point => point[1]))).toBeLessThan(-100);
-  expect(Math.min(...follow.map(point => point[0]))).toBeLessThan(-100);
+it("recoils well away from the shot point after every shot", () => {
+  for (let shot = 1; shot < 8; shot++) {
+    const start = simulatedAim(shot * 10);
+    const furthest = Math.max(...Array.from({length: 110}, (_, frame) => {
+      const [x, y] = simulatedAim(shot * 10 + frame / 60);
+      return Math.hypot(x - start[0], y - start[1]);
+    }));
+    expect(furthest).toBeGreaterThan(80);
+  }
 });
 
 it("moves continuously through the shot", () => {
