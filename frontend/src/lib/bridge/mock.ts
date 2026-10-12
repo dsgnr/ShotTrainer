@@ -223,13 +223,10 @@ export class MockBridge implements Bridge {
         }
         break;
       case "loadShotTraces":
-        this.#emit({ type: "shotTraces", traces: this.#shots.map(shot => ({
-          points: this.#trace
-            .filter(s => shot.timestamp !== null && Math.abs(s.timestamp - shot.timestamp) <= this.#prefs.preShotMs / 1000)
-            .map(s => s.point),
-          releaseIndex: null,
-          splitIndex: null,
-        })) });
+        this.#emit({ type: "shotTraces", traces: this.#shots.map(shot => {
+          const { points, splitIndex, releaseIndex } = this.#shotWindow(shot.timestamp);
+          return { points, splitIndex, releaseIndex };
+        }) });
         break;
       case "replayPlay":
         if (this.#replay?.enabled) {
@@ -367,16 +364,26 @@ export class MockBridge implements Bridge {
     this.#emit({type: "replayCleared"});
   }
 
-  #loadReplay(index: number): void {
-    const timestamp = this.#shots[index]!.timestamp;
-    if (timestamp === null) { this.#clearReplay(); return; }
+  #shotWindow(timestamp: number | null): { points: [number, number][]; splitIndex: number | null;
+    releaseIndex: number | null; durationMs: number | null } {
+    if (timestamp === null) return { points: [], splitIndex: null, releaseIndex: null, durationMs: null };
     const samples = this.#trace.filter(sample => sample.timestamp >= timestamp - this.#prefs.preShotMs / 1000
       && sample.timestamp <= timestamp + this.#prefs.postShotMs / 1000);
     const split = samples.reduce((best, sample, i) => Math.abs(sample.timestamp - timestamp) < Math.abs(samples[best]!.timestamp - timestamp) ? i : best, 0);
     const release = samples.findIndex(sample => sample.timestamp >= timestamp - this.#prefs.releaseWindowMs / 1000 && sample.timestamp <= timestamp);
-    this.#replay = {index, points: samples.map(sample => sample.point), splitIndex: samples.length ? split : null,
-      releaseIndex: release < 0 ? null : release, enabled: samples.length > 0,
+    return {
+      points: samples.map(sample => sample.point),
+      splitIndex: samples.length ? split : null,
+      releaseIndex: release < 0 ? null : release,
       durationMs: samples.length ? Math.round((samples.at(-1)!.timestamp - samples[0]!.timestamp) * 1000) : null,
+    };
+  }
+
+  #loadReplay(index: number): void {
+    const timestamp = this.#shots[index]!.timestamp;
+    if (timestamp === null) { this.#clearReplay(); return; }
+    const { points, splitIndex, releaseIndex, durationMs } = this.#shotWindow(timestamp);
+    this.#replay = {index, points, splitIndex, releaseIndex, enabled: points.length > 0, durationMs,
       holdZone: null};
     this.#playing = false;
     this.#playerIndex = 0;
