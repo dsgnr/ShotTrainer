@@ -11,7 +11,7 @@ shots, the total figure shows the shot count. Missing tracking samples can
 leave measurements unavailable.
 
 <figure markdown="span">
-  ![The Result panel showing total score and group size for seven shots](assets/img/stats.jpg){ width="300" height="230" }
+  ![The Result and Hold panels showing score, group size and the hold figures for seven shots](assets/img/stats.jpg){ width="300" height="500" }
 </figure>
 
 **Group size** is the largest distance between any two positioned shots, shown
