@@ -1,6 +1,7 @@
 //! What the controller tells the front end. Every event is plain data, so an
 //! interface layer can serialise it in whatever form it needs.
 
+use shottrainer_core::services::aim_metrics::AimMetrics;
 use shottrainer_core::services::shot_stats::{ShotStats, TraceStats};
 use shottrainer_core::sessions::SessionSummary;
 use shottrainer_settings::Preferences;
@@ -72,6 +73,8 @@ pub struct ShotsView {
 pub struct HoldTrace {
     pub points: Vec<(f64, f64)>,
     pub stats: TraceStats,
+    /// `None` when the active face has no ten ring.
+    pub aim: Option<AimMetrics>,
 }
 
 /// One shot's trace window with the same phase indices as [`ReplayView`].

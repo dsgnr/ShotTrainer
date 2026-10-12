@@ -106,6 +106,13 @@ export const SAMPLE_EVENTS: { [T in WireEventType]: EventOf<T> } = {
         meanXMm: 0.3,
         meanYMm: 0.4,
       },
+      aim: {
+        aimingTimeS: 5.5,
+        tenRingHoldPct: 90.0,
+        meanTenRingHoldPct: null,
+        meanCustomRingHoldPct: 75.0,
+        shotOffsetMm: 1.5,
+      },
     },
   },
   replayCleared: { type: "replayCleared" },

@@ -8,6 +8,7 @@ use shottrainer_core::services::replay_coordinator::shot_window;
 use shottrainer_core::services::shot_stats::compute_trace_stats;
 use shottrainer_core::sessions::SESSION_CATEGORIES;
 
+use crate::convert::{AIM_LOOKBACK_MS, aim_metrics_for};
 use crate::events::{HoldZone, ReplayView, ShotTrace, StatusMessage, UiEvent};
 use crate::player::PlayerEvent;
 use crate::session::{
@@ -270,7 +271,27 @@ impl SessionManager {
                 .filter(|event| !matches!(event, PlayerEvent::Index(_)))
                 .collect(),
         );
-        (cx.emit)(UiEvent::HoldTrace(Some(hold_trace(pre_points))));
+        let shot = &self.shots[index];
+        let mut hold = hold_trace(pre_points);
+        hold.aim = shot_window(
+            &cx.repo(),
+            session_id,
+            shot_ts,
+            AIM_LOOKBACK_MS,
+            0,
+            i64::from(prefs.release_window_ms),
+        )
+        .ok()
+        .and_then(|lookback| {
+            aim_metrics_for(
+                cx.faces,
+                prefs,
+                &lookback.samples,
+                shot_ts,
+                shot.x_mm.zip(shot.y_mm),
+            )
+        });
+        (cx.emit)(UiEvent::HoldTrace(Some(hold)));
     }
 
     pub fn replay_play(&mut self, cx: &SessionContext, now: f64) {
@@ -327,7 +348,7 @@ mod tests {
     use shottrainer_tracking::models::TrackingSample;
 
     use super::*;
-    use crate::session::tests::{Rig, entry, mapped, shot_at};
+    use crate::session::tests::{Rig, entry, mapped, shot_at, without_aim};
 
     fn add_shot(
         repo: &SessionRepository,
@@ -521,13 +542,14 @@ mod tests {
                 .any(|event| matches!(event, UiEvent::Player(PlayerEvent::Index(_))))
         );
         assert_eq!(
-            events.last(),
-            Some(&UiEvent::HoldTrace(Some(hold_trace(vec![
+            without_aim(events.last()),
+            Some(UiEvent::HoldTrace(Some(hold_trace(vec![
                 (0.0, 0.0),
                 (1.0, 2.0),
                 (3.0, 4.0)
             ]))))
         );
+        assert!(matches!(events.last(), Some(UiEvent::HoldTrace(Some(h))) if h.aim.is_some()));
     }
 
     #[test]

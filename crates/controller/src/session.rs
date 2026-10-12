@@ -15,7 +15,7 @@ use shottrainer_settings::target_faces::TargetFace;
 use shottrainer_tracking::log_limit::RepeatLimiter;
 use shottrainer_tracking::models::TrackingSample;
 
-use crate::convert::{coordinator_settings, score_for};
+use crate::convert::{AIM_LOOKBACK_MS, aim_metrics_for, coordinator_settings, score_for};
 use crate::events::{HoldTrace, ShotsView, StatusMessage, UiEvent};
 use crate::player::TracePlayer;
 
@@ -287,7 +287,19 @@ impl SessionManager {
         });
         self.render(cx);
         let points = mapped_points_until(&result.trace, event.timestamp);
-        (cx.emit)(UiEvent::HoldTrace(Some(hold_trace(points))));
+        let lookback = self.buffer.window(
+            event.timestamp - AIM_LOOKBACK_MS as f64 / 1000.0,
+            event.timestamp,
+        );
+        let mut hold = hold_trace(points);
+        hold.aim = aim_metrics_for(
+            cx.faces,
+            cx.prefs,
+            &lookback,
+            event.timestamp,
+            x_mm.zip(y_mm),
+        );
+        (cx.emit)(UiEvent::HoldTrace(Some(hold)));
     }
 
     /// Scores every listed shot again against the active face and writes
@@ -388,7 +400,11 @@ pub(crate) fn mapped_points_until(trace: &[TrackingSample], until: f64) -> Vec<(
 
 pub(crate) fn hold_trace(points: Vec<(f64, f64)>) -> HoldTrace {
     let stats = compute_trace_stats(&points);
-    HoldTrace { points, stats }
+    HoldTrace {
+        points,
+        stats,
+        aim: None,
+    }
 }
 
 #[cfg(test)]
@@ -641,6 +657,38 @@ pub(crate) mod tests {
         );
     }
 
+    /// The event with the aiming figures cleared, for tests of the trace itself.
+    pub(crate) fn without_aim(event: Option<&UiEvent>) -> Option<UiEvent> {
+        match event {
+            Some(UiEvent::HoldTrace(Some(hold))) => Some(UiEvent::HoldTrace(Some(HoldTrace {
+                aim: None,
+                ..hold.clone()
+            }))),
+            other => other.cloned(),
+        }
+    }
+
+    #[test]
+    fn a_live_shot_carries_aiming_figures_from_the_trace_before_it() {
+        let rig = Rig::new();
+        let mut mgr = SessionManager::new(&rig.prefs);
+        rig.run(|cx| {
+            mgr.on_sample(cx, mapped(0.0, 0.0, 0.0));
+            mgr.on_sample(cx, mapped(0.5, 0.0, 0.0));
+            mgr.on_sample(cx, mapped(1.0, 0.0, 0.0));
+            mgr.on_shot(cx, shot_at(1.0));
+        });
+        let events = rig.take();
+        let Some(UiEvent::HoldTrace(Some(hold))) = events.last() else {
+            panic!("expected a hold trace");
+        };
+        let aim = hold.aim.expect("the default face has a ten ring");
+        assert_eq!(aim.aiming_time_s, Some(1.0));
+        assert_eq!(aim.ten_ring_hold_pct, Some(100.0));
+        assert_eq!(aim.shot_offset_mm, Some(0.0));
+        assert_eq!(aim.mean_custom_ring_hold_pct, None);
+    }
+
     #[test]
     fn a_shot_is_scored_listed_and_saved_while_recording() {
         let rig = Rig::new();
@@ -677,8 +725,8 @@ pub(crate) mod tests {
         });
         assert_eq!(hold, Some(vec![(9.0, 9.0), (0.0, 0.0)]));
         assert_eq!(
-            events.last(),
-            Some(&UiEvent::HoldTrace(Some(hold_trace(vec![
+            without_aim(events.last()),
+            Some(UiEvent::HoldTrace(Some(hold_trace(vec![
                 (9.0, 9.0),
                 (0.0, 0.0)
             ]))))
@@ -748,8 +796,8 @@ pub(crate) mod tests {
                 vec![]
             };
             assert_eq!(
-                rig.take().last(),
-                Some(&UiEvent::HoldTrace(Some(hold_trace(expected))))
+                without_aim(rig.take().last()),
+                Some(UiEvent::HoldTrace(Some(hold_trace(expected))))
             );
         }
     }

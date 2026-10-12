@@ -9,6 +9,7 @@ use shottrainer_controller::events::{
 use shottrainer_controller::frames::{FrameView, Marker, TrackingStatus};
 use shottrainer_controller::player::PlayerEvent;
 use shottrainer_controller::session::{SessionState, ShotEntry};
+use shottrainer_core::services::aim_metrics::AimMetrics;
 use shottrainer_core::services::shot_stats::{ShotStats, TraceStats};
 use shottrainer_core::sessions::SessionSummary;
 use shottrainer_settings::target_faces::{TargetFace, TargetRing};
@@ -233,11 +234,34 @@ impl From<&TraceStats> for WireTraceStats {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WireAimMetrics {
+    pub aiming_time_s: Option<f64>,
+    pub ten_ring_hold_pct: Option<f64>,
+    pub mean_ten_ring_hold_pct: Option<f64>,
+    pub mean_custom_ring_hold_pct: Option<f64>,
+    pub shot_offset_mm: Option<f64>,
+}
+
+impl From<&AimMetrics> for WireAimMetrics {
+    fn from(a: &AimMetrics) -> Self {
+        WireAimMetrics {
+            aiming_time_s: a.aiming_time_s,
+            ten_ring_hold_pct: a.ten_ring_hold_pct,
+            mean_ten_ring_hold_pct: a.mean_ten_ring_hold_pct,
+            mean_custom_ring_hold_pct: a.mean_custom_ring_hold_pct,
+            shot_offset_mm: a.shot_offset_mm,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WireHoldTrace {
     pub points: Vec<(f64, f64)>,
     pub stats: WireTraceStats,
+    pub aim: Option<WireAimMetrics>,
 }
 
 impl From<&HoldTrace> for WireHoldTrace {
@@ -245,6 +269,7 @@ impl From<&HoldTrace> for WireHoldTrace {
         WireHoldTrace {
             points: h.points.clone(),
             stats: (&h.stats).into(),
+            aim: h.aim.as_ref().map(Into::into),
         }
     }
 }
@@ -755,6 +780,13 @@ mod tests {
                 mean_x_mm: 0.3,
                 mean_y_mm: 0.4,
             },
+            aim: Some(AimMetrics {
+                aiming_time_s: Some(5.5),
+                ten_ring_hold_pct: Some(90.0),
+                mean_ten_ring_hold_pct: None,
+                mean_custom_ring_hold_pct: Some(75.0),
+                shot_offset_mm: Some(1.5),
+            }),
         };
         assert_eq!(
             wire(&UiEvent::HoldTrace(Some(trace))),
@@ -762,7 +794,8 @@ mod tests {
                 "type": "holdTrace",
                 "trace": {
                     "points": [[1.0, 2.0]],
-                    "stats": {"samples": 1, "holdTremorMm": 0.1, "traceLengthMm": 0.2, "meanXMm": 0.3, "meanYMm": 0.4}
+                    "stats": {"samples": 1, "holdTremorMm": 0.1, "traceLengthMm": 0.2, "meanXMm": 0.3, "meanYMm": 0.4},
+                    "aim": {"aimingTimeS": 5.5, "tenRingHoldPct": 90.0, "meanTenRingHoldPct": null, "meanCustomRingHoldPct": 75.0, "shotOffsetMm": 1.5}
                 }
             })
         );

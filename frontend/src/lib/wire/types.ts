@@ -88,9 +88,18 @@ export interface WireTraceStats {
   meanYMm: F64;
 }
 
+export interface WireAimMetrics {
+  aimingTimeS: F64;
+  tenRingHoldPct: F64;
+  meanTenRingHoldPct: F64;
+  meanCustomRingHoldPct: F64;
+  shotOffsetMm: F64;
+}
+
 export interface WireHoldTrace {
   points: Pair[];
   stats: WireTraceStats;
+  aim: WireAimMetrics | null;
 }
 
 export interface WireHoldZone {

@@ -5,8 +5,9 @@
 use std::cmp::Ordering;
 
 use shottrainer_audio::models::ShotDetectorSettings;
+use shottrainer_core::services::aim_metrics::{AimMetrics, AimRings, compute_aim_metrics};
 use shottrainer_core::services::scoring::{
-    ScoreOptions, ScoringDirection, ScoringRing, score_shot, score_shot_decimal,
+    ScoreOptions, ScoringDirection, ScoringRing, label_to_value, score_shot, score_shot_decimal,
 };
 use shottrainer_core::services::shot_coordinator::ShotCoordinatorSettings;
 use shottrainer_settings::Preferences;
@@ -14,6 +15,7 @@ use shottrainer_settings::stores::DetectorSettings as StoredDetectorSettings;
 use shottrainer_settings::target_faces::{TargetFace, get_face};
 use shottrainer_tracking::detector::DetectorSettings;
 use shottrainer_tracking::frame_ops::FrameTransform;
+use shottrainer_tracking::models::TrackingSample;
 
 pub fn detector_from_store(s: &StoredDetectorSettings) -> DetectorSettings {
     DetectorSettings {
@@ -140,6 +142,36 @@ pub fn score_for(
             direction: ScoringDirection::from_name(&face.scoring_direction),
         },
     )
+}
+
+/// How far before a shot the aiming figures look, in milliseconds.
+pub const AIM_LOOKBACK_MS: i64 = 30_000;
+
+/// The aiming figures for a shot, or `None` when the active face has no rings
+/// that score ten. `trace` should reach back [`AIM_LOOKBACK_MS`] from the shot.
+pub fn aim_metrics_for(
+    faces: &[TargetFace],
+    prefs: &Preferences,
+    trace: &[TrackingSample],
+    shot_ts: f64,
+    shot_mm: Option<(f64, f64)>,
+) -> Option<AimMetrics> {
+    let face = get_face(faces, &prefs.target_face)?;
+    let radius = |ring: &shottrainer_settings::target_faces::TargetRing| ring.diameter_mm / 2.0;
+    let outer_radius_mm = face.rings.iter().map(radius).reduce(f64::max)?;
+    let ten_radius_mm = face
+        .rings
+        .iter()
+        .filter(|r| r.label.as_deref().and_then(label_to_value) == Some(10.0))
+        .map(radius)
+        .reduce(f64::max)?;
+    let rings = AimRings {
+        outer_radius_mm,
+        ten_radius_mm,
+        custom_radius_mm: (prefs.custom_hold_ring_mm > 0.0)
+            .then(|| prefs.custom_hold_ring_mm / 2.0),
+    };
+    Some(compute_aim_metrics(trace, shot_ts, shot_mm, &rings))
 }
 
 #[cfg(test)]
