@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { WireRing, WireShotStats, WireTraceStats } from "../wire/types";
+import type { WireAimMetrics, WireRing, WireShotStats, WireTraceStats } from "../wire/types";
 import {
+  aimFigures,
   diagnosticRings,
   groupFigure,
   timeOnTargetFigure,
@@ -135,5 +136,33 @@ describe("timeOnTargetFigure", () => {
       RINGS,
     );
     expect(figure.value).toBe("50%");
+  });
+});
+
+describe("aimFigures", () => {
+  const aim: WireAimMetrics = {
+    aimingTimeS: 14.04,
+    tenRingHoldPct: 95,
+    meanTenRingHoldPct: 80,
+    meanCustomRingHoldPct: 60,
+    shotOffsetMm: 2.26,
+  };
+
+  it("formats each figure and checks it against its target", () => {
+    expect(aimFigures(aim, 0)).toEqual([
+      { caption: "AIMING TIME", value: "14.0\u202fs", met: false },
+      { caption: "STEADY IN 10", value: "95%", met: true },
+      { caption: "STEADY ON AVERAGE", value: "80%", met: false },
+      { caption: "SHOT OFFSET", value: "2.3\u202fmm", met: true },
+    ]);
+  });
+
+  it("adds the custom ring figure without a target when a ring is set", () => {
+    const figure = aimFigures(aim, 25).find((f) => f.caption.includes("25"));
+    expect(figure).toEqual({ caption: "STEADY IN 25\u202fmm", value: "60%", met: null });
+  });
+
+  it("dashes every figure without aim data", () => {
+    expect(aimFigures(null, 25).every((f) => f.value === "-" && f.met === null)).toBe(true);
   });
 });

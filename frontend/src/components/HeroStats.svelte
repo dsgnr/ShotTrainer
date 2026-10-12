@@ -1,11 +1,12 @@
 <script lang="ts">
   import {
+    aimFigures,
     groupFigure,
     timeOnTargetFigure,
     totalScoreFigure,
     tremorFigure,
   } from "../lib/stats/hero";
-  import type { F64, WireRing, WireShotStats, WireTraceStats } from "../lib/wire/types";
+  import type { F64, WireAimMetrics, WireRing, WireShotStats, WireTraceStats } from "../lib/wire/types";
   import Metric from "./Metric.svelte";
   import Panel from "./Panel.svelte";
 
@@ -14,15 +15,18 @@
     shotCount: number;
     group: WireShotStats | null;
     traceStats: WireTraceStats | null;
+    aim: WireAimMetrics | null;
+    customHoldRingMm: number;
     tracePoints: [number, number][];
     rings: WireRing[];
   }
 
-  let { total, shotCount, group, traceStats, tracePoints, rings }: Props = $props();
+  let { total, shotCount, group, traceStats, aim, customHoldRingMm, tracePoints, rings }: Props = $props();
 
   const totalText = $derived(totalScoreFigure(total, shotCount));
   const groupText = $derived(group === null ? { value: "-", tooltip: "" } : groupFigure(group));
   const tremorText = $derived(tremorFigure(traceStats));
+  const aimText = $derived(aimFigures(aim, customHoldRingMm));
   const timeOnTarget = $derived(timeOnTargetFigure(tracePoints, rings));
 </script>
 
@@ -41,7 +45,12 @@
   </Panel>
 
   <Panel title="Hold">
-    <Metric caption="Hold tremor" value={tremorText} sub="RMS deviation" />
+    <div class="hold-grid">
+      <Metric caption="Hold tremor" value={tremorText} sub="RMS deviation" />
+      {#each aimText as figure (figure.caption)}
+        <Metric caption={figure.caption} value={figure.value} met={figure.met} />
+      {/each}
+    </div>
   </Panel>
 </div>
 
@@ -53,6 +62,12 @@
   }
 
   .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4) var(--space-3);
+  }
+
+  .hold-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--space-4) var(--space-3);

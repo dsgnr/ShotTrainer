@@ -281,6 +281,8 @@
       shotCount={app.shots.shots.length}
       group={app.shots.group}
       traceStats={app.shots.holdTrace?.stats ?? null}
+      aim={app.shots.holdTrace?.aim ?? null}
+      customHoldRingMm={app.preferences.prefs?.customHoldRingMm ?? 0}
       {tracePoints}
       {rings}
     />
