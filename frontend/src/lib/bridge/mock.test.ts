@@ -189,3 +189,14 @@ it("places every preview shot inside the 2.25 mm X ring", async () => {
   vi.advanceTimersByTime(MOCK_FRAME_MS * MOCK_SHOT_EVERY_FRAMES * 10);
   expect(ofType("shots").at(-1)!.shots.every(shot => Math.hypot(shot.xMm!, shot.yMm!) < 2.25)).toBe(true);
 });
+
+it("sends a hold trace with aiming figures when a shot is selected", async () => {
+  await bridge.send({type: "startSession", name: "", category: "practice"});
+  vi.advanceTimersByTime(MOCK_FRAME_MS * (MOCK_SHOT_EVERY_FRAMES + 30));
+  await bridge.send({type: "selectShot", index: 0});
+  const hold = ofType("holdTrace").at(-1)!.trace!;
+  expect(hold.stats.samples).toBeGreaterThan(0);
+  expect(hold.aim?.tenRingHoldPct).not.toBeNull();
+  expect(hold.aim?.shotOffsetMm).not.toBeNull();
+  expect(hold.aim?.meanCustomRingHoldPct).toBeNull();
+});
