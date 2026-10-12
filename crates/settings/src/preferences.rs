@@ -44,6 +44,9 @@ pub struct Preferences {
     pub decimal_scoring: bool,
     #[serde(skip_serializing_if = "is_true")]
     pub show_shot_offsets: bool,
+    /// Diameter of the second hold ring in millimetres, 0 = off.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub custom_hold_ring_mm: f64,
 }
 
 impl Default for Preferences {
@@ -73,6 +76,7 @@ impl Default for Preferences {
             show_hold_zone: true,
             decimal_scoring: false,
             show_shot_offsets: true,
+            custom_hold_ring_mm: 0.0,
         }
     }
 }
@@ -183,6 +187,9 @@ fn preferences_from_object(raw: &Map<String, Value>) -> Preferences {
     field!("show_hold_zone", prefs.show_hold_zone, read_bool);
     field!("decimal_scoring", prefs.decimal_scoring, read_bool);
     field!("show_shot_offsets", prefs.show_shot_offsets, read_bool);
+    field!("custom_hold_ring_mm", prefs.custom_hold_ring_mm, |v| {
+        read_f64_in(v, 0.0, 500.0)
+    });
     prefs
 }
 
@@ -194,6 +201,10 @@ pub fn save_preferences(prefs: &Preferences, path: &Path) -> Result<(), Settings
 
 fn is_false(value: &bool) -> bool {
     !value
+}
+
+fn is_zero(value: &f64) -> bool {
+    *value == 0.0
 }
 
 fn is_true(value: &bool) -> bool {

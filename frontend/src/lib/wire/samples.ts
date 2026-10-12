@@ -29,6 +29,7 @@ export const SAMPLE_PREFERENCES: WirePreferences = {
   showHoldZone: false,
   decimalScoring: true,
   showShotOffsets: false,
+  customHoldRingMm: 12.5,
 };
 
 export const SAMPLE_EVENTS: { [T in WireEventType]: EventOf<T> } = {

@@ -49,6 +49,7 @@ export const MOCK_PREFERENCES: WirePreferences = {
   showHoldZone: true,
   decimalScoring: false,
   showShotOffsets: true,
+  customHoldRingMm: 0,
 };
 
 /** The bundled `default.json` face. */

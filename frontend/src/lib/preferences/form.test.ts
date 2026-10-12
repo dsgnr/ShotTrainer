@@ -19,6 +19,7 @@ describe("NUMBER_RANGES", () => {
       shotDiameterMm: [0.5, 25],
       trackingRegionFraction: [0.1, 1],
       circleDiameterMm: [5, 1000],
+      customHoldRingMm: [0, 500],
     });
   });
 });
@@ -52,6 +53,7 @@ describe("clampPreferences", () => {
       shotDiameterMm: 0,
       trackingRegionFraction: 0,
       circleDiameterMm: 0,
+      customHoldRingMm: -5,
     };
     const clamped = clampPreferences(low);
     for (const [field, [min]] of Object.entries(NUMBER_RANGES)) {
@@ -74,6 +76,7 @@ describe("clampPreferences", () => {
       shotDiameterMm: 999,
       trackingRegionFraction: 9,
       circleDiameterMm: 999999,
+      customHoldRingMm: 999999,
     };
     const clamped = clampPreferences(high);
     for (const [field, [, max]] of Object.entries(NUMBER_RANGES)) {

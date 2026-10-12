@@ -159,6 +159,7 @@ export interface WirePreferences {
   showHoldZone: boolean;
   decimalScoring: boolean;
   showShotOffsets: boolean;
+  customHoldRingMm: number;
 }
 
 /** Every controller event, emitted as the Tauri event `ui-event`. */
