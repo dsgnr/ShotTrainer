@@ -12,14 +12,16 @@
     size?: "md" | "lg";
     /** Colours the value with the accent for a live or headline figure. */
     accent?: boolean;
+    /** Colours the value by whether it meets its target. Null or omitted leaves it plain. */
+    met?: boolean | null;
   }
 
-  let { caption, value, sub, title, size = "md", accent = false }: Props = $props();
+  let { caption, value, sub, title, size = "md", accent = false, met = null }: Props = $props();
 </script>
 
 <div class="metric">
   <p class="caption panel-title">{caption}</p>
-  <p class="value num" class:accent data-size={size} {title}>{value}</p>
+  <p class="value num" class:accent class:met={met === true} class:unmet={met === false} data-size={size} {title}>{value}</p>
   {#if sub !== undefined}<p class="sub">{sub}</p>{/if}
 </div>
 
@@ -53,6 +55,14 @@
 
   .value.accent {
     color: var(--accent-strong);
+  }
+
+  .value.met {
+    color: var(--tone-success);
+  }
+
+  .value.unmet {
+    color: var(--tone-warning);
   }
 
   .sub {

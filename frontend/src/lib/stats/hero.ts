@@ -1,7 +1,7 @@
 // The headline figures down the right column. The controller sends the shot
 // and trace statistics, so these functions format them. Time-on-target is
 // computed here from the trace points and the diagnostic ring.
-import type { F64, WireRing, WireShotStats, WireTraceStats } from "../wire/types";
+import type { F64, WireAimMetrics, WireRing, WireShotStats, WireTraceStats } from "../wire/types";
 
 /** A narrow non-breaking space, placed between a value and its unit. */
 const THIN = "\u202f";
@@ -77,6 +77,39 @@ export function timeOnTargetFigure(trace: [number, number][], rings: WireRing[])
   const radius = finite(ring.diameterMm) / 2;
   const inside = trace.filter(([x, y]) => Math.hypot(x, y) <= radius).length;
   return { caption, value: `${Math.round((inside / trace.length) * 100)}%` };
+}
+
+export interface AimFigure {
+  caption: string;
+  value: string;
+  /** Whether the figure meets its target, or null when it has none or is empty. */
+  met: boolean | null;
+}
+
+const AIMING_TIME_TARGET_S = 13;
+const HOLD_TARGET_PCT = 90;
+const SHOT_OFFSET_TARGET_MM = 3;
+
+function aimFigure(caption: string, value: F64 | undefined, unit: string, digits: number, met: (v: number) => boolean | null): AimFigure {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return { caption, value: "-", met: null };
+  }
+  return { caption, value: `${value.toFixed(digits)}${unit}`, met: met(value) };
+}
+
+/** The per-shot aiming figures. The custom ring figure appears only when a ring is set. */
+export function aimFigures(aim: WireAimMetrics | null, customRingMm: number): AimFigure[] {
+  const hold = (v: number) => v >= HOLD_TARGET_PCT;
+  const figures = [
+    aimFigure("AIMING TIME", aim?.aimingTimeS, `${THIN}s`, 1, (v) => v < AIMING_TIME_TARGET_S),
+    aimFigure("STEADY IN 10", aim?.tenRingHoldPct, "%", 0, hold),
+    aimFigure("STEADY ON AVERAGE", aim?.meanTenRingHoldPct, "%", 0, hold),
+  ];
+  if (customRingMm > 0) {
+    figures.push(aimFigure(`STEADY IN ${customRingMm}${THIN}mm`, aim?.meanCustomRingHoldPct, "%", 0, () => null));
+  }
+  figures.push(aimFigure("SHOT OFFSET", aim?.shotOffsetMm, `${THIN}mm`, 1, (v) => v < SHOT_OFFSET_TARGET_MM));
+  return figures;
 }
 
 function finite(value: F64): number {
