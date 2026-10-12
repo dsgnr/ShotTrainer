@@ -1,3 +1,4 @@
+pub mod aim_metrics;
 pub mod exporter;
 pub mod importer;
 pub mod replay_coordinator;
