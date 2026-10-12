@@ -230,6 +230,19 @@
             <input type="checkbox" bind:checked={draft.showShotOffsets} />
             Show shot offsets
           </label>
+          <label class="field">
+            <span class="field-label">Custom hold ring</span>
+            <span class="input-unit">
+              <input
+                type="number"
+                min={NUMBER_RANGES.customHoldRingMm[0]}
+                max={NUMBER_RANGES.customHoldRingMm[1]}
+                bind:value={draft.customHoldRingMm}
+              />
+              <span class="unit">mm</span>
+            </span>
+          </label>
+          <p class="hint">Diameter of the extra ring for the hold figure. 0 turns it off.</p>
         </section>
 
         <section class="group" aria-label="Tracking">

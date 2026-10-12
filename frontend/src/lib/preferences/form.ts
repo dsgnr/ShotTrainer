@@ -18,7 +18,8 @@ type NumberField =
   | "releaseWindowMs"
   | "shotDiameterMm"
   | "trackingRegionFraction"
-  | "circleDiameterMm";
+  | "circleDiameterMm"
+  | "customHoldRingMm";
 
 /** Inclusive `[min, max]` ranges for each numeric preference. */
 export const NUMBER_RANGES: Record<NumberField, [number, number]> = {
@@ -34,6 +35,7 @@ export const NUMBER_RANGES: Record<NumberField, [number, number]> = {
   shotDiameterMm: [0.5, 25],
   trackingRegionFraction: [0.1, 1],
   circleDiameterMm: [5, 1000],
+  customHoldRingMm: [0, 500],
 };
 
 function clamp(value: number, [min, max]: [number, number]): number {

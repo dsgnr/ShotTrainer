@@ -333,3 +333,32 @@ fn shot_offset_visibility_defaults_and_roundtrips_tolerantly() {
         assert_eq!(loaded.audio_gain, 2.0);
     }
 }
+
+#[test]
+fn custom_hold_ring_defaults_off_and_roundtrips_tolerantly() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("settings.json");
+    assert_eq!(load_preferences(&path).custom_hold_ring_mm, 0.0);
+    let prefs = Preferences {
+        custom_hold_ring_mm: 25.0,
+        ..Preferences::default()
+    };
+    save_preferences(&prefs, &path).unwrap();
+    assert_eq!(load_preferences(&path).custom_hold_ring_mm, 25.0);
+    assert_eq!(validate_preferences(&prefs).custom_hold_ring_mm, 25.0);
+    for value in [
+        serde_json::json!("25"),
+        serde_json::json!(true),
+        serde_json::json!(-1.0),
+        serde_json::json!(501.0),
+    ] {
+        std::fs::write(
+            &path,
+            serde_json::json!({"custom_hold_ring_mm": value, "audio_gain": 2.0}).to_string(),
+        )
+        .unwrap();
+        let loaded = load_preferences(&path);
+        assert_eq!(loaded.custom_hold_ring_mm, 0.0);
+        assert_eq!(loaded.audio_gain, 2.0);
+    }
+}

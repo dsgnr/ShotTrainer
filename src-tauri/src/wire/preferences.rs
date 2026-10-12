@@ -34,6 +34,7 @@ pub struct WirePreferences {
     pub decimal_scoring: bool,
     #[serde(default = "show_offsets_default")]
     pub show_shot_offsets: bool,
+    pub custom_hold_ring_mm: f64,
 }
 
 impl From<&Preferences> for WirePreferences {
@@ -63,6 +64,7 @@ impl From<&Preferences> for WirePreferences {
             show_hold_zone: p.show_hold_zone,
             decimal_scoring: p.decimal_scoring,
             show_shot_offsets: p.show_shot_offsets,
+            custom_hold_ring_mm: p.custom_hold_ring_mm,
         }
     }
 }
@@ -94,6 +96,7 @@ impl From<WirePreferences> for Preferences {
             show_hold_zone: w.show_hold_zone,
             decimal_scoring: w.decimal_scoring,
             show_shot_offsets: w.show_shot_offsets,
+            custom_hold_ring_mm: w.custom_hold_ring_mm,
         }
     }
 }
@@ -136,6 +139,7 @@ pub(crate) mod tests {
             show_hold_zone: false,
             decimal_scoring: true,
             show_shot_offsets: false,
+            custom_hold_ring_mm: 12.5,
         }
     }
 
@@ -151,7 +155,7 @@ pub(crate) mod tests {
     fn preferences_use_camel_case_keys() {
         let value = serde_json::to_value(WirePreferences::from(&distinct_preferences())).unwrap();
         let object = value.as_object().unwrap();
-        assert_eq!(object.len(), 24);
+        assert_eq!(object.len(), 25);
         assert_eq!(object["cameraId"], json!(3));
         assert_eq!(object["shotRefractoryMs"], json!(450));
         assert_eq!(object["releaseWindowMs"], json!(350));

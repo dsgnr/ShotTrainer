@@ -64,3 +64,9 @@ list. It is on by default and saved globally as `show_shot_offsets`. Each
 positioned shot has an arrow pointing towards the target centre. Centred shots
 and unavailable positions have no arrow. Hiding offsets also hides these
 arrows. The printed shot sheet keeps its offsets.
+
+## Custom hold ring
+
+**Custom hold ring** under **Display** sets the diameter in millimetres of the
+extra ring used for the hold figure around the average aim point. It is saved
+globally as `custom_hold_ring_mm`. The default of 0 turns the figure off.
