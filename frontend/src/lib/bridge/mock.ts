@@ -77,6 +77,7 @@ export const MOCK_FACES: WireFace[] = Object.entries(sources).sort(([a], [b]) =>
   scoringDirection: face.scoring_direction ?? "inward",
 }));
 
+import { mockHoldTrace } from "./mock-hold";
 import { simulatedAim, simulatedShot } from "./simulated-aim";
 
 const UNAVAILABLE = "Not available in the browser preview";
@@ -382,6 +383,10 @@ export class MockBridge implements Bridge {
     this.#emit({type: "replayPlaying", playing: false});
     this.#emit({type: "replayLoaded", ...this.#replay});
     this.#emit({type: "playerProgress", fraction: 0});
+    const shot = this.#shots[index]!;
+    this.#emit({type: "holdTrace", trace: mockHoldTrace(this.#trace, timestamp,
+      shot.xMm !== null && shot.yMm !== null ? [shot.xMm, shot.yMm] : null,
+      this.#rings(), this.#prefs.customHoldRingMm, this.#prefs.preShotMs)});
   }
 
   #emitPlayhead(): void {
