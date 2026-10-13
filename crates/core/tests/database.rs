@@ -1,5 +1,6 @@
 //! Database creation and schema version checks.
 
+#[cfg(unix)]
 use std::path::Path;
 
 use rusqlite::Connection;
