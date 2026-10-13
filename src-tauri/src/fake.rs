@@ -246,25 +246,21 @@ impl AudioBackend for FakeMicrophone {
             .spawn({
                 let (running, on_event) = (running.clone(), on_event.clone());
                 let schedule = schedule.clone();
-                let simulation = self.simulation.clone();
                 move || {
                     on_event(AudioEvent::Started);
                     while running.load(Ordering::SeqCst) {
                         thread::sleep(LEVEL_EVERY);
                         let mut schedule = schedule.lock().unwrap();
-                        let elapsed = simulation
-                            .lock()
-                            .unwrap()
-                            .started
-                            .map(|start| start.elapsed())
-                            .unwrap_or_default();
-                        if schedule.0
-                            && shot_every.is_some_and(|every| elapsed >= schedule.1 + every)
-                        {
-                            schedule.1 += shot_every.unwrap();
+                        // Counts ticks rather than wall-clock time so a slow
+                        // scheduler cannot change how many levels precede a shot.
+                        if schedule.0 {
+                            schedule.1 += LEVEL_EVERY;
+                        }
+                        if schedule.0 && shot_every.is_some_and(|every| schedule.1 >= every) {
+                            schedule.1 = Duration::ZERO;
                             on_event(AudioEvent::Level(SHOT_LEVEL));
                             on_event(AudioEvent::Shot(ShotEvent {
-                                timestamp: clock() - (elapsed - schedule.1).as_secs_f64(),
+                                timestamp: clock(),
                                 audio_level: SHOT_LEVEL,
                                 sample_rate: SAMPLE_RATE,
                             }));
