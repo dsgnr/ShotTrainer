@@ -3,13 +3,16 @@
 [project]
 site_name = "ShotTrainer"
 site_description = "Free, open-source optical shooting trainer for air rifle, air pistol and smallbore practice. Camera-based aim tracking, shot scoring and replay."
-site_url = "https://dsgnr.github.io/ShotTrainer/"
+site_url = "https://shottrainer.org/"
 repo_url = "https://github.com/dsgnr/ShotTrainer"
 repo_name = "dsgnr/ShotTrainer"
 docs_dir = "docs"
+exclude_docs = """
+cameras/images/README.md
+cameras/template.md
+"""
 
 extra_javascript = [
-    "https://unpkg.com/mermaid@10/dist/mermaid.min.js",
     "assets/mermaid-init.js",
 ]
 
@@ -45,7 +48,6 @@ nav = [
             "cameras/waveshare-ov9281.md",
             "cameras/arducam-ov9281.md",
         ] },
-        "cameras/template.md",
     ] },
     { "Reference" = [
         "architecture.md",

@@ -1,4 +1,5 @@
 ---
+title: "Camera, microphone and tracking preferences"
 description: "Configure ShotTrainer’s camera, target, microphone and recording settings. Learn what each preference controls and how to save your setup."
 ---
 

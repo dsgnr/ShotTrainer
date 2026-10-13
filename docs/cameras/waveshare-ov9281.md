@@ -40,29 +40,29 @@ Waveshare has two clear practical advantages:
       to change without soldering or extra adapters/extenders
 
 <figure markdown="span">
-  ![Waveshare OV9281 next to the Arducam OV9281 for size comparison](./images/waveshare-ov9281/waveshare-ov9281-vs-arducam-size-comparison.jpeg)
+  ![Waveshare OV9281 next to the Arducam OV9281 for size comparison](./images/waveshare-ov9281/waveshare-ov9281-vs-arducam-size-comparison.jpeg){ loading=lazy width=1280 height=960 }
   <figcaption>Waveshare OV9281 (left/right) next to the Arducam OV9281 for scale</figcaption>
 </figure>
 
 ## What it looks like
 
 <figure markdown="span">
-  ![Waveshare OV9281 front view, lens facing camera](./images/waveshare-ov9281/waveshare-ov9281-front.jpeg)
+  ![Waveshare OV9281 front view, lens facing camera](./images/waveshare-ov9281/waveshare-ov9281-front.jpeg){ loading=lazy width=1280 height=960 }
   <figcaption>Front of the board.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Waveshare OV9281 profile view showing the USB-C connector](./images/waveshare-ov9281/waveshare-ov9281-profile1.jpeg)
+  ![Waveshare OV9281 profile view showing the USB-C connector](./images/waveshare-ov9281/waveshare-ov9281-profile1.jpeg){ loading=lazy width=1280 height=960 }
   <figcaption>Profile view.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Waveshare OV9281 alternate profile view](./images/waveshare-ov9281/waveshare-ov9281-profile2.jpeg)
+  ![Waveshare OV9281 alternate profile view](./images/waveshare-ov9281/waveshare-ov9281-profile2.jpeg){ loading=lazy width=1280 height=960 }
   <figcaption>Alternate profile view.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Waveshare OV9281 measured with digital calipers](./images/waveshare-ov9281/waveshare-ov9281-measurement-scale.jpeg)
+  ![Waveshare OV9281 measured with digital calipers](./images/waveshare-ov9281/waveshare-ov9281-measurement-scale.jpeg){ loading=lazy width=1280 height=960 }
   <figcaption>Size reference, measured with digital calipers.</figcaption>
 </figure>
 
@@ -84,13 +84,13 @@ since the sensor is identical. The 50 mm M12 lens is currently the most
 usable option at 25 yards.
 
 <figure markdown="span">
-  ![Waveshare OV9281 fitted with a 50 mm M12 lens](./images/waveshare-ov9281/waveshare-ov9281-with-50mm-lens.jpeg)
+  ![Waveshare OV9281 fitted with a 50 mm M12 lens](./images/waveshare-ov9281/waveshare-ov9281-with-50mm-lens.jpeg){ loading=lazy width=1280 height=960 }
   <figcaption>Waveshare OV9281 with the 18 mm hole-spacing M12 holder swapped in and the 50 mm M12 lens fitted.</figcaption>
 </figure>
 
 Preview through the 50 mm lens at 25 yards:
 
-![Waveshare OV9281 preview 50mm lens](./images/arducam-ov9281/arducam-ov9281-preview-50mm-lens.jpg)
+![Waveshare OV9281 preview 50mm lens](./images/arducam-ov9281/arducam-ov9281-preview-50mm-lens.jpg){ loading=lazy width=1280 height=800 }
 
 ## 3D-printed case
 

@@ -29,17 +29,17 @@ The board is small and bare, without an enclosure. Below are front, back,
 and a shot taken with digital calipers so you can gauge the size.
 
 <figure markdown="span">
-  ![Arducam OV9281 front view, lens facing camera](./images/arducam-ov9281/arducam-ov9281-front.jpeg)
+  ![Arducam OV9281 front view, lens facing camera](./images/arducam-ov9281/arducam-ov9281-front.jpeg){ loading=lazy width=1280 height=960 }
   <figcaption>Front of the board with the M12 lens mount.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Arducam OV9281 back view showing the USB connector](./images/arducam-ov9281/arducam-ov9281-back.jpeg)
+  ![Arducam OV9281 back view showing the USB connector](./images/arducam-ov9281/arducam-ov9281-back.jpeg){ loading=lazy width=1280 height=960 }
   <figcaption>Back of the board with the USB connector and OV9281 sensor markings.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Arducam OV9281 measured with digital calipers](./images/arducam-ov9281/arducam-ov9281-measurement-scale.jpeg)
+  ![Arducam OV9281 measured with digital calipers](./images/arducam-ov9281/arducam-ov9281-measurement-scale.jpeg){ loading=lazy width=1280 height=960 }
   <figcaption>Size reference, measured with digital calipers.</figcaption>
 </figure>
 
@@ -98,7 +98,7 @@ Spec:
 | Aperture      | F2.0                                             |
 | FOV (DxHxV)   | 16.4° × 13.9° × 8.8° (5.6m x 3.5m x 6.6m at 25y) |
 
-![Arducam OC9281 preview 16mm lens](./images/arducam-ov9281/arducam-ov9281-preview-16mm-lens.jpg)
+![Arducam OC9281 preview 16mm lens](./images/arducam-ov9281/arducam-ov9281-preview-16mm-lens.jpg){ loading=lazy width=1280 height=800 }
 
 #### 50mm M12 lens
 
@@ -114,7 +114,7 @@ Spec:
 | Aperture      | f/2.8                                             |
 | FOV (DxHxV)   | 5.3° × 4.5° × 2.8° (1.77m x 1.12m x 2.10m at 25y) |
 
-![Arducam OC9281 preview 16mm lens](./images/arducam-ov9281/arducam-ov9281-preview-50mm-lens.jpg)
+![Arducam OC9281 preview 16mm lens](./images/arducam-ov9281/arducam-ov9281-preview-50mm-lens.jpg){ loading=lazy width=1280 height=800 }
 
 ## 3D-printed case
 
@@ -133,12 +133,12 @@ connector and the lid is on you have a tidy assembly.
     rail or an Anschutz-style accessory dovetail.
 
 <figure markdown="span">
-  ![3D-printed case open](./images/arducam-ov9281/arducam-ov9281-3d-print-v1-open.jpeg)
+  ![3D-printed case open](./images/arducam-ov9281/arducam-ov9281-3d-print-v1-open.jpeg){ loading=lazy width=1280 height=960 }
   <figcaption>The case opened up. The PCB drops in and the lid screws down with self-tapping screws.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Arducam OV9281 in its 3D-printed case ready to use](./images/arducam-ov9281/arducam-ov9281-3d-print-v1.jpeg)
+  ![Arducam OV9281 in its 3D-printed case ready to use](./images/arducam-ov9281/arducam-ov9281-3d-print-v1.jpeg){ loading=lazy width=1280 height=960 }
   <figcaption>The case assembled and ready to mount on the rifle.</figcaption>
 </figure>
 

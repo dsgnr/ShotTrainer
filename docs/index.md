@@ -1,5 +1,5 @@
 ---
-title: ShotTrainer optical shooting trainer
+title: Optical shooting trainer for air rifle and smallbore
 description: Track your aim with a rifle-mounted camera, review shot traces and save practice sessions. Find ShotTrainer installation, equipment and setup guides.
 template: landing.html
 hide:
@@ -10,10 +10,12 @@ hide:
 <div class="st-landing">
 
 <section class="st-intro" aria-labelledby="intro-title">
-  <h1 id="intro-title">ShotTrainer</h1>
-  <p class="st-intro__summary">
-    Camera-based aim tracking and shot analysis for shooting practice.
-  </p>
+  <h1 id="intro-title">
+    <span class="st-intro__name">ShotTrainer</span>
+    <span class="st-intro__summary">
+      Camera-based aim tracking and shot analysis for shooting practice.
+    </span>
+  </h1>
   <p>
     A camera mounted on your rifle tracks a printed black circle. A microphone
     detects each shot, so you can review your hold, estimated shot position
@@ -31,7 +33,7 @@ hide:
 
 <figure class="st-product-image">
   <a href="assets/img/app.jpg" aria-label="Open the full-size application screenshot">
-    <img src="assets/img/app.jpg" width="1440" height="880"
+    <img src="assets/img/app.jpg" width="1440" height="880" fetchpriority="high"
       alt="ShotTrainer with a session target and shot history on the left,
       a selected shot's aim trace in the centre, analysis on the right and
       session status along the bottom">

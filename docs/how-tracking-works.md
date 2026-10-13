@@ -192,3 +192,6 @@ and the actual point of impact.
 The current frontend does not expose zero-setting controls. Stored zero offsets
 can be reflected in the camera overlay. Check the setup rather than assuming the
 camera axis equals the impact point.
+
+The [architecture](architecture.md) and [engineering notes](engineering-notes.md)
+describe how these steps are implemented and why.

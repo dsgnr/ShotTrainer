@@ -1,12 +1,17 @@
 ---
+title: "Releases, updates and versioning"
 description: "Find ShotTrainer releases and learn how upgrades, version numbers and configuration changes are handled for this open-source shooting trainer."
 ---
 
 # Releases
 
+## Get a release
+
 Build ShotTrainer from source using the [installation](installation.md)
 instructions. Published downloads and release notes are listed on the
 [GitHub releases page](https://github.com/dsgnr/ShotTrainer/releases).
+
+## Updates in the app
 
 The desktop app checks for updates at startup. A new stable release appears in
 an update banner. Select **Install and restart** to download a signed update,
@@ -20,6 +25,8 @@ offline or when no public release exists. Manual checks display failures.
 Linux AppImages can update in place. Other Linux packages offer **Download**,
 which opens the releases page for manual installation.
 
+## How releases are built
+
 The release workflow builds real-device bundles with OpenCV, signatures and
 `latest.json` for macOS, Windows and Linux. A `v*` tag or manual dispatch builds
 a draft release. The tag must match the Cargo workspace version. Publish the
@@ -28,6 +35,8 @@ prereleases are excluded from the automatic stable update endpoint.
 
 Updater signing is separate from operating-system code signing and macOS
 notarisation. Signing setup is documented in the repository’s `packaging/README.md`.
+
+## Before upgrading
 
 Back up the [application data directory](preferences.md) before upgrading. Any
 intentional changes to persisted data or

@@ -5,6 +5,8 @@ description: "Understand ShotTrainer’s total score, group size, hold tremor an
 
 # Shot statistics
 
+## Sidebar figures
+
 The right sidebar shows total score, group size, the percentage of trace
 samples inside the innermost scoring ring, and hold tremor. Without scored
 shots, the total figure shows the shot count. Missing tracking samples can
@@ -14,11 +16,15 @@ leave measurements unavailable.
   ![The Result and Hold panels showing score, group size and the hold figures for seven shots](assets/img/stats.jpg){ width="300" height="500" }
 </figure>
 
+## Group size and hold tremor
+
 **Group size** is the largest distance between any two positioned shots, shown
 in millimetres. Its tooltip also gives mean radius from the group centre.
 **Hold tremor** is the RMS deviation of the selected shot’s pre-shot trace from
 its mean position. **Time inside** counts the plotted trace samples within the
 innermost ring. It is a sample percentage rather than a duration in seconds.
+
+## Hold figures for the selected shot
 
 The Hold panel also shows five figures for the selected shot. Figures that meet
 their target are green and those that miss are amber.
@@ -39,6 +45,8 @@ their target are green and those that miss are amber.
 
 These figures are blank when the face has no ten ring or the trace has no
 positioned samples in the window.
+
+## What these measurements show
 
 Group measurements describe the recorded shot positions. Hold measurements
 describe aim movement around a selected shot. They do not measure actual

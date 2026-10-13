@@ -8,6 +8,17 @@
       "@type": "SoftwareApplication",
       "name": "ShotTrainer",
       "url": {{ config.site_url | tojson }},
+      "image": {{ (config.site_url ~ "assets/img/social.jpg") | tojson }},
+      "screenshot": {
+        "@type": "ImageObject",
+        "url": {{ (config.site_url ~ "assets/img/app.jpg") | tojson }},
+        "caption": "ShotTrainer showing a session target, shot list, aim trace and statistics"
+      },
+      "author": {"@type": "Person", "name": "dsgnr", "url": "https://github.com/dsgnr"},
+      "sameAs": [{{ config.repo_url | tojson }}],
+      "installUrl": {{ (config.site_url ~ "installation/") | tojson }},
+      "softwareHelp": {{ (config.site_url ~ "getting-started/") | tojson }},
+      "inLanguage": "en-GB",
       "description": {{ page.meta.description | tojson }},
       "applicationCategory": "SportsApplication",
       "operatingSystem": "Windows, macOS, Linux",

@@ -5,6 +5,8 @@ description: "Start using ShotTrainer with a rifle-mounted camera, microphone an
 
 # Getting started
 
+## Set up and record your first session
+
 1. Follow [installation](installation.md). Use the synthetic desktop mode to
    explore the interface before connecting hardware.
 2. For real devices, mount the camera securely and place a high-contrast dark
@@ -26,5 +28,14 @@ description: "Start using ShotTrainer with a rifle-mounted camera, microphone an
   ![The target page before a session, with an empty shot list and a Start session button](assets/img/target_idle.jpg){ width="1440" height="880" }
 </figure>
 
+## Synthetic and mock sessions
+
 A synthetic or browser mock session demonstrates the interface. It does not
 validate measurement accuracy or device support.
+
+## Next steps
+
+Choose a camera from the [camera reports](cameras.md). If tracking or shot
+detection misbehaves, see [troubleshooting](troubleshooting.md). Once recording
+works, continue with [recording sessions](sessions.md) and
+[shot replay](replay.md).

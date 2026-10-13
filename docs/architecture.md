@@ -1,4 +1,5 @@
 ---
+title: "Architecture of the Rust and Tauri app"
 description: "Explore ShotTrainer’s Rust and Tauri architecture, from camera capture and optical tracking to audio shot detection, session storage and the desktop interface."
 ---
 

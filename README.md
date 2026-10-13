@@ -59,7 +59,7 @@ an enabled replay. Up and Down select adjacent shots outside inputs and dialogue
 
 ## Documentation
 
-[Documentation site](https://dsgnr.github.io/ShotTrainer/) ·
+[Documentation site](https://shottrainer.org/) ·
 [Installation](docs/installation.md) · [Getting started](docs/getting-started.md) ·
 [Architecture](docs/architecture.md) · [Contributing](CONTRIBUTING.md) ·
 [Packaging](packaging/README.md)

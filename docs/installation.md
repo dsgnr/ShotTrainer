@@ -1,9 +1,11 @@
 ---
-title: "Install on Windows, macOS and Linux"
+title: "Install ShotTrainer from source"
 description: "Build and run ShotTrainer from source with Rust, Tauri and Svelte, including native dependencies and synthetic or real-device modes."
 ---
 
 # Installation
+
+## Install the native prerequisites
 
 Install Rust with Cargo (Rust 1.90 or newer), Node.js 26 and npm 11. Install the
 native desktop prerequisites for Tauri 2 on your platform: a
@@ -30,6 +32,8 @@ for the Microsoft C++ build tools and WebView2, and the
 for native OpenCV and binding dependencies. These dependency steps do not
 establish successful packaging or hardware support on that platform.
 
+## Run from source
+
 From the repository root:
 
 ```bash
@@ -49,12 +53,16 @@ SHOTTRAINER_FAKE_DEVICES=1 cargo tauri dev
 Synthetic sessions and settings live under `ShotTrainer-fake-devices` in the
 system temporary directory, separate from real-device data.
 
+## Use a real camera and microphone
+
 For real camera and microphone input, install OpenCV and the native compiler and
 libclang dependencies needed by its Rust bindings, then run:
 
 ```bash
 cargo tauri dev --features opencv
 ```
+
+## Preview in a browser
 
 For a browser-only interface preview:
 

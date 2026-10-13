@@ -1,4 +1,5 @@
 ---
+title: "Engineering notes on tracking design"
 description: "Read the design decisions behind ShotTrainer’s target detection, optical tracking and shot analysis, including experiments and implementation trade-offs."
 ---
 

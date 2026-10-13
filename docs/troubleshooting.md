@@ -1,4 +1,5 @@
 ---
+title: "Troubleshooting camera, tracking and audio"
 description: "Fix common ShotTrainer camera, tracking and audio problems, including device access, image orientation and missed or false shot detections."
 ---
 

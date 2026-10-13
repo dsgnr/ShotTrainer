@@ -50,7 +50,7 @@ photos, and any discipline-specific recommendations.
 
 To contribute a report:
 
-1. Copy the [camera template](cameras/template.md).
+1. Copy the [camera template](https://github.com/dsgnr/ShotTrainer/blob/main/docs/cameras/template.md).
 2. Fill in your test results.
 3. Add any supporting photos to the `docs/cameras/images/` directory.
 4. Submit a pull request.
