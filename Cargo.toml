@@ -24,7 +24,7 @@ cpal = "0.18"
 log = "0.4"
 opencv = { version = "0.101", default-features = false, features = ["clang-runtime", "geometry", "imgcodecs", "imgproc", "videoio"] }
 proptest = "1"
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 tempfile = "3"
