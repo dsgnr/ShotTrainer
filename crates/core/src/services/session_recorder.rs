@@ -7,6 +7,8 @@
 //! pending samples are capped at `MAX_PENDING` so a broken database cannot grow
 //! memory without limit.
 
+use std::collections::VecDeque;
+
 use shottrainer_tracking::models::TrackingSample;
 
 use crate::sessions::{DatabaseError, NewSession, NewShot, SessionRepository, utc_now};
@@ -43,7 +45,7 @@ impl Default for RecorderConfig {
 pub struct SessionRecorder {
     config: RecorderConfig,
     session_id: Option<i64>,
-    pending: Vec<TrackingSample>,
+    pending: VecDeque<TrackingSample>,
     last_flush_ts: f64,
     last_failed_ts: Option<f64>,
 }
@@ -53,7 +55,7 @@ impl SessionRecorder {
         SessionRecorder {
             config,
             session_id: None,
-            pending: Vec::new(),
+            pending: VecDeque::new(),
             last_flush_ts: 0.0,
             last_failed_ts: None,
         }
@@ -94,9 +96,9 @@ impl SessionRecorder {
             return Ok(());
         }
         let timestamp = sample.timestamp;
-        self.pending.push(sample);
+        self.pending.push_back(sample);
         if self.pending.len() > MAX_PENDING {
-            self.pending.remove(0);
+            self.pending.pop_front();
         }
         if self
             .last_failed_ts
@@ -130,7 +132,7 @@ impl SessionRecorder {
     pub fn flush_pending(&mut self, repo: &SessionRepository) -> Result<(), DatabaseError> {
         let timestamp = self
             .pending
-            .last()
+            .back()
             .map_or(self.last_flush_ts, |sample| sample.timestamp);
         self.flush(repo, timestamp)
     }
@@ -157,7 +159,7 @@ impl SessionRecorder {
         if self.pending.is_empty() {
             return Ok(());
         }
-        if let Err(error) = repo.append_trace(session_id, &self.pending) {
+        if let Err(error) = repo.append_trace(session_id, self.pending.make_contiguous()) {
             self.last_failed_ts = Some(now_ts);
             return Err(error);
         }
