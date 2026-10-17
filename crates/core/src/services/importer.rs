@@ -25,6 +25,10 @@ pub enum ImportError {
 /// hostile file reaches it.
 const MAX_FILE_BYTES: u64 = 256 * 1024 * 1024;
 
+/// The column widths in the schema, which SQLite does not enforce.
+const MAX_NAME_CHARS: usize = 120;
+const MAX_SCORE_CHARS: usize = 16;
+
 pub fn import_session(db: &Db, path: &Path) -> Result<i64, ImportError> {
     let mut bytes = Vec::new();
     std::fs::File::open(path)?
@@ -61,6 +65,11 @@ pub fn import_session(db: &Db, path: &Path) -> Result<i64, ImportError> {
         || s.shots_per_series < 1
         || !(s.shot_diameter_mm.is_finite() && s.shot_diameter_mm > 0.0)
         || file.shots.iter().any(|shot| shot.series_index < 0)
+        || s.name.chars().count() > MAX_NAME_CHARS
+        || file
+            .shots
+            .iter()
+            .any(|shot| shot.score.chars().count() > MAX_SCORE_CHARS)
     {
         return Err(ImportError::Invalid("value out of range".into()));
     }
@@ -238,6 +247,16 @@ mod tests {
         assert!(valid(&|v| v["session"]["preShotMs"] = (-1).into()).is_err());
         assert!(valid(&|v| v["session"]["shotsPerSeries"] = 0.into()).is_err());
         assert!(valid(&|v| v["session"]["shotDiameterMm"] = 0.into()).is_err());
+        assert!(valid(&|v| v["session"]["name"] = "n".repeat(121).into()).is_err());
+        assert!(
+            valid(&|v| {
+                v["shots"] = serde_json::json!([{
+                    "seriesIndex": 0, "ts": 1.0, "xMm": null, "yMm": null,
+                    "audioLevel": 0.5, "confidence": 1.0, "score": "9".repeat(17)
+                }]);
+            })
+            .is_err()
+        );
         std::fs::write(&path, "not json").unwrap();
         assert!(import_session(&db, &path).is_err());
         assert_eq!(
